@@ -8,7 +8,13 @@
 import Foundation
 
 struct Store: Codable, Identifiable {
-    let id = UUID()
+    var id: String // Firestore document ID
     let name: String
     let address: String
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case name
+        case address
+    }
 }
