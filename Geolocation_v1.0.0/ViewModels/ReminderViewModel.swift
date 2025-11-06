@@ -26,49 +26,53 @@ class ReminderViewModel: ObservableObject {
             .addSnapshotListener { [weak self] snapshot, error in
                 guard let self = self else { return }
 
-                self.isLoading = false
+                DispatchQueue.main.async {
+                    self.isLoading = false
 
-                if let error = error {
-                    print("ReminderViewModel: Error fetching reminders: \(error.localizedDescription)")
-                    self.errorMessage = "Error fetching reminders: \(error.localizedDescription)"
-                    return
-                }
-
-                guard let documents = snapshot?.documents else {
-                    print("ReminderViewModel: No reminders found")
-                    self.reminders = []
-                    return
-                }
-
-                print("ReminderViewModel: Found \(documents.count) reminders")
-
-                self.reminders = documents.compactMap { doc -> Reminder? in
-                    let data = doc.data()
-                    guard let userStoreId = data["userStoreId"] as? String,
-                          let title = data["title"] as? String,
-                          let isDone = data["isDone"] as? Bool,
-                          let createdAt = data["createdAt"] as? TimeInterval else {
-                        print("ReminderViewModel: Missing fields in reminder document")
-                        return nil
+                    if let error = error {
+                        print("ReminderViewModel: Error fetching reminders: \(error.localizedDescription)")
+                        self.errorMessage = "Error fetching reminders: \(error.localizedDescription)"
+                        return
                     }
 
-                    return Reminder(
-                        id: doc.documentID,
-                        userStoreId: userStoreId,
-                        title: title,
-                        isDone: isDone,
-                        createdAt: createdAt
-                    )
-                }
+                    guard let documents = snapshot?.documents else {
+                        print("ReminderViewModel: No reminders found")
+                        self.reminders = []
+                        return
+                    }
 
-                print("ReminderViewModel: Loaded \(self.reminders.count) reminders")
+                    print("ReminderViewModel: Found \(documents.count) reminders")
+
+                    self.reminders = documents.compactMap { doc -> Reminder? in
+                        let data = doc.data()
+                        guard let userStoreId = data["userStoreId"] as? String,
+                              let title = data["title"] as? String,
+                              let isDone = data["isDone"] as? Bool,
+                              let createdAt = data["createdAt"] as? TimeInterval else {
+                            print("ReminderViewModel: Missing fields in reminder document")
+                            return nil
+                        }
+
+                        return Reminder(
+                            id: doc.documentID,
+                            userStoreId: userStoreId,
+                            title: title,
+                            isDone: isDone,
+                            createdAt: createdAt
+                        )
+                    }
+
+                    print("ReminderViewModel: Loaded \(self.reminders.count) reminders")
+                }
             }
     }
 
     /// Add a new reminder
     func addReminder(userStoreId: String, title: String) {
         guard !title.isEmpty else {
-            errorMessage = "Reminder title cannot be empty"
+            DispatchQueue.main.async {
+                self.errorMessage = "Reminder title cannot be empty"
+            }
             return
         }
 
@@ -82,11 +86,13 @@ class ReminderViewModel: ObservableObject {
         ]
 
         db.collection("reminders").addDocument(data: reminderData) { [weak self] error in
-            if let error = error {
-                print("ReminderViewModel: Error adding reminder: \(error.localizedDescription)")
-                self?.errorMessage = "Error adding reminder: \(error.localizedDescription)"
-            } else {
-                print("ReminderViewModel: Reminder added successfully")
+            DispatchQueue.main.async {
+                if let error = error {
+                    print("ReminderViewModel: Error adding reminder: \(error.localizedDescription)")
+                    self?.errorMessage = "Error adding reminder: \(error.localizedDescription)"
+                } else {
+                    print("ReminderViewModel: Reminder added successfully")
+                }
             }
         }
     }
@@ -98,10 +104,12 @@ class ReminderViewModel: ObservableObject {
         db.collection("reminders").document(reminder.id).updateData([
             "isDone": !reminder.isDone
         ]) { error in
-            if let error = error {
-                print("ReminderViewModel: Error toggling reminder: \(error.localizedDescription)")
-            } else {
-                print("ReminderViewModel: Reminder toggled successfully")
+            DispatchQueue.main.async {
+                if let error = error {
+                    print("ReminderViewModel: Error toggling reminder: \(error.localizedDescription)")
+                } else {
+                    print("ReminderViewModel: Reminder toggled successfully")
+                }
             }
         }
     }
@@ -111,10 +119,12 @@ class ReminderViewModel: ObservableObject {
         print("ReminderViewModel: Deleting reminder '\(reminder.title)'")
 
         db.collection("reminders").document(reminder.id).delete { error in
-            if let error = error {
-                print("ReminderViewModel: Error deleting reminder: \(error.localizedDescription)")
-            } else {
-                print("ReminderViewModel: Reminder deleted successfully")
+            DispatchQueue.main.async {
+                if let error = error {
+                    print("ReminderViewModel: Error deleting reminder: \(error.localizedDescription)")
+                } else {
+                    print("ReminderViewModel: Reminder deleted successfully")
+                }
             }
         }
     }
