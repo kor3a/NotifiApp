@@ -32,49 +32,55 @@ class SignupViewModel: ObservableObject {
         let normalizedUserId = userId.lowercased()
         
         // Check if username is available
-        checkUsernameAvailability(for: normalizedUserId) { [weak self] isAvailable in
+        checkUsernameAvailability(for: normalizedUserId) { [weak self] result in
             guard let self = self else { return }
-            
-            if !isAvailable {
-                self.errorMessage = "Username is already taken"
-                return
-            }
-            
-            Auth.auth().createUser(withEmail: self.email, password: self.password) { [weak self] result, error in
-                if let error = error {
-                    self?.errorMessage = "Error creating user: \(error.localizedDescription)"
+
+            switch result {
+            case .success(let isAvailable):
+                if !isAvailable {
+                    self.errorMessage = "Username is already taken"
                     return
                 }
-                
-                guard result?.user.uid != nil else {
-                    self?.errorMessage = "Failed to retrieve user ID"
-                    return
+
+                Auth.auth().createUser(withEmail: self.email, password: self.password) { [weak self] result, error in
+                    if let error = error {
+                        self?.errorMessage = "Error creating user: \(error.localizedDescription)"
+                        return
+                    }
+
+                    guard result?.user.uid != nil else {
+                        self?.errorMessage = "Failed to retrieve user ID"
+                        return
+                    }
+
+                    self?.createUser(normalizedUserId: normalizedUserId)
                 }
-                
-                self?.createUser(normalizedUserId: normalizedUserId)
+
+            case .failure(let error):
+                self.errorMessage = "Error checking username availability: \(error.localizedDescription)"
             }
         }
     }
     
     /// Check if username is available
-    private func checkUsernameAvailability(for userId: String, completion: @escaping (Bool) -> Void) {
+    private func checkUsernameAvailability(for userId: String, completion: @escaping (Result<Bool, Error>) -> Void) {
         guard !userId.isEmpty else {
             print("Username is empty after normalization")
-            completion(false)
+            completion(.failure(NSError(domain: "SignupViewModel", code: 1, userInfo: [NSLocalizedDescriptionKey: "Username is empty"])))
             return
         }
-        
+
         db.collection("users")
             .document(userId)
             .getDocument { (document, error) in
                 if let error = error {
                     print("Error checking username: \(error.localizedDescription)")
-                    completion(false)
+                    completion(.failure(error))
                     return
                 }
-                
+
                 // If no documents are found, username is available
-                completion(!document!.exists)
+                completion(.success(!document!.exists))
             }
     }
     
