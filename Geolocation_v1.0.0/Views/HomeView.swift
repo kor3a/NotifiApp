@@ -9,7 +9,8 @@ import SwiftUI
 
 struct HomeView: View {
     @State private var showSheet = false
-    
+    @StateObject private var storesViewModel = StoresViewModel()
+
     var body: some View {
         TabView {
             NavigationStack {
@@ -30,11 +31,11 @@ struct HomeView: View {
                                 Image(systemName: "plus")
                                     .imageScale(.large)
                             }
-                            
+
                             }
                         }
             }.sheet(isPresented: $showSheet) {
-                AddStoreView()
+                AddStoreView(viewModel: storesViewModel)
             }//:NAVIGATIONSTACK
             .tabItem {
                 Image(systemName: "storefront")
