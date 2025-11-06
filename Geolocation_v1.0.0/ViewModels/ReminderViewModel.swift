@@ -22,7 +22,6 @@ class ReminderViewModel: ObservableObject {
 
         db.collection("reminders")
             .whereField("userStoreId", isEqualTo: userStoreId)
-            .order(by: "createdAt", descending: false)
             .addSnapshotListener { [weak self] snapshot, error in
                 guard let self = self else { return }
 
@@ -31,25 +30,28 @@ class ReminderViewModel: ObservableObject {
 
                     if let error = error {
                         print("ReminderViewModel: Error fetching reminders: \(error.localizedDescription)")
+                        print("ReminderViewModel: Full error: \(error)")
                         self.errorMessage = "Error fetching reminders: \(error.localizedDescription)"
                         return
                     }
 
                     guard let documents = snapshot?.documents else {
-                        print("ReminderViewModel: No reminders found")
+                        print("ReminderViewModel: No reminders found (nil documents)")
                         self.reminders = []
                         return
                     }
 
-                    print("ReminderViewModel: Found \(documents.count) reminders")
+                    print("ReminderViewModel: Found \(documents.count) reminder documents")
 
-                    self.reminders = documents.compactMap { doc -> Reminder? in
+                    let fetchedReminders = documents.compactMap { doc -> Reminder? in
                         let data = doc.data()
+                        print("ReminderViewModel: Processing document \(doc.documentID): \(data)")
+
                         guard let userStoreId = data["userStoreId"] as? String,
                               let title = data["title"] as? String,
                               let isDone = data["isDone"] as? Bool,
                               let createdAt = data["createdAt"] as? TimeInterval else {
-                            print("ReminderViewModel: Missing fields in reminder document")
+                            print("ReminderViewModel: Missing fields in reminder document \(doc.documentID)")
                             return nil
                         }
 
@@ -62,7 +64,10 @@ class ReminderViewModel: ObservableObject {
                         )
                     }
 
-                    print("ReminderViewModel: Loaded \(self.reminders.count) reminders")
+                    // Sort by createdAt in memory (oldest first)
+                    self.reminders = fetchedReminders.sorted { $0.createdAt < $1.createdAt }
+
+                    print("ReminderViewModel: Successfully loaded \(self.reminders.count) reminders")
                 }
             }
     }
