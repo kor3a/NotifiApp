@@ -13,23 +13,24 @@ struct ReminderView: View {
     @State private var showingAddReminder = false
 
     var body: some View {
-        VStack {
+        Group {
             if viewModel.isLoading {
                 ProgressView("Loading reminders...")
+                    .id("loading")
             } else if viewModel.reminders.isEmpty {
                 VStack(spacing: 20) {
                     Image(systemName: "list.bullet.clipboard")
                         .resizable()
                         .frame(width: 60, height: 60)
                         .foregroundStyle(.gray)
-                    
+
                     Text("No Reminders")
                         .font(.title2)
                         .bold()
-                    
+
                     Text("Add reminders for this store")
                         .foregroundStyle(.gray)
-                    
+
                     Button(action: {
                         showingAddReminder = true
                     }) {
@@ -42,6 +43,7 @@ struct ReminderView: View {
                     }
                 }
                 .padding()
+                .id("empty")
             } else {
                 List {
                     ForEach(viewModel.reminders) { reminder in
@@ -59,6 +61,7 @@ struct ReminderView: View {
                     }
                 }
                 .listStyle(.plain)
+                .id("list-\(viewModel.reminders.count)")
             }
         }
         .navigationTitle(userStoreItem.store.name)
