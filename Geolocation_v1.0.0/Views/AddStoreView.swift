@@ -53,7 +53,7 @@ struct AddStoreView: View {
                                     
                                     Spacer()
                                     
-                                    if viewModel.stores.contains(where: { $0.id == store.id }) {
+                                    if viewModel.userStoreItems.contains(where: { $0.store.id == store.id }) {
                                         Image(systemName: "checkmark.circle.fill")
                                             .foregroundStyle(.green)
                                     } else {
@@ -62,7 +62,7 @@ struct AddStoreView: View {
                                     }
                                 }
                             }
-                            .disabled(viewModel.stores.contains(where: { $0.id == store.id }))
+                            .disabled(viewModel.userStoreItems.contains(where: { $0.store.id == store.id }))
                         }
                     }
                     .searchable(text: $searchText, prompt: "Search stores")

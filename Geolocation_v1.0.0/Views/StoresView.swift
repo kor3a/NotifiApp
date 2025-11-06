@@ -17,7 +17,7 @@ struct StoresView: View {
         NavigationStack {
             if viewModel.isLoading {
                 ProgressView("Loading your stores...")
-            } else if viewModel.stores.isEmpty {
+            } else if viewModel.userStoreItems.isEmpty {
                 VStack(spacing: 20) {
                     Image(systemName: "cart.badge.plus")
                         .resizable()
@@ -46,9 +46,9 @@ struct StoresView: View {
                 .padding()
             } else {
                 List {
-                    ForEach(viewModel.stores) { store in
-                        NavigationLink(destination: ReminderView(store: store)) {
-                            StoreItemView(store: store)
+                    ForEach(viewModel.userStoreItems) { userStoreItem in
+                        NavigationLink(destination: ReminderView(userStoreItem: userStoreItem)) {
+                            StoreItemView(store: userStoreItem.store)
                         }
                     }
                     .onDelete(perform: deleteStore)
@@ -75,8 +75,8 @@ struct StoresView: View {
     
     private func deleteStore(at offsets: IndexSet) {
         for index in offsets {
-            let store = viewModel.stores[index]
-            viewModel.removeStoreFromUser(store: store)
+            let userStoreItem = viewModel.userStoreItems[index]
+            viewModel.removeStoreFromUser(userStoreItem: userStoreItem)
         }
     }
 }

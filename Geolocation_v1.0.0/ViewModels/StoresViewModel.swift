@@ -7,7 +7,7 @@ import FirebaseAuth
 
 class StoresViewModel: ObservableObject {
     private let db = Firestore.firestore()
-    @Published var stores: [Store] = []
+    @Published var userStoreItems: [UserStoreItem] = [] // User's stores with user_store IDs
     @Published var allStores: [Store] = [] // All available stores for adding
     @Published var isLoading: Bool = false
     @Published var errorMessage: String = ""
@@ -64,13 +64,13 @@ class StoresViewModel: ObservableObject {
 
                 guard let documents = snapshot?.documents else {
                     print("StoresViewModel: No stores found for user")
-                    self.stores = []
+                    self.userStoreItems = []
                     return
                 }
 
                 print("StoresViewModel: Found \(documents.count) user stores")
 
-                self.stores = documents.compactMap { doc -> Store? in
+                self.userStoreItems = documents.compactMap { doc -> UserStoreItem? in
                     let data = doc.data()
                     guard let storeId = data["storeId"] as? String,
                           let storeName = data["storeName"] as? String,
@@ -79,10 +79,11 @@ class StoresViewModel: ObservableObject {
                         return nil
                     }
 
-                    return Store(id: storeId, name: storeName, address: storeAddress)
+                    let store = Store(id: storeId, name: storeName, address: storeAddress)
+                    return UserStoreItem(id: doc.documentID, store: store)
                 }
 
-                print("StoresViewModel: Loaded \(self.stores.count) stores for user")
+                print("StoresViewModel: Loaded \(self.userStoreItems.count) stores for user")
             }
     }
 
@@ -174,38 +175,15 @@ class StoresViewModel: ObservableObject {
     }
 
     /// Remove a store from the current user's list
-    func removeStoreFromUser(store: Store) {
-        guard let currentUserEmail = Auth.auth().currentUser?.email else {
-            return
-        }
+    func removeStoreFromUser(userStoreItem: UserStoreItem) {
+        print("StoresViewModel: Removing user_store document: \(userStoreItem.id)")
 
-        db.collection("users")
-            .whereField("email", isEqualTo: currentUserEmail)
-            .getDocuments { [weak self] snapshot, error in
-                guard let self = self else { return }
-
-                guard let userDoc = snapshot?.documents.first,
-                      let userId = userDoc.data()["userId"] as? String else {
-                    return
-                }
-
-                // Find and delete the user_store document
-                self.db.collection("user_stores")
-                    .whereField("userId", isEqualTo: userId)
-                    .whereField("storeId", isEqualTo: store.id)
-                    .getDocuments { snapshot, error in
-                        guard let documents = snapshot?.documents else { return }
-
-                        for document in documents {
-                            document.reference.delete { error in
-                                if let error = error {
-                                    print("StoresViewModel: Error removing store: \(error.localizedDescription)")
-                                } else {
-                                    print("StoresViewModel: Store removed successfully")
-                                }
-                            }
-                        }
-                    }
+        db.collection("user_stores").document(userStoreItem.id).delete { error in
+            if let error = error {
+                print("StoresViewModel: Error removing store: \(error.localizedDescription)")
+            } else {
+                print("StoresViewModel: Store removed successfully")
             }
+        }
     }
 }

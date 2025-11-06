@@ -8,8 +8,17 @@
 import Foundation
 
 struct Reminder: Codable, Identifiable {
-    let id = UUID()
-    let userStoreId : String
+    var id: String // Firestore document ID
+    let userStoreId: String // References user_stores document ID
     let title: String
     var isDone: Bool
+    let createdAt: TimeInterval
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case userStoreId
+        case title
+        case isDone
+        case createdAt
+    }
 }
