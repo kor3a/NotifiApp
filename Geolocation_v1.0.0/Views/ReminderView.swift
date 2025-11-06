@@ -8,14 +8,9 @@
 import SwiftUI
 
 struct ReminderView: View {
-    //TODO: get the actual individual store for this ReminderView
-    // let stores : Store
-    
-    // for now it's a dummy hardcoded store
-    let store = Store(name: "Trader Joe's", address: "6401 Haven Ave, Rancho Cucamonga, CA 91737")
-    
-    //TODO: get the actual reminders for this ReminderView
-    //let reminders : Reminder
+    let store: Store
+
+    //TODO: get the actual reminders for this ReminderView from Firestore
     @State private var reminders = [
         Reminder(userStoreId: "kor3a", title: "Coke", isDone: false),
         Reminder(userStoreId: "kor3a", title: "Eggs", isDone: false),
@@ -65,5 +60,5 @@ struct ReminderView: View {
 }
 
 #Preview {
-    ReminderView()
+    ReminderView(store: Store(id: "preview", name: "Trader Joe's", address: "6401 Haven Ave, Rancho Cucamonga, CA 91737"))
 }

@@ -47,7 +47,7 @@ struct StoresView: View {
             } else {
                 List {
                     ForEach(viewModel.stores) { store in
-                        NavigationLink(destination: ReminderView()) {
+                        NavigationLink(destination: ReminderView(store: store)) {
                             StoreItemView(store: store)
                         }
                     }
