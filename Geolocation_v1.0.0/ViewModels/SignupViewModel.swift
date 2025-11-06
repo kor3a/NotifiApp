@@ -93,18 +93,24 @@ class SignupViewModel: ObservableObject {
     /// Create a new User document in Firestore
     private func createUser(normalizedUserId: String, authUserId: String) {
         let newUser = User(userId: normalizedUserId, name: name, email: email, joined: Date().timeIntervalSince1970)
+        let userData = newUser.asDict()
+
+        print("SignupViewModel: Creating user document with ID: \(normalizedUserId)")
+        print("SignupViewModel: User data to save: \(userData)")
 
         db.collection("users")
             .document(normalizedUserId)
-            .setData(newUser.asDict()) { error in
+            .setData(userData) { error in
                 if let error = error {
+                    print("SignupViewModel: Error saving user: \(error.localizedDescription)")
                     self.errorMessage = "Error saving user: \(error.localizedDescription)"
                     // If we fail to create the Firestore document, we should delete the auth user
                     if let currentUser = Auth.auth().currentUser {
                         self.deleteAuthUser(user: currentUser)
                     }
                 } else {
-                    print("User '\(normalizedUserId)' created successfully")
+                    print("SignupViewModel: User '\(normalizedUserId)' created successfully in Firestore")
+                    print("SignupViewModel: Signup complete! User can now log in.")
                 }
             }
     }

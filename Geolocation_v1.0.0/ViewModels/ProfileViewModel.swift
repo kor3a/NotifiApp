@@ -30,6 +30,7 @@ class ProfileViewModel: ObservableObject {
             return
         }
 
+        print("ProfileViewModel: Fetching user with email: \(currentUserEmail)")
         let db = Firestore.firestore()
 
         // Query to find user by email since we store documents by username
@@ -38,20 +39,29 @@ class ProfileViewModel: ObservableObject {
             .getDocuments { [weak self] snapshot, error in
                 guard let self = self else { return }
 
+                if let error = error {
+                    print("ProfileViewModel: Error fetching user: \(error.localizedDescription)")
+                    DispatchQueue.main.async {
+                        self.isLoading = false
+                        self.errorMessage = "Error fetching user: \(error.localizedDescription)"
+                    }
+                    return
+                }
+
+                print("ProfileViewModel: Query returned \(snapshot?.documents.count ?? 0) documents")
+
+                guard let document = snapshot?.documents.first else {
+                    print("ProfileViewModel: No documents found for email: \(currentUserEmail)")
+                    // Try to fetch all users to debug
+                    self.debugFetchAllUsers(email: currentUserEmail)
+                    return
+                }
+
+                let userData = document.data()
+                print("ProfileViewModel: Found user data: \(userData)")
+
                 DispatchQueue.main.async {
                     self.isLoading = false
-
-                    if let error = error {
-                        self.errorMessage = "Error fetching user: \(error.localizedDescription)"
-                        return
-                    }
-
-                    guard let document = snapshot?.documents.first,
-                          let userData = document.data() as? [String: Any] else {
-                        self.errorMessage = "User data not found"
-                        return
-                    }
-
                     self.user = User(
                         userId: userData["userId"] as? String ?? "",
                         name: userData["name"] as? String ?? "",
@@ -60,6 +70,30 @@ class ProfileViewModel: ObservableObject {
                     )
                 }
             }
+    }
+
+    private func debugFetchAllUsers(email: String) {
+        let db = Firestore.firestore()
+        db.collection("users").getDocuments { [weak self] snapshot, error in
+            if let error = error {
+                print("ProfileViewModel: Error fetching all users for debug: \(error.localizedDescription)")
+                DispatchQueue.main.async {
+                    self?.isLoading = false
+                    self?.errorMessage = "User data not found. Please ensure your profile was created during signup."
+                }
+                return
+            }
+
+            print("ProfileViewModel: Total users in collection: \(snapshot?.documents.count ?? 0)")
+            snapshot?.documents.forEach { doc in
+                print("ProfileViewModel: User document ID: \(doc.documentID), data: \(doc.data())")
+            }
+
+            DispatchQueue.main.async {
+                self?.isLoading = false
+                self?.errorMessage = "User data not found in Firestore. Your account may not have completed signup. Please try signing up again."
+            }
+        }
     }
     
     func signOut() {
