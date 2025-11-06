@@ -1,0 +1,37 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Users collection rules
+    match /users/{userId} {
+      // Allow authenticated users to read any user document
+      // This is needed during signup to check if username is already taken
+      // AND during profile load to query user by email
+      // Note: User creates auth account first, then checks username availability
+      // IMPORTANT: Email queries require a Firestore index on the 'email' field
+      allow read: if request.auth != null;
+
+      // Allow authenticated users to create user documents
+      allow create: if request.auth != null;
+
+      // Allow users to update/delete only their own document
+      allow update, delete: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Stores collection rules (add as needed)
+    match /stores/{storeId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null;
+    }
+
+    // Reminders collection rules (add as needed)
+    match /reminders/{reminderId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // User-Store associations (add as needed)
+    match /user_stores/{userStoreId} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}
