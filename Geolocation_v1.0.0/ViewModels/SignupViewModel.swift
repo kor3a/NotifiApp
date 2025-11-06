@@ -27,37 +27,43 @@ class SignupViewModel: ObservableObject {
         guard validate() else {
             return
         }
-        
+
         // Normalize userId to lowercase for consistency
         let normalizedUserId = userId.lowercased()
-        
-        // Check if username is available
-        checkUsernameAvailability(for: normalizedUserId) { [weak self] result in
+
+        // Create Firebase Auth user first
+        Auth.auth().createUser(withEmail: self.email, password: self.password) { [weak self] authResult, error in
             guard let self = self else { return }
 
-            switch result {
-            case .success(let isAvailable):
-                if !isAvailable {
-                    self.errorMessage = "Username is already taken"
-                    return
-                }
+            if let error = error {
+                self.errorMessage = "Error creating user: \(error.localizedDescription)"
+                return
+            }
 
-                Auth.auth().createUser(withEmail: self.email, password: self.password) { [weak self] result, error in
-                    if let error = error {
-                        self?.errorMessage = "Error creating user: \(error.localizedDescription)"
+            guard let user = authResult?.user else {
+                self.errorMessage = "Failed to retrieve user ID"
+                return
+            }
+
+            // Now as an authenticated user, check if username is available and create user document
+            self.checkUsernameAvailability(for: normalizedUserId) { result in
+                switch result {
+                case .success(let isAvailable):
+                    if !isAvailable {
+                        // Username is taken - delete the auth user and show error
+                        self.deleteAuthUser(user: user)
+                        self.errorMessage = "Username is already taken. Please try again with a different username."
                         return
                     }
 
-                    guard result?.user.uid != nil else {
-                        self?.errorMessage = "Failed to retrieve user ID"
-                        return
-                    }
+                    // Username is available, create user document
+                    self.createUser(normalizedUserId: normalizedUserId, authUserId: user.uid)
 
-                    self?.createUser(normalizedUserId: normalizedUserId)
+                case .failure(let error):
+                    // Error checking username - delete the auth user and show error
+                    self.deleteAuthUser(user: user)
+                    self.errorMessage = "Error checking username availability: \(error.localizedDescription)"
                 }
-
-            case .failure(let error):
-                self.errorMessage = "Error checking username availability: \(error.localizedDescription)"
             }
         }
     }
@@ -84,19 +90,34 @@ class SignupViewModel: ObservableObject {
             }
     }
     
-    /// Create a new User
-    private func createUser(normalizedUserId: String) {
+    /// Create a new User document in Firestore
+    private func createUser(normalizedUserId: String, authUserId: String) {
         let newUser = User(userId: normalizedUserId, name: name, email: email, joined: Date().timeIntervalSince1970)
-        
+
         db.collection("users")
             .document(normalizedUserId)
             .setData(newUser.asDict()) { error in
                 if let error = error {
                     self.errorMessage = "Error saving user: \(error.localizedDescription)"
+                    // If we fail to create the Firestore document, we should delete the auth user
+                    if let currentUser = Auth.auth().currentUser {
+                        self.deleteAuthUser(user: currentUser)
+                    }
                 } else {
                     print("User '\(normalizedUserId)' created successfully")
                 }
             }
+    }
+
+    /// Delete Firebase Auth user (called when signup fails after auth creation)
+    private func deleteAuthUser(user: FirebaseAuth.User) {
+        user.delete { error in
+            if let error = error {
+                print("Error deleting auth user: \(error.localizedDescription)")
+            } else {
+                print("Auth user deleted successfully after failed signup")
+            }
+        }
     }
     
     private func validate () -> Bool {
