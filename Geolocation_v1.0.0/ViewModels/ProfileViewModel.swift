@@ -135,7 +135,14 @@ class ProfileViewModel: ObservableObject {
             guard let self = self else { return }
 
             if let error = error {
-                print("Error uploading profile picture: \(error.localizedDescription)")
+                print("=== UPLOAD ERROR DETAILS ===")
+                print("Error domain: \((error as NSError).domain)")
+                print("Error code: \((error as NSError).code)")
+                print("Error description: \(error.localizedDescription)")
+                print("Full error: \(error)")
+                print("Storage path: profile_pictures/\(userId).jpg")
+                print("Auth user: \(Auth.auth().currentUser?.uid ?? "nil")")
+                print("===========================")
                 DispatchQueue.main.async {
                     self.isLoading = false
                     self.errorMessage = "Failed to upload profile picture: \(error.localizedDescription)"
