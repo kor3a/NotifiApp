@@ -30,9 +30,11 @@ class SignupViewModel: ObservableObject {
 
         // Normalize userId to lowercase for consistency
         let normalizedUserId = userId.lowercased()
+        // Normalize email to lowercase (Firebase Auth stores emails in lowercase)
+        let normalizedEmail = email.lowercased()
 
         // Create Firebase Auth user first
-        Auth.auth().createUser(withEmail: self.email, password: self.password) { [weak self] authResult, error in
+        Auth.auth().createUser(withEmail: normalizedEmail, password: self.password) { [weak self] authResult, error in
             guard let self = self else { return }
 
             if let error = error {
@@ -57,7 +59,7 @@ class SignupViewModel: ObservableObject {
                     }
 
                     // Username is available, create user document
-                    self.createUser(normalizedUserId: normalizedUserId, authUserId: user.uid)
+                    self.createUser(normalizedUserId: normalizedUserId, normalizedEmail: normalizedEmail, authUserId: user.uid)
 
                 case .failure(let error):
                     // Error checking username - delete the auth user and show error
@@ -91,8 +93,8 @@ class SignupViewModel: ObservableObject {
     }
     
     /// Create a new User document in Firestore
-    private func createUser(normalizedUserId: String, authUserId: String) {
-        let newUser = User(userId: normalizedUserId, name: name, email: email, joined: Date().timeIntervalSince1970)
+    private func createUser(normalizedUserId: String, normalizedEmail: String, authUserId: String) {
+        let newUser = User(userId: normalizedUserId, name: name, email: normalizedEmail, joined: Date().timeIntervalSince1970)
         let userData = newUser.asDict()
 
         print("SignupViewModel: Creating user document with ID: \(normalizedUserId)")

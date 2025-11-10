@@ -8,8 +8,6 @@
 import SwiftUI
 
 struct HomeView: View {
-    @State private var showSheet = false
-    
     var body: some View {
         TabView {
             NavigationStack {
@@ -23,18 +21,7 @@ struct HomeView: View {
                                     .imageScale(.large)
                             })
                         }
-                        ToolbarItem(placement: .navigationBarTrailing) {
-                            Button {
-                                showSheet.toggle()
-                            } label: {
-                                Image(systemName: "plus")
-                                    .imageScale(.large)
-                            }
-                            
-                            }
-                        }
-            }.sheet(isPresented: $showSheet) {
-                AddStoreView()
+                    }
             }//:NAVIGATIONSTACK
             .tabItem {
                 Image(systemName: "storefront")

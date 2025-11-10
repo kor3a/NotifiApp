@@ -8,31 +8,77 @@
 import SwiftUI
 
 struct StoresView: View {
-    // TODO: get the actual stores added from the user database
-//    let stores = [
-//        Store(name: "Trader Joe's", address: "6401 Haven Ave, Rancho Cucamonga, CA 91737", reminderCount: 1),
-//        Store(name: "Costco", address: "9404 Central Ave, Montclair, CA 91763", reminderCount: 0),
-//        Store(name: "Wholefoods", address: "2153 West Baseline Road, Upland, CA 91784", reminderCount: 0)
-//    ]
     // MARK: - PROPERTIES
     
-    @ObservedObject private var viewModel = StoresViewModel()
+    @StateObject private var viewModel = StoresViewModel()
+    @State private var showingAddStore = false
     
     var body: some View {
         NavigationStack {
-            List {
-                ForEach(viewModel.stores) { store in
-                    NavigationLink(destination: ReminderView()) {
-                        StoreItemView(store: store)
+            if viewModel.isLoading {
+                ProgressView("Loading your stores...")
+            } else if viewModel.userStoreItems.isEmpty {
+                VStack(spacing: 20) {
+                    Image(systemName: "cart.badge.plus")
+                        .resizable()
+                        .frame(width: 80, height: 80)
+                        .foregroundStyle(.gray)
+                    
+                    Text("No Stores Added")
+                        .font(.title2)
+                        .bold()
+                    
+                    Text("Add stores to start creating reminders")
+                        .foregroundStyle(.gray)
+                        .multilineTextAlignment(.center)
+                    
+                    Button(action: {
+                        showingAddStore = true
+                    }) {
+                        Label("Add Store", systemImage: "plus")
+                            .font(.headline)
+                            .padding()
+                            .background(Color.blue)
+                            .foregroundColor(.white)
+                            .cornerRadius(10)
                     }
                 }
-            } //:LIST
-            .listStyle(.grouped)
+                .padding()
+            } else {
+                List {
+                    ForEach(viewModel.userStoreItems) { userStoreItem in
+                        NavigationLink(destination: ReminderView(userStoreItem: userStoreItem)) {
+                            StoreItemView(store: userStoreItem.store)
+                        }
+                    }
+                    .onDelete(perform: deleteStore)
+                } //:LIST
+                .listStyle(.grouped)
+                .toolbar {
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        Button(action: {
+                            showingAddStore = true
+                        }) {
+                            Image(systemName: "plus")
+                        }
+                    }
+                }
+            }
         }//:NAVIGATIONSTACK
+        .sheet(isPresented: $showingAddStore) {
+            AddStoreView(viewModel: viewModel)
+        }
         .onAppear() {
-            self.viewModel.fetchData()
+            self.viewModel.fetchUserStores()
         }
     }//:BODY
+    
+    private func deleteStore(at offsets: IndexSet) {
+        for index in offsets {
+            let userStoreItem = viewModel.userStoreItems[index]
+            viewModel.removeStoreFromUser(userStoreItem: userStoreItem)
+        }
+    }
 }
 
 #Preview {

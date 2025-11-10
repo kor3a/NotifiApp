@@ -8,62 +8,86 @@
 import SwiftUI
 
 struct ReminderView: View {
-    //TODO: get the actual individual store for this ReminderView
-    // let stores : Store
-    
-    // for now it's a dummy hardcoded store
-    let store = Store(name: "Trader Joe's", address: "6401 Haven Ave, Rancho Cucamonga, CA 91737")
-    
-    //TODO: get the actual reminders for this ReminderView
-    //let reminders : Reminder
-    @State private var reminders = [
-        Reminder(userStoreId: "kor3a", title: "Coke", isDone: false),
-        Reminder(userStoreId: "kor3a", title: "Eggs", isDone: false),
-        Reminder(userStoreId: "kor3a", title: "Pancake", isDone: false)
-    ]
-    
+    let userStoreItem: UserStoreItem
+    @StateObject private var viewModel = ReminderViewModel()
+    @State private var showingAddReminder = false
+
     var body: some View {
-        NavigationStack {
-            listView
-                .padding()
-                .listStyle(.plain)
-                .navigationTitle("\(store.name)")
-                .toolbar {
-                    ToolbarItem(placement: .navigationBarTrailing) {
-                        addButton
+        Group {
+            if viewModel.isLoading {
+                ProgressView("Loading reminders...")
+                    .id("loading")
+            } else if viewModel.reminders.isEmpty {
+                VStack(spacing: 20) {
+                    Image(systemName: "list.bullet.clipboard")
+                        .resizable()
+                        .frame(width: 60, height: 60)
+                        .foregroundStyle(.gray)
+
+                    Text("No Reminders")
+                        .font(.title2)
+                        .bold()
+
+                    Text("Add reminders for this store")
+                        .foregroundStyle(.gray)
+
+                    Button(action: {
+                        showingAddReminder = true
+                    }) {
+                        Label("Add Reminder", systemImage: "plus")
+                            .font(.headline)
+                            .padding()
+                            .background(Color.blue)
+                            .foregroundColor(.white)
+                            .cornerRadius(10)
                     }
                 }
-        }
-    }//:BODY
-            
-    // Extracted List view
-    private var listView: some View {
-        List {
-            ForEach(reminders) { reminder in
-                ReminderItemView(item: reminder)
-                    .swipeActions(edge: .trailing) {
-                        Button(role: .destructive) {
-                            if let index = reminders.firstIndex(where: { $0.id == reminder.id }) {
-                                reminders.remove(at: index)
+                .padding()
+                .id("empty")
+            } else {
+                List {
+                    ForEach(viewModel.reminders) { reminder in
+                        ReminderItemView(item: reminder)
+                            .swipeActions(edge: .trailing) {
+                                Button(role: .destructive) {
+                                    viewModel.deleteReminder(reminder)
+                                } label: {
+                                    Label("Delete", systemImage: "trash")
+                                }
                             }
-                        } label: {
-                            Label("Delete", systemImage: "trash")
-                        }
+                            .onTapGesture {
+                                viewModel.toggleReminder(reminder)
+                            }
                     }
+                }
+                .listStyle(.plain)
+                .id("list-\(viewModel.reminders.count)")
             }
         }
-    }
-            
-    // Extracted NavigationLink for Add button
-    private var addButton: some View {
-        NavigationLink(destination: AddReminderView()) {
-            Image(systemName: "plus")
-                .imageScale(.large)
+        .navigationTitle(userStoreItem.store.name)
+        .navigationBarTitleDisplayMode(.large)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button(action: {
+                    showingAddReminder = true
+                }) {
+                    Image(systemName: "plus")
+                        .imageScale(.large)
+                }
+            }
+        }
+        .sheet(isPresented: $showingAddReminder) {
+            AddReminderView(userStoreId: userStoreItem.id, viewModel: viewModel)
+        }
+        .onAppear {
+            viewModel.fetchReminders(for: userStoreItem.id)
         }
     }
-    
 }
 
 #Preview {
-    ReminderView()
+    ReminderView(userStoreItem: UserStoreItem(
+        id: "preview_user_store",
+        store: Store(id: "preview", name: "Trader Joe's", address: "6401 Haven Ave, Rancho Cucamonga, CA 91737")
+    ))
 }
