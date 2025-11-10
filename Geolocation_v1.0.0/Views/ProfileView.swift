@@ -100,6 +100,10 @@ struct ProfileView: View {
                             .font(.title2)
                             .bold()
 
+                        Text("@\(user.userId)")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+
                         Text(user.email)
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
