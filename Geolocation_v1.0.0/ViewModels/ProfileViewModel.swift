@@ -141,8 +141,8 @@ class ProfileViewModel: ObservableObject {
         // Test Firebase Storage configuration
         print("=== STORAGE CONFIGURATION ===")
 
-        // Try with explicit bucket URL
-        let storageRef = Storage.storage().reference(forURL: "gs://georeminder-pilot.appspot.com")
+        // Use the correct bucket URL from Firebase Console
+        let storageRef = Storage.storage().reference(forURL: "gs://georeminder-pilot.firebasestorage.app")
 
         print("Storage reference created for bucket: \(storageRef.bucket)")
         print("Storage full path: \(storageRef.fullPath)")
