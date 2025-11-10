@@ -142,11 +142,22 @@ class ProfileViewModel: ObservableObject {
         let storageRef = Storage.storage().reference()
         let profilePicRef = storageRef.child("profile_pictures/\(userId).jpg")
 
+        // Create metadata for the upload
+        let metadata = StorageMetadata()
+        metadata.contentType = "image/jpeg"
+
         DispatchQueue.main.async {
             self.isLoading = true
         }
 
-        profilePicRef.putData(imageData, metadata: nil) { [weak self] metadata, error in
+        print("=== STARTING UPLOAD ===")
+        print("Storage reference: \(storageRef)")
+        print("Profile pic reference: \(profilePicRef)")
+        print("Full path: \(profilePicRef.fullPath)")
+        print("Bucket: \(profilePicRef.bucket)")
+        print("========================")
+
+        profilePicRef.putData(imageData, metadata: metadata) { [weak self] uploadMetadata, error in
             guard let self = self else { return }
 
             if let error = error {
@@ -164,6 +175,10 @@ class ProfileViewModel: ObservableObject {
                 }
                 return
             }
+
+            print("=== UPLOAD SUCCESS ===")
+            print("Upload metadata: \(String(describing: uploadMetadata))")
+            print("========================")
 
             // Get download URL
             profilePicRef.downloadURL { url, error in
