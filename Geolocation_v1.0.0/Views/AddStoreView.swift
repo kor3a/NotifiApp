@@ -26,11 +26,27 @@ struct AddStoreView: View {
     var body: some View {
         NavigationStack {
             VStack {
-                if viewModel.allStores.isEmpty {
+                if viewModel.isLoadingAllStores {
                     VStack(spacing: 20) {
                         ProgressView()
                         Text("Loading available stores...")
                             .foregroundStyle(.gray)
+                    }
+                    .padding()
+                } else if viewModel.allStores.isEmpty {
+                    VStack(spacing: 20) {
+                        Image(systemName: "storefront")
+                            .resizable()
+                            .frame(width: 60, height: 60)
+                            .foregroundStyle(.gray)
+
+                        Text("No stores available")
+                            .font(.headline)
+
+                        Text("There are no stores in the database yet")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
                     }
                     .padding()
                 } else {
@@ -45,14 +61,14 @@ struct AddStoreView: View {
                                         Text(store.name)
                                             .font(.headline)
                                             .foregroundStyle(.primary)
-                                        
+
                                         Text(store.address)
                                             .font(.caption)
                                             .foregroundStyle(.secondary)
                                     }
-                                    
+
                                     Spacer()
-                                    
+
                                     if viewModel.userStoreItems.contains(where: { $0.store.id == store.id }) {
                                         Image(systemName: "checkmark.circle.fill")
                                             .foregroundStyle(.green)
@@ -67,7 +83,7 @@ struct AddStoreView: View {
                     }
                     .searchable(text: $searchText, prompt: "Search stores")
                 }
-                
+
                 if !viewModel.errorMessage.isEmpty {
                     Text(viewModel.errorMessage)
                         .foregroundStyle(.red)

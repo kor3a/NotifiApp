@@ -26,12 +26,16 @@ struct LoginView: View {
                 Text("Login")
                     .font(.largeTitle)
                     .fontWeight(.bold)
-                
-                if viewModel.errorMessage.isEmpty {
+
+                if !viewModel.errorMessage.isEmpty {
                     Text(viewModel.errorMessage)
+                        .foregroundStyle(.red)
+                        .font(.caption)
+                        .padding(.horizontal)
+                        .multilineTextAlignment(.center)
                 }
-                
-                TextField("Username", text: $viewModel.email)
+
+                TextField("Email", text: $viewModel.email)
                     .padding()
                 
                 SecureField("Password", text: $viewModel.password)

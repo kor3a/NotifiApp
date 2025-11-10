@@ -7,45 +7,25 @@ import FirebaseAuth
 
 class StoresViewModel: ObservableObject {
     private let db = Firestore.firestore()
+    private let sessionManager = UserSessionManager.shared
     @Published var userStoreItems: [UserStoreItem] = [] // User's stores with user_store IDs
     @Published var allStores: [Store] = [] // All available stores for adding
     @Published var isLoading: Bool = false
+    @Published var isLoadingAllStores: Bool = false
     @Published var errorMessage: String = ""
 
     /// Fetch only stores that the current user has added to their list
     func fetchUserStores() {
-        guard let currentUserEmail = Auth.auth().currentUser?.email else {
-            print("StoresViewModel: No authenticated user")
+        guard let userId = sessionManager.currentUser?.userId else {
+            print("StoresViewModel: No user data available in session, waiting...")
+            // Don't show error immediately - user data might still be loading
+            isLoading = false
             return
         }
 
         isLoading = true
-        print("StoresViewModel: Fetching stores for user: \(currentUserEmail)")
-
-        // First, get the user's userId from their email
-        db.collection("users")
-            .whereField("email", isEqualTo: currentUserEmail)
-            .getDocuments { [weak self] snapshot, error in
-                guard let self = self else { return }
-
-                if let error = error {
-                    print("StoresViewModel: Error fetching user: \(error.localizedDescription)")
-                    self.errorMessage = "Error fetching user: \(error.localizedDescription)"
-                    self.isLoading = false
-                    return
-                }
-
-                guard let userDoc = snapshot?.documents.first,
-                      let userId = userDoc.data()["userId"] as? String else {
-                    print("StoresViewModel: User not found")
-                    self.errorMessage = "User not found"
-                    self.isLoading = false
-                    return
-                }
-
-                print("StoresViewModel: Found userId: \(userId)")
-                self.fetchUserStoresById(userId: userId)
-            }
+        print("StoresViewModel: Fetching stores for userId: \(userId)")
+        self.fetchUserStoresById(userId: userId)
     }
 
     private func fetchUserStoresById(userId: String) {
@@ -91,20 +71,31 @@ class StoresViewModel: ObservableObject {
     func fetchAllStores() {
         print("StoresViewModel: Fetching all available stores")
 
+        DispatchQueue.main.async {
+            self.isLoadingAllStores = true
+        }
+
         db.collection("stores").getDocuments { [weak self] snapshot, error in
             guard let self = self else { return }
 
             if let error = error {
                 print("StoresViewModel: Error fetching all stores: \(error.localizedDescription)")
+                DispatchQueue.main.async {
+                    self.isLoadingAllStores = false
+                    self.errorMessage = "Error loading stores: \(error.localizedDescription)"
+                }
                 return
             }
 
             guard let documents = snapshot?.documents else {
                 print("StoresViewModel: No stores in database")
+                DispatchQueue.main.async {
+                    self.isLoadingAllStores = false
+                }
                 return
             }
 
-            self.allStores = documents.compactMap { doc -> Store? in
+            let stores = documents.compactMap { doc -> Store? in
                 let data = doc.data()
                 guard let name = data["name"] as? String,
                       let address = data["address"] as? String else {
@@ -113,64 +104,58 @@ class StoresViewModel: ObservableObject {
                 return Store(id: doc.documentID, name: name, address: address)
             }
 
-            print("StoresViewModel: Loaded \(self.allStores.count) available stores")
+            DispatchQueue.main.async {
+                self.allStores = stores
+                self.isLoadingAllStores = false
+                print("StoresViewModel: Loaded \(self.allStores.count) available stores")
+            }
         }
     }
 
     /// Add a store to the current user's list
     func addStoreToUser(store: Store) {
-        guard let currentUserEmail = Auth.auth().currentUser?.email else {
-            errorMessage = "No authenticated user"
+        guard let userId = sessionManager.currentUser?.userId else {
+            DispatchQueue.main.async {
+                self.errorMessage = "No user data available"
+            }
             return
         }
 
         print("StoresViewModel: Adding store '\(store.name)' to user")
 
-        // Get userId first
-        db.collection("users")
-            .whereField("email", isEqualTo: currentUserEmail)
+        // Check if store is already added
+        db.collection("user_stores")
+            .whereField("userId", isEqualTo: userId)
+            .whereField("storeId", isEqualTo: store.id)
             .getDocuments { [weak self] snapshot, error in
                 guard let self = self else { return }
 
-                if let error = error {
-                    self.errorMessage = "Error: \(error.localizedDescription)"
-                    return
-                }
-
-                guard let userDoc = snapshot?.documents.first,
-                      let userId = userDoc.data()["userId"] as? String else {
-                    self.errorMessage = "User not found"
-                    return
-                }
-
-                // Check if store is already added
-                self.db.collection("user_stores")
-                    .whereField("userId", isEqualTo: userId)
-                    .whereField("storeId", isEqualTo: store.id)
-                    .getDocuments { snapshot, error in
-                        if let documents = snapshot?.documents, !documents.isEmpty {
-                            self.errorMessage = "Store already added"
-                            return
-                        }
-
-                        // Add store to user's list
-                        let userStore: [String: Any] = [
-                            "userId": userId,
-                            "storeId": store.id,
-                            "storeName": store.name,
-                            "storeAddress": store.address,
-                            "addedAt": Date().timeIntervalSince1970
-                        ]
-
-                        self.db.collection("user_stores").addDocument(data: userStore) { error in
-                            if let error = error {
-                                print("StoresViewModel: Error adding store: \(error.localizedDescription)")
-                                self.errorMessage = "Error adding store: \(error.localizedDescription)"
-                            } else {
-                                print("StoresViewModel: Store added successfully")
-                            }
-                        }
+                if let documents = snapshot?.documents, !documents.isEmpty {
+                    DispatchQueue.main.async {
+                        self.errorMessage = "Store already added"
                     }
+                    return
+                }
+
+                // Add store to user's list
+                let userStore: [String: Any] = [
+                    "userId": userId,
+                    "storeId": store.id,
+                    "storeName": store.name,
+                    "storeAddress": store.address,
+                    "addedAt": Date().timeIntervalSince1970
+                ]
+
+                self.db.collection("user_stores").addDocument(data: userStore) { error in
+                    if let error = error {
+                        print("StoresViewModel: Error adding store: \(error.localizedDescription)")
+                        DispatchQueue.main.async {
+                            self.errorMessage = "Error adding store: \(error.localizedDescription)"
+                        }
+                    } else {
+                        print("StoresViewModel: Store added successfully")
+                    }
+                }
             }
     }
 

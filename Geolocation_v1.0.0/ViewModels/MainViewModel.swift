@@ -19,10 +19,17 @@ class MainViewModel: NSObject, ObservableObject {
 
      override init() {
          super.init()
-         
+
          self.handler = Auth.auth().addStateDidChangeListener({ [weak self] _, user in
             DispatchQueue.main.async {
                 self?.currentUserId = user?.uid ?? ""
+
+                // Fetch user data when signed in, clear when signed out
+                if user != nil {
+                    UserSessionManager.shared.fetchUser()
+                } else {
+                    UserSessionManager.shared.clearSession()
+                }
             }
         })
     }

@@ -11,11 +11,12 @@ import FirebaseAuth
 struct ProfileView: View {
 
     @StateObject private var viewModel = ProfileViewModel()
+    @ObservedObject private var sessionManager = UserSessionManager.shared
     @State private var showImagePicker = false
     @State private var selectedImage: UIImage?
 
     var body: some View {
-        if viewModel.isLoading {
+        if sessionManager.isLoading || viewModel.isLoading {
             VStack {
                 ProgressView()
                     .scaleEffect(1.5)
@@ -32,12 +33,12 @@ struct ProfileView: View {
                     .frame(width: 50, height: 50)
                     .foregroundStyle(.red)
                     .padding()
-                Text(!viewModel.errorMessage.isEmpty ? viewModel.errorMessage : "No user data available")
+                Text(!sessionManager.errorMessage.isEmpty ? sessionManager.errorMessage : "No user data available")
                     .foregroundStyle(.red)
                     .multilineTextAlignment(.center)
                     .padding()
                 Button("Retry") {
-                    viewModel.fetchUser()
+                    sessionManager.fetchUser()
                 }
                 .padding()
                 Button("Sign Out") {
