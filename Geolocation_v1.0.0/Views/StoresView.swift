@@ -9,13 +9,14 @@ import SwiftUI
 
 struct StoresView: View {
     // MARK: - PROPERTIES
-    
+
     @StateObject private var viewModel = StoresViewModel()
+    @ObservedObject private var sessionManager = UserSessionManager.shared
     @State private var showingAddStore = false
-    
+
     var body: some View {
         NavigationStack {
-            if viewModel.isLoading {
+            if sessionManager.isLoading || viewModel.isLoading {
                 ProgressView("Loading your stores...")
             } else if viewModel.userStoreItems.isEmpty {
                 VStack(spacing: 20) {
@@ -69,7 +70,16 @@ struct StoresView: View {
             AddStoreView(viewModel: viewModel)
         }
         .onAppear() {
-            self.viewModel.fetchUserStores()
+            // Try to fetch immediately if user data is available
+            if sessionManager.currentUser != nil {
+                self.viewModel.fetchUserStores()
+            }
+        }
+        .onChange(of: sessionManager.currentUser) { oldValue, newValue in
+            // Fetch stores when user data becomes available
+            if newValue != nil && viewModel.userStoreItems.isEmpty {
+                self.viewModel.fetchUserStores()
+            }
         }
     }//:BODY
     

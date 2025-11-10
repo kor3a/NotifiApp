@@ -17,8 +17,9 @@ class StoresViewModel: ObservableObject {
     /// Fetch only stores that the current user has added to their list
     func fetchUserStores() {
         guard let userId = sessionManager.currentUser?.userId else {
-            print("StoresViewModel: No user data available in session")
-            errorMessage = "Please wait for user data to load"
+            print("StoresViewModel: No user data available in session, waiting...")
+            // Don't show error immediately - user data might still be loading
+            isLoading = false
             return
         }
 
@@ -69,7 +70,6 @@ class StoresViewModel: ObservableObject {
     /// Fetch all available stores from the stores collection
     func fetchAllStores() {
         print("StoresViewModel: Fetching all available stores")
-        isLoadingAllStores = true
 
         DispatchQueue.main.async {
             self.isLoadingAllStores = true
@@ -77,10 +77,6 @@ class StoresViewModel: ObservableObject {
 
         db.collection("stores").getDocuments { [weak self] snapshot, error in
             guard let self = self else { return }
-
-            DispatchQueue.main.async {
-                self.isLoadingAllStores = false
-            }
 
             if let error = error {
                 print("StoresViewModel: Error fetching all stores: \(error.localizedDescription)")
@@ -119,7 +115,9 @@ class StoresViewModel: ObservableObject {
     /// Add a store to the current user's list
     func addStoreToUser(store: Store) {
         guard let userId = sessionManager.currentUser?.userId else {
-            errorMessage = "No user data available"
+            DispatchQueue.main.async {
+                self.errorMessage = "No user data available"
+            }
             return
         }
 
