@@ -138,17 +138,14 @@ class ProfileViewModel: ObservableObject {
         print("JPEG data size: \(imageData.count) bytes")
         print("User ID: \(userId)")
 
-        // Test Firebase Storage configuration
-        print("=== STORAGE CONFIGURATION ===")
-
-        // Use the correct bucket URL from Firebase Console
-        let storageRef = Storage.storage().reference(forURL: "gs://georeminder-pilot.firebasestorage.app")
-
-        print("Storage reference created for bucket: \(storageRef.bucket)")
-        print("Storage full path: \(storageRef.fullPath)")
-        print("================================")
-
+        // Create Storage reference (uses bucket from GoogleService-Info.plist)
+        let storageRef = Storage.storage().reference()
         let profilePicRef = storageRef.child("profile_pictures/\(userId).jpg")
+
+        print("=== STORAGE CONFIGURATION ===")
+        print("Storage bucket: \(profilePicRef.bucket)")
+        print("Storage path: \(profilePicRef.fullPath)")
+        print("================================")
 
         // Create metadata for the upload
         let metadata = StorageMetadata()
@@ -158,12 +155,7 @@ class ProfileViewModel: ObservableObject {
             self.isLoading = true
         }
 
-        print("=== STARTING UPLOAD ===")
-        print("Storage reference: \(storageRef)")
-        print("Profile pic reference: \(profilePicRef)")
-        print("Full path: \(profilePicRef.fullPath)")
-        print("Bucket: \(profilePicRef.bucket)")
-        print("========================")
+        print("Starting upload...")
 
         profilePicRef.putData(imageData, metadata: metadata) { [weak self] uploadMetadata, error in
             guard let self = self else { return }
