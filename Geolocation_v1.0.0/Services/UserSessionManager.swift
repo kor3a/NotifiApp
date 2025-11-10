@@ -151,6 +151,11 @@ class UserSessionManager: ObservableObject {
 
     // Clear user session (call on logout)
     func clearSession() {
+        // Only clear if there's actually a session to clear (prevents redundant updates)
+        guard currentUser != nil || !errorMessage.isEmpty || isLoading else {
+            return
+        }
+
         DispatchQueue.main.async {
             self.currentUser = nil
             self.errorMessage = ""

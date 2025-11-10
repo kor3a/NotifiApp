@@ -38,11 +38,14 @@ class ProfileViewModel: ObservableObject {
     }
     
     func signOut() {
-        do {
-            try Auth.auth().signOut()
-            sessionManager.clearSession()
-        } catch {
-            print("Could not sign out")
+        // Perform sign out asynchronously to avoid blocking the main thread
+        DispatchQueue.global(qos: .userInitiated).async {
+            do {
+                try Auth.auth().signOut()
+                // MainViewModel's auth listener will handle clearing the session
+            } catch {
+                print("Could not sign out: \(error.localizedDescription)")
+            }
         }
     }
 
