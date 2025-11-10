@@ -10,6 +10,7 @@ class StoresViewModel: ObservableObject {
     @Published var userStoreItems: [UserStoreItem] = [] // User's stores with user_store IDs
     @Published var allStores: [Store] = [] // All available stores for adding
     @Published var isLoading: Bool = false
+    @Published var isLoadingAllStores: Bool = false
     @Published var errorMessage: String = ""
 
     /// Fetch only stores that the current user has added to their list
@@ -91,20 +92,31 @@ class StoresViewModel: ObservableObject {
     func fetchAllStores() {
         print("StoresViewModel: Fetching all available stores")
 
+        DispatchQueue.main.async {
+            self.isLoadingAllStores = true
+        }
+
         db.collection("stores").getDocuments { [weak self] snapshot, error in
             guard let self = self else { return }
 
             if let error = error {
                 print("StoresViewModel: Error fetching all stores: \(error.localizedDescription)")
+                DispatchQueue.main.async {
+                    self.isLoadingAllStores = false
+                    self.errorMessage = "Error loading stores: \(error.localizedDescription)"
+                }
                 return
             }
 
             guard let documents = snapshot?.documents else {
                 print("StoresViewModel: No stores in database")
+                DispatchQueue.main.async {
+                    self.isLoadingAllStores = false
+                }
                 return
             }
 
-            self.allStores = documents.compactMap { doc -> Store? in
+            let stores = documents.compactMap { doc -> Store? in
                 let data = doc.data()
                 guard let name = data["name"] as? String,
                       let address = data["address"] as? String else {
@@ -113,7 +125,11 @@ class StoresViewModel: ObservableObject {
                 return Store(id: doc.documentID, name: name, address: address)
             }
 
-            print("StoresViewModel: Loaded \(self.allStores.count) available stores")
+            DispatchQueue.main.async {
+                self.allStores = stores
+                self.isLoadingAllStores = false
+                print("StoresViewModel: Loaded \(self.allStores.count) available stores")
+            }
         }
     }
 
