@@ -116,7 +116,7 @@ class ProfileViewModel: ObservableObject {
 
     // Upload profile picture to Firebase Storage
     func uploadProfilePicture(image: UIImage) {
-        guard let currentUser = Auth.auth().currentUser,
+        guard let userId = user?.userId,
               let imageData = image.jpegData(compressionQuality: 0.8) else {
             DispatchQueue.main.async {
                 self.errorMessage = "Failed to process image"
@@ -125,7 +125,7 @@ class ProfileViewModel: ObservableObject {
         }
 
         let storageRef = Storage.storage().reference()
-        let profilePicRef = storageRef.child("profile_pictures/\(currentUser.uid).jpg")
+        let profilePicRef = storageRef.child("profile_pictures/\(userId).jpg")
 
         DispatchQueue.main.async {
             self.isLoading = true
