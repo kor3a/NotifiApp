@@ -9,7 +9,8 @@ import Foundation
 
 struct User: Codable {
     let userId: String
-    let name: String
+    var name: String
     let email: String
     let joined: TimeInterval
+    var profilePictureURL: String?
 }
