@@ -35,7 +35,7 @@ struct AddStoreView: View {
                     .padding()
                 } else if viewModel.allStores.isEmpty {
                     VStack(spacing: 20) {
-                        Image(systemName: "storefront.fill")
+                        Image(systemName: "storefront")
                             .resizable()
                             .frame(width: 60, height: 60)
                             .foregroundStyle(.gray)
@@ -47,13 +47,6 @@ struct AddStoreView: View {
                             .font(.caption)
                             .foregroundStyle(.secondary)
                             .multilineTextAlignment(.center)
-
-                        if !viewModel.errorMessage.isEmpty {
-                            Text(viewModel.errorMessage)
-                                .foregroundStyle(.red)
-                                .font(.caption)
-                                .padding()
-                        }
                     }
                     .padding()
                 } else {
@@ -89,13 +82,13 @@ struct AddStoreView: View {
                         }
                     }
                     .searchable(text: $searchText, prompt: "Search stores")
+                }
 
-                    if !viewModel.errorMessage.isEmpty {
-                        Text(viewModel.errorMessage)
-                            .foregroundStyle(.red)
-                            .font(.caption)
-                            .padding()
-                    }
+                if !viewModel.errorMessage.isEmpty {
+                    Text(viewModel.errorMessage)
+                        .foregroundStyle(.red)
+                        .font(.caption)
+                        .padding()
                 }
             }
             .navigationTitle("Add Store")

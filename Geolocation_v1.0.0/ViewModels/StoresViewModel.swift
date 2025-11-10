@@ -71,6 +71,10 @@ class StoresViewModel: ObservableObject {
         print("StoresViewModel: Fetching all available stores")
         isLoadingAllStores = true
 
+        DispatchQueue.main.async {
+            self.isLoadingAllStores = true
+        }
+
         db.collection("stores").getDocuments { [weak self] snapshot, error in
             guard let self = self else { return }
 
@@ -81,6 +85,7 @@ class StoresViewModel: ObservableObject {
             if let error = error {
                 print("StoresViewModel: Error fetching all stores: \(error.localizedDescription)")
                 DispatchQueue.main.async {
+                    self.isLoadingAllStores = false
                     self.errorMessage = "Error loading stores: \(error.localizedDescription)"
                 }
                 return
@@ -89,7 +94,7 @@ class StoresViewModel: ObservableObject {
             guard let documents = snapshot?.documents else {
                 print("StoresViewModel: No stores in database")
                 DispatchQueue.main.async {
-                    self.errorMessage = "No stores available in database"
+                    self.isLoadingAllStores = false
                 }
                 return
             }
@@ -105,6 +110,7 @@ class StoresViewModel: ObservableObject {
 
             DispatchQueue.main.async {
                 self.allStores = stores
+                self.isLoadingAllStores = false
                 print("StoresViewModel: Loaded \(self.allStores.count) available stores")
             }
         }
