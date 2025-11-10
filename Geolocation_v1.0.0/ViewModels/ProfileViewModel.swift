@@ -116,13 +116,28 @@ class ProfileViewModel: ObservableObject {
 
     // Upload profile picture to Firebase Storage
     func uploadProfilePicture(image: UIImage) {
-        guard let userId = user?.userId,
-              let imageData = image.jpegData(compressionQuality: 0.8) else {
+        guard let userId = user?.userId else {
+            DispatchQueue.main.async {
+                self.errorMessage = "User ID not found"
+            }
+            return
+        }
+
+        print("=== IMAGE PROCESSING ===")
+        print("Image size: \(image.size)")
+        print("Image scale: \(image.scale)")
+
+        guard let imageData = image.jpegData(compressionQuality: 0.8) else {
+            print("Failed to convert image to JPEG data")
             DispatchQueue.main.async {
                 self.errorMessage = "Failed to process image"
             }
             return
         }
+
+        print("JPEG data size: \(imageData.count) bytes")
+        print("User ID: \(userId)")
+        print("========================")
 
         let storageRef = Storage.storage().reference()
         let profilePicRef = storageRef.child("profile_pictures/\(userId).jpg")
