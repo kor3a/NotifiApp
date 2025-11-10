@@ -137,9 +137,17 @@ class ProfileViewModel: ObservableObject {
 
         print("JPEG data size: \(imageData.count) bytes")
         print("User ID: \(userId)")
-        print("========================")
 
-        let storageRef = Storage.storage().reference()
+        // Test Firebase Storage configuration
+        print("=== STORAGE CONFIGURATION ===")
+
+        // Try with explicit bucket URL
+        let storageRef = Storage.storage().reference(forURL: "gs://georeminder-pilot.appspot.com")
+
+        print("Storage reference created for bucket: \(storageRef.bucket)")
+        print("Storage full path: \(storageRef.fullPath)")
+        print("================================")
+
         let profilePicRef = storageRef.child("profile_pictures/\(userId).jpg")
 
         // Create metadata for the upload
