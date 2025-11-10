@@ -19,8 +19,13 @@ class LoginViewModel: ObservableObject {
         guard validate() else {
             return
         }
-        
-        Auth.auth().signIn(withEmail: email, password: password)
+
+        Auth.auth().signIn(withEmail: email, password: password) { result, error in
+            if error == nil {
+                // Fetch user data immediately after successful login
+                UserSessionManager.shared.fetchUser()
+            }
+        }
     }
     
     func validate() -> Bool {

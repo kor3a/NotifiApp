@@ -8,12 +8,20 @@
 import SwiftUI
 
 struct HomeView: View {
+    @ObservedObject private var sessionManager = UserSessionManager.shared
+
     var body: some View {
         TabView {
             NavigationStack {
                 StoresView()
-                    .navigationTitle("Hi, James")
+                    .navigationTitle("Hi, \(sessionManager.currentUser?.name ?? "there")")
                     .navigationBarTitleDisplayMode(.large)
+                    .onAppear {
+                        // Fetch user data if not already loaded
+                        if sessionManager.currentUser == nil && !sessionManager.isLoading {
+                            sessionManager.fetchUser()
+                        }
+                    }
                     .toolbar {
                         ToolbarItem(placement: .navigationBarLeading) {
                             NavigationLink(destination: ProfileView(), label: {

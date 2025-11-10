@@ -13,13 +13,17 @@ import FirebaseStorage
 import UIKit
 
 class ProfileViewModel: ObservableObject {
+    // Reference to shared user session
+    private let sessionManager = UserSessionManager.shared
 
     init() {
-        fetchUser()
+        // Initialize name field with current user's name
+        if let userName = sessionManager.currentUser?.name {
+            self.newName = userName
+        }
     }
 
-    @Published var user: User? = nil
-    @Published var isLoading: Bool = true
+    @Published var isLoading: Bool = false
     @Published var errorMessage: String = ""
     @Published var successMessage: String = ""
 
@@ -28,87 +32,15 @@ class ProfileViewModel: ObservableObject {
     @Published var newPassword: String = ""
     @Published var confirmPassword: String = ""
 
-    func fetchUser() {
-        // Get the current authenticated user's email
-        guard let currentUserEmail = Auth.auth().currentUser?.email else {
-            DispatchQueue.main.async {
-                self.errorMessage = "No authenticated user found"
-                self.isLoading = false
-            }
-            return
-        }
-
-        print("ProfileViewModel: Fetching user with email: \(currentUserEmail)")
-        let db = Firestore.firestore()
-
-        // Query to find user by email since we store documents by username
-        db.collection("users")
-            .whereField("email", isEqualTo: currentUserEmail)
-            .getDocuments { [weak self] snapshot, error in
-                guard let self = self else { return }
-
-                if let error = error {
-                    print("ProfileViewModel: Error fetching user: \(error.localizedDescription)")
-                    DispatchQueue.main.async {
-                        self.isLoading = false
-                        self.errorMessage = "Error fetching user: \(error.localizedDescription)"
-                    }
-                    return
-                }
-
-                print("ProfileViewModel: Query returned \(snapshot?.documents.count ?? 0) documents")
-
-                guard let document = snapshot?.documents.first else {
-                    print("ProfileViewModel: No documents found for email: \(currentUserEmail)")
-                    // Try to fetch all users to debug
-                    self.debugFetchAllUsers(email: currentUserEmail)
-                    return
-                }
-
-                let userData = document.data()
-                print("ProfileViewModel: Found user data: \(userData)")
-
-                DispatchQueue.main.async {
-                    self.isLoading = false
-                    self.user = User(
-                        userId: userData["userId"] as? String ?? "",
-                        name: userData["name"] as? String ?? "",
-                        email: userData["email"] as? String ?? "",
-                        joined: userData["joined"] as? TimeInterval ?? 0,
-                        profilePictureURL: userData["profilePictureURL"] as? String
-                    )
-                    self.newName = self.user?.name ?? ""
-                }
-            }
-    }
-
-    private func debugFetchAllUsers(email: String) {
-        let db = Firestore.firestore()
-        db.collection("users").getDocuments { [weak self] snapshot, error in
-            if let error = error {
-                print("ProfileViewModel: Error fetching all users for debug: \(error.localizedDescription)")
-                DispatchQueue.main.async {
-                    self?.isLoading = false
-                    self?.errorMessage = "User data not found. Please ensure your profile was created during signup."
-                }
-                return
-            }
-
-            print("ProfileViewModel: Total users in collection: \(snapshot?.documents.count ?? 0)")
-            snapshot?.documents.forEach { doc in
-                print("ProfileViewModel: User document ID: \(doc.documentID), data: \(doc.data())")
-            }
-
-            DispatchQueue.main.async {
-                self?.isLoading = false
-                self?.errorMessage = "User data not found in Firestore. Your account may not have completed signup. Please try signing up again."
-            }
-        }
+    // Computed property to access current user
+    var user: User? {
+        return sessionManager.currentUser
     }
     
     func signOut() {
         do {
             try Auth.auth().signOut()
+            sessionManager.clearSession()
         } catch {
             print("Could not sign out")
         }
@@ -206,31 +138,23 @@ class ProfileViewModel: ObservableObject {
     }
 
     private func updateProfilePictureURL(_ url: String) {
-        guard let userId = user?.userId else {
-            DispatchQueue.main.async {
-                self.isLoading = false
-                self.errorMessage = "User ID not found"
-            }
-            return
+        DispatchQueue.main.async {
+            self.isLoading = true
         }
 
-        let db = Firestore.firestore()
-        db.collection("users").document(userId).updateData([
-            "profilePictureURL": url
-        ]) { [weak self] error in
+        sessionManager.updateProfilePictureURL(url) { [weak self] success, errorMsg in
             guard let self = self else { return }
 
             DispatchQueue.main.async {
                 self.isLoading = false
-                if let error = error {
-                    self.errorMessage = "Failed to update profile picture: \(error.localizedDescription)"
-                } else {
-                    self.user?.profilePictureURL = url
+                if success {
                     self.successMessage = "Profile picture updated successfully!"
                     // Clear success message after 3 seconds
                     DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
                         self.successMessage = ""
                     }
+                } else {
+                    self.errorMessage = errorMsg ?? "Failed to update profile picture"
                 }
             }
         }
@@ -296,32 +220,17 @@ class ProfileViewModel: ObservableObject {
     }
 
     private func updateName(completion: @escaping (Bool) -> Void) {
-        guard let userId = user?.userId else {
-            DispatchQueue.main.async {
-                self.errorMessage = "User ID not found"
-                self.isLoading = false
-            }
-            completion(false)
-            return
-        }
-
-        let db = Firestore.firestore()
-        db.collection("users").document(userId).updateData([
-            "name": newName
-        ]) { [weak self] error in
+        sessionManager.updateUserName(newName) { [weak self] success, errorMsg in
             guard let self = self else { return }
 
-            if let error = error {
+            if success {
+                completion(true)
+            } else {
                 DispatchQueue.main.async {
-                    self.errorMessage = "Failed to update name: \(error.localizedDescription)"
+                    self.errorMessage = errorMsg ?? "Failed to update name"
                     self.isLoading = false
                 }
                 completion(false)
-            } else {
-                DispatchQueue.main.async {
-                    self.user?.name = self.newName
-                }
-                completion(true)
             }
         }
     }
