@@ -71,11 +71,9 @@ struct ReminderView: View {
                     showingAddReminder = true
                 }) {
                     Image(systemName: "plus")
+                        .frame(width: 22, height: 22)
                 }
-                .fixedSize()
-                .transaction { transaction in
-                    transaction.animation = nil
-                }
+                .frame(width: 44, height: 44)
             }
         }
         .sheet(isPresented: $showingAddReminder) {
