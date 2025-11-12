@@ -69,20 +69,41 @@ class StoresViewModel: ObservableObject {
 
     /// Fetch all available stores from the stores collection
     func fetchAllStores() {
+        // Check if user is authenticated
+        guard Auth.auth().currentUser != nil else {
+            print("StoresViewModel: User not authenticated, cannot fetch stores")
+            DispatchQueue.main.async {
+                self.isLoadingAllStores = false
+                self.errorMessage = "Please log in to view available stores."
+            }
+            return
+        }
+
         print("StoresViewModel: Fetching all available stores")
 
         DispatchQueue.main.async {
             self.isLoadingAllStores = true
+            self.errorMessage = "" // Clear any previous errors
         }
 
         db.collection("stores").getDocuments { [weak self] snapshot, error in
             guard let self = self else { return }
 
             if let error = error {
+                let nsError = error as NSError
                 print("StoresViewModel: Error fetching all stores: \(error.localizedDescription)")
+                print("StoresViewModel: Error code: \(nsError.code), domain: \(nsError.domain)")
+
                 DispatchQueue.main.async {
                     self.isLoadingAllStores = false
-                    self.errorMessage = "Error loading stores: \(error.localizedDescription)"
+
+                    // Provide more specific error messages
+                    if nsError.domain == "FIRFirestoreErrorDomain" && nsError.code == 7 {
+                        // Permission denied error
+                        self.errorMessage = "Unable to access stores database. Please ensure:\n1. You are logged in\n2. Firestore security rules are deployed\n3. You have an active internet connection"
+                    } else {
+                        self.errorMessage = "Error loading stores: \(error.localizedDescription)"
+                    }
                 }
                 return
             }
@@ -107,6 +128,7 @@ class StoresViewModel: ObservableObject {
             DispatchQueue.main.async {
                 self.allStores = stores
                 self.isLoadingAllStores = false
+                self.errorMessage = "" // Clear error on success
                 print("StoresViewModel: Loaded \(self.allStores.count) available stores")
             }
         }

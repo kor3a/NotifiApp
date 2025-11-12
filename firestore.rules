@@ -52,8 +52,9 @@ service cloud.firestore {
                        request.resource.data.userId is string;
 
       // Allow users to delete their own user_stores
+      // The userId field stores the full email address
       allow delete: if request.auth != null &&
-                       resource.data.userId == request.auth.token.email.split('@')[0];
+                       resource.data.userId == request.auth.token.email;
     }
   }
 }
