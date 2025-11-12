@@ -16,7 +16,6 @@ struct ReminderView: View {
         Group {
             if viewModel.isLoading {
                 ProgressView("Loading reminders...")
-                    .id("loading")
             } else if viewModel.reminders.isEmpty {
                 VStack(spacing: 20) {
                     Image(systemName: "list.bullet.clipboard")
@@ -43,7 +42,6 @@ struct ReminderView: View {
                     }
                 }
                 .padding()
-                .id("empty")
             } else {
                 List {
                     ForEach(viewModel.reminders) { reminder in
@@ -61,7 +59,6 @@ struct ReminderView: View {
                     }
                 }
                 .listStyle(.plain)
-                .id("list-\(viewModel.reminders.count)")
             }
         }
         .navigationTitle(userStoreItem.store.name)
@@ -76,6 +73,9 @@ struct ReminderView: View {
                     Image(systemName: "plus")
                 }
                 .fixedSize()
+                .transaction { transaction in
+                    transaction.animation = nil
+                }
             }
         }
         .sheet(isPresented: $showingAddReminder) {
