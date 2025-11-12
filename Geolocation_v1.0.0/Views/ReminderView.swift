@@ -63,8 +63,6 @@ struct ReminderView: View {
         }
         .navigationTitle(userStoreItem.store.name)
         .navigationBarTitleDisplayMode(.large)
-        .animation(.none, value: viewModel.isLoading)
-        .animation(.none, value: viewModel.reminders.count)
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button(action: {
@@ -76,6 +74,7 @@ struct ReminderView: View {
                 .frame(width: 44, height: 44)
             }
         }
+        .animation(.none)
         .sheet(isPresented: $showingAddReminder) {
             AddReminderView(userStoreId: userStoreItem.id, viewModel: viewModel)
         }
