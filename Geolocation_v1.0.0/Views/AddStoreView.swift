@@ -85,10 +85,18 @@ struct AddStoreView: View {
                 }
 
                 if !viewModel.errorMessage.isEmpty {
-                    Text(viewModel.errorMessage)
-                        .foregroundStyle(.red)
-                        .font(.caption)
-                        .padding()
+                    VStack(spacing: 10) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundStyle(.red)
+                            .font(.title2)
+
+                        Text(viewModel.errorMessage)
+                            .foregroundStyle(.red)
+                            .font(.caption)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal)
+                    }
+                    .padding()
                 }
             }
             .navigationTitle("Add Store")

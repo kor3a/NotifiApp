@@ -13,10 +13,9 @@ struct ReminderView: View {
     @State private var showingAddReminder = false
 
     var body: some View {
-        Group {
+        ZStack {
             if viewModel.isLoading {
                 ProgressView("Loading reminders...")
-                    .id("loading")
             } else if viewModel.reminders.isEmpty {
                 VStack(spacing: 20) {
                     Image(systemName: "list.bullet.clipboard")
@@ -43,7 +42,6 @@ struct ReminderView: View {
                     }
                 }
                 .padding()
-                .id("empty")
             } else {
                 List {
                     ForEach(viewModel.reminders) { reminder in
@@ -61,21 +59,21 @@ struct ReminderView: View {
                     }
                 }
                 .listStyle(.plain)
-                .id("list-\(viewModel.reminders.count)")
             }
         }
         .navigationTitle(userStoreItem.store.name)
-        .navigationBarTitleDisplayMode(.large)
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button(action: {
                     showingAddReminder = true
                 }) {
                     Image(systemName: "plus")
-                        .imageScale(.large)
+                        .frame(width: 22, height: 22)
                 }
+                .frame(width: 44, height: 44)
             }
         }
+        .animation(.none)
         .sheet(isPresented: $showingAddReminder) {
             AddReminderView(userStoreId: userStoreItem.id, viewModel: viewModel)
         }
