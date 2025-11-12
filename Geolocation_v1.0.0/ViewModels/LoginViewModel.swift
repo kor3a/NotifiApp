@@ -43,34 +43,45 @@ class LoginViewModel: ObservableObject {
 
         switch errorCode {
         case AuthErrorCode.wrongPassword.rawValue:
-            return "Incorrect password. Please try again."
+            return "Incorrect password. Please double-check your password and try again. If you've forgotten it, use the 'Forgot password?' link below."
         case AuthErrorCode.invalidEmail.rawValue:
-            return "Invalid email address."
+            return "The email address format is invalid. Please enter a valid email address (e.g., example@email.com)."
         case AuthErrorCode.userNotFound.rawValue:
-            return "No account found with this email."
+            return "No account found with this email address. Please check your email or sign up to create a new account."
         case AuthErrorCode.userDisabled.rawValue:
-            return "This account has been disabled."
+            return "This account has been disabled. Please contact support for assistance."
         case AuthErrorCode.networkError.rawValue:
-            return "Network error. Please check your connection."
+            return "Network connection error. Please check your internet connection and try again."
         case AuthErrorCode.tooManyRequests.rawValue:
-            return "Too many failed attempts. Please try again later."
+            return "Too many unsuccessful login attempts. For security reasons, please wait a few minutes before trying again."
+        case AuthErrorCode.invalidCredential.rawValue:
+            return "The email or password you entered is incorrect. Please verify your credentials and try again."
+        case AuthErrorCode.emailAlreadyInUse.rawValue:
+            return "This email address is already registered. Please login or use a different email."
+        case AuthErrorCode.weakPassword.rawValue:
+            return "Your password is too weak. Please use at least 6 characters with a mix of letters and numbers."
         default:
-            return error.localizedDescription
+            // Provide a more user-friendly default message
+            let nsError = error as NSError
+            if let errorMessage = nsError.userInfo["NSLocalizedDescription"] as? String {
+                return "Login failed: \(errorMessage)"
+            }
+            return "An unexpected error occurred. Please try again or contact support if the problem persists."
         }
     }
     
     func validate() -> Bool {
         guard !email.trimmingCharacters(in: .whitespaces).isEmpty,
               !password.trimmingCharacters(in: .whitespaces).isEmpty else {
-            errorMessage = "Enter a valid Email/Password. Fill in all the Fields"
+            errorMessage = "Please enter both your email address and password to continue."
             return false
         }
-        
+
         guard email.contains("@") && email.contains(".") else {
-            errorMessage = "Enter a valid Email"
+            errorMessage = "Please enter a valid email address in the format: example@email.com"
             return false
         }
-        
+
         return true
     }
 }
