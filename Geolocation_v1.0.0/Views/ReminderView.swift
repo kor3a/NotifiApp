@@ -75,6 +75,7 @@ struct ReminderView: View {
                 }) {
                     Image(systemName: "plus")
                 }
+                .fixedSize()
             }
         }
         .sheet(isPresented: $showingAddReminder) {
