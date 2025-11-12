@@ -66,6 +66,8 @@ struct ReminderView: View {
         }
         .navigationTitle(userStoreItem.store.name)
         .navigationBarTitleDisplayMode(.large)
+        .animation(.none, value: viewModel.isLoading)
+        .animation(.none, value: viewModel.reminders.count)
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button(action: {
