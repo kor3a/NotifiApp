@@ -72,9 +72,6 @@ struct ReminderView: View {
                     showingAddReminder = true
                 }) {
                     Image(systemName: "plus")
-                        .imageScale(.large)
-                        .frame(width: 44, height: 44)
-                        .contentShape(Rectangle())
                 }
             }
         }
