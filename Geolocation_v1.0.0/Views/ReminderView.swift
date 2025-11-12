@@ -62,7 +62,6 @@ struct ReminderView: View {
             }
         }
         .navigationTitle(userStoreItem.store.name)
-        .navigationBarTitleDisplayMode(.large)
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button(action: {
