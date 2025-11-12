@@ -13,7 +13,7 @@ struct ReminderView: View {
     @State private var showingAddReminder = false
 
     var body: some View {
-        NavigationStack {
+        ZStack {
             if viewModel.isLoading {
                 ProgressView("Loading reminders...")
             } else if viewModel.reminders.isEmpty {
