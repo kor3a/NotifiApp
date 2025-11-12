@@ -39,11 +39,6 @@ struct StoreItemView: View {
 
             Spacer()
 
-            // Chevron indicator with subtle styling
-            Image(systemName: "chevron.right")
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundColor(.secondary.opacity(0.6))
-
             // TODO: replace text that displays the number of reminders
 //            if(store.reminderCount > 0){
 //                Text("\(store.reminderCount)")
