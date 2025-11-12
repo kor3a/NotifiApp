@@ -11,12 +11,39 @@ struct StoreItemView: View {
     let store: Store
     
     var body: some View {
-        HStack {
+        HStack(spacing: 16) {
+            // Store icon with glass effect
+            ZStack {
+                Circle()
+                    .fill(.ultraThinMaterial)
+                    .frame(width: 50, height: 50)
+                    .overlay(
+                        Circle()
+                            .stroke(Color.white.opacity(0.3), lineWidth: 1)
+                    )
+
+                Image(systemName: "storefront")
+                    .font(.system(size: 22))
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [.blue, .purple],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+            }
+
             Text(store.name)
                 .font(.headline)
-            
+                .foregroundColor(.primary)
+
             Spacer()
-            
+
+            // Chevron indicator with subtle styling
+            Image(systemName: "chevron.right")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundColor(.secondary.opacity(0.6))
+
             // TODO: replace text that displays the number of reminders
 //            if(store.reminderCount > 0){
 //                Text("\(store.reminderCount)")
@@ -27,9 +54,10 @@ struct StoreItemView: View {
 //                            .frame(width: 25, height: 25)
 //                    )
 //            }
-            
+
         }//:HSTACK
-        .padding()
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
     }
 }
 

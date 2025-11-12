@@ -51,10 +51,44 @@ struct StoresView: View {
                         NavigationLink(destination: ReminderView(userStoreItem: userStoreItem)) {
                             StoreItemView(store: userStoreItem.store)
                         }
+                        .listRowBackground(
+                            RoundedRectangle(cornerRadius: 16)
+                                .fill(.ultraThinMaterial)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 16)
+                                        .stroke(
+                                            LinearGradient(
+                                                colors: [
+                                                    Color.white.opacity(0.6),
+                                                    Color.white.opacity(0.2)
+                                                ],
+                                                startPoint: .topLeading,
+                                                endPoint: .bottomTrailing
+                                            ),
+                                            lineWidth: 1.5
+                                        )
+                                )
+                                .shadow(color: Color.black.opacity(0.1), radius: 8, x: 0, y: 4)
+                                .shadow(color: Color.white.opacity(0.5), radius: 2, x: 0, y: -2)
+                                .padding(.vertical, 4)
+                        )
+                        .listRowSeparator(.hidden)
                     }
                     .onDelete(perform: deleteStore)
                 } //:LIST
-                .listStyle(.grouped)
+                .listStyle(.plain)
+                .scrollContentBackground(.hidden)
+                .background(
+                    LinearGradient(
+                        colors: [
+                            Color(red: 0.95, green: 0.96, blue: 0.98),
+                            Color(red: 0.88, green: 0.92, blue: 0.96)
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                    .ignoresSafeArea()
+                )
                 .toolbar {
                     ToolbarItem(placement: .navigationBarTrailing) {
                         Button(action: {
