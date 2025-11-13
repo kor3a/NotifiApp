@@ -17,6 +17,9 @@ class StoresViewModel: ObservableObject {
     // Store the listener registration so we can remove it later
     private var storesListener: ListenerRegistration?
 
+    // Flag to prevent listener from overwriting during manual sort
+    private var isManuallyReordering = false
+
     /// Fetch only stores that the current user has added to their list
     func fetchUserStores() {
         guard let userId = sessionManager.currentUser?.userId else {
@@ -94,6 +97,12 @@ class StoresViewModel: ObservableObject {
 
                 // When all reminder counts are fetched, update the published property
                 group.notify(queue: .main) {
+                    // Skip updating if we're manually reordering (to prevent race conditions)
+                    guard !self.isManuallyReordering else {
+                        print("StoresViewModel: Skipping listener update during manual reorder")
+                        return
+                    }
+
                     // Sort by sortOrder, putting items without sortOrder at the end
                     self.userStoreItems = tempUserStoreItems.sorted { item1, item2 in
                         let order1 = item1.store.sortOrder ?? Int.max
@@ -237,6 +246,9 @@ class StoresViewModel: ObservableObject {
 
     /// Reorder stores when user drags and drops
     func moveStore(from source: IndexSet, to destination: Int) {
+        // Set flag to prevent listener from overwriting during reorder
+        isManuallyReordering = true
+
         // Reorder the local array
         var updatedItems = userStoreItems
         updatedItems.move(fromOffsets: source, toOffset: destination)
@@ -251,7 +263,12 @@ class StoresViewModel: ObservableObject {
             batch.updateData(["sortOrder": index], forDocument: docRef)
         }
 
-        batch.commit { error in
+        batch.commit { [weak self] error in
+            // Re-enable listener updates after a short delay
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                self?.isManuallyReordering = false
+            }
+
             if let error = error {
                 print("StoresViewModel: Error updating sort order: \(error.localizedDescription)")
             } else {
