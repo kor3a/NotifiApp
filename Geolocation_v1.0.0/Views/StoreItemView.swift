@@ -38,7 +38,7 @@ struct StoreItemView: View {
                     .foregroundColor(.primary)
                 
                 Text(store.address)
-                    .font(.subheadline)
+                    .font(.caption)
                     .foregroundColor(.secondary)
                     
             }
