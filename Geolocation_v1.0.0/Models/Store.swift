@@ -11,10 +11,12 @@ struct Store: Codable, Identifiable {
     var id: String // Firestore document ID
     let name: String
     let address: String
+    var reminderCount: Int = 0
 
     enum CodingKeys: String, CodingKey {
         case id
         case name
         case address
+        case reminderCount
     }
 }
