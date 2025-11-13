@@ -73,10 +73,19 @@ struct StoresView: View {
                                 .padding(.vertical, 4)
                         )
                         .listRowSeparator(.hidden)
+                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                            Button(role: .destructive) {
+                                if let index = viewModel.userStoreItems.firstIndex(where: { $0.id == userStoreItem.id }) {
+                                    deleteStore(at: IndexSet(integer: index))
+                                }
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+                        }
                     }
-                    .onDelete(perform: deleteStore)
                     .onMove(perform: moveStore)
                 } //:LIST
+                .environment(\.editMode, .constant(.active))
                 .listStyle(.plain)
                 .scrollContentBackground(.hidden)
                 .background(
@@ -91,9 +100,6 @@ struct StoresView: View {
                     .ignoresSafeArea()
                 )
                 .toolbar {
-                    ToolbarItem(placement: .navigationBarLeading) {
-                        EditButton()
-                    }
                     ToolbarItem(placement: .navigationBarTrailing) {
                         Button(action: {
                             showingAddStore = true
