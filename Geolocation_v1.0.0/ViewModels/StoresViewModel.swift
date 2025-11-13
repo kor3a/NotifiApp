@@ -183,7 +183,8 @@ class StoresViewModel: ObservableObject {
 
     /// Add a store to the current user's list
     func addStoreToUser(store: Store) {
-        guard let userId = sessionManager.currentUser?.userId else {
+        guard let userId = sessionManager.currentUser?.userId,
+              let userEmail = sessionManager.currentUser?.email else {
             DispatchQueue.main.async {
                 self.errorMessage = "No user data available"
             }
@@ -211,6 +212,7 @@ class StoresViewModel: ObservableObject {
                 let sortOrder = self.userStoreItems.count
                 let userStore: [String: Any] = [
                     "userId": userId,
+                    "userEmail": userEmail,
                     "storeId": store.id,
                     "storeName": store.name,
                     "storeAddress": store.address,

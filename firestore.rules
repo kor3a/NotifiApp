@@ -49,12 +49,17 @@ service cloud.firestore {
 
       // Allow users to create user_stores documents
       allow create: if request.auth != null &&
-                       request.resource.data.userId is string;
+                       request.resource.data.userId is string &&
+                       request.resource.data.userEmail is string;
+
+      // Allow users to update their own user_stores (for sort order)
+      allow update: if request.auth != null &&
+                       resource.data.userEmail == request.auth.token.email;
 
       // Allow users to delete their own user_stores
-      // The userId field stores the full email address
+      // Check against userEmail field which stores the user's email
       allow delete: if request.auth != null &&
-                       resource.data.userId == request.auth.token.email;
+                       resource.data.userEmail == request.auth.token.email;
     }
   }
 }
