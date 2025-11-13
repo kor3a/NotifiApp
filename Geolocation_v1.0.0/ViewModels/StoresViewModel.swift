@@ -64,6 +64,7 @@ class StoresViewModel: ObservableObject {
                     }
 
                     let userStoreId = doc.documentID
+                    let sortOrder = data["sortOrder"] as? Int
                     group.enter()
 
                     // Fetch reminder count for this user_store
@@ -78,6 +79,7 @@ class StoresViewModel: ObservableObject {
 
                             var store = Store(id: storeId, name: storeName, address: storeAddress)
                             store.reminderCount = reminderCount
+                            store.sortOrder = sortOrder
                             let userStoreItem = UserStoreItem(id: userStoreId, store: store)
                             tempUserStoreItems.append(userStoreItem)
                         }
@@ -85,7 +87,12 @@ class StoresViewModel: ObservableObject {
 
                 // When all reminder counts are fetched, update the published property
                 group.notify(queue: .main) {
-                    self.userStoreItems = tempUserStoreItems
+                    // Sort by sortOrder, putting items without sortOrder at the end
+                    self.userStoreItems = tempUserStoreItems.sorted { item1, item2 in
+                        let order1 = item1.store.sortOrder ?? Int.max
+                        let order2 = item2.store.sortOrder ?? Int.max
+                        return order1 < order2
+                    }
                     print("StoresViewModel: Loaded \(self.userStoreItems.count) stores with reminder counts")
                 }
             }
@@ -184,12 +191,15 @@ class StoresViewModel: ObservableObject {
                 }
 
                 // Add store to user's list
+                // Assign sortOrder as the count of current stores (to append at the end)
+                let sortOrder = self.userStoreItems.count
                 let userStore: [String: Any] = [
                     "userId": userId,
                     "storeId": store.id,
                     "storeName": store.name,
                     "storeAddress": store.address,
-                    "addedAt": Date().timeIntervalSince1970
+                    "addedAt": Date().timeIntervalSince1970,
+                    "sortOrder": sortOrder
                 ]
 
                 self.db.collection("user_stores").addDocument(data: userStore) { error in
@@ -214,6 +224,31 @@ class StoresViewModel: ObservableObject {
                 print("StoresViewModel: Error removing store: \(error.localizedDescription)")
             } else {
                 print("StoresViewModel: Store removed successfully")
+            }
+        }
+    }
+
+    /// Reorder stores when user drags and drops
+    func moveStore(from source: IndexSet, to destination: Int) {
+        // Reorder the local array
+        var updatedItems = userStoreItems
+        updatedItems.move(fromOffsets: source, toOffset: destination)
+
+        // Update the local state immediately for smooth UI
+        userStoreItems = updatedItems
+
+        // Update sortOrder for all items in Firestore
+        let batch = db.batch()
+        for (index, item) in updatedItems.enumerated() {
+            let docRef = db.collection("user_stores").document(item.id)
+            batch.updateData(["sortOrder": index], forDocument: docRef)
+        }
+
+        batch.commit { error in
+            if let error = error {
+                print("StoresViewModel: Error updating sort order: \(error.localizedDescription)")
+            } else {
+                print("StoresViewModel: Sort order updated successfully")
             }
         }
     }
