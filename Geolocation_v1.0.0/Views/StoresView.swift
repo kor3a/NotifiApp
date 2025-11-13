@@ -51,14 +51,13 @@ struct StoresView: View {
                 List {
                     ForEach(viewModel.userStoreItems) { userStoreItem in
                         ZStack {
-                            NavigationLink(destination: ReminderView(userStoreItem: userStoreItem)) {
-                                StoreItemView(store: userStoreItem.store)
-                                    .contentShape(Rectangle())
-                            }
-                            .buttonStyle(.plain)
-                            .opacity(editMode == .active ? 0 : 1)
-
-                            if editMode == .active {
+                            if editMode == .inactive {
+                                NavigationLink(destination: ReminderView(userStoreItem: userStoreItem)) {
+                                    StoreItemView(store: userStoreItem.store)
+                                        .contentShape(Rectangle())
+                                }
+                                .buttonStyle(.plain)
+                            } else {
                                 StoreItemView(store: userStoreItem.store)
                             }
                         }
@@ -93,12 +92,15 @@ struct StoresView: View {
                                 Label("Delete", systemImage: "trash")
                             }
                         }
-                        .onLongPressGesture(minimumDuration: 0.5) {
-                            withAnimation {
-                                editMode = .active
-                                longPressedItemId = userStoreItem.id
-                            }
-                        }
+                        .simultaneousGesture(
+                            LongPressGesture(minimumDuration: 0.5)
+                                .onEnded { _ in
+                                    withAnimation {
+                                        editMode = .active
+                                        longPressedItemId = userStoreItem.id
+                                    }
+                                }
+                        )
                     }
                     .onMove(perform: moveStore)
                 } //:LIST
