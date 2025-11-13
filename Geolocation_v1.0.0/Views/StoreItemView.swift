@@ -46,16 +46,18 @@ struct StoreItemView: View {
 
             Spacer()
 
-            // TODO: replace text that displays the number of reminders
-//            if(store.reminderCount > 0){
-//                Text("\(store.reminderCount)")
-//                    .foregroundColor(.white)
-//                    .background(
-//                        Circle()
-//                            .fill(.red)
-//                            .frame(width: 25, height: 25)
-//                    )
-//            }
+            // Reminder count badge
+            if store.reminderCount > 0 {
+                ZStack {
+                    Circle()
+                        .fill(.red)
+                        .frame(width: 25, height: 25)
+
+                    Text("\(store.reminderCount)")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(.white)
+                }
+            }
 
         }//:HSTACK
         .padding(.horizontal, 16)
@@ -64,6 +66,9 @@ struct StoreItemView: View {
 }
 
 #Preview {
-    StoreItemView(store: Store(id: "1", name: "Example Store", address: "123 Main St, City, Country"))
+    VStack {
+        StoreItemView(store: Store(id: "1", name: "Example Store", address: "123 Main St, City, Country", reminderCount: 3))
+        StoreItemView(store: Store(id: "2", name: "Another Store", address: "456 Oak Ave, Town, Country", reminderCount: 0))
+    }
 }
 
