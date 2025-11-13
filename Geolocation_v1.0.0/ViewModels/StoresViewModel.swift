@@ -50,20 +50,44 @@ class StoresViewModel: ObservableObject {
 
                 print("StoresViewModel: Found \(documents.count) user stores")
 
-                self.userStoreItems = documents.compactMap { doc -> UserStoreItem? in
+                // Use DispatchGroup to coordinate fetching reminder counts
+                let group = DispatchGroup()
+                var tempUserStoreItems: [UserStoreItem] = []
+
+                for doc in documents {
                     let data = doc.data()
                     guard let storeId = data["storeId"] as? String,
                           let storeName = data["storeName"] as? String,
                           let storeAddress = data["storeAddress"] as? String else {
                         print("StoresViewModel: Missing fields in user_store document")
-                        return nil
+                        continue
                     }
 
-                    let store = Store(id: storeId, name: storeName, address: storeAddress)
-                    return UserStoreItem(id: doc.documentID, store: store)
+                    let userStoreId = doc.documentID
+                    group.enter()
+
+                    // Fetch reminder count for this user_store
+                    self.db.collection("reminders")
+                        .whereField("userStoreId", isEqualTo: userStoreId)
+                        .whereField("isDone", isEqualTo: false)
+                        .getDocuments { snapshot, error in
+                            defer { group.leave() }
+
+                            let reminderCount = snapshot?.documents.count ?? 0
+                            print("StoresViewModel: Store '\(storeName)' has \(reminderCount) active reminders")
+
+                            var store = Store(id: storeId, name: storeName, address: storeAddress)
+                            store.reminderCount = reminderCount
+                            let userStoreItem = UserStoreItem(id: userStoreId, store: store)
+                            tempUserStoreItems.append(userStoreItem)
+                        }
                 }
 
-                print("StoresViewModel: Loaded \(self.userStoreItems.count) stores for user")
+                // When all reminder counts are fetched, update the published property
+                group.notify(queue: .main) {
+                    self.userStoreItems = tempUserStoreItems
+                    print("StoresViewModel: Loaded \(self.userStoreItems.count) stores with reminder counts")
+                }
             }
     }
 
