@@ -235,9 +235,14 @@ class StoresViewModel: ObservableObject {
     func removeStoreFromUser(userStoreItem: UserStoreItem) {
         print("StoresViewModel: Removing user_store document: \(userStoreItem.id)")
 
+        // Remove from local array immediately for smooth UI
+        userStoreItems.removeAll { $0.id == userStoreItem.id }
+
+        // Delete from Firebase
         db.collection("user_stores").document(userStoreItem.id).delete { error in
             if let error = error {
                 print("StoresViewModel: Error removing store: \(error.localizedDescription)")
+                // TODO: Could add error handling to restore the item if delete fails
             } else {
                 print("StoresViewModel: Store removed successfully")
             }
