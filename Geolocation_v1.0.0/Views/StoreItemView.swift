@@ -32,10 +32,17 @@ struct StoreItemView: View {
                         )
                     )
             }
-
-            Text(store.name)
-                .font(.headline)
-                .foregroundColor(.primary)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(store.name)
+                    .font(.headline)
+                    .foregroundColor(.primary)
+                
+                Text(store.address)
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    
+            }
+            
 
             Spacer()
 
@@ -54,5 +61,9 @@ struct StoreItemView: View {
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
     }
+}
+
+#Preview {
+    StoreItemView(store: Store(id: "1", name: "Example Store", address: "123 Main St, City, Country"))
 }
 
