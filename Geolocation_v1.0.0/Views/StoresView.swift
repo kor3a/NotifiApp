@@ -13,6 +13,8 @@ struct StoresView: View {
     @StateObject private var viewModel = StoresViewModel()
     @ObservedObject private var sessionManager = UserSessionManager.shared
     @State private var showingAddStore = false
+    @State private var editMode: EditMode = .inactive
+    @State private var longPressedItemId: String?
 
     var body: some View {
         NavigationStack {
@@ -48,8 +50,15 @@ struct StoresView: View {
             } else {
                 List {
                     ForEach(viewModel.userStoreItems) { userStoreItem in
-                        NavigationLink(destination: ReminderView(userStoreItem: userStoreItem)) {
-                            StoreItemView(store: userStoreItem.store)
+                        ZStack {
+                            NavigationLink(destination: ReminderView(userStoreItem: userStoreItem)) {
+                                StoreItemView(store: userStoreItem.store)
+                            }
+                            .opacity(editMode == .active ? 0 : 1)
+
+                            if editMode == .active {
+                                StoreItemView(store: userStoreItem.store)
+                            }
                         }
                         .listRowBackground(
                             RoundedRectangle(cornerRadius: 16)
@@ -82,10 +91,16 @@ struct StoresView: View {
                                 Label("Delete", systemImage: "trash")
                             }
                         }
+                        .onLongPressGesture(minimumDuration: 0.5) {
+                            withAnimation {
+                                editMode = .active
+                                longPressedItemId = userStoreItem.id
+                            }
+                        }
                     }
                     .onMove(perform: moveStore)
                 } //:LIST
-                .environment(\.editMode, .constant(.active))
+                .environment(\.editMode, $editMode)
                 .listStyle(.plain)
                 .scrollContentBackground(.hidden)
                 .background(
@@ -100,6 +115,15 @@ struct StoresView: View {
                     .ignoresSafeArea()
                 )
                 .toolbar {
+                    if editMode == .active {
+                        ToolbarItem(placement: .navigationBarLeading) {
+                            Button("Done") {
+                                withAnimation {
+                                    editMode = .inactive
+                                }
+                            }
+                        }
+                    }
                     ToolbarItem(placement: .navigationBarTrailing) {
                         Button(action: {
                             showingAddStore = true
@@ -136,6 +160,14 @@ struct StoresView: View {
 
     private func moveStore(from source: IndexSet, to destination: Int) {
         viewModel.moveStore(from: source, to: destination)
+
+        // Auto-exit edit mode after a short delay
+        Task {
+            try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
+            withAnimation {
+                editMode = .inactive
+            }
+        }
     }
 }
 
