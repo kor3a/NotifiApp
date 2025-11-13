@@ -75,6 +75,7 @@ struct StoresView: View {
                         .listRowSeparator(.hidden)
                     }
                     .onDelete(perform: deleteStore)
+                    .onMove(perform: moveStore)
                 } //:LIST
                 .listStyle(.plain)
                 .scrollContentBackground(.hidden)
@@ -90,6 +91,9 @@ struct StoresView: View {
                     .ignoresSafeArea()
                 )
                 .toolbar {
+                    ToolbarItem(placement: .navigationBarLeading) {
+                        EditButton()
+                    }
                     ToolbarItem(placement: .navigationBarTrailing) {
                         Button(action: {
                             showingAddStore = true
@@ -122,6 +126,10 @@ struct StoresView: View {
             let userStoreItem = viewModel.userStoreItems[index]
             viewModel.removeStoreFromUser(userStoreItem: userStoreItem)
         }
+    }
+
+    private func moveStore(from source: IndexSet, to destination: Int) {
+        viewModel.moveStore(from: source, to: destination)
     }
 }
 

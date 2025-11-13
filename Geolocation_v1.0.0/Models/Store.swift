@@ -12,11 +12,13 @@ struct Store: Codable, Identifiable {
     let name: String
     let address: String
     var reminderCount: Int = 0
+    var sortOrder: Int? = nil
 
     enum CodingKeys: String, CodingKey {
         case id
         case name
         case address
         case reminderCount
+        case sortOrder
     }
 }
