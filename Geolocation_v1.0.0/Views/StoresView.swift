@@ -53,7 +53,9 @@ struct StoresView: View {
                         ZStack {
                             NavigationLink(destination: ReminderView(userStoreItem: userStoreItem)) {
                                 StoreItemView(store: userStoreItem.store)
+                                    .contentShape(Rectangle())
                             }
+                            .buttonStyle(.plain)
                             .opacity(editMode == .active ? 0 : 1)
 
                             if editMode == .active {
