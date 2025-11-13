@@ -14,6 +14,9 @@ class StoresViewModel: ObservableObject {
     @Published var isLoadingAllStores: Bool = false
     @Published var errorMessage: String = ""
 
+    // Store the listener registration so we can remove it later
+    private var storesListener: ListenerRegistration?
+
     /// Fetch only stores that the current user has added to their list
     func fetchUserStores() {
         guard let userId = sessionManager.currentUser?.userId else {
@@ -29,7 +32,11 @@ class StoresViewModel: ObservableObject {
     }
 
     private func fetchUserStoresById(userId: String) {
-        db.collection("user_stores")
+        // Remove existing listener to prevent duplicates
+        storesListener?.remove()
+
+        // Add new snapshot listener and store the registration
+        storesListener = db.collection("user_stores")
             .whereField("userId", isEqualTo: userId)
             .addSnapshotListener { [weak self] snapshot, error in
                 guard let self = self else { return }
@@ -251,5 +258,10 @@ class StoresViewModel: ObservableObject {
                 print("StoresViewModel: Sort order updated successfully")
             }
         }
+    }
+
+    deinit {
+        // Clean up listener when ViewModel is destroyed
+        storesListener?.remove()
     }
 }
