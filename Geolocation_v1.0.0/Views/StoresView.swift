@@ -15,6 +15,7 @@ struct StoresView: View {
     @State private var showingAddStore = false
     @State private var editMode: EditMode = .inactive
     @State private var longPressedItemId: String?
+    @Environment(\.colorScheme) var colorScheme
 
     var body: some View {
         NavigationStack {
@@ -67,19 +68,12 @@ struct StoresView: View {
                                 .overlay(
                                     RoundedRectangle(cornerRadius: 16)
                                         .stroke(
-                                            LinearGradient(
-                                                colors: [
-                                                    Color.white.opacity(0.6),
-                                                    Color.white.opacity(0.2)
-                                                ],
-                                                startPoint: .topLeading,
-                                                endPoint: .bottomTrailing
-                                            ),
+                                            Color.cardBorder(for: colorScheme),
                                             lineWidth: 1.5
                                         )
                                 )
-                                .shadow(color: Color.black.opacity(0.1), radius: 8, x: 0, y: 4)
-                                .shadow(color: Color.white.opacity(0.5), radius: 2, x: 0, y: -2)
+                                .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.3 : 0.1), radius: 8, x: 0, y: 4)
+                                .shadow(color: Color.white.opacity(colorScheme == .dark ? 0.05 : 0.5), radius: 2, x: 0, y: -2)
                                 .padding(.vertical, 4)
                         )
                         .listRowSeparator(.hidden)
@@ -108,15 +102,8 @@ struct StoresView: View {
                 .listStyle(.plain)
                 .scrollContentBackground(.hidden)
                 .background(
-                    LinearGradient(
-                        colors: [
-                            Color(red: 0.95, green: 0.96, blue: 0.98),
-                            Color(red: 0.88, green: 0.92, blue: 0.96)
-                        ],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                    .ignoresSafeArea()
+                    Color.backgroundGradient(for: colorScheme)
+                        .ignoresSafeArea()
                 )
                 .toolbar {
                     if editMode == .active {

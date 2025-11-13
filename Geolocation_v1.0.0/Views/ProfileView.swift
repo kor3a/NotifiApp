@@ -166,36 +166,18 @@ struct ProfileView: View {
                 .padding(.top, 10)
 
                 // Save Button
-                Button {
+                Button("Save Changes") {
                     viewModel.saveProfileChanges()
-                } label: {
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 10)
-                            .fill(Color.blue)
-                            .frame(height: 50)
-
-                        Text("Save Changes")
-                            .font(.headline)
-                            .foregroundStyle(.white)
-                    }
                 }
+                .buttonStyle(PrimaryButtonStyle(color: .blue))
                 .padding(.horizontal)
                 .padding(.top, 20)
 
                 // Sign Out Button
-                Button {
+                Button("Sign Out") {
                     viewModel.signOut()
-                } label: {
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 10)
-                            .fill(.red.opacity(0.1))
-                            .frame(height: 50)
-
-                        Text("Sign Out")
-                            .font(.headline)
-                            .foregroundStyle(.red)
-                    }
                 }
+                .buttonStyle(SecondaryButtonStyle(color: .red))
                 .padding(.horizontal)
                 .padding(.top, 10)
                 .padding(.bottom, 30)

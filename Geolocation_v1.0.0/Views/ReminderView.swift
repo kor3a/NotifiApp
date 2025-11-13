@@ -30,16 +30,13 @@ struct ReminderView: View {
                     Text("Add reminders for this store")
                         .foregroundStyle(.gray)
 
-                    Button(action: {
+                    Button {
                         showingAddReminder = true
-                    }) {
+                    } label: {
                         Label("Add Reminder", systemImage: "plus")
-                            .font(.headline)
-                            .padding()
-                            .background(Color.blue)
-                            .foregroundColor(.white)
-                            .cornerRadius(10)
                     }
+                    .buttonStyle(PrimaryButtonStyle())
+                    .padding(.horizontal)
                 }
                 .padding()
             } else {
