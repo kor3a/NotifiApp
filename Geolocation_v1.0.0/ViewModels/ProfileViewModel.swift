@@ -17,10 +17,8 @@ class ProfileViewModel: ObservableObject {
     private let sessionManager = UserSessionManager.shared
 
     init() {
-        // Initialize name field with current user's name
-        if let userName = sessionManager.currentUser?.name {
-            self.newName = userName
-        }
+        // Don't initialize newName here to avoid keyboard conflicts
+        // It will be set in the view's onAppear
     }
 
     @Published var isLoading: Bool = false

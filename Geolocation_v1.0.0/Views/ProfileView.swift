@@ -142,6 +142,8 @@ struct ProfileView: View {
                         TextField("Enter your name", text: $viewModel.newName)
                             .textFieldStyle(RoundedBorderTextFieldStyle())
                             .autocapitalization(.words)
+                            .disableAutocorrection(true)
+                            .id("nameTextField")
                     }
 
                     // New Password Field
@@ -181,6 +183,12 @@ struct ProfileView: View {
                 .padding(.horizontal)
                 .padding(.top, 10)
                 .padding(.bottom, 30)
+            }
+        }
+        .onAppear {
+            // Initialize the name field only if it's empty to prevent keyboard conflicts
+            if viewModel.newName.isEmpty {
+                viewModel.newName = user.name
             }
         }
     }
