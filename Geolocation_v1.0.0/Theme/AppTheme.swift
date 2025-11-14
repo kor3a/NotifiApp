@@ -9,11 +9,6 @@ import SwiftUI
 
 // MARK: - App Theme
 extension Color {
-    // MARK: - Background Colors
-    static let appBackground = Color("AppBackground")
-    static let cardBackground = Color("CardBackground")
-    static let inputBackground = Color("InputBackground")
-
     // MARK: - Text Colors
     static let primaryText = Color.primary
     static let secondaryText = Color.secondary
