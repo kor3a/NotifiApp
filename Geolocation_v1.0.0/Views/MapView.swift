@@ -22,7 +22,8 @@ struct MapView: View {
 
     @StateObject private var viewModel:MapViewModel = .init()
 
-    // Binding to control search from parent (HomeView)
+    // Bindings to control from parent (HomeView)
+    @Binding var selectedTab: Int
     @Binding var isSearchExpanded: Bool
     @Binding var searchQuery: String
     @FocusState private var isSearchFocused: Bool
@@ -47,6 +48,9 @@ struct MapView: View {
             .buttonBorderShape(.circle)
             .padding()
             .padding(.bottom, 60) // Make room for custom tab bar
+        }
+        .overlay(alignment: .bottom) {
+            customTabBar
         }
         .mapScope(mapScope)
         .sheet(isPresented: $showDetails, content: {
@@ -78,6 +82,101 @@ struct MapView: View {
         .onChange(of: mapSelection, { oldValue, newValue in
             showDetails = newValue != nil
         })
+    }
+
+    // MARK: - CUSTOM TAB BAR
+
+    private var customTabBar: some View {
+        HStack(spacing: 0) {
+            // Left side: Tab items
+            HStack(spacing: 12) {
+                // Stores tab
+                Button(action: {
+                    withAnimation(.spring(response: 0.3)) {
+                        selectedTab = 0
+                        // Close search when switching tabs
+                        if isSearchExpanded {
+                            isSearchExpanded = false
+                            searchQuery = ""
+                        }
+                    }
+                }) {
+                    VStack(spacing: 4) {
+                        Image(systemName: "storefront")
+                            .font(.system(size: 20))
+                        Text("Stores")
+                            .font(.system(size: 11))
+                    }
+                    .foregroundColor(selectedTab == 0 ? .blue : .primary)
+                    .frame(width: 60, height: 50)
+                }
+
+                // Map tab
+                Button(action: {
+                    withAnimation(.spring(response: 0.3)) {
+                        selectedTab = 1
+                    }
+                }) {
+                    VStack(spacing: 4) {
+                        Image(systemName: "map")
+                            .font(.system(size: 20))
+                        Text("Search")
+                            .font(.system(size: 11))
+                    }
+                    .foregroundColor(selectedTab == 1 ? .blue : .primary)
+                    .frame(width: 60, height: 50)
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+            .background(.ultraThinMaterial)
+            .clipShape(RoundedRectangle(cornerRadius: 25))
+
+            Spacer()
+
+            // Right side: Search
+            HStack(spacing: 0) {
+                if isSearchExpanded {
+                    TextField("Search places...", text: $searchQuery)
+                        .textFieldStyle(PlainTextFieldStyle())
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 12)
+                        .focused($isSearchFocused)
+                        .onSubmit {
+                            isSearchFocused = false
+                        }
+                        .transition(.move(edge: .trailing).combined(with: .opacity))
+                }
+
+                Button(action: {
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                        if isSearchExpanded && !searchQuery.isEmpty {
+                            // Clear search
+                            searchQuery = ""
+                        }
+                        isSearchExpanded.toggle()
+                        if isSearchExpanded {
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                isSearchFocused = true
+                            }
+                        } else {
+                            isSearchFocused = false
+                        }
+                    }
+                }) {
+                    Image(systemName: isSearchExpanded && !searchQuery.isEmpty ? "xmark" : "magnifyingglass")
+                        .font(.system(size: 20))
+                        .foregroundColor(.primary)
+                        .frame(width: 44, height: 44)
+                }
+            }
+            .background(.ultraThinMaterial)
+            .clipShape(RoundedRectangle(cornerRadius: 25))
+            .frame(maxWidth: isSearchExpanded ? .infinity : 44)
+        }
+        .padding(.horizontal, 16)
+        .padding(.bottom, 16)
+        .animation(.spring(response: 0.4, dampingFraction: 0.8), value: isSearchExpanded)
     }
 }
 
@@ -174,5 +273,5 @@ extension MapView {
 }
 
 #Preview {
-    MapView(isSearchExpanded: .constant(false), searchQuery: .constant(""))
+    MapView(selectedTab: .constant(1), isSearchExpanded: .constant(false), searchQuery: .constant(""))
 }
