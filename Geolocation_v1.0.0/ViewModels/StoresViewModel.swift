@@ -14,6 +14,12 @@ class StoresViewModel: ObservableObject {
     @Published var isLoadingAllStores: Bool = false
     @Published var errorMessage: String = ""
 
+    // Store the listener registration so we can remove it later
+    private var storesListener: ListenerRegistration?
+
+    // Flag to prevent listener from overwriting during manual sort
+    private var isManuallyReordering = false
+
     /// Fetch only stores that the current user has added to their list
     func fetchUserStores() {
         guard let userId = sessionManager.currentUser?.userId else {
@@ -29,7 +35,11 @@ class StoresViewModel: ObservableObject {
     }
 
     private func fetchUserStoresById(userId: String) {
-        db.collection("user_stores")
+        // Remove existing listener to prevent duplicates
+        storesListener?.remove()
+
+        // Add new snapshot listener and store the registration
+        storesListener = db.collection("user_stores")
             .whereField("userId", isEqualTo: userId)
             .addSnapshotListener { [weak self] snapshot, error in
                 guard let self = self else { return }
@@ -87,6 +97,12 @@ class StoresViewModel: ObservableObject {
 
                 // When all reminder counts are fetched, update the published property
                 group.notify(queue: .main) {
+                    // Skip updating if we're manually reordering (to prevent race conditions)
+                    guard !self.isManuallyReordering else {
+                        print("StoresViewModel: Skipping listener update during manual reorder")
+                        return
+                    }
+
                     // Sort by sortOrder, putting items without sortOrder at the end
                     self.userStoreItems = tempUserStoreItems.sorted { item1, item2 in
                         let order1 = item1.store.sortOrder ?? Int.max
@@ -167,7 +183,8 @@ class StoresViewModel: ObservableObject {
 
     /// Add a store to the current user's list
     func addStoreToUser(store: Store) {
-        guard let userId = sessionManager.currentUser?.userId else {
+        guard let userId = sessionManager.currentUser?.userId,
+              let userEmail = sessionManager.currentUser?.email else {
             DispatchQueue.main.async {
                 self.errorMessage = "No user data available"
             }
@@ -195,6 +212,7 @@ class StoresViewModel: ObservableObject {
                 let sortOrder = self.userStoreItems.count
                 let userStore: [String: Any] = [
                     "userId": userId,
+                    "userEmail": userEmail,
                     "storeId": store.id,
                     "storeName": store.name,
                     "storeAddress": store.address,
@@ -219,9 +237,14 @@ class StoresViewModel: ObservableObject {
     func removeStoreFromUser(userStoreItem: UserStoreItem) {
         print("StoresViewModel: Removing user_store document: \(userStoreItem.id)")
 
+        // Remove from local array immediately for smooth UI
+        userStoreItems.removeAll { $0.id == userStoreItem.id }
+
+        // Delete from Firebase
         db.collection("user_stores").document(userStoreItem.id).delete { error in
             if let error = error {
                 print("StoresViewModel: Error removing store: \(error.localizedDescription)")
+                // TODO: Could add error handling to restore the item if delete fails
             } else {
                 print("StoresViewModel: Store removed successfully")
             }
@@ -230,6 +253,9 @@ class StoresViewModel: ObservableObject {
 
     /// Reorder stores when user drags and drops
     func moveStore(from source: IndexSet, to destination: Int) {
+        // Set flag to prevent listener from overwriting during reorder
+        isManuallyReordering = true
+
         // Reorder the local array
         var updatedItems = userStoreItems
         updatedItems.move(fromOffsets: source, toOffset: destination)
@@ -244,12 +270,22 @@ class StoresViewModel: ObservableObject {
             batch.updateData(["sortOrder": index], forDocument: docRef)
         }
 
-        batch.commit { error in
+        batch.commit { [weak self] error in
+            // Re-enable listener updates after a short delay
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                self?.isManuallyReordering = false
+            }
+
             if let error = error {
                 print("StoresViewModel: Error updating sort order: \(error.localizedDescription)")
             } else {
                 print("StoresViewModel: Sort order updated successfully")
             }
         }
+    }
+
+    deinit {
+        // Clean up listener when ViewModel is destroyed
+        storesListener?.remove()
     }
 }
