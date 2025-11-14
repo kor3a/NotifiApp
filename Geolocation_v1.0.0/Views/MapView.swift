@@ -87,12 +87,65 @@ extension MapView {
     func searchPlaces() async {
         let request = MKLocalSearch.Request()
         request.naturalLanguageQuery = self.searchText
-        
+
         /// Search based on the user's region
         request.region = self.viewingRegion ?? viewModel.region
-        
+
         let results = try? await MKLocalSearch(request: request).start()
         self.results = results?.mapItems ?? []
+
+        /// Zoom out to show all search results
+        if !self.results.isEmpty {
+            let region = calculateRegionForResults(self.results)
+            withAnimation(.smooth(duration: 0.5)) {
+                cameraPosition = .region(region)
+            }
+        }
+    }
+
+    /// Calculate a region that encompasses all search results
+    func calculateRegionForResults(_ mapItems: [MKMapItem]) -> MKCoordinateRegion {
+        guard !mapItems.isEmpty else {
+            return viewModel.region
+        }
+
+        // Start with the first coordinate
+        var minLat = mapItems[0].placemark.coordinate.latitude
+        var maxLat = minLat
+        var minLon = mapItems[0].placemark.coordinate.longitude
+        var maxLon = minLon
+
+        // Include user's location in the calculation
+        let userLat = viewModel.region.center.latitude
+        let userLon = viewModel.region.center.longitude
+        minLat = min(minLat, userLat)
+        maxLat = max(maxLat, userLat)
+        minLon = min(minLon, userLon)
+        maxLon = max(maxLon, userLon)
+
+        // Find the bounds of all results
+        for item in mapItems {
+            let coordinate = item.placemark.coordinate
+            minLat = min(minLat, coordinate.latitude)
+            maxLat = max(maxLat, coordinate.latitude)
+            minLon = min(minLon, coordinate.longitude)
+            maxLon = max(maxLon, coordinate.longitude)
+        }
+
+        // Calculate center and span
+        let centerLat = (minLat + maxLat) / 2
+        let centerLon = (minLon + maxLon) / 2
+        let spanLat = (maxLat - minLat) * 1.3 // Add 30% padding
+        let spanLon = (maxLon - minLon) * 1.3
+
+        // Ensure minimum span for better visibility
+        let finalSpanLat = max(spanLat, 0.01)
+        let finalSpanLon = max(spanLon, 0.01)
+
+        return MKCoordinateRegion(
+            center: CLLocationCoordinate2D(latitude: centerLat, longitude: centerLon),
+            span: MKCoordinateSpan(latitudeDelta: finalSpanLat, longitudeDelta: finalSpanLon)
+        )
     }
 }
 
