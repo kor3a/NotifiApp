@@ -19,7 +19,10 @@ struct MapView: View {
     @State private var mapSelection: MKMapItem?
     @State private var showSearch = false
     @State private var showDetails = false
+    @State private var isSearchExpanded = false
+    @State private var mapStyle: MapStyle = .standard
     @Namespace private var mapScope
+    @FocusState private var isSearchFocused: Bool
     
     @StateObject private var viewModel:MapViewModel = .init()
     
@@ -27,16 +30,17 @@ struct MapView: View {
         NavigationStack {
             Map(position: $cameraPosition, selection: $mapSelection, scope: mapScope){
                 UserAnnotation()
-                
+
                 ForEach(results, id: \.self) { item in
                     let placemark = item.placemark
                     Marker(placemark.name ?? "", coordinate: placemark.coordinate)
                 }
             }//:MAP
+            .mapStyle(mapStyle)
             .onMapCameraChange({ ctx in
                 viewingRegion = ctx.region
             })
-            .overlay(alignment: .bottomTrailing) {
+            .overlay(alignment: .topTrailing) {
                 VStack(spacing: 15){
                     MapPitchToggle(scope: mapScope)
                     MapUserLocationButton(scope: mapScope)
@@ -44,11 +48,12 @@ struct MapView: View {
                 .buttonBorderShape(.circle)
                 .padding()
             }
+            .overlay(alignment: .bottom) {
+                customBottomBar
+            }
             .mapScope(mapScope)
             .navigationTitle("Map")
             .navigationBarTitleDisplayMode(.inline)
-            /// Searchbar
-            .searchable(text: $searchText, isPresented: $showSearch)
             /// Showing translucent toolbar
             .toolbarBackground(.visible, for: .navigationBar)
             .toolbarBackground(.ultraThinMaterial, for: .navigationBar)
@@ -59,27 +64,115 @@ struct MapView: View {
                     .presentationCornerRadius(25)
             })
         }//:NAVIGATIONSTACK
-        .onSubmit(of: .search) {
-            Task {
-                guard !searchText.isEmpty else { return }
-                
-                await searchPlaces()
-            }
-        }
-        .onChange(of: showSearch, initial: false) {
-            if !showSearch {
-                /// Clearing search results
-                results.removeAll(keepingCapacity: false)
-                showDetails = false
-                /// Zooming out to the user's location when the searchbar is cancelled
-                withAnimation(.snappy){
-                    cameraPosition = .region(viewModel.region)
-                }
-            }
-        }
         .onChange(of: mapSelection, { oldValue, newValue in
             showDetails = newValue != nil /// Whenever newValue is not nil, showDetails
         })
+    }
+
+    // MARK: - CUSTOM BOTTOM BAR
+
+    private var customBottomBar: some View {
+        HStack(spacing: 0) {
+            // Left side: Tab bar
+            HStack(spacing: 12) {
+                // Standard Map View Button
+                Button(action: {
+                    withAnimation(.spring(response: 0.3)) {
+                        mapStyle = .standard
+                    }
+                }) {
+                    Image(systemName: "map")
+                        .font(.system(size: 20))
+                        .foregroundColor(mapStyle == .standard ? .white : .primary)
+                        .frame(width: 44, height: 44)
+                        .background(mapStyle == .standard ? Color.blue : Color.clear)
+                        .clipShape(Circle())
+                }
+
+                // Satellite Map View Button
+                Button(action: {
+                    withAnimation(.spring(response: 0.3)) {
+                        mapStyle = .imagery
+                    }
+                }) {
+                    Image(systemName: "globe.americas.fill")
+                        .font(.system(size: 20))
+                        .foregroundColor(mapStyle == .imagery ? .white : .primary)
+                        .frame(width: 44, height: 44)
+                        .background(mapStyle == .imagery ? Color.blue : Color.clear)
+                        .clipShape(Circle())
+                }
+
+                // Hybrid Map View Button
+                Button(action: {
+                    withAnimation(.spring(response: 0.3)) {
+                        mapStyle = .hybrid
+                    }
+                }) {
+                    Image(systemName: "map.fill")
+                        .font(.system(size: 20))
+                        .foregroundColor(mapStyle == .hybrid ? .white : .primary)
+                        .frame(width: 44, height: 44)
+                        .background(mapStyle == .hybrid ? Color.blue : Color.clear)
+                        .clipShape(Circle())
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+            .background(.ultraThinMaterial)
+            .clipShape(RoundedRectangle(cornerRadius: 25))
+
+            Spacer()
+
+            // Right side: Search
+            HStack(spacing: 0) {
+                if isSearchExpanded {
+                    TextField("Search places...", text: $searchText)
+                        .textFieldStyle(PlainTextFieldStyle())
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 12)
+                        .focused($isSearchFocused)
+                        .onSubmit {
+                            Task {
+                                guard !searchText.isEmpty else { return }
+                                await searchPlaces()
+                                isSearchFocused = false
+                            }
+                        }
+                        .transition(.move(edge: .trailing).combined(with: .opacity))
+                }
+
+                Button(action: {
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                        if isSearchExpanded && !searchText.isEmpty {
+                            // Clear search
+                            searchText = ""
+                            results.removeAll(keepingCapacity: false)
+                            showDetails = false
+                            withAnimation(.snappy) {
+                                cameraPosition = .region(viewModel.region)
+                            }
+                        }
+                        isSearchExpanded.toggle()
+                        if isSearchExpanded {
+                            isSearchFocused = true
+                        } else {
+                            isSearchFocused = false
+                        }
+                    }
+                }) {
+                    Image(systemName: isSearchExpanded && !searchText.isEmpty ? "xmark" : "magnifyingglass")
+                        .font(.system(size: 20))
+                        .foregroundColor(.primary)
+                        .frame(width: 44, height: 44)
+                }
+            }
+            .background(.ultraThinMaterial)
+            .clipShape(RoundedRectangle(cornerRadius: 25))
+            .frame(maxWidth: isSearchExpanded ? .infinity : 44)
+        }
+        .padding(.horizontal, 16)
+        .padding(.bottom, 16)
     }
 }
 
