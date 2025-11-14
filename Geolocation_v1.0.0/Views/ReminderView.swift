@@ -11,6 +11,7 @@ struct ReminderView: View {
     let userStoreItem: UserStoreItem
     @StateObject private var viewModel = ReminderViewModel()
     @State private var showingAddReminder = false
+    @State private var reminderTitle: String = ""
 
     var body: some View {
         ZStack {
@@ -71,12 +72,33 @@ struct ReminderView: View {
             }
         }
         .animation(.none)
-        .sheet(isPresented: $showingAddReminder) {
-            AddReminderView(userStoreId: userStoreItem.id, viewModel: viewModel)
+        .alert("Add a New Item", isPresented: $showingAddReminder) {
+            TextField("What do you need?", text: $reminderTitle)
+                .textInputAutocapitalization(.sentences)
+
+            Button("Add") {
+                addReminder()
+            }
+            .disabled(reminderTitle.trimmingCharacters(in: .whitespaces).isEmpty)
+            
+
+            Button("Cancel", role: .cancel) {
+                reminderTitle = ""
+            }
+        } message: {
+            Text("Enter the item name you wish to add.")
         }
         .onAppear {
             viewModel.fetchReminders(for: userStoreItem.id)
         }
+    }
+
+    private func addReminder() {
+        let title = reminderTitle.trimmingCharacters(in: .whitespaces)
+        guard !title.isEmpty else { return }
+
+        viewModel.addReminder(userStoreId: userStoreItem.id, title: title)
+        reminderTitle = ""
     }
 }
 
