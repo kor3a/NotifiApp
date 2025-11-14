@@ -72,7 +72,7 @@ struct ReminderView: View {
             }
         }
         .animation(.none)
-        .alert("New Reminder", isPresented: $showingAddReminder) {
+        .alert("Add a New Item", isPresented: $showingAddReminder) {
             TextField("What do you need?", text: $reminderTitle)
                 .textInputAutocapitalization(.sentences)
 
@@ -80,12 +80,13 @@ struct ReminderView: View {
                 addReminder()
             }
             .disabled(reminderTitle.trimmingCharacters(in: .whitespaces).isEmpty)
+            
 
             Button("Cancel", role: .cancel) {
                 reminderTitle = ""
             }
         } message: {
-            Text("Enter reminder details")
+            Text("Enter the item name you wish to add.")
         }
         .onAppear {
             viewModel.fetchReminders(for: userStoreItem.id)
