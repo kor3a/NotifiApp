@@ -46,6 +46,7 @@ struct HomeView: View {
                     isSearchExpanded: $isSearchExpanded,
                     searchQuery: $searchQuery
                 )
+                .toolbar(.hidden, for: .tabBar)
             }//:NAVIGATIONSTACK
             .tabItem {
                 Image(systemName: "map")
@@ -53,7 +54,6 @@ struct HomeView: View {
             }
             .tag(1)
         }
-        .toolbar(selectedTab == 1 ? .hidden : .visible, for: .tabBar)
     }
 }
 
