@@ -88,6 +88,7 @@ extension MapView {
         // Start with a small radius and incrementally increase until we find results
         let radiusSteps: [CLLocationDistance] = [2000, 5000, 10000, 20000, 50000] // 2km, 5km, 10km, 20km, 50km
         var foundResults: [MKMapItem] = []
+        let userLocation = CLLocation(latitude: viewModel.region.center.latitude, longitude: viewModel.region.center.longitude)
 
         // Try each radius until we find results
         for radius in radiusSteps {
@@ -100,8 +101,16 @@ extension MapView {
             let results = try? await MKLocalSearch(request: request).start()
             let items = results?.mapItems ?? []
 
-            if !items.isEmpty {
-                foundResults = items
+            // Filter results to only include items within the current radius
+            let filteredItems = items.filter { item in
+                let itemLocation = CLLocation(latitude: item.placemark.coordinate.latitude,
+                                             longitude: item.placemark.coordinate.longitude)
+                let distance = userLocation.distance(from: itemLocation)
+                return distance <= radius
+            }
+
+            if !filteredItems.isEmpty {
+                foundResults = filteredItems
                 break
             }
         }
