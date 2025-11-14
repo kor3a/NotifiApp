@@ -9,9 +9,12 @@ import SwiftUI
 
 struct HomeView: View {
     @ObservedObject private var sessionManager = UserSessionManager.shared
+    @State private var selectedTab = 0
+    @State private var isSearchExpanded = false
+    @State private var searchQuery = ""
 
     var body: some View {
-        TabView {
+        TabView(selection: $selectedTab) {
             NavigationStack {
                 StoresView()
                     .navigationTitle("Hi, \(sessionManager.currentUser?.name ?? "there")")
@@ -35,15 +38,21 @@ struct HomeView: View {
                 Image(systemName: "storefront")
                 Text("Stores")
             }
-            
-            
+            .tag(0)
+
             NavigationStack {
-                MapView()
+                MapView(
+                    selectedTab: $selectedTab,
+                    isSearchExpanded: $isSearchExpanded,
+                    searchQuery: $searchQuery
+                )
+                .toolbar(.hidden, for: .tabBar)
             }//:NAVIGATIONSTACK
             .tabItem {
                 Image(systemName: "map")
                 Text("Search")
             }
+            .tag(1)
         }
     }
 }
