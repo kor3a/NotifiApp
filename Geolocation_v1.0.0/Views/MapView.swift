@@ -8,10 +8,28 @@
 import SwiftUI
 import MapKit
 
+// MARK: - Map Style Type
+enum MapStyleType {
+    case standard
+    case imagery
+    case hybrid
+
+    var mapStyle: MapStyle {
+        switch self {
+        case .standard:
+            return .standard
+        case .imagery:
+            return .imagery
+        case .hybrid:
+            return .hybrid
+        }
+    }
+}
+
 struct MapView: View {
-    
+
     // MARK: - PROPERTIES
-    
+
     @State private var cameraPosition: MapCameraPosition = .userLocation(fallback: .automatic)
     @State private var viewingRegion: MKCoordinateRegion?
     @State private var searchText = ""
@@ -20,10 +38,10 @@ struct MapView: View {
     @State private var showSearch = false
     @State private var showDetails = false
     @State private var isSearchExpanded = false
-    @State private var mapStyle: MapStyle = .standard
+    @State private var selectedMapStyle: MapStyleType = .standard
     @Namespace private var mapScope
     @FocusState private var isSearchFocused: Bool
-    
+
     @StateObject private var viewModel:MapViewModel = .init()
     
     var body: some View {
@@ -36,7 +54,7 @@ struct MapView: View {
                     Marker(placemark.name ?? "", coordinate: placemark.coordinate)
                 }
             }//:MAP
-            .mapStyle(mapStyle)
+            .mapStyle(selectedMapStyle.mapStyle)
             .onMapCameraChange({ ctx in
                 viewingRegion = ctx.region
             })
@@ -78,42 +96,42 @@ struct MapView: View {
                 // Standard Map View Button
                 Button(action: {
                     withAnimation(.spring(response: 0.3)) {
-                        mapStyle = .standard
+                        selectedMapStyle = .standard
                     }
                 }) {
                     Image(systemName: "map")
                         .font(.system(size: 20))
-                        .foregroundColor(mapStyle == .standard ? .white : .primary)
+                        .foregroundColor(selectedMapStyle == .standard ? .white : .primary)
                         .frame(width: 44, height: 44)
-                        .background(mapStyle == .standard ? Color.blue : Color.clear)
+                        .background(selectedMapStyle == .standard ? Color.blue : Color.clear)
                         .clipShape(Circle())
                 }
 
                 // Satellite Map View Button
                 Button(action: {
                     withAnimation(.spring(response: 0.3)) {
-                        mapStyle = .imagery
+                        selectedMapStyle = .imagery
                     }
                 }) {
                     Image(systemName: "globe.americas.fill")
                         .font(.system(size: 20))
-                        .foregroundColor(mapStyle == .imagery ? .white : .primary)
+                        .foregroundColor(selectedMapStyle == .imagery ? .white : .primary)
                         .frame(width: 44, height: 44)
-                        .background(mapStyle == .imagery ? Color.blue : Color.clear)
+                        .background(selectedMapStyle == .imagery ? Color.blue : Color.clear)
                         .clipShape(Circle())
                 }
 
                 // Hybrid Map View Button
                 Button(action: {
                     withAnimation(.spring(response: 0.3)) {
-                        mapStyle = .hybrid
+                        selectedMapStyle = .hybrid
                     }
                 }) {
                     Image(systemName: "map.fill")
                         .font(.system(size: 20))
-                        .foregroundColor(mapStyle == .hybrid ? .white : .primary)
+                        .foregroundColor(selectedMapStyle == .hybrid ? .white : .primary)
                         .frame(width: 44, height: 44)
-                        .background(mapStyle == .hybrid ? Color.blue : Color.clear)
+                        .background(selectedMapStyle == .hybrid ? Color.blue : Color.clear)
                         .clipShape(Circle())
                 }
             }
