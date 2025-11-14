@@ -19,7 +19,10 @@ struct MapView: View {
     @State private var mapSelection: MKMapItem?
     @State private var showSearch = false
     @State private var showDetails = false
+    @State private var showSearchSheet = false
     @Namespace private var mapScope
+
+    @Environment(\.dismiss) var dismiss
     
     @StateObject private var viewModel:MapViewModel = .init()
     
@@ -36,7 +39,7 @@ struct MapView: View {
             .onMapCameraChange({ ctx in
                 viewingRegion = ctx.region
             })
-            .overlay(alignment: .bottomTrailing) {
+            .overlay(alignment: .topTrailing) {
                 VStack(spacing: 15){
                     MapPitchToggle(scope: mapScope)
                     MapUserLocationButton(scope: mapScope)
@@ -44,11 +47,55 @@ struct MapView: View {
                 .buttonBorderShape(.circle)
                 .padding()
             }
+            .overlay(alignment: .bottomLeading) {
+                // Tab bar at bottom left
+                HStack(spacing: 0) {
+                    Button(action: {
+                        dismiss()
+                    }) {
+                        VStack(spacing: 4) {
+                            Image(systemName: "storefront")
+                                .font(.system(size: 24))
+                            Text("Stores")
+                                .font(.caption)
+                        }
+                        .foregroundColor(.gray)
+                        .frame(width: 80, height: 60)
+                    }
+
+                    VStack(spacing: 4) {
+                        Image(systemName: "map.fill")
+                            .font(.system(size: 24))
+                        Text("Search")
+                            .font(.caption)
+                    }
+                    .foregroundColor(.blue)
+                    .frame(width: 80, height: 60)
+                }
+                .background(.ultraThinMaterial)
+                .cornerRadius(12)
+                .padding(.leading, 16)
+                .padding(.bottom, 16)
+            }
+            .overlay(alignment: .bottomTrailing) {
+                // Magnifying glass search button at bottom right
+                Button(action: {
+                    showSearchSheet = true
+                }) {
+                    Image(systemName: "magnifyingglass")
+                        .font(.system(size: 20))
+                        .foregroundColor(.white)
+                        .frame(width: 56, height: 56)
+                        .background(Color.blue)
+                        .clipShape(Circle())
+                        .shadow(color: Color.black.opacity(0.3), radius: 8, x: 0, y: 4)
+                }
+                .padding(.trailing, 16)
+                .padding(.bottom, 16)
+            }
             .mapScope(mapScope)
             .navigationTitle("Map")
             .navigationBarTitleDisplayMode(.inline)
-            /// Searchbar
-            .searchable(text: $searchText, isPresented: $showSearch)
             /// Showing translucent toolbar
             .toolbarBackground(.visible, for: .navigationBar)
             .toolbarBackground(.ultraThinMaterial, for: .navigationBar)
@@ -58,25 +105,30 @@ struct MapView: View {
                     .presentationBackgroundInteraction(.enabled(upThrough: .height(340))) /// This enables the user to interact with the map while having this view up
                     .presentationCornerRadius(25)
             })
+            .sheet(isPresented: $showSearchSheet) {
+                SearchSheetView(
+                    searchText: $searchText,
+                    onSearch: {
+                        Task {
+                            guard !searchText.isEmpty else { return }
+                            await searchPlaces()
+                            showSearchSheet = false
+                        }
+                    },
+                    onCancel: {
+                        searchText = ""
+                        results.removeAll(keepingCapacity: false)
+                        showDetails = false
+                        withAnimation(.snappy){
+                            cameraPosition = .region(viewModel.region)
+                        }
+                        showSearchSheet = false
+                    }
+                )
+                .presentationDetents([.height(200)])
+                .presentationCornerRadius(25)
+            }
         }//:NAVIGATIONSTACK
-        .onSubmit(of: .search) {
-            Task {
-                guard !searchText.isEmpty else { return }
-                
-                await searchPlaces()
-            }
-        }
-        .onChange(of: showSearch, initial: false) {
-            if !showSearch {
-                /// Clearing search results
-                results.removeAll(keepingCapacity: false)
-                showDetails = false
-                /// Zooming out to the user's location when the searchbar is cancelled
-                withAnimation(.snappy){
-                    cameraPosition = .region(viewModel.region)
-                }
-            }
-        }
         .onChange(of: mapSelection, { oldValue, newValue in
             showDetails = newValue != nil /// Whenever newValue is not nil, showDetails
         })
@@ -172,6 +224,73 @@ extension MapView {
             center: CLLocationCoordinate2D(latitude: centerLat, longitude: centerLon),
             span: MKCoordinateSpan(latitudeDelta: finalSpanLat, longitudeDelta: finalSpanLon)
         )
+    }
+}
+
+// MARK: - Search Sheet View
+struct SearchSheetView: View {
+    @Binding var searchText: String
+    var onSearch: () -> Void
+    var onCancel: () -> Void
+    @FocusState private var isTextFieldFocused: Bool
+
+    var body: some View {
+        VStack(spacing: 20) {
+            HStack {
+                Text("Search Location")
+                    .font(.headline)
+                Spacer()
+                Button("Cancel") {
+                    onCancel()
+                }
+            }
+            .padding(.horizontal)
+            .padding(.top)
+
+            HStack {
+                Image(systemName: "magnifyingglass")
+                    .foregroundColor(.gray)
+
+                TextField("Enter location", text: $searchText)
+                    .focused($isTextFieldFocused)
+                    .textFieldStyle(.plain)
+                    .onSubmit {
+                        onSearch()
+                    }
+
+                if !searchText.isEmpty {
+                    Button(action: {
+                        searchText = ""
+                    }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundColor(.gray)
+                    }
+                }
+            }
+            .padding()
+            .background(Color(UIColor.systemGray6))
+            .cornerRadius(10)
+            .padding(.horizontal)
+
+            Button(action: {
+                onSearch()
+            }) {
+                Text("Search")
+                    .fontWeight(.semibold)
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(searchText.isEmpty ? Color.gray : Color.blue)
+                    .cornerRadius(10)
+            }
+            .disabled(searchText.isEmpty)
+            .padding(.horizontal)
+
+            Spacer()
+        }
+        .onAppear {
+            isTextFieldFocused = true
+        }
     }
 }
 
