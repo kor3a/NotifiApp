@@ -10,40 +10,77 @@ import SwiftUI
 struct AddStoreView: View {
     @Environment(\.dismiss) var dismiss
     @ObservedObject var viewModel: StoresViewModel
+    @StateObject private var locationSearchManager = LocationSearchManager()
     @State private var searchText = ""
-    
-    var filteredStores: [Store] {
-        if searchText.isEmpty {
-            return viewModel.allStores
-        } else {
-            return viewModel.allStores.filter { store in
-                store.name.localizedCaseInsensitiveContains(searchText) ||
-                store.address.localizedCaseInsensitiveContains(searchText)
-            }
-        }
-    }
     
     var body: some View {
         NavigationStack {
             VStack {
-                if viewModel.isLoadingAllStores {
+                // Location status banner
+                if !locationSearchManager.isLocationAuthorized {
+                    VStack(spacing: 10) {
+                        HStack {
+                            Image(systemName: "location.slash")
+                                .foregroundStyle(.orange)
+                            Text("Location access required")
+                                .font(.subheadline)
+                                .foregroundStyle(.orange)
+                        }
+
+                        if !locationSearchManager.locationError.isEmpty {
+                            Text(locationSearchManager.locationError)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .multilineTextAlignment(.center)
+                        }
+
+                        Button("Enable Location") {
+                            locationSearchManager.requestLocationPermission()
+                        }
+                        .buttonStyle(.bordered)
+                        .tint(.blue)
+                    }
+                    .padding()
+                    .background(Color.orange.opacity(0.1))
+                    .cornerRadius(10)
+                    .padding(.horizontal)
+                }
+
+                // Search results
+                if locationSearchManager.isSearching {
                     VStack(spacing: 20) {
                         ProgressView()
-                        Text("Loading available stores...")
+                        Text("Searching nearby stores...")
                             .foregroundStyle(.gray)
                     }
                     .padding()
-                } else if viewModel.allStores.isEmpty {
+                } else if searchText.isEmpty && locationSearchManager.isLocationAuthorized {
+                    VStack(spacing: 20) {
+                        Image(systemName: "magnifyingglass")
+                            .resizable()
+                            .frame(width: 50, height: 50)
+                            .foregroundStyle(.gray)
+
+                        Text("Search for nearby stores")
+                            .font(.headline)
+
+                        Text("Type a store name to find locations near you")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                    }
+                    .padding()
+                } else if locationSearchManager.searchResults.isEmpty && !searchText.isEmpty {
                     VStack(spacing: 20) {
                         Image(systemName: "storefront")
                             .resizable()
                             .frame(width: 60, height: 60)
                             .foregroundStyle(.gray)
 
-                        Text("No stores available")
+                        Text("No stores found")
                             .font(.headline)
 
-                        Text("There are no stores in the database yet")
+                        Text("Try a different search term")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                             .multilineTextAlignment(.center)
@@ -51,25 +88,38 @@ struct AddStoreView: View {
                     .padding()
                 } else {
                     List {
-                        ForEach(filteredStores) { store in
+                        ForEach(locationSearchManager.searchResults) { searchResult in
                             Button(action: {
+                                let store = searchResult.toStore()
                                 viewModel.addStoreToUser(store: store)
                                 dismiss()
                             }) {
                                 HStack {
                                     VStack(alignment: .leading, spacing: 5) {
-                                        Text(store.name)
+                                        Text(searchResult.name)
                                             .font(.headline)
                                             .foregroundStyle(.primary)
 
-                                        Text(store.address)
+                                        Text(searchResult.address)
                                             .font(.caption)
                                             .foregroundStyle(.secondary)
+
+                                        HStack(spacing: 5) {
+                                            Image(systemName: "location.fill")
+                                                .font(.caption2)
+                                            Text(searchResult.distanceFormatted)
+                                                .font(.caption2)
+                                        }
+                                        .foregroundStyle(.blue)
                                     }
 
                                     Spacer()
 
-                                    if viewModel.userStoreItems.contains(where: { $0.store.id == store.id }) {
+                                    // Check if store is already added by comparing name and address
+                                    if viewModel.userStoreItems.contains(where: {
+                                        $0.store.name == searchResult.name &&
+                                        $0.store.address == searchResult.address
+                                    }) {
                                         Image(systemName: "checkmark.circle.fill")
                                             .foregroundStyle(.green)
                                     } else {
@@ -78,10 +128,12 @@ struct AddStoreView: View {
                                     }
                                 }
                             }
-                            .disabled(viewModel.userStoreItems.contains(where: { $0.store.id == store.id }))
+                            .disabled(viewModel.userStoreItems.contains(where: {
+                                $0.store.name == searchResult.name &&
+                                $0.store.address == searchResult.address
+                            }))
                         }
                     }
-                    .searchable(text: $searchText, prompt: "Search stores")
                 }
 
                 if !viewModel.errorMessage.isEmpty {
@@ -108,8 +160,12 @@ struct AddStoreView: View {
                     }
                 }
             }
+            .searchable(text: $searchText, prompt: "Search for store name")
+            .onChange(of: searchText) { _, newValue in
+                locationSearchManager.searchNearbyStores(query: newValue)
+            }
             .onAppear {
-                viewModel.fetchAllStores()
+                locationSearchManager.requestLocation()
             }
         }
     }
