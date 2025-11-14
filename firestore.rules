@@ -15,7 +15,9 @@ service cloud.firestore {
       allow create: if request.auth != null;
 
       // Allow users to update/delete only their own document
-      allow update, delete: if request.auth != null && request.auth.uid == userId;
+      // Note: userId is the username (document ID), so we check against email instead
+      allow update, delete: if request.auth != null &&
+                               resource.data.email == request.auth.token.email;
     }
 
     // Stores collection rules (add as needed)
