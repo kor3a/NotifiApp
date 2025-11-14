@@ -12,6 +12,7 @@ struct ReminderView: View {
     @StateObject private var viewModel = ReminderViewModel()
     @State private var showingAddReminder = false
     @State private var reminderTitle: String = ""
+    @Environment(\.colorScheme) var colorScheme
 
     var body: some View {
         ZStack {
@@ -44,6 +45,22 @@ struct ReminderView: View {
                 List {
                     ForEach(viewModel.reminders) { reminder in
                         ReminderItemView(item: reminder)
+                            .contentShape(Rectangle())
+                            .listRowBackground(
+                                RoundedRectangle(cornerRadius: 16)
+                                    .fill(.ultraThinMaterial)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 16)
+                                            .stroke(
+                                                Color.cardBorder(for: colorScheme),
+                                                lineWidth: 1.5
+                                            )
+                                    )
+                                    .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.3 : 0.1), radius: 8, x: 0, y: 4)
+                                    .shadow(color: Color.white.opacity(colorScheme == .dark ? 0.05 : 0.5), radius: 2, x: 0, y: -2)
+                                    .padding(.vertical, 4)
+                            )
+                            .listRowSeparator(.hidden)
                             .swipeActions(edge: .trailing) {
                                 Button(role: .destructive) {
                                     viewModel.deleteReminder(reminder)
@@ -57,6 +74,11 @@ struct ReminderView: View {
                     }
                 }
                 .listStyle(.plain)
+                .scrollContentBackground(.hidden)
+                .background(
+                    Color.backgroundGradient(for: colorScheme)
+                        .ignoresSafeArea()
+                )
             }
         }
         .navigationTitle(userStoreItem.store.name)
