@@ -85,66 +85,46 @@ struct MapView: View {
 
 extension MapView {
     func searchPlaces() async {
-        let request = MKLocalSearch.Request()
-        request.naturalLanguageQuery = self.searchText
+        // Start with a small radius and incrementally increase until we find results
+        let radiusSteps: [CLLocationDistance] = [2000, 5000, 10000, 20000, 50000] // 2km, 5km, 10km, 20km, 50km
+        var foundResults: [MKMapItem] = []
+        var usedRadius: CLLocationDistance = radiusSteps[0]
 
-        /// Search based on the user's region
-        request.region = self.viewingRegion ?? viewModel.region
+        // Try each radius until we find results
+        for radius in radiusSteps {
+            let searchRegion = createRegion(around: viewModel.region.center, radius: radius)
 
-        let results = try? await MKLocalSearch(request: request).start()
-        self.results = results?.mapItems ?? []
+            let request = MKLocalSearch.Request()
+            request.naturalLanguageQuery = self.searchText
+            request.region = searchRegion
 
-        /// Zoom out to show all search results
+            let results = try? await MKLocalSearch(request: request).start()
+            let items = results?.mapItems ?? []
+
+            if !items.isEmpty {
+                foundResults = items
+                usedRadius = radius
+                break
+            }
+        }
+
+        self.results = foundResults
+
+        /// Zoom to show search results within the radius used
         if !self.results.isEmpty {
-            let region = calculateRegionForResults(self.results)
+            let region = createRegion(around: viewModel.region.center, radius: usedRadius * 1.2) // Add 20% padding
             withAnimation(.smooth(duration: 0.5)) {
                 cameraPosition = .region(region)
             }
         }
     }
 
-    /// Calculate a region that encompasses all search results
-    func calculateRegionForResults(_ mapItems: [MKMapItem]) -> MKCoordinateRegion {
-        guard !mapItems.isEmpty else {
-            return viewModel.region
-        }
-
-        // Start with the first coordinate
-        var minLat = mapItems[0].placemark.coordinate.latitude
-        var maxLat = minLat
-        var minLon = mapItems[0].placemark.coordinate.longitude
-        var maxLon = minLon
-
-        // Include user's location in the calculation
-        let userLat = viewModel.region.center.latitude
-        let userLon = viewModel.region.center.longitude
-        minLat = min(minLat, userLat)
-        maxLat = max(maxLat, userLat)
-        minLon = min(minLon, userLon)
-        maxLon = max(maxLon, userLon)
-
-        // Find the bounds of all results
-        for item in mapItems {
-            let coordinate = item.placemark.coordinate
-            minLat = min(minLat, coordinate.latitude)
-            maxLat = max(maxLat, coordinate.latitude)
-            minLon = min(minLon, coordinate.longitude)
-            maxLon = max(maxLon, coordinate.longitude)
-        }
-
-        // Calculate center and span
-        let centerLat = (minLat + maxLat) / 2
-        let centerLon = (minLon + maxLon) / 2
-        let spanLat = (maxLat - minLat) * 1.3 // Add 30% padding
-        let spanLon = (maxLon - minLon) * 1.3
-
-        // Ensure minimum span for better visibility
-        let finalSpanLat = max(spanLat, 0.01)
-        let finalSpanLon = max(spanLon, 0.01)
-
+    /// Create a region with specified radius around a center point
+    func createRegion(around center: CLLocationCoordinate2D, radius: CLLocationDistance) -> MKCoordinateRegion {
         return MKCoordinateRegion(
-            center: CLLocationCoordinate2D(latitude: centerLat, longitude: centerLon),
-            span: MKCoordinateSpan(latitudeDelta: finalSpanLat, longitudeDelta: finalSpanLon)
+            center: center,
+            latitudinalMeters: radius * 2,
+            longitudinalMeters: radius * 2
         )
     }
 }
