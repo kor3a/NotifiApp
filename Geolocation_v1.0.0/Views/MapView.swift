@@ -39,11 +39,11 @@ struct MapView: View {
         }//:MAP
         .onMapCameraChange({ ctx in
             viewingRegion = ctx.region
+            // Dismiss keyboard when user interacts with map (panning/zooming)
+            if isSearchFocused {
+                isSearchFocused = false
+            }
         })
-        .onTapGesture {
-            // Dismiss keyboard when tapping on the map
-            isSearchFocused = false
-        }
         .overlay(alignment: .bottomTrailing) {
             VStack(spacing: 15){
                 MapPitchToggle(scope: mapScope)
