@@ -39,6 +39,10 @@ struct MapView: View {
         }//:MAP
         .onMapCameraChange({ ctx in
             viewingRegion = ctx.region
+            // Dismiss keyboard when user interacts with map (panning/zooming)
+            if isSearchFocused {
+                isSearchFocused = false
+            }
         })
         .overlay(alignment: .bottomTrailing) {
             VStack(spacing: 15){
@@ -81,6 +85,10 @@ struct MapView: View {
         }
         .onChange(of: mapSelection, { oldValue, newValue in
             showDetails = newValue != nil
+            // Dismiss keyboard when a pin is tapped
+            if newValue != nil {
+                isSearchFocused = false
+            }
         })
     }
 
