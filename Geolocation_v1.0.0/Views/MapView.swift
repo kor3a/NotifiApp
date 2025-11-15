@@ -40,6 +40,10 @@ struct MapView: View {
         .onMapCameraChange({ ctx in
             viewingRegion = ctx.region
         })
+        .onTapGesture {
+            // Dismiss keyboard when tapping on the map
+            isSearchFocused = false
+        }
         .overlay(alignment: .bottomTrailing) {
             VStack(spacing: 15){
                 MapPitchToggle(scope: mapScope)
@@ -81,6 +85,10 @@ struct MapView: View {
         }
         .onChange(of: mapSelection, { oldValue, newValue in
             showDetails = newValue != nil
+            // Dismiss keyboard when a pin is tapped
+            if newValue != nil {
+                isSearchFocused = false
+            }
         })
     }
 
