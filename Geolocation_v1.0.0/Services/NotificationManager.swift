@@ -1,0 +1,119 @@
+//
+//  NotificationManager.swift
+//  Geolocation_v1.0.0
+//
+//  Created by Claude Code
+//
+
+import Foundation
+import UserNotifications
+import CoreLocation
+
+class NotificationManager: NSObject, ObservableObject {
+    static let shared = NotificationManager()
+
+    @Published var isAuthorized = false
+    private let notificationCenter = UNUserNotificationCenter.current()
+
+    private override init() {
+        super.init()
+        notificationCenter.delegate = self
+        checkAuthorizationStatus()
+    }
+
+    // MARK: - Permission Management
+
+    func requestAuthorization() async -> Bool {
+        do {
+            let granted = try await notificationCenter.requestAuthorization(options: [.alert, .sound, .badge])
+            await MainActor.run {
+                isAuthorized = granted
+            }
+            return granted
+        } catch {
+            print("Error requesting notification authorization: \(error)")
+            return false
+        }
+    }
+
+    func checkAuthorizationStatus() {
+        notificationCenter.getNotificationSettings { settings in
+            DispatchQueue.main.async {
+                self.isAuthorized = settings.authorizationStatus == .authorized
+            }
+        }
+    }
+
+    // MARK: - Notification Scheduling
+
+    func scheduleStoreProximityNotification(storeName: String, reminderCount: Int) {
+        let content = UNMutableNotificationContent()
+        content.title = "📍 You're near \(storeName)"
+
+        if reminderCount == 1 {
+            content.body = "You have 1 reminder waiting for you at this store."
+        } else {
+            content.body = "You have \(reminderCount) reminders waiting for you at this store."
+        }
+
+        content.sound = .default
+        content.categoryIdentifier = "STORE_PROXIMITY"
+
+        // Create a unique identifier based on store name and timestamp
+        let identifier = "store_proximity_\(storeName)_\(Date().timeIntervalSince1970)"
+
+        // Trigger immediately (for location-based notifications)
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
+
+        let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
+
+        notificationCenter.add(request) { error in
+            if let error = error {
+                print("Error scheduling notification: \(error)")
+            } else {
+                print("Successfully scheduled notification for \(storeName)")
+            }
+        }
+    }
+
+    // MARK: - Notification Management
+
+    func removeAllPendingNotifications() {
+        notificationCenter.removeAllPendingNotificationRequests()
+    }
+
+    func removePendingNotifications(withIdentifierPrefix prefix: String) {
+        notificationCenter.getPendingNotificationRequests { requests in
+            let identifiersToRemove = requests
+                .filter { $0.identifier.hasPrefix(prefix) }
+                .map { $0.identifier }
+
+            self.notificationCenter.removePendingNotificationRequests(withIdentifiers: identifiersToRemove)
+        }
+    }
+
+    func getPendingNotifications() async -> [UNNotificationRequest] {
+        return await notificationCenter.pendingNotificationRequests()
+    }
+}
+
+// MARK: - UNUserNotificationCenterDelegate
+
+extension NotificationManager: UNUserNotificationCenterDelegate {
+    // Handle notification when app is in foreground
+    func userNotificationCenter(_ center: UNUserNotificationCenter,
+                              willPresent notification: UNNotification,
+                              withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
+        // Show notification even when app is in foreground
+        completionHandler([.banner, .sound, .badge])
+    }
+
+    // Handle notification tap
+    func userNotificationCenter(_ center: UNUserNotificationCenter,
+                              didReceive response: UNNotificationResponse,
+                              withCompletionHandler completionHandler: @escaping () -> Void) {
+        // Handle notification tap - could navigate to store's reminders
+        print("User tapped notification: \(response.notification.request.identifier)")
+        completionHandler()
+    }
+}

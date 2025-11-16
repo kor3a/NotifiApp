@@ -75,6 +75,8 @@ class StoresViewModel: ObservableObject {
 
                     let userStoreId = doc.documentID
                     let sortOrder = data["sortOrder"] as? Int
+                    let latitude = data["latitude"] as? Double
+                    let longitude = data["longitude"] as? Double
                     group.enter()
 
                     // Fetch reminder count for this user_store
@@ -87,9 +89,15 @@ class StoresViewModel: ObservableObject {
                             let reminderCount = snapshot?.documents.count ?? 0
                             print("StoresViewModel: Store '\(storeName)' has \(reminderCount) active reminders")
 
-                            var store = Store(id: storeId, name: storeName, address: storeAddress)
-                            store.reminderCount = reminderCount
-                            store.sortOrder = sortOrder
+                            var store = Store(
+                                id: storeId,
+                                name: storeName,
+                                address: storeAddress,
+                                reminderCount: reminderCount,
+                                sortOrder: sortOrder,
+                                latitude: latitude,
+                                longitude: longitude
+                            )
                             let userStoreItem = UserStoreItem(id: userStoreId, store: store)
                             tempUserStoreItems.append(userStoreItem)
                         }
@@ -169,7 +177,17 @@ class StoresViewModel: ObservableObject {
                       let address = data["address"] as? String else {
                     return nil
                 }
-                return Store(id: doc.documentID, name: name, address: address)
+                let latitude = data["latitude"] as? Double
+                let longitude = data["longitude"] as? Double
+                return Store(
+                    id: doc.documentID,
+                    name: name,
+                    address: address,
+                    reminderCount: 0,
+                    sortOrder: nil,
+                    latitude: latitude,
+                    longitude: longitude
+                )
             }
 
             DispatchQueue.main.async {
@@ -210,7 +228,7 @@ class StoresViewModel: ObservableObject {
                 // Add store to user's list
                 // Assign sortOrder as the count of current stores (to append at the end)
                 let sortOrder = self.userStoreItems.count
-                let userStore: [String: Any] = [
+                var userStore: [String: Any] = [
                     "userId": userId,
                     "userEmail": userEmail,
                     "storeId": store.id,
@@ -219,6 +237,14 @@ class StoresViewModel: ObservableObject {
                     "addedAt": Date().timeIntervalSince1970,
                     "sortOrder": sortOrder
                 ]
+
+                // Add coordinates if available
+                if let latitude = store.latitude {
+                    userStore["latitude"] = latitude
+                }
+                if let longitude = store.longitude {
+                    userStore["longitude"] = longitude
+                }
 
                 self.db.collection("user_stores").addDocument(data: userStore) { error in
                     if let error = error {

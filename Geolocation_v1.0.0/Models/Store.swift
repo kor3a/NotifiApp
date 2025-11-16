@@ -13,6 +13,8 @@ struct Store: Codable, Identifiable {
     let address: String
     var reminderCount: Int = 0
     var sortOrder: Int? = nil
+    var latitude: Double? = nil
+    var longitude: Double? = nil
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -20,5 +22,7 @@ struct Store: Codable, Identifiable {
         case address
         case reminderCount
         case sortOrder
+        case latitude
+        case longitude
     }
 }

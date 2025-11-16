@@ -217,6 +217,14 @@ struct SearchResultStore: Identifiable {
             .replacingOccurrences(of: ".", with: "")
             .lowercased()
 
-        return Store(id: id, name: name, address: address)
+        return Store(
+            id: id,
+            name: name,
+            address: address,
+            reminderCount: 0,
+            sortOrder: nil,
+            latitude: coordinate.latitude,
+            longitude: coordinate.longitude
+        )
     }
 }
