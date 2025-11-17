@@ -12,8 +12,20 @@ import MapKit
 struct LocationDetailsView: View {
     @Binding var mapSelection: MKMapItem?
     @Binding var show: Bool
-    var alreadyAdded = false
-    
+    @ObservedObject var viewModel: StoresViewModel
+
+    // Check if the currently selected store is already in user's list
+    private var isStoreAlreadyAdded: Bool {
+        guard let mapSelection = mapSelection else { return false }
+        let storeName = mapSelection.placemark.name ?? ""
+        let storeAddress = mapSelection.placemark.title ?? ""
+
+        // Check if any user store matches this location
+        return viewModel.userStoreItems.contains { userStoreItem in
+            userStoreItem.store.name == storeName && userStoreItem.store.address == storeAddress
+        }
+    }
+
     var body: some View {
         VStack {
             HStack {
@@ -61,15 +73,34 @@ struct LocationDetailsView: View {
                         .padding(10)
                     }
                     
-                    
+
                     /// Add Button
-                    Button(alreadyAdded ? "Added" : "Add") {
-                        
+                    Button(isStoreAlreadyAdded ? "Added" : "Add") {
+                        guard let mapSelection = mapSelection else { return }
+
+                        // Create a Store object from the MKMapItem
+                        let store = Store(
+                            id: UUID().uuidString, // Generate temporary ID
+                            name: mapSelection.placemark.name ?? "Unknown Store",
+                            address: mapSelection.placemark.title ?? "Unknown Address",
+                            reminderCount: 0,
+                            sortOrder: nil,
+                            latitude: mapSelection.placemark.coordinate.latitude,
+                            longitude: mapSelection.placemark.coordinate.longitude
+                        )
+
+                        // Add store to user's list
+                        viewModel.addStoreToUser(store: store)
+
+                        // Close the detail view
+                        show = false
+                        mapSelection = nil
                     }//:BUTTON
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 12)
-                    .background(.blue.gradient, in: .rect(cornerRadius: 15))
+                    .background(isStoreAlreadyAdded ? Color.gray.gradient : Color.blue.gradient, in: .rect(cornerRadius: 15))
+                    .disabled(isStoreAlreadyAdded)
                    
                 }//:VSTACK
                 
@@ -81,5 +112,5 @@ struct LocationDetailsView: View {
 }
 
 #Preview {
-    LocationDetailsView(mapSelection: .constant(nil), show: .constant(false))
+    LocationDetailsView(mapSelection: .constant(nil), show: .constant(false), viewModel: StoresViewModel())
 }
