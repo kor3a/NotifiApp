@@ -16,6 +16,7 @@ struct LoginView: View {
     @State private var errorMessage: String = ""
     @State private var showAlert: Bool = false
     @State private var isSignup: Bool = false
+    @State private var isForgotPassword: Bool = false
     @State private var currentNonce: String?
     @Environment(\.colorScheme) var colorScheme
 
@@ -139,6 +140,7 @@ struct LoginView: View {
                 }
             })
             .navigationDestination(isPresented: $isSignup) { SignupView() }
+            .navigationDestination(isPresented: $isForgotPassword) { ForgotPasswordView() }
         }//:NAVIGATIONVIEW
 
     }//:BODY
@@ -167,7 +169,7 @@ struct LoginView: View {
     }
     
     func forgotPasswordTapped() {
-        print("Forgot password tapped")
+        isForgotPassword.toggle()
     }
     
 }
