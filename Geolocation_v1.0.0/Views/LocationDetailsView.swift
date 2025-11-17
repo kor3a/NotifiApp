@@ -76,17 +76,17 @@ struct LocationDetailsView: View {
 
                     /// Add Button
                     Button(isStoreAlreadyAdded ? "Added" : "Add") {
-                        guard let mapSelection = mapSelection else { return }
+                        guard let selectedItem = mapSelection else { return }
 
                         // Create a Store object from the MKMapItem
                         let store = Store(
                             id: UUID().uuidString, // Generate temporary ID
-                            name: mapSelection.placemark.name ?? "Unknown Store",
-                            address: mapSelection.placemark.title ?? "Unknown Address",
+                            name: selectedItem.placemark.name ?? "Unknown Store",
+                            address: selectedItem.placemark.title ?? "Unknown Address",
                             reminderCount: 0,
                             sortOrder: nil,
-                            latitude: mapSelection.placemark.coordinate.latitude,
-                            longitude: mapSelection.placemark.coordinate.longitude
+                            latitude: selectedItem.placemark.coordinate.latitude,
+                            longitude: selectedItem.placemark.coordinate.longitude
                         )
 
                         // Add store to user's list
