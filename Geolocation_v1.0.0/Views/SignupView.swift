@@ -9,54 +9,111 @@ import SwiftUI
 import AuthenticationServices
 
 struct SignupView: View {
-    
     @StateObject private var viewModel = SignupViewModel()
-    
+
     @State private var alertMsg = ""
     @State private var showAlert = false
-    
+    @Environment(\.colorScheme) var colorScheme
+
     var body: some View {
-        VStack {
-            Text("Sign Up")
-                .padding()
-                .font(.largeTitle)
-                .fontWeight(.bold)
-                
-            
-            if viewModel.errorMessage.isEmpty {
-                Text(viewModel.errorMessage)
-            }
-            
-            TextField("User ID", text: $viewModel.userId)
-                .padding()
-            
-            TextField("Email", text: $viewModel.email)
-                .padding()
-            
-            TextField("Name", text: $viewModel.name)
-                .padding()
-            
-            SecureField("Password", text: $viewModel.password)
-                .padding()
-            
-            SecureField("Confirm Password", text: $viewModel.confirmPassword)
-                .padding()
-            
-            Button(action: {
-                viewModel.register()
-            }) {
+        ScrollView {
+            VStack(spacing: 24) {
+                Spacer()
+                    .frame(height: 40)
+
                 Text("Sign Up")
-                    .font(.headline)
-                    .padding()
-                    .foregroundColor(.black)
-                    .background(Color.green)
-                    .frame(height: 25)
-                    .cornerRadius(100)
-            }//:BUTTON
-            .padding()
-            
-            
-        }//:VSTACK
+                    .font(.largeTitle)
+                    .fontWeight(.bold)
+                    .padding(.bottom, 8)
+
+                if !viewModel.errorMessage.isEmpty {
+                    Text(viewModel.errorMessage)
+                        .foregroundStyle(.red)
+                        .font(.caption)
+                        .padding(.horizontal)
+                        .multilineTextAlignment(.center)
+                }
+
+                VStack(spacing: 16) {
+                    TextField("User ID", text: $viewModel.userId)
+                        .textFieldStyle(.plain)
+                        .padding()
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(.ultraThinMaterial)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .stroke(Color.cardBorder(for: colorScheme), lineWidth: 1.5)
+                                )
+                        )
+
+                    TextField("Email", text: $viewModel.email)
+                        .textFieldStyle(.plain)
+                        .padding()
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(.ultraThinMaterial)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .stroke(Color.cardBorder(for: colorScheme), lineWidth: 1.5)
+                                )
+                        )
+
+                    TextField("Name", text: $viewModel.name)
+                        .textFieldStyle(.plain)
+                        .padding()
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(.ultraThinMaterial)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .stroke(Color.cardBorder(for: colorScheme), lineWidth: 1.5)
+                                )
+                        )
+
+                    SecureField("Password", text: $viewModel.password)
+                        .textFieldStyle(.plain)
+                        .padding()
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(.ultraThinMaterial)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .stroke(Color.cardBorder(for: colorScheme), lineWidth: 1.5)
+                                )
+                        )
+
+                    SecureField("Confirm Password", text: $viewModel.confirmPassword)
+                        .textFieldStyle(.plain)
+                        .padding()
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(.ultraThinMaterial)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .stroke(Color.cardBorder(for: colorScheme), lineWidth: 1.5)
+                                )
+                        )
+                }
+                .padding(.horizontal, 20)
+
+                Button(action: {
+                    viewModel.register()
+                }) {
+                    Text("Sign Up")
+                }
+                .buttonStyle(PrimaryButtonStyle(color: .green))
+                .padding(.horizontal, 20)
+                .padding(.top, 8)
+
+                Spacer()
+
+            }//:VSTACK
+        }//:SCROLLVIEW
+        .background(
+            Color.backgroundGradient(for: colorScheme)
+                .ignoresSafeArea()
+        )
         .alert(isPresented: $showAlert) {
             Alert(title: Text("Note"), message: Text(alertMsg), dismissButton: .default(Text("OK")))
         }
