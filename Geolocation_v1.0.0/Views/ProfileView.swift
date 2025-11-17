@@ -92,6 +92,10 @@ struct ProfileView: View {
                     .sheet(isPresented: $showImagePicker) {
                         ImagePicker(selectedImage: $selectedImage, onImageSelected: { image in
                             viewModel.uploadProfilePicture(image: image)
+                            // Clear selected image after 2 seconds to show the uploaded image from URL
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                                selectedImage = nil
+                            }
                         })
                     }
 
