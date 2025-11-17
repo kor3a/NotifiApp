@@ -7,6 +7,8 @@ struct UserStore: Codable, Identifiable {
     let storeName: String // Denormalized for easier display
     let storeAddress: String // Denormalized for easier display
     let addedAt: TimeInterval
+    var latitude: Double? = nil // Denormalized for location monitoring
+    var longitude: Double? = nil // Denormalized for location monitoring
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -15,5 +17,7 @@ struct UserStore: Codable, Identifiable {
         case storeName
         case storeAddress
         case addedAt
+        case latitude
+        case longitude
     }
 }
