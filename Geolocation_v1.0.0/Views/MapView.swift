@@ -21,6 +21,7 @@ struct MapView: View {
     @Namespace private var mapScope
 
     @StateObject private var viewModel:MapViewModel = .init()
+    @StateObject private var storesViewModel: StoresViewModel = .init()
 
     // Bindings to control from parent (HomeView)
     @Binding var selectedTab: Int
@@ -58,7 +59,7 @@ struct MapView: View {
         }
         .mapScope(mapScope)
         .sheet(isPresented: $showDetails, content: {
-            LocationDetailsView(mapSelection: $mapSelection, show: $showDetails)
+            LocationDetailsView(mapSelection: $mapSelection, show: $showDetails, viewModel: storesViewModel)
                 .presentationDetents([.height(340)])
                 .presentationBackgroundInteraction(.enabled(upThrough: .height(340)))
                 .presentationCornerRadius(25)
@@ -90,6 +91,10 @@ struct MapView: View {
                 isSearchFocused = false
             }
         })
+        .onAppear {
+            // Fetch user's stores when view appears
+            storesViewModel.fetchUserStores()
+        }
     }
 
     // MARK: - CUSTOM TAB BAR
