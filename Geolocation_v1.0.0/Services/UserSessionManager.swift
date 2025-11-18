@@ -118,7 +118,11 @@ class UserSessionManager: ObservableObject {
                 completion(false, "Failed to update name: \(error.localizedDescription)")
             } else {
                 DispatchQueue.main.async {
-                    self.currentUser?.name = newName
+                    // Create new User instance to trigger @Published update
+                    if var updatedUser = self.currentUser {
+                        updatedUser.name = newName
+                        self.currentUser = updatedUser
+                    }
                 }
                 completion(true, nil)
             }
@@ -142,7 +146,11 @@ class UserSessionManager: ObservableObject {
                 completion(false, "Failed to update profile picture: \(error.localizedDescription)")
             } else {
                 DispatchQueue.main.async {
-                    self.currentUser?.profilePictureURL = url
+                    // Create new User instance to trigger @Published update
+                    if var updatedUser = self.currentUser {
+                        updatedUser.profilePictureURL = url
+                        self.currentUser = updatedUser
+                    }
                 }
                 completion(true, nil)
             }
