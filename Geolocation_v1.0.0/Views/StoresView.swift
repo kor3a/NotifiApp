@@ -79,20 +79,29 @@ struct StoresView: View {
                         )
                         .listRowSeparator(.hidden)
                         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                            // All users can delete/remove the store from their list
                             Button(role: .destructive) {
                                 if let index = viewModel.userStoreItems.firstIndex(where: { $0.id == userStoreItem.id }) {
                                     deleteStore(at: IndexSet(integer: index))
                                 }
                             } label: {
-                                Label("Delete", systemImage: "trash")
+                                // Show "Remove" for view-only, "Delete" for others
+                                if userStoreItem.permission == .view {
+                                    Label("Remove", systemImage: "xmark.circle")
+                                } else {
+                                    Label("Delete", systemImage: "trash")
+                                }
                             }
 
-                            Button {
-                                selectedStoreToShare = userStoreItem
-                            } label: {
-                                Label("Share", systemImage: "square.and.arrow.up")
+                            // Only non-view users can share
+                            if userStoreItem.permission != .view {
+                                Button {
+                                    selectedStoreToShare = userStoreItem
+                                } label: {
+                                    Label("Share", systemImage: "square.and.arrow.up")
+                                }
+                                .tint(.blue)
                             }
-                            .tint(.blue)
                         }
                         .simultaneousGesture(
                             LongPressGesture(minimumDuration: 0.5)

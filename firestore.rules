@@ -28,18 +28,20 @@ service cloud.firestore {
 
     // Reminders collection rules
     match /reminders/{reminderId} {
-      // Allow authenticated users to read/write reminders
-      // Reminders are linked to user_stores via userStoreId field
+      // Allow authenticated users to read reminders
+      // Reminders are linked to user_stores via userStoreId field (which may be a sharedStoreGroupId)
       // Query by userStoreId requires a Firestore index on 'userStoreId' field
       allow read: if request.auth != null;
 
       // Allow creating reminders with required userStoreId field
+      // Note: Permission enforcement is handled at application level
       allow create: if request.auth != null &&
                        request.resource.data.userStoreId is string &&
                        request.resource.data.title is string &&
                        request.resource.data.isDone is bool;
 
       // Allow updating/deleting reminders
+      // Note: Permission enforcement is handled at application level
       allow update, delete: if request.auth != null;
     }
 
@@ -54,14 +56,33 @@ service cloud.firestore {
                        request.resource.data.userId is string &&
                        request.resource.data.userEmail is string;
 
-      // Allow users to update their own user_stores (for sort order)
+      // Allow users to update their own user_stores (for sort order, permission updates)
       allow update: if request.auth != null &&
                        resource.data.userEmail == request.auth.token.email;
 
       // Allow users to delete their own user_stores
-      // Check against userEmail field which stores the user's email
+      // Also allow deletion of shared stores where the shared group no longer exists (cleanup)
       allow delete: if request.auth != null &&
-                       resource.data.userEmail == request.auth.token.email;
+                       (resource.data.userEmail == request.auth.token.email ||
+                        (resource.data.sharedStoreGroupId != null &&
+                         !exists(/databases/$(database)/documents/shared_store_groups/$(resource.data.sharedStoreGroupId))));
+    }
+
+    // Shared Store Groups collection
+    match /shared_store_groups/{groupId} {
+      // Allow authenticated users to read shared store groups
+      allow read: if request.auth != null;
+
+      // Allow creating shared store groups
+      allow create: if request.auth != null &&
+                       request.resource.data.storeId is string &&
+                       request.resource.data.userStoreIds is list;
+
+      // Allow updating shared store groups (for adding/removing members)
+      allow update: if request.auth != null;
+
+      // Allow deleting shared store groups when deleting stores
+      allow delete: if request.auth != null;
     }
   }
 }
