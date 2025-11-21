@@ -288,9 +288,7 @@ struct ShareStoreView: View {
         // Query all user_stores with the same storeId but different userId
         db.collection("user_stores")
             .whereField("storeId", isEqualTo: userStoreItem.store.id)
-            .getDocuments { [weak self] snapshot, error in
-                guard let self = self else { return }
-
+            .getDocuments { snapshot, error in
                 self.isLoadingSharedUsers = false
 
                 if let error = error {
@@ -328,14 +326,14 @@ struct ShareStoreView: View {
 
     private func unshareWithUser(_ sharedUser: SharedUser) {
         // Delete the shared user's user_store document
-        db.collection("user_stores").document(sharedUser.id).delete { [weak self] error in
+        db.collection("user_stores").document(sharedUser.id).delete { error in
             if let error = error {
-                self?.alertTitle = "Error"
-                self?.alertMessage = "Failed to remove access: \(error.localizedDescription)"
-                self?.showAlert = true
+                self.alertTitle = "Error"
+                self.alertMessage = "Failed to remove access: \(error.localizedDescription)"
+                self.showAlert = true
             } else {
                 // Remove from local array
-                self?.sharedUsers.removeAll { $0.id == sharedUser.id }
+                self.sharedUsers.removeAll { $0.id == sharedUser.id }
 
                 // For View Only users, also delete their reminders if they exist
                 // (though they shouldn't exist if we implemented it correctly)

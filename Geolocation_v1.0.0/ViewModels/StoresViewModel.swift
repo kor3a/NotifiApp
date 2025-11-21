@@ -7,7 +7,7 @@ import FirebaseAuth
 
 class StoresViewModel: ObservableObject {
     private let db = Firestore.firestore()
-    private let sessionManager = UserSessionManager.shared
+    let sessionManager = UserSessionManager.shared // Changed from private to internal
     @Published var userStoreItems: [UserStoreItem] = [] // User's stores with user_store IDs
     @Published var allStores: [Store] = [] // All available stores for adding
     @Published var isLoading: Bool = false
