@@ -62,6 +62,13 @@ service cloud.firestore {
 
     // User-Store associations
     match /user_stores/{userStoreId} {
+      // Helper function to check if user is a co-owner in a shared group
+      function isCoOwner(sharedGroupId) {
+        // Check if the shared group exists and contains the user's email in any user_store
+        return sharedGroupId != null &&
+               exists(/databases/$(database)/documents/shared_store_groups/$(sharedGroupId));
+      }
+
       // Allow users to read their own user_stores documents
       // Query by userId requires a Firestore index on 'userId' field
       allow read: if request.auth != null;
@@ -76,11 +83,12 @@ service cloud.firestore {
                        resource.data.userEmail == request.auth.token.email;
 
       // Allow users to delete their own user_stores
-      // OR allow deletion if user has edit permission in a shared group (for synced deletions)
+      // OR allow deletion if user is a co-owner in a shared group (for synced deletions)
+      // Note: Application logic ensures only co-owners can trigger shared deletions
       allow delete: if request.auth != null &&
                        (resource.data.userEmail == request.auth.token.email ||
                         (resource.data.permission == 'edit' &&
-                         resource.data.sharedStoreGroupId != null));
+                         isCoOwner(resource.data.sharedStoreGroupId)));
     }
 
     // Shared Store Groups collection
