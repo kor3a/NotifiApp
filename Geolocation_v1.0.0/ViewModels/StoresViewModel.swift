@@ -302,8 +302,11 @@ class StoresViewModel: ObservableObject {
             if permission == .edit, let sharedGroupId = data["sharedStoreGroupId"] as? String {
                 // Delete all user_stores and reminders in the shared group
                 self.deleteSharedStoreGroup(sharedGroupId: sharedGroupId)
+            } else if permission == .view {
+                // View Only - just delete this user's user_store, don't touch owner's reminders
+                self.deleteViewOnlyUserStore(userStoreItem: userStoreItem)
             } else {
-                // View Only or Owner without sharing - delete only this user's store
+                // Owner without sharing - delete user_store and its reminders
                 self.deleteSingleUserStore(userStoreItem: userStoreItem)
             }
         }
@@ -347,6 +350,19 @@ class StoresViewModel: ObservableObject {
                     }
                 }
             }
+    }
+
+    private func deleteViewOnlyUserStore(userStoreItem: UserStoreItem) {
+        print("StoresViewModel: Deleting view-only user_store: \(userStoreItem.id)")
+
+        // Only delete the user_store document, don't touch owner's reminders
+        db.collection("user_stores").document(userStoreItem.id).delete { error in
+            if let error = error {
+                print("StoresViewModel: Error removing view-only store: \(error.localizedDescription)")
+            } else {
+                print("StoresViewModel: View-only store removed successfully (unshared from user)")
+            }
+        }
     }
 
     private func deleteSharedStoreGroup(sharedGroupId: String) {
