@@ -13,7 +13,6 @@ struct StoresView: View {
     @StateObject private var viewModel = StoresViewModel()
     @ObservedObject private var sessionManager = UserSessionManager.shared
     @State private var showingAddStore = false
-    @State private var showingShareStore = false
     @State private var selectedStoreToShare: UserStoreItem?
     @State private var editMode: EditMode = .inactive
     @State private var longPressedItemId: String?
@@ -90,7 +89,6 @@ struct StoresView: View {
 
                             Button {
                                 selectedStoreToShare = userStoreItem
-                                showingShareStore = true
                             } label: {
                                 Label("Share", systemImage: "square.and.arrow.up")
                             }
@@ -138,10 +136,8 @@ struct StoresView: View {
         .sheet(isPresented: $showingAddStore) {
             AddStoreView(viewModel: viewModel)
         }
-        .sheet(isPresented: $showingShareStore) {
-            if let storeToShare = selectedStoreToShare {
-                ShareStoreView(viewModel: viewModel, userStoreItem: storeToShare)
-            }
+        .sheet(item: $selectedStoreToShare) { storeToShare in
+            ShareStoreView(viewModel: viewModel, userStoreItem: storeToShare)
         }
         .onAppear() {
             // Try to fetch immediately if user data is available

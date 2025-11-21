@@ -9,7 +9,7 @@ import Foundation
 
 /// Represents a store that a user has added to their list
 /// Combines store information with the user_store document ID
-struct UserStoreItem: Identifiable {
+struct UserStoreItem: Identifiable, Hashable {
     let id: String // user_store document ID
     let store: Store
 }

@@ -7,7 +7,7 @@
 
 import Foundation
 
-struct Store: Codable, Identifiable {
+struct Store: Codable, Identifiable, Hashable {
     var id: String // Firestore document ID
     let name: String
     let address: String
