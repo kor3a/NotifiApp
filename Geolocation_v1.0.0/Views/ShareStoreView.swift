@@ -25,113 +25,104 @@ struct ShareStoreView: View {
 
     var body: some View {
         NavigationStack {
-            ZStack {
-                // Background
-                Color.backgroundGradient(for: colorScheme)
-                    .ignoresSafeArea()
+            VStack(spacing: 24) {
+                // Store Info
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Sharing Store")
+                        .font(.headline)
+                        .foregroundStyle(.secondary)
 
-                VStack(spacing: 24) {
-                    // Store Info
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Sharing Store")
-                            .font(.headline)
-                            .foregroundStyle(.secondary)
-
-                        HStack {
-                            Image(systemName: "cart.fill")
-                                .foregroundStyle(.blue)
-                                .font(.title2)
-
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(userStoreItem.store.name)
-                                    .font(.title3)
-                                    .bold()
-
-                                Text(userStoreItem.store.address)
-                                    .font(.subheadline)
-                                    .foregroundStyle(.secondary)
-                            }
-
-                            Spacer()
-                        }
-                        .padding()
-                        .background(
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(.ultraThinMaterial)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 12)
-                                        .stroke(
-                                            Color.cardBorder(for: colorScheme),
-                                            lineWidth: 1
-                                        )
-                                )
-                        )
-                    }
-
-                    // Email Input
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Recipient's Email")
-                            .font(.headline)
-
-                        TextField("Enter email address", text: $recipientEmail)
-                            .textInputAutocapitalization(.never)
-                            .keyboardType(.emailAddress)
-                            .autocorrectionDisabled()
-                            .padding()
-                            .background(
-                                RoundedRectangle(cornerRadius: 10)
-                                    .fill(colorScheme == .dark ? Color(white: 0.15) : Color.white)
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 10)
-                                            .stroke(Color.gray.opacity(0.3), lineWidth: 1)
-                                    )
-                            )
-                    }
-
-                    // Info Text
-                    HStack(alignment: .top, spacing: 8) {
-                        Image(systemName: "info.circle.fill")
+                    HStack {
+                        Image(systemName: "cart.fill")
                             .foregroundStyle(.blue)
+                            .font(.title2)
 
-                        Text("This will share the store and all its active reminders with the recipient. The recipient must have an account with the email address you provide.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(userStoreItem.store.name)
+                                .font(.title3)
+                                .bold()
+
+                            Text(userStoreItem.store.address)
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
+
+                        Spacer()
                     }
                     .padding()
                     .background(
-                        RoundedRectangle(cornerRadius: 10)
-                            .fill(Color.blue.opacity(0.1))
-                    )
-
-                    Spacer()
-
-                    // Share Button
-                    Button(action: shareStore) {
-                        if isSharing {
-                            ProgressView()
-                                .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                                .frame(maxWidth: .infinity)
-                                .padding()
-                        } else {
-                            HStack {
-                                Image(systemName: "square.and.arrow.up")
-                                Text("Share Store")
-                                    .bold()
-                            }
-                            .frame(maxWidth: .infinity)
-                            .padding()
-                        }
-                    }
-                    .disabled(recipientEmail.isEmpty || isSharing)
-                    .background(
                         RoundedRectangle(cornerRadius: 12)
-                            .fill(recipientEmail.isEmpty || isSharing ? Color.gray : Color.blue)
+                            .fill(.ultraThinMaterial)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(Color.gray.opacity(0.2), lineWidth: 1)
+                            )
                     )
-                    .foregroundColor(.white)
+                }
+
+                // Email Input
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Recipient's Email")
+                        .font(.headline)
+
+                    TextField("Enter email address", text: $recipientEmail)
+                        .textInputAutocapitalization(.never)
+                        .keyboardType(.emailAddress)
+                        .autocorrectionDisabled()
+                        .padding()
+                        .background(
+                            RoundedRectangle(cornerRadius: 10)
+                                .fill(colorScheme == .dark ? Color(white: 0.15) : Color.white)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 10)
+                                        .stroke(Color.gray.opacity(0.3), lineWidth: 1)
+                                )
+                        )
+                }
+
+                // Info Text
+                HStack(alignment: .top, spacing: 8) {
+                    Image(systemName: "info.circle.fill")
+                        .foregroundStyle(.blue)
+
+                    Text("This will share the store and all its active reminders with the recipient. The recipient must have an account with the email address you provide.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
                 .padding()
+                .background(
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(Color.blue.opacity(0.1))
+                )
+
+                Spacer()
+
+                // Share Button
+                Button(action: shareStore) {
+                    if isSharing {
+                        ProgressView()
+                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                    } else {
+                        HStack {
+                            Image(systemName: "square.and.arrow.up")
+                            Text("Share Store")
+                                .bold()
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                    }
+                }
+                .disabled(recipientEmail.isEmpty || isSharing)
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(recipientEmail.isEmpty || isSharing ? Color.gray : Color.blue)
+                )
+                .foregroundColor(.white)
             }
+            .padding()
             .navigationTitle("Share Store")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
