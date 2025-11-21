@@ -13,6 +13,7 @@ struct StoresView: View {
     @StateObject private var viewModel = StoresViewModel()
     @ObservedObject private var sessionManager = UserSessionManager.shared
     @State private var showingAddStore = false
+    @State private var selectedStoreToShare: UserStoreItem?
     @State private var editMode: EditMode = .inactive
     @State private var longPressedItemId: String?
     @Environment(\.colorScheme) var colorScheme
@@ -85,6 +86,13 @@ struct StoresView: View {
                             } label: {
                                 Label("Delete", systemImage: "trash")
                             }
+
+                            Button {
+                                selectedStoreToShare = userStoreItem
+                            } label: {
+                                Label("Share", systemImage: "square.and.arrow.up")
+                            }
+                            .tint(.blue)
                         }
                         .simultaneousGesture(
                             LongPressGesture(minimumDuration: 0.5)
@@ -127,6 +135,9 @@ struct StoresView: View {
         }//:NAVIGATIONSTACK
         .sheet(isPresented: $showingAddStore) {
             AddStoreView(viewModel: viewModel)
+        }
+        .sheet(item: $selectedStoreToShare) { storeToShare in
+            ShareStoreView(viewModel: viewModel, userStoreItem: storeToShare)
         }
         .onAppear() {
             // Try to fetch immediately if user data is available
