@@ -6,6 +6,14 @@
 //
 
 import SwiftUI
+import FirebaseFirestore
+
+struct SharedUser: Identifiable {
+    let id: String // user_store document ID
+    let userEmail: String
+    let permission: StorePermission
+    let sharedAt: TimeInterval?
+}
 
 struct ShareStoreView: View {
     // MARK: - PROPERTIES
@@ -21,47 +29,100 @@ struct ShareStoreView: View {
     @State private var showAlert: Bool = false
     @State private var alertMessage: String = ""
     @State private var alertTitle: String = ""
+    @State private var sharedUsers: [SharedUser] = []
+    @State private var isLoadingSharedUsers: Bool = false
+
+    private let db = Firestore.firestore()
 
     // MARK: - BODY
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 24) {
-                // Store Info
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Sharing Store")
-                        .font(.headline)
-                        .foregroundStyle(.secondary)
+            ScrollView {
+                VStack(spacing: 24) {
+                    // Store Info
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Sharing Store")
+                            .font(.headline)
+                            .foregroundStyle(.secondary)
 
-                    HStack {
-                        Image(systemName: "cart.fill")
-                            .foregroundStyle(.blue)
-                            .font(.title2)
+                        HStack {
+                            Image(systemName: "cart.fill")
+                                .foregroundStyle(.blue)
+                                .font(.title2)
 
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(userStoreItem.store.name)
-                                .font(.title3)
-                                .bold()
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(userStoreItem.store.name)
+                                    .font(.title3)
+                                    .bold()
 
-                            Text(userStoreItem.store.address)
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
+                                Text(userStoreItem.store.address)
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                            }
+
+                            Spacer()
                         }
-
-                        Spacer()
+                        .padding()
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(.ultraThinMaterial)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .stroke(Color.gray.opacity(0.2), lineWidth: 1)
+                                )
+                        )
                     }
-                    .padding()
-                    .background(
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(.ultraThinMaterial)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .stroke(Color.gray.opacity(0.2), lineWidth: 1)
-                            )
-                    )
-                }
 
-                // Email Input
+                    // Shared Users List
+                    if !sharedUsers.isEmpty {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Shared With")
+                                .font(.headline)
+
+                            VStack(spacing: 8) {
+                                ForEach(sharedUsers) { sharedUser in
+                                    HStack {
+                                        Image(systemName: sharedUser.permission == .edit ? "person.fill.checkmark" : "eye.fill")
+                                            .foregroundStyle(sharedUser.permission == .edit ? .green : .orange)
+                                            .frame(width: 24)
+
+                                        VStack(alignment: .leading, spacing: 2) {
+                                            Text(sharedUser.userEmail)
+                                                .font(.subheadline)
+                                                .bold()
+
+                                            Text(sharedUser.permission == .edit ? "Can Edit" : "View Only")
+                                                .font(.caption)
+                                                .foregroundStyle(.secondary)
+                                        }
+
+                                        Spacer()
+
+                                        Button(action: {
+                                            unshareWithUser(sharedUser)
+                                        }) {
+                                            Image(systemName: "xmark.circle.fill")
+                                                .foregroundStyle(.red)
+                                        }
+                                    }
+                                    .padding()
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 10)
+                                            .fill(colorScheme == .dark ? Color(white: 0.15) : Color.white)
+                                            .overlay(
+                                                RoundedRectangle(cornerRadius: 10)
+                                                    .stroke(Color.gray.opacity(0.3), lineWidth: 1)
+                                            )
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    Divider()
+
+                    // Email Input
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Recipient's Email")
                         .font(.headline)
@@ -127,8 +188,6 @@ struct ShareStoreView: View {
                         .fill(Color.blue.opacity(0.1))
                 )
 
-                Spacer()
-
                 // Share Button
                 Button(action: shareStore) {
                     if isSharing {
@@ -152,8 +211,9 @@ struct ShareStoreView: View {
                         .fill(recipientEmail.isEmpty || isSharing ? Color.gray : Color.blue)
                 )
                 .foregroundColor(.white)
+                }
+                .padding()
             }
-            .padding()
             .navigationTitle("Share Store")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -166,11 +226,15 @@ struct ShareStoreView: View {
             .alert(alertTitle, isPresented: $showAlert) {
                 Button("OK") {
                     if alertTitle == "Success" {
-                        dismiss()
+                        fetchSharedUsers()
+                        recipientEmail = ""
                     }
                 }
             } message: {
                 Text(alertMessage)
+            }
+            .onAppear {
+                fetchSharedUsers()
             }
         }
     }
@@ -211,6 +275,76 @@ struct ShareStoreView: View {
         let emailRegex = "[A-Z0-9a-z._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,64}"
         let emailPredicate = NSPredicate(format: "SELF MATCHES %@", emailRegex)
         return emailPredicate.evaluate(with: email)
+    }
+
+    private func fetchSharedUsers() {
+        isLoadingSharedUsers = true
+
+        // Get current user's ID to exclude from results
+        guard let currentUserId = viewModel.sessionManager.currentUser?.userId else {
+            return
+        }
+
+        // Query all user_stores with the same storeId but different userId
+        db.collection("user_stores")
+            .whereField("storeId", isEqualTo: userStoreItem.store.id)
+            .getDocuments { [weak self] snapshot, error in
+                guard let self = self else { return }
+
+                self.isLoadingSharedUsers = false
+
+                if let error = error {
+                    print("ShareStoreView: Error fetching shared users: \(error.localizedDescription)")
+                    return
+                }
+
+                guard let documents = snapshot?.documents else {
+                    return
+                }
+
+                // Filter out current user and map to SharedUser
+                self.sharedUsers = documents.compactMap { doc in
+                    let data = doc.data()
+                    guard let userId = data["userId"] as? String,
+                          userId != currentUserId, // Exclude current user
+                          let userEmail = data["userEmail"] as? String,
+                          let permissionString = data["permission"] as? String,
+                          let permission = StorePermission(rawValue: permissionString) else {
+                        return nil
+                    }
+
+                    let sharedAt = data["sharedAt"] as? TimeInterval
+
+                    return SharedUser(
+                        id: doc.documentID,
+                        userEmail: userEmail,
+                        permission: permission,
+                        sharedAt: sharedAt
+                    )
+                }
+                .sorted { ($0.sharedAt ?? 0) > ($1.sharedAt ?? 0) } // Most recent first
+            }
+    }
+
+    private func unshareWithUser(_ sharedUser: SharedUser) {
+        // Delete the shared user's user_store document
+        db.collection("user_stores").document(sharedUser.id).delete { [weak self] error in
+            if let error = error {
+                self?.alertTitle = "Error"
+                self?.alertMessage = "Failed to remove access: \(error.localizedDescription)"
+                self?.showAlert = true
+            } else {
+                // Remove from local array
+                self?.sharedUsers.removeAll { $0.id == sharedUser.id }
+
+                // For View Only users, also delete their reminders if they exist
+                // (though they shouldn't exist if we implemented it correctly)
+                if sharedUser.permission == .view {
+                    // No reminders to delete for view-only
+                    print("ShareStoreView: Removed view-only access for \(sharedUser.userEmail)")
+                }
+            }
+        }
     }
 }
 
