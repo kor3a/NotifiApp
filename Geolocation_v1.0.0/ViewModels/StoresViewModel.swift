@@ -349,59 +349,68 @@ class StoresViewModel: ObservableObject {
     private func deleteSharedStoreGroup(sharedGroupId: String) {
         print("StoresViewModel: Deleting shared store group: \(sharedGroupId)")
 
-        // Find all user_stores in this shared group
-        db.collection("user_stores")
-            .whereField("sharedStoreGroupId", isEqualTo: sharedGroupId)
-            .getDocuments { [weak self] snapshot, error in
-                guard let self = self else { return }
+        // Step 1: Delete the shared store group first
+        // This allows the Firestore rules to permit deletion of user_stores
+        let sharedGroupRef = db.collection("shared_store_groups").document(sharedGroupId)
+        sharedGroupRef.delete { [weak self] error in
+            guard let self = self else { return }
 
-                if let error = error {
-                    print("StoresViewModel: Error fetching shared user_stores: \(error.localizedDescription)")
-                    return
-                }
+            if let error = error {
+                print("StoresViewModel: Error deleting shared group: \(error.localizedDescription)")
+                return
+            }
 
-                guard let userStoreDocuments = snapshot?.documents else {
-                    return
-                }
+            print("StoresViewModel: Shared group deleted, now deleting user_stores and reminders")
 
-                // Delete all reminders associated with the shared group
-                self.db.collection("reminders")
-                    .whereField("userStoreId", isEqualTo: sharedGroupId)
-                    .getDocuments { reminderSnapshot, reminderError in
-                        if let reminderError = reminderError {
-                            print("StoresViewModel: Error fetching reminders: \(reminderError.localizedDescription)")
-                            return
-                        }
+            // Step 2: Find all user_stores in this shared group
+            self.db.collection("user_stores")
+                .whereField("sharedStoreGroupId", isEqualTo: sharedGroupId)
+                .getDocuments { snapshot, error in
+                    if let error = error {
+                        print("StoresViewModel: Error fetching shared user_stores: \(error.localizedDescription)")
+                        return
+                    }
 
-                        // Use batch to delete everything atomically
-                        let batch = self.db.batch()
+                    guard let userStoreDocuments = snapshot?.documents else {
+                        return
+                    }
 
-                        // Delete all user_stores
-                        for doc in userStoreDocuments {
-                            batch.deleteDocument(doc.reference)
-                        }
+                    // Step 3: Delete all reminders associated with the shared group
+                    self.db.collection("reminders")
+                        .whereField("userStoreId", isEqualTo: sharedGroupId)
+                        .getDocuments { reminderSnapshot, reminderError in
+                            if let reminderError = reminderError {
+                                print("StoresViewModel: Error fetching reminders: \(reminderError.localizedDescription)")
+                                return
+                            }
 
-                        // Delete all reminders
-                        if let reminderDocs = reminderSnapshot?.documents {
-                            for doc in reminderDocs {
+                            // Step 4: Use batch to delete user_stores and reminders
+                            // Now allowed because shared group no longer exists
+                            let batch = self.db.batch()
+
+                            // Delete all user_stores
+                            for doc in userStoreDocuments {
                                 batch.deleteDocument(doc.reference)
                             }
-                        }
 
-                        // Delete the shared store group document
-                        let sharedGroupRef = self.db.collection("shared_store_groups").document(sharedGroupId)
-                        batch.deleteDocument(sharedGroupRef)
+                            // Delete all reminders
+                            if let reminderDocs = reminderSnapshot?.documents {
+                                for doc in reminderDocs {
+                                    batch.deleteDocument(doc.reference)
+                                }
+                            }
 
-                        // Commit the batch
-                        batch.commit { error in
-                            if let error = error {
-                                print("StoresViewModel: Error deleting shared store group: \(error.localizedDescription)")
-                            } else {
-                                print("StoresViewModel: Successfully deleted shared store group with \(userStoreDocuments.count) user_stores and \(reminderSnapshot?.documents.count ?? 0) reminders")
+                            // Commit the batch
+                            batch.commit { error in
+                                if let error = error {
+                                    print("StoresViewModel: Error deleting user_stores and reminders: \(error.localizedDescription)")
+                                } else {
+                                    print("StoresViewModel: Successfully deleted \(userStoreDocuments.count) user_stores and \(reminderSnapshot?.documents.count ?? 0) reminders")
+                                }
                             }
                         }
-                    }
-            }
+                }
+        }
     }
 
     /// Reorder stores when user drags and drops

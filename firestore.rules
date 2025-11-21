@@ -33,42 +33,20 @@ service cloud.firestore {
       // Query by userStoreId requires a Firestore index on 'userStoreId' field
       allow read: if request.auth != null;
 
-      // Helper function to check if user has permission to modify reminders
-      function hasEditPermission(userStoreId) {
-        // Check if user has a user_store with edit or owner permission
-        return exists(/databases/$(database)/documents/user_stores/$(userStoreId)) &&
-               get(/databases/$(database)/documents/user_stores/$(userStoreId)).data.userEmail == request.auth.token.email &&
-               get(/databases/$(database)/documents/user_stores/$(userStoreId)).data.permission in ['owner', 'edit'];
-      }
-
-      function hasSharedGroupPermission(sharedGroupId) {
-        // For shared groups, check if any user_store with this sharedStoreGroupId belongs to the user with edit permission
-        let userStores = firestore.get(/databases/$(database)/documents/user_stores).data;
-        return userStores.exists(us => us.sharedStoreGroupId == sharedGroupId &&
-                                      us.userEmail == request.auth.token.email &&
-                                      us.permission in ['owner', 'edit']);
-      }
-
-      // Allow creating reminders with required fields
-      // User must have edit permission for the userStoreId (or sharedStoreGroupId)
+      // Allow creating reminders with required userStoreId field
+      // Note: Permission enforcement is handled at application level
       allow create: if request.auth != null &&
                        request.resource.data.userStoreId is string &&
                        request.resource.data.title is string &&
                        request.resource.data.isDone is bool;
 
-      // Allow updating/deleting reminders only if user has edit permission
+      // Allow updating/deleting reminders
+      // Note: Permission enforcement is handled at application level
       allow update, delete: if request.auth != null;
     }
 
     // User-Store associations
     match /user_stores/{userStoreId} {
-      // Helper function to check if user is a co-owner in a shared group
-      function isCoOwner(sharedGroupId) {
-        // Check if the shared group exists and contains the user's email in any user_store
-        return sharedGroupId != null &&
-               exists(/databases/$(database)/documents/shared_store_groups/$(sharedGroupId));
-      }
-
       // Allow users to read their own user_stores documents
       // Query by userId requires a Firestore index on 'userId' field
       allow read: if request.auth != null;
@@ -83,12 +61,11 @@ service cloud.firestore {
                        resource.data.userEmail == request.auth.token.email;
 
       // Allow users to delete their own user_stores
-      // OR allow deletion if user is a co-owner in a shared group (for synced deletions)
-      // Note: Application logic ensures only co-owners can trigger shared deletions
+      // Also allow deletion of shared stores where the shared group no longer exists (cleanup)
       allow delete: if request.auth != null &&
                        (resource.data.userEmail == request.auth.token.email ||
-                        (resource.data.permission == 'edit' &&
-                         isCoOwner(resource.data.sharedStoreGroupId)));
+                        (resource.data.sharedStoreGroupId != null &&
+                         !exists(/databases/$(database)/documents/shared_store_groups/$(resource.data.sharedStoreGroupId))));
     }
 
     // Shared Store Groups collection
