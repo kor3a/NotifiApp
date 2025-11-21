@@ -398,8 +398,11 @@ class StoresViewModel: ObservableObject {
                     newUserStore["longitude"] = longitude
                 }
 
-                // Add the new user_store document and capture the document reference
-                let newDocRef = self.db.collection("user_stores").addDocument(data: newUserStore) { error in
+                // Create a new document reference with auto-generated ID
+                let newDocRef = self.db.collection("user_stores").document()
+
+                // Set the data to that document
+                newDocRef.setData(newUserStore) { error in
                     if let error = error {
                         print("StoresViewModel: Error creating shared user_store: \(error.localizedDescription)")
                         completion(false, "Error sharing store: \(error.localizedDescription)")
