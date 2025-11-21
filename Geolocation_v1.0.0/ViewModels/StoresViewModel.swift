@@ -281,34 +281,21 @@ class StoresViewModel: ObservableObject {
         // Remove from local array immediately for smooth UI
         userStoreItems.removeAll { $0.id == userStoreItem.id }
 
-        // First, fetch the user_store document to check if it's part of a shared group
-        db.collection("user_stores").document(userStoreItem.id).getDocument { [weak self] snapshot, error in
-            guard let self = self else { return }
+        // Use the permission information already available in userStoreItem
+        // instead of fetching the document again (which could fail and leave orphaned reminders)
+        let permission = userStoreItem.permission
+        let sharedGroupId = userStoreItem.sharedStoreGroupId
 
-            if let error = error {
-                print("StoresViewModel: Error fetching user_store: \(error.localizedDescription)")
-                return
-            }
-
-            guard let data = snapshot?.data(),
-                  let permissionString = data["permission"] as? String,
-                  let permission = StorePermission(rawValue: permissionString) else {
-                // No permission field, delete normally (backward compatibility)
-                self.deleteSingleUserStore(userStoreItem: userStoreItem)
-                return
-            }
-
-            // Check if this is a shared store with Can Edit permission
-            if permission == .edit, let sharedGroupId = data["sharedStoreGroupId"] as? String {
-                // Delete all user_stores and reminders in the shared group
-                self.deleteSharedStoreGroup(sharedGroupId: sharedGroupId)
-            } else if permission == .view {
-                // View Only - just delete this user's user_store, don't touch owner's reminders
-                self.deleteViewOnlyUserStore(userStoreItem: userStoreItem)
-            } else {
-                // Owner without sharing - delete user_store and its reminders
-                self.deleteSingleUserStore(userStoreItem: userStoreItem)
-            }
+        // Check if this is a shared store with Can Edit permission
+        if permission == .edit, let sharedGroupId = sharedGroupId {
+            // Delete all user_stores and reminders in the shared group
+            self.deleteSharedStoreGroup(sharedGroupId: sharedGroupId)
+        } else if permission == .view {
+            // View Only - just delete this user's user_store, don't touch owner's reminders
+            self.deleteViewOnlyUserStore(userStoreItem: userStoreItem)
+        } else {
+            // Owner without sharing - delete user_store and its reminders
+            self.deleteSingleUserStore(userStoreItem: userStoreItem)
         }
     }
 
