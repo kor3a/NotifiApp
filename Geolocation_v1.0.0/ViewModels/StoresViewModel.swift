@@ -398,20 +398,20 @@ class StoresViewModel: ObservableObject {
                     newUserStore["longitude"] = longitude
                 }
 
-                // Add the new user_store document
-                self.db.collection("user_stores").addDocument(data: newUserStore) { error in
+                // Add the new user_store document and capture the document reference
+                let newDocRef = self.db.collection("user_stores").addDocument(data: newUserStore) { error in
                     if let error = error {
                         print("StoresViewModel: Error creating shared user_store: \(error.localizedDescription)")
                         completion(false, "Error sharing store: \(error.localizedDescription)")
                         return
                     }
 
-                    print("StoresViewModel: User_store created successfully")
+                    print("StoresViewModel: User_store created successfully with ID: \(newDocRef.documentID)")
 
-                    // Now copy all active reminders
+                    // Now copy all active reminders using the captured document ID
                     self.copyReminders(
                         fromUserStoreId: userStoreItem.id,
-                        toUserStoreId: nil, // We'll fetch it
+                        toUserStoreId: newDocRef.documentID,
                         recipientUserId: recipientUserId,
                         completion: completion
                     )
@@ -419,7 +419,7 @@ class StoresViewModel: ObservableObject {
             }
     }
 
-    private func copyReminders(fromUserStoreId: String, toUserStoreId: String?, recipientUserId: String, completion: @escaping (Bool, String?) -> Void) {
+    private func copyReminders(fromUserStoreId: String, toUserStoreId: String, recipientUserId: String, completion: @escaping (Bool, String?) -> Void) {
         // First, fetch all active reminders from the source user_store
         db.collection("reminders")
             .whereField("userStoreId", isEqualTo: fromUserStoreId)
@@ -433,38 +433,18 @@ class StoresViewModel: ObservableObject {
                     return
                 }
 
-                guard let reminderDocuments = snapshot?.documents else {
+                guard let reminderDocuments = snapshot?.documents, !reminderDocuments.isEmpty else {
                     print("StoresViewModel: No reminders to copy")
                     completion(true, "Store shared successfully with no reminders.")
                     return
                 }
 
-                // If we need to find the new user_store ID, fetch it
-                if toUserStoreId == nil {
-                    // We need to find the newly created user_store
-                    self.db.collection("user_stores")
-                        .whereField("userId", isEqualTo: recipientUserId)
-                        .order(by: "addedAt", descending: true)
-                        .limit(to: 1)
-                        .getDocuments { snapshot, error in
-                            guard let newUserStoreId = snapshot?.documents.first?.documentID else {
-                                completion(false, "Store shared, but couldn't find recipient's store to copy reminders.")
-                                return
-                            }
-
-                            self.performReminderCopy(
-                                reminderDocuments: reminderDocuments,
-                                toUserStoreId: newUserStoreId,
-                                completion: completion
-                            )
-                        }
-                } else {
-                    self.performReminderCopy(
-                        reminderDocuments: reminderDocuments,
-                        toUserStoreId: toUserStoreId!,
-                        completion: completion
-                    )
-                }
+                // Copy reminders to the new user_store
+                self.performReminderCopy(
+                    reminderDocuments: reminderDocuments,
+                    toUserStoreId: toUserStoreId,
+                    completion: completion
+                )
             }
     }
 
