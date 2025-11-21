@@ -32,13 +32,19 @@ struct ReminderView: View {
                     Text("Add reminders for this store")
                         .foregroundStyle(.gray)
 
-                    Button {
-                        showingAddReminder = true
-                    } label: {
-                        Label("Add Reminder", systemImage: "plus")
+                    if userStoreItem.permission != .view {
+                        Button {
+                            showingAddReminder = true
+                        } label: {
+                            Label("Add Reminder", systemImage: "plus")
+                        }
+                        .buttonStyle(PrimaryButtonStyle())
+                        .padding(.horizontal)
+                    } else {
+                        Text("View only - cannot add reminders")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     }
-                    .buttonStyle(PrimaryButtonStyle())
-                    .padding(.horizontal)
                 }
                 .padding()
             } else {
@@ -62,14 +68,18 @@ struct ReminderView: View {
                             )
                             .listRowSeparator(.hidden)
                             .swipeActions(edge: .trailing) {
-                                Button(role: .destructive) {
-                                    viewModel.deleteReminder(reminder)
-                                } label: {
-                                    Label("Delete", systemImage: "trash")
+                                if userStoreItem.permission != .view {
+                                    Button(role: .destructive) {
+                                        viewModel.deleteReminder(reminder)
+                                    } label: {
+                                        Label("Delete", systemImage: "trash")
+                                    }
                                 }
                             }
                             .onTapGesture {
-                                viewModel.toggleReminder(reminder)
+                                if userStoreItem.permission != .view {
+                                    viewModel.toggleReminder(reminder)
+                                }
                             }
                     }
                 }
@@ -84,13 +94,19 @@ struct ReminderView: View {
         .navigationTitle(userStoreItem.store.name)
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
-                Button(action: {
-                    showingAddReminder = true
-                }) {
-                    Image(systemName: "plus")
+                if userStoreItem.permission != .view {
+                    Button(action: {
+                        showingAddReminder = true
+                    }) {
+                        Image(systemName: "plus")
+                            .frame(width: 22, height: 22)
+                    }
+                    .frame(width: 44, height: 44)
+                } else {
+                    Image(systemName: "eye.fill")
+                        .foregroundStyle(.secondary)
                         .frame(width: 22, height: 22)
                 }
-                .frame(width: 44, height: 44)
             }
         }
         .animation(.none)
@@ -111,7 +127,7 @@ struct ReminderView: View {
             Text("Enter the item name you wish to add.")
         }
         .onAppear {
-            viewModel.fetchReminders(for: userStoreItem.id)
+            viewModel.fetchReminders(for: userStoreItem.reminderStoreId)
         }
     }
 
@@ -119,7 +135,7 @@ struct ReminderView: View {
         let title = reminderTitle.trimmingCharacters(in: .whitespaces)
         guard !title.isEmpty else { return }
 
-        viewModel.addReminder(userStoreId: userStoreItem.id, title: title)
+        viewModel.addReminder(userStoreId: userStoreItem.reminderStoreId, title: title)
         reminderTitle = ""
     }
 }
@@ -127,6 +143,8 @@ struct ReminderView: View {
 #Preview {
     ReminderView(userStoreItem: UserStoreItem(
         id: "preview_user_store",
-        store: Store(id: "preview", name: "Trader Joe's", address: "6401 Haven Ave, Rancho Cucamonga, CA 91737")
+        store: Store(id: "preview", name: "Trader Joe's", address: "6401 Haven Ave, Rancho Cucamonga, CA 91737"),
+        permission: .owner,
+        sharedStoreGroupId: nil
     ))
 }

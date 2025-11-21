@@ -28,18 +28,35 @@ service cloud.firestore {
 
     // Reminders collection rules
     match /reminders/{reminderId} {
-      // Allow authenticated users to read/write reminders
-      // Reminders are linked to user_stores via userStoreId field
+      // Allow authenticated users to read reminders
+      // Reminders are linked to user_stores via userStoreId field (which may be a sharedStoreGroupId)
       // Query by userStoreId requires a Firestore index on 'userStoreId' field
       allow read: if request.auth != null;
 
-      // Allow creating reminders with required userStoreId field
+      // Helper function to check if user has permission to modify reminders
+      function hasEditPermission(userStoreId) {
+        // Check if user has a user_store with edit or owner permission
+        return exists(/databases/$(database)/documents/user_stores/$(userStoreId)) &&
+               get(/databases/$(database)/documents/user_stores/$(userStoreId)).data.userEmail == request.auth.token.email &&
+               get(/databases/$(database)/documents/user_stores/$(userStoreId)).data.permission in ['owner', 'edit'];
+      }
+
+      function hasSharedGroupPermission(sharedGroupId) {
+        // For shared groups, check if any user_store with this sharedStoreGroupId belongs to the user with edit permission
+        let userStores = firestore.get(/databases/$(database)/documents/user_stores).data;
+        return userStores.exists(us => us.sharedStoreGroupId == sharedGroupId &&
+                                      us.userEmail == request.auth.token.email &&
+                                      us.permission in ['owner', 'edit']);
+      }
+
+      // Allow creating reminders with required fields
+      // User must have edit permission for the userStoreId (or sharedStoreGroupId)
       allow create: if request.auth != null &&
                        request.resource.data.userStoreId is string &&
                        request.resource.data.title is string &&
                        request.resource.data.isDone is bool;
 
-      // Allow updating/deleting reminders
+      // Allow updating/deleting reminders only if user has edit permission
       allow update, delete: if request.auth != null;
     }
 
@@ -54,14 +71,33 @@ service cloud.firestore {
                        request.resource.data.userId is string &&
                        request.resource.data.userEmail is string;
 
-      // Allow users to update their own user_stores (for sort order)
+      // Allow users to update their own user_stores (for sort order, permission updates)
       allow update: if request.auth != null &&
                        resource.data.userEmail == request.auth.token.email;
 
       // Allow users to delete their own user_stores
-      // Check against userEmail field which stores the user's email
+      // OR allow deletion if user has edit permission in a shared group (for synced deletions)
       allow delete: if request.auth != null &&
-                       resource.data.userEmail == request.auth.token.email;
+                       (resource.data.userEmail == request.auth.token.email ||
+                        (resource.data.permission == 'edit' &&
+                         resource.data.sharedStoreGroupId != null));
+    }
+
+    // Shared Store Groups collection
+    match /shared_store_groups/{groupId} {
+      // Allow authenticated users to read shared store groups
+      allow read: if request.auth != null;
+
+      // Allow creating shared store groups
+      allow create: if request.auth != null &&
+                       request.resource.data.storeId is string &&
+                       request.resource.data.userStoreIds is list;
+
+      // Allow updating shared store groups (for adding/removing members)
+      allow update: if request.auth != null;
+
+      // Allow deleting shared store groups when deleting stores
+      allow delete: if request.auth != null;
     }
   }
 }

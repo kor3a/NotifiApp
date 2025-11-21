@@ -79,20 +79,22 @@ struct StoresView: View {
                         )
                         .listRowSeparator(.hidden)
                         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                            Button(role: .destructive) {
-                                if let index = viewModel.userStoreItems.firstIndex(where: { $0.id == userStoreItem.id }) {
-                                    deleteStore(at: IndexSet(integer: index))
+                            if userStoreItem.permission != .view {
+                                Button(role: .destructive) {
+                                    if let index = viewModel.userStoreItems.firstIndex(where: { $0.id == userStoreItem.id }) {
+                                        deleteStore(at: IndexSet(integer: index))
+                                    }
+                                } label: {
+                                    Label("Delete", systemImage: "trash")
                                 }
-                            } label: {
-                                Label("Delete", systemImage: "trash")
-                            }
 
-                            Button {
-                                selectedStoreToShare = userStoreItem
-                            } label: {
-                                Label("Share", systemImage: "square.and.arrow.up")
+                                Button {
+                                    selectedStoreToShare = userStoreItem
+                                } label: {
+                                    Label("Share", systemImage: "square.and.arrow.up")
+                                }
+                                .tint(.blue)
                             }
-                            .tint(.blue)
                         }
                         .simultaneousGesture(
                             LongPressGesture(minimumDuration: 0.5)

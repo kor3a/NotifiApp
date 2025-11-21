@@ -12,4 +12,11 @@ import Foundation
 struct UserStoreItem: Identifiable, Hashable {
     let id: String // user_store document ID
     let store: Store
+    let permission: StorePermission // User's permission level for this store
+    let sharedStoreGroupId: String? // If shared with Can Edit, this links to the shared group
+
+    /// Returns the ID to use for reminders - sharedStoreGroupId for shared stores, otherwise userStoreId
+    var reminderStoreId: String {
+        return sharedStoreGroupId ?? id
+    }
 }

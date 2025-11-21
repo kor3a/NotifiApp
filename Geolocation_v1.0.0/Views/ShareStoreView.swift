@@ -16,6 +16,7 @@ struct ShareStoreView: View {
     let userStoreItem: UserStoreItem
 
     @State private var recipientEmail: String = ""
+    @State private var selectedPermission: StorePermission = .edit
     @State private var isSharing: Bool = false
     @State private var showAlert: Bool = false
     @State private var alertMessage: String = ""
@@ -80,12 +81,42 @@ struct ShareStoreView: View {
                         )
                 }
 
+                // Permission Selection
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Permission")
+                        .font(.headline)
+
+                    Picker("Permission", selection: $selectedPermission) {
+                        Text("Can Edit").tag(StorePermission.edit)
+                        Text("View Only").tag(StorePermission.view)
+                    }
+                    .pickerStyle(.segmented)
+
+                    // Permission description
+                    HStack(alignment: .top, spacing: 8) {
+                        Image(systemName: selectedPermission == .edit ? "pencil.circle.fill" : "eye.circle.fill")
+                            .foregroundStyle(selectedPermission == .edit ? .green : .orange)
+
+                        Text(selectedPermission == .edit
+                            ? "Can Edit: Recipient gets full ownership. Changes and deletions sync between both users."
+                            : "View Only: Recipient can view reminders but cannot edit, share, delete, or check them off.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .padding()
+                    .background(
+                        RoundedRectangle(cornerRadius: 10)
+                            .fill((selectedPermission == .edit ? Color.green : Color.orange).opacity(0.1))
+                    )
+                }
+
                 // Info Text
                 HStack(alignment: .top, spacing: 8) {
                     Image(systemName: "info.circle.fill")
                         .foregroundStyle(.blue)
 
-                    Text("This will share the store and all its active reminders with the recipient. The recipient must have an account with the email address you provide.")
+                    Text("The store and all its active reminders will be shared. The recipient must have an account with the email address you provide.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -159,7 +190,8 @@ struct ShareStoreView: View {
 
         viewModel.shareStore(
             userStoreItem: userStoreItem,
-            recipientEmail: recipientEmail.lowercased().trimmingCharacters(in: .whitespaces)
+            recipientEmail: recipientEmail.lowercased().trimmingCharacters(in: .whitespaces),
+            permission: selectedPermission
         ) { success, message in
             isSharing = false
 
@@ -192,7 +224,9 @@ struct ShareStoreView: View {
                 name: "Target",
                 address: "123 Main St, City, ST 12345",
                 reminderCount: 3
-            )
+            ),
+            permission: .owner,
+            sharedStoreGroupId: nil
         )
     )
 }
