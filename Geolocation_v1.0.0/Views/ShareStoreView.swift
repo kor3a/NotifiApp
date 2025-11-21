@@ -226,7 +226,8 @@ struct ShareStoreView: View {
                 reminderCount: 3
             ),
             permission: .owner,
-            sharedStoreGroupId: nil
+            sharedStoreGroupId: nil,
+            sourceUserStoreId: nil
         )
     )
 }

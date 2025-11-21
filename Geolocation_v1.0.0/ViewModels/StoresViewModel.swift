@@ -80,9 +80,11 @@ class StoresViewModel: ObservableObject {
                     let permissionString = data["permission"] as? String ?? "owner"
                     let permission = StorePermission(rawValue: permissionString) ?? .owner
                     let sharedStoreGroupId = data["sharedStoreGroupId"] as? String
+                    let sourceUserStoreId = data["sourceUserStoreId"] as? String
 
-                    // Use sharedStoreGroupId for reminders if available, otherwise use userStoreId
-                    let reminderStoreId = sharedStoreGroupId ?? userStoreId
+                    // Determine which ID to use for fetching reminders
+                    // Priority: sourceUserStoreId (view only) > sharedStoreGroupId (can edit) > userStoreId (owner)
+                    let reminderStoreId = sourceUserStoreId ?? sharedStoreGroupId ?? userStoreId
 
                     group.enter()
 
@@ -109,7 +111,8 @@ class StoresViewModel: ObservableObject {
                                 id: userStoreId,
                                 store: store,
                                 permission: permission,
-                                sharedStoreGroupId: sharedStoreGroupId
+                                sharedStoreGroupId: sharedStoreGroupId,
+                                sourceUserStoreId: sourceUserStoreId
                             )
                             tempUserStoreItems.append(userStoreItem)
                         }
@@ -637,6 +640,11 @@ class StoresViewModel: ObservableObject {
                     "sharedAt": Date().timeIntervalSince1970
                 ]
 
+                // For view-only, set sourceUserStoreId to point to owner's user_store for reminders
+                if permission == .view {
+                    newUserStore["sourceUserStoreId"] = userStoreItem.id
+                }
+
                 // Add coordinates if available
                 if let latitude = userStoreItem.store.latitude {
                     newUserStore["latitude"] = latitude
@@ -658,13 +666,25 @@ class StoresViewModel: ObservableObject {
 
                     print("StoresViewModel: User_store created successfully with ID: \(newDocRef.documentID)")
 
-                    // Now copy all active reminders using the captured document ID
-                    self.copyReminders(
-                        fromUserStoreId: userStoreItem.id,
-                        toUserStoreId: newDocRef.documentID,
-                        recipientUserId: recipientUserId,
-                        completion: completion
-                    )
+                    // For view-only, don't copy reminders - they'll see owner's reminders via sourceUserStoreId
+                    if permission == .view {
+                        // Count how many reminders they'll be able to see
+                        self.db.collection("reminders")
+                            .whereField("userStoreId", isEqualTo: userStoreItem.id)
+                            .whereField("isDone", isEqualTo: false)
+                            .getDocuments { snapshot, error in
+                                let reminderCount = snapshot?.documents.count ?? 0
+                                completion(true, "Store shared with view-only access! \(reminderCount) reminder(s) visible.")
+                            }
+                    } else {
+                        // For other permissions, copy reminders (though this shouldn't be called for edit)
+                        self.copyReminders(
+                            fromUserStoreId: userStoreItem.id,
+                            toUserStoreId: newDocRef.documentID,
+                            recipientUserId: recipientUserId,
+                            completion: completion
+                        )
+                    }
                 }
             }
     }

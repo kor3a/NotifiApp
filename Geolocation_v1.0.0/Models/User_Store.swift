@@ -17,6 +17,7 @@ struct UserStore: Codable, Identifiable {
     var longitude: Double? = nil // Denormalized for location monitoring
     var permission: StorePermission = .owner // Default to owner for existing stores
     var sharedStoreGroupId: String? = nil // Links co-owners for Can Edit permission
+    var sourceUserStoreId: String? = nil // For View Only: points to owner's user_store ID for fetching reminders
     var sharedFrom: String? = nil // Email of user who shared
     var sharedAt: TimeInterval? = nil // When it was shared
 
@@ -31,6 +32,7 @@ struct UserStore: Codable, Identifiable {
         case longitude
         case permission
         case sharedStoreGroupId
+        case sourceUserStoreId
         case sharedFrom
         case sharedAt
     }

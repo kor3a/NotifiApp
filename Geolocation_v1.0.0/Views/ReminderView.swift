@@ -145,6 +145,7 @@ struct ReminderView: View {
         id: "preview_user_store",
         store: Store(id: "preview", name: "Trader Joe's", address: "6401 Haven Ave, Rancho Cucamonga, CA 91737"),
         permission: .owner,
-        sharedStoreGroupId: nil
+        sharedStoreGroupId: nil,
+        sourceUserStoreId: nil
     ))
 }
