@@ -13,6 +13,8 @@ struct StoresView: View {
     @StateObject private var viewModel = StoresViewModel()
     @ObservedObject private var sessionManager = UserSessionManager.shared
     @State private var showingAddStore = false
+    @State private var showingShareStore = false
+    @State private var selectedStoreToShare: UserStoreItem?
     @State private var editMode: EditMode = .inactive
     @State private var longPressedItemId: String?
     @Environment(\.colorScheme) var colorScheme
@@ -77,6 +79,15 @@ struct StoresView: View {
                                 .padding(.vertical, 4)
                         )
                         .listRowSeparator(.hidden)
+                        .swipeActions(edge: .leading, allowsFullSwipe: false) {
+                            Button {
+                                selectedStoreToShare = userStoreItem
+                                showingShareStore = true
+                            } label: {
+                                Label("Share", systemImage: "square.and.arrow.up")
+                            }
+                            .tint(.blue)
+                        }
                         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                             Button(role: .destructive) {
                                 if let index = viewModel.userStoreItems.firstIndex(where: { $0.id == userStoreItem.id }) {
@@ -127,6 +138,11 @@ struct StoresView: View {
         }//:NAVIGATIONSTACK
         .sheet(isPresented: $showingAddStore) {
             AddStoreView(viewModel: viewModel)
+        }
+        .sheet(isPresented: $showingShareStore) {
+            if let storeToShare = selectedStoreToShare {
+                ShareStoreView(viewModel: viewModel, userStoreItem: storeToShare)
+            }
         }
         .onAppear() {
             // Try to fetch immediately if user data is available
