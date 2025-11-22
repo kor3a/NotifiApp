@@ -13,140 +13,91 @@ struct StoresView: View {
     @StateObject private var viewModel = StoresViewModel()
     @ObservedObject private var sessionManager = UserSessionManager.shared
     @State private var showingAddStore = false
-    @State private var selectedStoreToShare: UserStoreItem?
-    @State private var editMode: EditMode = .inactive
-    @State private var longPressedItemId: String?
+    @State private var isMenuExpanded = false
     @Environment(\.colorScheme) var colorScheme
 
     var body: some View {
         NavigationStack {
-            if sessionManager.isLoading || viewModel.isLoading {
-                ProgressView("Loading your stores...")
-            } else if viewModel.userStoreItems.isEmpty {
-                VStack(spacing: 20) {
-                    Image(systemName: "cart.badge.plus")
-                        .resizable()
-                        .frame(width: 80, height: 80)
-                        .foregroundStyle(.gray)
-                    
-                    Text("No Stores Added")
-                        .font(.title2)
-                        .bold()
-                    
-                    Text("Add stores to start creating reminders")
-                        .foregroundStyle(.gray)
-                        .multilineTextAlignment(.center)
-                    
-                    Button(action: {
-                        showingAddStore = true
-                    }) {
-                        Label("Add Store", systemImage: "plus")
-                            .font(.headline)
-                            .padding()
-                            .background(Color.blue)
-                            .foregroundColor(.white)
-                            .cornerRadius(10)
-                    }
-                }
-                .padding()
-            } else {
-                List {
-                    ForEach(viewModel.userStoreItems) { userStoreItem in
-                        ZStack {
-                            if editMode == .inactive {
-                                NavigationLink(destination: ReminderView(userStoreItem: userStoreItem)) {
-                                    StoreItemView(store: userStoreItem.store)
-                                        .contentShape(Rectangle())
-                                }
-                                .buttonStyle(.plain)
-                            } else {
-                                StoreItemView(store: userStoreItem.store)
-                            }
-                        }
-                        .listRowBackground(
-                            RoundedRectangle(cornerRadius: 16)
-                                .fill(.ultraThinMaterial)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 16)
-                                        .stroke(
-                                            Color.cardBorder(for: colorScheme),
-                                            lineWidth: 1.5
-                                        )
-                                )
-                                .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.3 : 0.1), radius: 8, x: 0, y: 4)
-                                .shadow(color: Color.white.opacity(colorScheme == .dark ? 0.05 : 0.5), radius: 2, x: 0, y: -2)
-                                .padding(.vertical, 4)
-                        )
-                        .listRowSeparator(.hidden)
-                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                            // All users can delete/remove the store from their list
-                            Button(role: .destructive) {
-                                if let index = viewModel.userStoreItems.firstIndex(where: { $0.id == userStoreItem.id }) {
-                                    deleteStore(at: IndexSet(integer: index))
-                                }
-                            } label: {
-                                // Show "Remove" for view-only, "Delete" for others
-                                if userStoreItem.permission == .view {
-                                    Label("Remove", systemImage: "xmark.circle")
-                                } else {
-                                    Label("Delete", systemImage: "trash")
-                                }
-                            }
+            ZStack {
+                // Background
+                Color.backgroundGradient(for: colorScheme)
+                    .ignoresSafeArea()
 
-                            // Only non-view users can share
-                            if userStoreItem.permission != .view {
-                                Button {
-                                    selectedStoreToShare = userStoreItem
-                                } label: {
-                                    Label("Share", systemImage: "square.and.arrow.up")
-                                }
-                                .tint(.blue)
+                // Dimmed overlay when menu is expanded
+                if isMenuExpanded {
+                    Color.black.opacity(0.3)
+                        .ignoresSafeArea()
+                        .onTapGesture {
+                            withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                                isMenuExpanded = false
                             }
                         }
-                        .simultaneousGesture(
-                            LongPressGesture(minimumDuration: 0.5)
-                                .onEnded { _ in
-                                    withAnimation {
-                                        editMode = .active
-                                        longPressedItemId = userStoreItem.id
+                        .transition(.opacity)
+                }
+
+                // Floating action button and menu
+                VStack {
+                    Spacer()
+                    HStack {
+                        Spacer()
+
+                        ZStack {
+                            // Expanded menu
+                            if isMenuExpanded {
+                                VStack(spacing: 0) {
+                                    Button(action: {
+                                        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                                            isMenuExpanded = false
+                                        }
+                                        showingAddStore = true
+                                    }) {
+                                        HStack {
+                                            Image(systemName: "cart.badge.plus")
+                                                .font(.system(size: 20))
+                                            Text("Add Store")
+                                                .font(.headline)
+                                            Spacer()
+                                        }
+                                        .padding()
+                                        .frame(width: 200)
+                                        .background(
+                                            RoundedRectangle(cornerRadius: 16)
+                                                .fill(.ultraThinMaterial)
+                                        )
+                                        .foregroundColor(.primary)
                                     }
                                 }
-                        )
-                    }
-                    .onMove(perform: moveStore)
-                } //:LIST
-                .environment(\.editMode, $editMode)
-                .listStyle(.plain)
-                .scrollContentBackground(.hidden)
-                .background(
-                    Color.backgroundGradient(for: colorScheme)
-                        .ignoresSafeArea()
-                )
-                .toolbar {
-                    if editMode == .active {
-                        ToolbarItem(placement: .navigationBarLeading) {
-                            Button("Done") {
-                                withAnimation {
-                                    editMode = .inactive
+                                .transition(.scale(scale: 0.1, anchor: .bottomTrailing).combined(with: .opacity))
+                            }
+
+                            // Floating + button
+                            if !isMenuExpanded {
+                                Button(action: {
+                                    withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                                        isMenuExpanded = true
+                                    }
+                                }) {
+                                    Image(systemName: "plus")
+                                        .font(.system(size: 24, weight: .semibold))
+                                        .foregroundColor(.white)
+                                        .frame(width: 60, height: 60)
+                                        .background(
+                                            Circle()
+                                                .fill(Color.blue)
+                                                .shadow(color: Color.black.opacity(0.3), radius: 8, x: 0, y: 4)
+                                        )
                                 }
+                                .transition(.scale(scale: 0.1, anchor: .bottomTrailing).combined(with: .opacity))
                             }
                         }
-                    }
-                    ToolbarItem(placement: .navigationBarTrailing) {
-                        Button(action: {
-                            showingAddStore = true
-                        }) {
-                            Image(systemName: "plus")
-                        }
+                        .padding(.trailing, 24)
+                        .padding(.bottom, 24)
                     }
                 }
             }
         }//:NAVIGATIONSTACK
         .sheet(isPresented: $showingAddStore) {
             AddStoreView(viewModel: viewModel)
-        }
-        .sheet(item: $selectedStoreToShare) { storeToShare in
-            ShareStoreView(viewModel: viewModel, userStoreItem: storeToShare)
         }
         .onAppear() {
             // Try to fetch immediately if user data is available
@@ -161,25 +112,6 @@ struct StoresView: View {
             }
         }
     }//:BODY
-    
-    private func deleteStore(at offsets: IndexSet) {
-        for index in offsets {
-            let userStoreItem = viewModel.userStoreItems[index]
-            viewModel.removeStoreFromUser(userStoreItem: userStoreItem)
-        }
-    }
-
-    private func moveStore(from source: IndexSet, to destination: Int) {
-        viewModel.moveStore(from: source, to: destination)
-
-        // Auto-exit edit mode after a short delay
-        Task {
-            try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
-            withAnimation {
-                editMode = .inactive
-            }
-        }
-    }
 }
 
 #Preview {
