@@ -116,16 +116,18 @@ struct StoresView: View {
                             }
                         }
                     }
-                    .simultaneousGesture(
-                        TapGesture()
-                            .onEnded { _ in
-                                if isMenuExpanded {
-                                    withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                                        isMenuExpanded = false
-                                    }
-                                }
+                }
+
+                // Transparent overlay to close menu when tapped
+                if isMenuExpanded {
+                    Color.clear
+                        .contentShape(Rectangle())
+                        .ignoresSafeArea()
+                        .onTapGesture {
+                            withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                                isMenuExpanded = false
                             }
-                    )
+                        }
                 }
 
                 // Floating action button and menu
