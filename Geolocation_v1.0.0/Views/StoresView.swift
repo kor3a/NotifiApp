@@ -22,18 +22,13 @@ struct StoresView: View {
                 // Background
                 Color.backgroundGradient(for: colorScheme)
                     .ignoresSafeArea()
-
-                // Dimmed overlay when menu is expanded
-                if isMenuExpanded {
-                    Color.black.opacity(0.3)
-                        .ignoresSafeArea()
-                        .onTapGesture {
+                    .onTapGesture {
+                        if isMenuExpanded {
                             withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
                                 isMenuExpanded = false
                             }
                         }
-                        .transition(.opacity)
-                }
+                    }
 
                 // Floating action button and menu
                 VStack {
