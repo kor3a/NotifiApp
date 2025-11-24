@@ -77,6 +77,7 @@ class StoresViewModel: ObservableObject {
                     let sortOrder = data["sortOrder"] as? Int
                     let latitude = data["latitude"] as? Double
                     let longitude = data["longitude"] as? Double
+                    let imageURL = data["imageURL"] as? String
                     let permissionString = data["permission"] as? String ?? "owner"
                     let permission = StorePermission(rawValue: permissionString) ?? .owner
                     let sharedStoreGroupId = data["sharedStoreGroupId"] as? String
@@ -105,7 +106,8 @@ class StoresViewModel: ObservableObject {
                                 reminderCount: reminderCount,
                                 sortOrder: sortOrder,
                                 latitude: latitude,
-                                longitude: longitude
+                                longitude: longitude,
+                                imageURL: imageURL
                             )
                             let userStoreItem = UserStoreItem(
                                 id: userStoreId,
@@ -194,6 +196,7 @@ class StoresViewModel: ObservableObject {
                 }
                 let latitude = data["latitude"] as? Double
                 let longitude = data["longitude"] as? Double
+                let imageURL = data["imageURL"] as? String
                 return Store(
                     id: doc.documentID,
                     name: name,
@@ -201,7 +204,8 @@ class StoresViewModel: ObservableObject {
                     reminderCount: 0,
                     sortOrder: nil,
                     latitude: latitude,
-                    longitude: longitude
+                    longitude: longitude,
+                    imageURL: imageURL
                 )
             }
 
@@ -259,6 +263,11 @@ class StoresViewModel: ObservableObject {
                 }
                 if let longitude = store.longitude {
                     userStore["longitude"] = longitude
+                }
+
+                // Add image URL if available
+                if let imageURL = store.imageURL {
+                    userStore["imageURL"] = imageURL
                 }
 
                 self.db.collection("user_stores").addDocument(data: userStore) { error in

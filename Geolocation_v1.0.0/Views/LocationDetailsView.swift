@@ -14,6 +14,9 @@ struct LocationDetailsView: View {
     @Binding var show: Bool
     @ObservedObject var viewModel: StoresViewModel
 
+    @State private var placePhotoURL: String?
+    @State private var isLoadingPhoto = false
+
     // Check if the currently selected store is already in user's list
     private var isStoreAlreadyAdded: Bool {
         guard let mapSelection = mapSelection else { return false }
@@ -23,6 +26,56 @@ struct LocationDetailsView: View {
         // Check if any user store matches this location
         return viewModel.userStoreItems.contains { userStoreItem in
             userStoreItem.store.name == storeName && userStoreItem.store.address == storeAddress
+        }
+    }
+
+    /// Fetch store photo from Google Places API
+    private func fetchStorePhoto() {
+        guard let selectedItem = mapSelection else {
+            print("⚠️ LocationDetailsView: No map selection available")
+            return
+        }
+
+        let storeName = selectedItem.placemark.name ?? ""
+        let coordinate = selectedItem.placemark.coordinate
+
+        print("🏪 LocationDetailsView: fetchStorePhoto called for '\(storeName)'")
+
+        guard !storeName.isEmpty else {
+            print("⚠️ LocationDetailsView: Store name is empty, skipping photo fetch")
+            return
+        }
+
+        isLoadingPhoto = true
+        print("⏳ LocationDetailsView: Starting photo load...")
+
+        Task {
+            do {
+                let photoURL = try await GooglePlacesService.shared.fetchPlacePhoto(
+                    name: storeName,
+                    coordinate: coordinate
+                )
+
+                await MainActor.run {
+                    if let url = photoURL {
+                        print("✅ LocationDetailsView: Photo URL received: \(url.prefix(50))...")
+                        self.placePhotoURL = photoURL
+                    } else {
+                        print("⚠️ LocationDetailsView: No photo URL returned")
+                        self.placePhotoURL = nil
+                    }
+                    self.isLoadingPhoto = false
+                    print("✅ LocationDetailsView: Photo loading completed")
+                }
+            } catch {
+                print("❌ LocationDetailsView: Error fetching place photo: \(error)")
+                if let googleError = error as? GooglePlacesError {
+                    print("❌ LocationDetailsView: Google Places Error: \(googleError.localizedDescription)")
+                }
+                await MainActor.run {
+                    self.isLoadingPhoto = false
+                }
+            }
         }
     }
 
@@ -54,7 +107,32 @@ struct LocationDetailsView: View {
                     
                     /// Photo
                     ZStack{
-                        ContentUnavailableView("No Preview Available", systemImage: "eye.slash")
+                        if isLoadingPhoto {
+                            ProgressView()
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                .background(Color(.systemGray6))
+                        } else if let photoURLString = placePhotoURL,
+                                  let photoURL = URL(string: photoURLString) {
+                            AsyncImage(url: photoURL) { phase in
+                                switch phase {
+                                case .empty:
+                                    ProgressView()
+                                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                        .background(Color(.systemGray6))
+                                case .success(let image):
+                                    image
+                                        .resizable()
+                                        .aspectRatio(contentMode: .fill)
+                                        .frame(height: 200)
+                                case .failure:
+                                    ContentUnavailableView("No Preview Available", systemImage: "eye.slash")
+                                @unknown default:
+                                    ContentUnavailableView("No Preview Available", systemImage: "eye.slash")
+                                }
+                            }
+                        } else {
+                            ContentUnavailableView("No Preview Available", systemImage: "eye.slash")
+                        }
                     }//:ZSTACK
                     .frame(height: 200)
                     .clipShape(.rect(cornerRadius: 15))
@@ -78,7 +156,7 @@ struct LocationDetailsView: View {
                     Button(action: {
                         guard let selectedItem = mapSelection else { return }
 
-                        // Create a Store object from the MKMapItem
+                        // Create a Store object from the MKMapItem with Google Places photo
                         let store = Store(
                             id: UUID().uuidString, // Generate temporary ID
                             name: selectedItem.placemark.name ?? "Unknown Store",
@@ -86,7 +164,8 @@ struct LocationDetailsView: View {
                             reminderCount: 0,
                             sortOrder: nil,
                             latitude: selectedItem.placemark.coordinate.latitude,
-                            longitude: selectedItem.placemark.coordinate.longitude
+                            longitude: selectedItem.placemark.coordinate.longitude,
+                            imageURL: placePhotoURL
                         )
 
                         // Add store to user's list
@@ -108,6 +187,14 @@ struct LocationDetailsView: View {
                 
             }//:HSTACK
         }//:VSTACK
+        .task(id: mapSelection) {
+            // Fetch photo when view appears or mapSelection changes
+            if mapSelection != nil {
+                print("📍 LocationDetailsView: View appeared with selection, fetching photo via .task")
+                placePhotoURL = nil
+                fetchStorePhoto()
+            }
+        }
     }
 }
 
