@@ -13,7 +13,7 @@ class GooglePlacesService {
 
     // IMPORTANT: Replace with your actual Google Places API key
     // Get your API key from: https://console.cloud.google.com/apis/credentials
-    private let apiKey = "YOUR_GOOGLE_PLACES_API_KEY"
+    private let apiKey = "AIzaSyCEd71bzy36JdYwAvrQ7LELqHarijNJ7ds"
 
     private let baseURL = "https://maps.googleapis.com/maps/api/place"
 
