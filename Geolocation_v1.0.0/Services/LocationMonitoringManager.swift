@@ -18,7 +18,7 @@ class LocationMonitoringManager: NSObject, ObservableObject {
     private let notificationManager = NotificationManager.shared
 
     // Distance threshold in meters (1km = 1000m)
-    private let proximityThreshold: CLLocationDistance = 1000
+    private let proximityThreshold: CLLocationDistance = 100
 
     // Track recently notified stores to avoid spam (store ID -> last notification time)
     private var recentlyNotifiedStores: [String: Date] = [:]
