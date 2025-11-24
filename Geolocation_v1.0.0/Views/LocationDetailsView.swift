@@ -75,7 +75,7 @@ struct LocationDetailsView: View {
                     
 
                     /// Add Button
-                    Button(isStoreAlreadyAdded ? "Added" : "Add") {
+                    Button(action: {
                         guard let selectedItem = mapSelection else { return }
 
                         // Create a Store object from the MKMapItem
@@ -95,12 +95,12 @@ struct LocationDetailsView: View {
                         // Close the detail view
                         show = false
                         mapSelection = nil
+                    }) {
+                        Text(isStoreAlreadyAdded ? "Added" : "Add")
                     }//:BUTTON
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
-                    .background(isStoreAlreadyAdded ? Color.gray.gradient : Color.blue.gradient, in: .rect(cornerRadius: 15))
+                    .buttonStyle(PrimaryButtonStyle(color: isStoreAlreadyAdded ? .gray : .blue))
                     .disabled(isStoreAlreadyAdded)
+                    .padding(.horizontal)
                    
                 }//:VSTACK
                 
