@@ -14,6 +14,9 @@ struct LocationDetailsView: View {
     @Binding var show: Bool
     @ObservedObject var viewModel: StoresViewModel
 
+    @State private var placePhotoURL: String?
+    @State private var isLoadingPhoto = false
+
     // Check if the currently selected store is already in user's list
     private var isStoreAlreadyAdded: Bool {
         guard let mapSelection = mapSelection else { return false }
@@ -23,6 +26,37 @@ struct LocationDetailsView: View {
         // Check if any user store matches this location
         return viewModel.userStoreItems.contains { userStoreItem in
             userStoreItem.store.name == storeName && userStoreItem.store.address == storeAddress
+        }
+    }
+
+    /// Fetch store photo from Google Places API
+    private func fetchStorePhoto() {
+        guard let selectedItem = mapSelection else { return }
+
+        let storeName = selectedItem.placemark.name ?? ""
+        let coordinate = selectedItem.placemark.coordinate
+
+        guard !storeName.isEmpty else { return }
+
+        isLoadingPhoto = true
+
+        Task {
+            do {
+                let photoURL = try await GooglePlacesService.shared.fetchPlacePhoto(
+                    name: storeName,
+                    coordinate: coordinate
+                )
+
+                await MainActor.run {
+                    self.placePhotoURL = photoURL
+                    self.isLoadingPhoto = false
+                }
+            } catch {
+                print("Error fetching place photo: \(error.localizedDescription)")
+                await MainActor.run {
+                    self.isLoadingPhoto = false
+                }
+            }
         }
     }
 
@@ -54,9 +88,13 @@ struct LocationDetailsView: View {
                     
                     /// Photo
                     ZStack{
-                        if let imageURLString = mapSelection?.url?.absoluteString,
-                           let imageURL = URL(string: imageURLString) {
-                            AsyncImage(url: imageURL) { phase in
+                        if isLoadingPhoto {
+                            ProgressView()
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                .background(Color(.systemGray6))
+                        } else if let photoURLString = placePhotoURL,
+                                  let photoURL = URL(string: photoURLString) {
+                            AsyncImage(url: photoURL) { phase in
                                 switch phase {
                                 case .empty:
                                     ProgressView()
@@ -93,13 +131,19 @@ struct LocationDetailsView: View {
                         }//:BUTTON
                         .padding(10)
                     }
+                    .onChange(of: mapSelection) { oldValue, newValue in
+                        if newValue != nil {
+                            placePhotoURL = nil
+                            fetchStorePhoto()
+                        }
+                    }
                     
 
                     /// Add Button
                     Button(action: {
                         guard let selectedItem = mapSelection else { return }
 
-                        // Create a Store object from the MKMapItem
+                        // Create a Store object from the MKMapItem with Google Places photo
                         let store = Store(
                             id: UUID().uuidString, // Generate temporary ID
                             name: selectedItem.placemark.name ?? "Unknown Store",
@@ -108,7 +152,7 @@ struct LocationDetailsView: View {
                             sortOrder: nil,
                             latitude: selectedItem.placemark.coordinate.latitude,
                             longitude: selectedItem.placemark.coordinate.longitude,
-                            imageURL: selectedItem.url?.absoluteString
+                            imageURL: placePhotoURL
                         )
 
                         // Add store to user's list
