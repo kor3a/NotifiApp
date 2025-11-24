@@ -150,16 +150,6 @@ struct LocationDetailsView: View {
                         }//:BUTTON
                         .padding(10)
                     }
-                    .onChange(of: mapSelection) { oldValue, newValue in
-                        print("🔄 LocationDetailsView: mapSelection changed")
-                        if newValue != nil {
-                            print("📍 LocationDetailsView: New selection detected, fetching photo...")
-                            placePhotoURL = nil
-                            fetchStorePhoto()
-                        } else {
-                            print("🚫 LocationDetailsView: Selection cleared")
-                        }
-                    }
                     
 
                     /// Add Button
@@ -197,6 +187,14 @@ struct LocationDetailsView: View {
                 
             }//:HSTACK
         }//:VSTACK
+        .task(id: mapSelection) {
+            // Fetch photo when view appears or mapSelection changes
+            if mapSelection != nil {
+                print("📍 LocationDetailsView: View appeared with selection, fetching photo via .task")
+                placePhotoURL = nil
+                fetchStorePhoto()
+            }
+        }
     }
 }
 
