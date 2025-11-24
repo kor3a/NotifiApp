@@ -128,8 +128,12 @@ class LocationMonitoringManager: NSObject, ObservableObject {
 
     private func loadReminderCounts() {
         for userStore in userStores {
+            // Determine which ID to use for fetching reminders
+            // Priority: sourceUserStoreId (view only) > sharedStoreGroupId (can edit) > userStore.id (owner)
+            let reminderStoreId = userStore.sourceUserStoreId ?? userStore.sharedStoreGroupId ?? userStore.id
+
             db.collection("reminders")
-                .whereField("userStoreId", isEqualTo: userStore.id)
+                .whereField("userStoreId", isEqualTo: reminderStoreId)
                 .whereField("isDone", isEqualTo: false)
                 .addSnapshotListener { [weak self] snapshot, error in
                     guard let self = self else { return }
@@ -141,6 +145,7 @@ class LocationMonitoringManager: NSObject, ObservableObject {
 
                     let count = snapshot?.documents.count ?? 0
                     self.storeReminders[userStore.id] = count
+                    print("LocationMonitoring: Store '\(userStore.storeName)' has \(count) incomplete reminders (using ID: \(reminderStoreId))")
                 }
         }
     }
