@@ -64,7 +64,7 @@ struct HomeView: View {
             // Start monitoring when user data becomes available
             if let userId = newUser?.userId, !locationMonitor.isMonitoring {
                 let locationStatus = locationMonitor.checkLocationPermission()
-                if locationStatus == .authorizedAlways {
+                if locationStatus == .authorizedAlways || locationStatus == .authorizedWhenInUse {
                     locationMonitor.startMonitoring(userId: userId)
                     print("HomeView: Started monitoring after user data loaded for: \(userId)")
                 } else {
@@ -107,12 +107,12 @@ struct HomeView: View {
         // Start monitoring if we have permission and user is logged in
         if let userId = sessionManager.currentUser?.userId {
             print("👤 HomeView: User ID available: \(userId)")
-            if locationStatus == .authorizedAlways {
+            if locationStatus == .authorizedAlways || locationStatus == .authorizedWhenInUse {
                 locationMonitor.startMonitoring(userId: userId)
                 print("✅ HomeView: Started location monitoring")
             } else {
                 locationMonitor.setUserId(userId)
-                print("⏸️ HomeView: User ID saved, waiting for 'Always' location permission")
+                print("⏸️ HomeView: User ID saved, waiting for location permission")
             }
         } else {
             print("⏸️ HomeView: User ID not available yet, will start monitoring when user data loads")

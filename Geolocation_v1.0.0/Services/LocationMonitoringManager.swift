@@ -44,6 +44,10 @@ class LocationMonitoringManager: NSObject, ObservableObject {
         locationManager.distanceFilter = 100 // Update every 100 meters
         locationManager.allowsBackgroundLocationUpdates = true
         locationManager.pausesLocationUpdatesAutomatically = false
+
+        // Also start monitoring significant location changes for better background updates
+        // This works with "When In Use" permission when app is in background
+        locationManager.startMonitoringSignificantLocationChanges()
     }
 
     // MARK: - Permission Management
@@ -81,10 +85,19 @@ class LocationMonitoringManager: NSObject, ObservableObject {
 
         print("🔵 LocationMonitoring: startMonitoring called for userId: \(userId)")
 
-        guard checkLocationPermission() == .authorizedAlways else {
-            print("⚠️ LocationMonitoring: Cannot start monitoring without 'Always' location permission")
+        let permission = checkLocationPermission()
+
+        // Accept both "When In Use" and "Always" permissions
+        guard permission == .authorizedAlways || permission == .authorizedWhenInUse else {
+            print("⚠️ LocationMonitoring: Cannot start monitoring without location permission")
             print("User ID saved - will auto-start when permission is granted")
             return
+        }
+
+        if permission == .authorizedWhenInUse {
+            print("⚠️ LocationMonitoring: Running with 'When In Use' permission")
+            print("   App will monitor location while in use and use significant location changes in background")
+            print("   iOS will prompt for 'Always' permission after you use location features a few times")
         }
 
         isMonitoring = true
@@ -94,6 +107,7 @@ class LocationMonitoringManager: NSObject, ObservableObject {
         print("📱 LocationMonitoring: Desired accuracy: \(locationManager.desiredAccuracy)")
         print("📱 LocationMonitoring: Distance filter: \(locationManager.distanceFilter)m")
         print("📱 LocationMonitoring: Background updates: \(locationManager.allowsBackgroundLocationUpdates)")
+        print("📱 LocationMonitoring: Significant location changes: enabled")
     }
 
     func stopMonitoring() {
@@ -290,16 +304,16 @@ extension LocationMonitoringManager: CLLocationManagerDelegate {
 
         print("🔐 LocationMonitoring: Authorization changed to: \(statusStr)")
 
-        // If permission was granted and we have a user ID, start monitoring automatically
-        if status == .authorizedAlways, let userId = currentUserId, !isMonitoring {
+        // Start monitoring with either "When In Use" or "Always" permission
+        if (status == .authorizedAlways || status == .authorizedWhenInUse), let userId = currentUserId, !isMonitoring {
             print("   ✅ Starting monitoring automatically")
             startMonitoring(userId: userId)
-        } else if status == .authorizedAlways && isMonitoring {
+        } else if (status == .authorizedAlways || status == .authorizedWhenInUse) && isMonitoring {
             print("   ✅ Resuming location updates")
             // Resume monitoring if already configured
             locationManager.startUpdatingLocation()
-        } else if status != .authorizedAlways {
-            print("   ⚠️ Need 'Always' permission for background monitoring")
+        } else if status == .denied || status == .restricted {
+            print("   ❌ Location permission denied or restricted")
         }
     }
 }
