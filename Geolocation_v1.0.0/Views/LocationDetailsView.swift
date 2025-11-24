@@ -54,7 +54,28 @@ struct LocationDetailsView: View {
                     
                     /// Photo
                     ZStack{
-                        ContentUnavailableView("No Preview Available", systemImage: "eye.slash")
+                        if let imageURLString = mapSelection?.url?.absoluteString,
+                           let imageURL = URL(string: imageURLString) {
+                            AsyncImage(url: imageURL) { phase in
+                                switch phase {
+                                case .empty:
+                                    ProgressView()
+                                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                        .background(Color(.systemGray6))
+                                case .success(let image):
+                                    image
+                                        .resizable()
+                                        .aspectRatio(contentMode: .fill)
+                                        .frame(height: 200)
+                                case .failure:
+                                    ContentUnavailableView("No Preview Available", systemImage: "eye.slash")
+                                @unknown default:
+                                    ContentUnavailableView("No Preview Available", systemImage: "eye.slash")
+                                }
+                            }
+                        } else {
+                            ContentUnavailableView("No Preview Available", systemImage: "eye.slash")
+                        }
                     }//:ZSTACK
                     .frame(height: 200)
                     .clipShape(.rect(cornerRadius: 15))
@@ -86,7 +107,8 @@ struct LocationDetailsView: View {
                             reminderCount: 0,
                             sortOrder: nil,
                             latitude: selectedItem.placemark.coordinate.latitude,
-                            longitude: selectedItem.placemark.coordinate.longitude
+                            longitude: selectedItem.placemark.coordinate.longitude,
+                            imageURL: selectedItem.url?.absoluteString
                         )
 
                         // Add store to user's list

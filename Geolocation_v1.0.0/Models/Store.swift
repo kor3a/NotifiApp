@@ -15,6 +15,7 @@ struct Store: Codable, Identifiable, Hashable {
     var sortOrder: Int? = nil
     var latitude: Double? = nil
     var longitude: Double? = nil
+    var imageURL: String? = nil
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -24,5 +25,6 @@ struct Store: Codable, Identifiable, Hashable {
         case sortOrder
         case latitude
         case longitude
+        case imageURL
     }
 }
