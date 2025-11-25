@@ -8,6 +8,12 @@
 
 /* Begin PBXBuildFile section */
 		010B28092EB6C2E9004E828B /* AddStoreView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010B28082EB6C2E9004E828B /* AddStoreView.swift */; };
+		011CF5FE2ED638D6009A31A6 /* ForgotPasswordView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 011CF5FD2ED638D6009A31A6 /* ForgotPasswordView.swift */; };
+		011CF6002ED638DD009A31A6 /* ShareStoreView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 011CF5FF2ED638DD009A31A6 /* ShareStoreView.swift */; };
+		011CF6022ED638E4009A31A6 /* SharedStoreGroup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 011CF6012ED638E4009A31A6 /* SharedStoreGroup.swift */; };
+		011CF6072ED638F9009A31A6 /* ForgotPasswordViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 011CF6062ED638F9009A31A6 /* ForgotPasswordViewModel.swift */; };
+		011CF6092ED63945009A31A6 /* Notifi.icon in Resources */ = {isa = PBXBuildFile; fileRef = 011CF6082ED63945009A31A6 /* Notifi.icon */; };
+		011CF60D2ED63A69009A31A6 /* NotifiApp.icon in Resources */ = {isa = PBXBuildFile; fileRef = 011CF60C2ED63A69009A31A6 /* NotifiApp.icon */; };
 		01897B5B2EBA4AB00038A4D1 /* StoresViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01897B5A2EBA4AB00038A4D1 /* StoresViewModel.swift */; };
 		01B78C382EBD414A00201B88 /* UserStoreItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01B78C372EBD414A00201B88 /* UserStoreItem.swift */; };
 		01B78C3A2EBD415F00201B88 /* ReminderViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01B78C392EBD415F00201B88 /* ReminderViewModel.swift */; };
@@ -46,6 +52,12 @@
 
 /* Begin PBXFileReference section */
 		010B28082EB6C2E9004E828B /* AddStoreView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddStoreView.swift; sourceTree = "<group>"; };
+		011CF5FD2ED638D6009A31A6 /* ForgotPasswordView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForgotPasswordView.swift; sourceTree = "<group>"; };
+		011CF5FF2ED638DD009A31A6 /* ShareStoreView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareStoreView.swift; sourceTree = "<group>"; };
+		011CF6012ED638E4009A31A6 /* SharedStoreGroup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedStoreGroup.swift; sourceTree = "<group>"; };
+		011CF6062ED638F9009A31A6 /* ForgotPasswordViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForgotPasswordViewModel.swift; sourceTree = "<group>"; };
+		011CF6082ED63945009A31A6 /* Notifi.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = Notifi.icon; sourceTree = "<group>"; };
+		011CF60C2ED63A69009A31A6 /* NotifiApp.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = NotifiApp.icon; sourceTree = "<group>"; };
 		01897B5A2EBA4AB00038A4D1 /* StoresViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoresViewModel.swift; sourceTree = "<group>"; };
 		01B78C372EBD414A00201B88 /* UserStoreItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserStoreItem.swift; sourceTree = "<group>"; };
 		01B78C392EBD415F00201B88 /* ReminderViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderViewModel.swift; sourceTree = "<group>"; };
@@ -81,6 +93,7 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		011CF6042ED638ED009A31A6 /* Theme */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Theme; sourceTree = "<group>"; };
 		01FB27582EC2A7490038E406 /* Services */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Services; sourceTree = "<group>"; };
 /* End PBXFileSystemSynchronizedRootGroup section */
 
@@ -117,6 +130,9 @@
 		8278FDF62C5DD1C90017EB72 /* Geolocation_v1.0.0 */ = {
 			isa = PBXGroup;
 			children = (
+				011CF60C2ED63A69009A31A6 /* NotifiApp.icon */,
+				011CF6082ED63945009A31A6 /* Notifi.icon */,
+				011CF6042ED638ED009A31A6 /* Theme */,
 				01FB27582EC2A7490038E406 /* Services */,
 				82D289B12C61D3F3009F357F /* Extensions */,
 				8278FE112C5DE5BB0017EB72 /* Support */,
@@ -140,6 +156,8 @@
 		8278FE0E2C5DE5930017EB72 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				011CF5FF2ED638DD009A31A6 /* ShareStoreView.swift */,
+				011CF5FD2ED638D6009A31A6 /* ForgotPasswordView.swift */,
 				01D2D8722EC2901F009C371F /* ImagePicker.swift */,
 				8278FDF92C5DD1C90017EB72 /* MainView.swift */,
 				8278FE122C5F23010017EB72 /* LoginView.swift */,
@@ -161,6 +179,7 @@
 		8278FE0F2C5DE5A00017EB72 /* ViewModels */ = {
 			isa = PBXGroup;
 			children = (
+				011CF6062ED638F9009A31A6 /* ForgotPasswordViewModel.swift */,
 				01B78C392EBD415F00201B88 /* ReminderViewModel.swift */,
 				82D289AB2C61CCD4009F357F /* LoginViewModel.swift */,
 				82D289AD2C61CEBD009F357F /* SignupViewModel.swift */,
@@ -176,6 +195,7 @@
 		8278FE102C5DE5A60017EB72 /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				011CF6012ED638E4009A31A6 /* SharedStoreGroup.swift */,
 				01B78C372EBD414A00201B88 /* UserStoreItem.swift */,
 				82D289AF2C61D30C009F357F /* User.swift */,
 				74A79E842CBDACB800713F0E /* Store.swift */,
@@ -218,6 +238,7 @@
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
+				011CF6042ED638ED009A31A6 /* Theme */,
 				01FB27582EC2A7490038E406 /* Services */,
 			);
 			name = Geolocation_v1.0.0;
@@ -273,7 +294,9 @@
 			files = (
 				8278FDFF2C5DD1CB0017EB72 /* Preview Assets.xcassets in Resources */,
 				8278FDFC2C5DD1CB0017EB72 /* Assets.xcassets in Resources */,
+				011CF60D2ED63A69009A31A6 /* NotifiApp.icon in Resources */,
 				8278FE0D2C5DD6DE0017EB72 /* GoogleService-Info.plist in Resources */,
+				011CF6092ED63945009A31A6 /* Notifi.icon in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -290,8 +313,10 @@
 				748542B32CB5307000C58D9B /* HomeView.swift in Sources */,
 				82D715C62C8D6B230000D1E3 /* MapView.swift in Sources */,
 				74A79E832CBDAC7500713F0E /* ReminderItemViewModel.swift in Sources */,
+				011CF6072ED638F9009A31A6 /* ForgotPasswordViewModel.swift in Sources */,
 				74A79E7F2CBDAB2A00713F0E /* ReminderItemView.swift in Sources */,
 				82D289AA2C61CA71009F357F /* SignupView.swift in Sources */,
+				011CF5FE2ED638D6009A31A6 /* ForgotPasswordView.swift in Sources */,
 				01897B5B2EBA4AB00038A4D1 /* StoresViewModel.swift in Sources */,
 				748542B52CB5378A00C58D9B /* ReminderView.swift in Sources */,
 				82D289B72C61D631009F357F /* ProfileView.swift in Sources */,
@@ -304,6 +329,7 @@
 				01D2D8732EC2901F009C371F /* ImagePicker.swift in Sources */,
 				8278FDFA2C5DD1C90017EB72 /* MainView.swift in Sources */,
 				01B78C382EBD414A00201B88 /* UserStoreItem.swift in Sources */,
+				011CF6002ED638DD009A31A6 /* ShareStoreView.swift in Sources */,
 				82D289AC2C61CCD4009F357F /* LoginViewModel.swift in Sources */,
 				7498B0842CC2D49A0003C68F /* StoresView.swift in Sources */,
 				74A8AA3E2DEBB84B005855A0 /* AddReminderView.swift in Sources */,
@@ -311,6 +337,7 @@
 				8278FDF82C5DD1C90017EB72 /* Geolocation_v1_0_0App.swift in Sources */,
 				82D289B02C61D30C009F357F /* User.swift in Sources */,
 				742E371B2CBC036F0056F692 /* ProfileViewModel.swift in Sources */,
+				011CF6022ED638E4009A31A6 /* SharedStoreGroup.swift in Sources */,
 				DF66A9982E24C86100C15DA9 /* User_Store.swift in Sources */,
 				82D289B52C61D52F009F357F /* MainViewModel.swift in Sources */,
 			);
@@ -441,14 +468,14 @@
 		8278FE032C5DD1CB0017EB72 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_APPICON_NAME = NotifiApp;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"Geolocation_v1.0.0/Preview Content\"";
 				DEVELOPMENT_TEAM = XT28W79782;
 				ENABLE_PREVIEWS = YES;
-				INFOPLIST_FILE = "Geolocation_v1.0.0/Info.plist";
+				INFOPLIST_FILE = Geolocation_v1.0.0/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -465,14 +492,14 @@
 		8278FE042C5DD1CB0017EB72 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_APPICON_NAME = NotifiApp;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"Geolocation_v1.0.0/Preview Content\"";
 				DEVELOPMENT_TEAM = XT28W79782;
 				ENABLE_PREVIEWS = YES;
-				INFOPLIST_FILE = "Geolocation_v1.0.0/Info.plist";
+				INFOPLIST_FILE = Geolocation_v1.0.0/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
