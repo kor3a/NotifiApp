@@ -60,6 +60,20 @@ struct HomeView: View {
         .onAppear {
             initializeLocationNotifications()
         }
+        .onChange(of: sessionManager.currentUser) { newUser in
+            // Start monitoring when user data becomes available
+            if let userId = newUser?.userId, !locationMonitor.isMonitoring {
+                let locationStatus = locationMonitor.checkLocationPermission()
+                if locationStatus == .authorizedAlways || locationStatus == .authorizedWhenInUse {
+                    locationMonitor.startMonitoring(userId: userId)
+                    print("HomeView: Started monitoring after user data loaded for: \(userId)")
+                } else {
+                    // Store userId for auto-start when permission is granted
+                    locationMonitor.setUserId(userId)
+                    print("HomeView: User ID set, waiting for location permission")
+                }
+            }
+        }
     }
 
     // MARK: - Location & Notification Setup
@@ -69,30 +83,39 @@ struct HomeView: View {
         guard !hasRequestedPermissions else { return }
         hasRequestedPermissions = true
 
+        print("🚀 HomeView: Initializing location and notification permissions")
+
         // Request notification permission
         Task {
             let notificationGranted = await notificationManager.requestAuthorization()
             if notificationGranted {
-                print("HomeView: Notification permission granted")
+                print("✅ HomeView: Notification permission granted")
             } else {
-                print("HomeView: Notification permission denied")
+                print("⚠️ HomeView: Notification permission denied")
             }
         }
 
         // Request location permission and start monitoring
         let locationStatus = locationMonitor.checkLocationPermission()
+        print("📍 HomeView: Current location status: \(locationStatus.rawValue)")
+
         if locationStatus == .notDetermined || locationStatus == .authorizedWhenInUse {
+            print("   Requesting location permission...")
             locationMonitor.requestLocationPermission()
         }
 
         // Start monitoring if we have permission and user is logged in
         if let userId = sessionManager.currentUser?.userId {
-            if locationStatus == .authorizedAlways {
+            print("👤 HomeView: User ID available: \(userId)")
+            if locationStatus == .authorizedAlways || locationStatus == .authorizedWhenInUse {
                 locationMonitor.startMonitoring(userId: userId)
-                print("HomeView: Started location monitoring for user: \(userId)")
+                print("✅ HomeView: Started location monitoring")
             } else {
-                print("HomeView: Waiting for 'Always' location permission to start monitoring")
+                locationMonitor.setUserId(userId)
+                print("⏸️ HomeView: User ID saved, waiting for location permission")
             }
+        } else {
+            print("⏸️ HomeView: User ID not available yet, will start monitoring when user data loads")
         }
     }
 }

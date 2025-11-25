@@ -47,31 +47,45 @@ class NotificationManager: NSObject, ObservableObject {
     // MARK: - Notification Scheduling
 
     func scheduleStoreProximityNotification(storeName: String, reminderCount: Int) {
-        let content = UNMutableNotificationContent()
-        content.title = "📍 You're near \(storeName)"
+        print("🔔 NotificationManager: Attempting to schedule notification for \(storeName)")
 
-        if reminderCount == 1 {
-            content.body = "You have 1 reminder waiting for you at this store."
-        } else {
-            content.body = "You have \(reminderCount) reminders waiting for you at this store."
-        }
+        // First check if we have permission
+        notificationCenter.getNotificationSettings { settings in
+            print("   Notification authorization: \(settings.authorizationStatus.rawValue)")
+            print("   Alert setting: \(settings.alertSetting.rawValue)")
+            print("   Sound setting: \(settings.soundSetting.rawValue)")
 
-        content.sound = .default
-        content.categoryIdentifier = "STORE_PROXIMITY"
+            guard settings.authorizationStatus == .authorized else {
+                print("   ❌ Notifications not authorized!")
+                return
+            }
 
-        // Create a unique identifier based on store name and timestamp
-        let identifier = "store_proximity_\(storeName)_\(Date().timeIntervalSince1970)"
+            let content = UNMutableNotificationContent()
+            content.title = "📍 You're near \(storeName)"
 
-        // Trigger immediately (for location-based notifications)
-        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
-
-        let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
-
-        notificationCenter.add(request) { error in
-            if let error = error {
-                print("Error scheduling notification: \(error)")
+            if reminderCount == 1 {
+                content.body = "You have 1 reminder waiting for you at this store."
             } else {
-                print("Successfully scheduled notification for \(storeName)")
+                content.body = "You have \(reminderCount) reminders waiting for you at this store."
+            }
+
+            content.sound = .default
+            content.categoryIdentifier = "STORE_PROXIMITY"
+
+            // Create a unique identifier based on store name and timestamp
+            let identifier = "store_proximity_\(storeName)_\(Date().timeIntervalSince1970)"
+
+            // Trigger immediately (for location-based notifications)
+            let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
+
+            let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
+
+            self.notificationCenter.add(request) { error in
+                if let error = error {
+                    print("   ❌ Error scheduling notification: \(error)")
+                } else {
+                    print("   ✅ Successfully scheduled notification for \(storeName)")
+                }
             }
         }
     }

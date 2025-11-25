@@ -44,6 +44,10 @@ class LocationMonitoringManager: NSObject, ObservableObject {
         locationManager.distanceFilter = 100 // Update every 100 meters
         locationManager.allowsBackgroundLocationUpdates = true
         locationManager.pausesLocationUpdatesAutomatically = false
+
+        // Also start monitoring significant location changes for better background updates
+        // This works with "When In Use" permission when app is in background
+        locationManager.startMonitoringSignificantLocationChanges()
     }
 
     // MARK: - Permission Management
@@ -79,16 +83,31 @@ class LocationMonitoringManager: NSObject, ObservableObject {
     func startMonitoring(userId: String) {
         currentUserId = userId
 
-        guard checkLocationPermission() == .authorizedAlways else {
-            print("Cannot start monitoring without 'Always' location permission")
+        print("🔵 LocationMonitoring: startMonitoring called for userId: \(userId)")
+
+        let permission = checkLocationPermission()
+
+        // Accept both "When In Use" and "Always" permissions
+        guard permission == .authorizedAlways || permission == .authorizedWhenInUse else {
+            print("⚠️ LocationMonitoring: Cannot start monitoring without location permission")
             print("User ID saved - will auto-start when permission is granted")
             return
+        }
+
+        if permission == .authorizedWhenInUse {
+            print("⚠️ LocationMonitoring: Running with 'When In Use' permission")
+            print("   App will monitor location while in use and use significant location changes in background")
+            print("   iOS will prompt for 'Always' permission after you use location features a few times")
         }
 
         isMonitoring = true
         loadUserStores(userId: userId)
         locationManager.startUpdatingLocation()
-        print("Started location monitoring")
+        print("✅ LocationMonitoring: Started location monitoring successfully")
+        print("📱 LocationMonitoring: Desired accuracy: \(locationManager.desiredAccuracy)")
+        print("📱 LocationMonitoring: Distance filter: \(locationManager.distanceFilter)m")
+        print("📱 LocationMonitoring: Background updates: \(locationManager.allowsBackgroundLocationUpdates)")
+        print("📱 LocationMonitoring: Significant location changes: enabled")
     }
 
     func stopMonitoring() {
@@ -100,18 +119,20 @@ class LocationMonitoringManager: NSObject, ObservableObject {
     // MARK: - Data Loading
 
     private func loadUserStores(userId: String) {
+        print("🔄 LocationMonitoring: Loading user stores for userId: \(userId)")
+
         db.collection("user_stores")
             .whereField("userId", isEqualTo: userId)
             .addSnapshotListener { [weak self] snapshot, error in
                 guard let self = self else { return }
 
                 if let error = error {
-                    print("Error fetching user stores: \(error)")
+                    print("❌ LocationMonitoring: Error fetching user stores: \(error)")
                     return
                 }
 
                 guard let documents = snapshot?.documents else {
-                    print("No user stores found")
+                    print("⚠️ LocationMonitoring: No user stores found")
                     return
                 }
 
@@ -119,7 +140,14 @@ class LocationMonitoringManager: NSObject, ObservableObject {
                     try? doc.data(as: UserStore.self)
                 }
 
-                print("Loaded \(self.userStores.count) stores for monitoring")
+                print("📦 LocationMonitoring: Loaded \(self.userStores.count) stores for monitoring")
+
+                // Log details about each store
+                for store in self.userStores {
+                    let hasCoords = store.latitude != nil && store.longitude != nil
+                    let coordsStr = hasCoords ? "✓ (\(store.latitude!), \(store.longitude!))" : "✗ NO COORDINATES"
+                    print("   - \(store.storeName): \(coordsStr)")
+                }
 
                 // Load reminder counts for each store
                 self.loadReminderCounts()
@@ -128,8 +156,12 @@ class LocationMonitoringManager: NSObject, ObservableObject {
 
     private func loadReminderCounts() {
         for userStore in userStores {
+            // Determine which ID to use for fetching reminders
+            // Priority: sourceUserStoreId (view only) > sharedStoreGroupId (can edit) > userStore.id (owner)
+            let reminderStoreId = userStore.sourceUserStoreId ?? userStore.sharedStoreGroupId ?? userStore.id
+
             db.collection("reminders")
-                .whereField("userStoreId", isEqualTo: userStore.id)
+                .whereField("userStoreId", isEqualTo: reminderStoreId)
                 .whereField("isDone", isEqualTo: false)
                 .addSnapshotListener { [weak self] snapshot, error in
                     guard let self = self else { return }
@@ -141,6 +173,7 @@ class LocationMonitoringManager: NSObject, ObservableObject {
 
                     let count = snapshot?.documents.count ?? 0
                     self.storeReminders[userStore.id] = count
+                    print("LocationMonitoring: Store '\(userStore.storeName)' has \(count) incomplete reminders (using ID: \(reminderStoreId))")
                 }
         }
     }
@@ -148,40 +181,71 @@ class LocationMonitoringManager: NSObject, ObservableObject {
     // MARK: - Distance Calculation & Notification
 
     private func checkProximityToStores(userLocation: CLLocation) {
+        print("📍 LocationMonitoring: Checking proximity - User at (\(userLocation.coordinate.latitude), \(userLocation.coordinate.longitude))")
+        print("   Checking against \(userStores.count) stores with \(proximityThreshold)m threshold")
+
+        var storesChecked = 0
+        var storesWithinRange = 0
+
         for userStore in userStores {
             // Skip stores without coordinates
             guard let lat = userStore.latitude,
                   let lon = userStore.longitude else {
+                print("   ⚠️ \(userStore.storeName): SKIPPED - No coordinates")
                 continue
             }
 
+            storesChecked += 1
+
             let storeLocation = CLLocation(latitude: lat, longitude: lon)
             let distance = userLocation.distance(from: storeLocation)
+            let distanceStr = String(format: "%.0f", distance)
+
+            print("   📏 \(userStore.storeName): \(distanceStr)m away")
 
             // Check if within proximity threshold
             if distance <= proximityThreshold {
+                storesWithinRange += 1
+                print("      ✅ WITHIN RANGE! Checking notification conditions...")
                 handleStoreProximity(userStore: userStore, distance: distance)
             }
+        }
+
+        if storesChecked == 0 {
+            print("   ⚠️ No stores have coordinates to check")
+        } else if storesWithinRange == 0 {
+            print("   ℹ️ No stores within \(proximityThreshold)m range")
         }
     }
 
     private func handleStoreProximity(userStore: UserStore, distance: CLLocationDistance) {
+        print("      🔔 Handling proximity for: \(userStore.storeName)")
+
         // Check if we've recently notified about this store
         if let lastNotification = recentlyNotifiedStores[userStore.id] {
             let timeSinceLastNotification = Date().timeIntervalSince(lastNotification)
+            let minutesAgo = Int(timeSinceLastNotification / 60)
             if timeSinceLastNotification < notificationCooldown {
-                // Still in cooldown period
+                print("      ⏸️ In cooldown period (notified \(minutesAgo) minutes ago)")
                 return
+            } else {
+                print("      ✓ Cooldown expired (last notified \(minutesAgo) minutes ago)")
             }
+        } else {
+            print("      ✓ No previous notifications")
         }
 
         // Get reminder count for this store
         let reminderCount = storeReminders[userStore.id] ?? 0
+        print("      📝 Reminder count: \(reminderCount)")
 
         // Only notify if there are incomplete reminders
         guard reminderCount > 0 else {
+            print("      ❌ No incomplete reminders - skipping notification")
             return
         }
+
+        print("      🚀 Sending notification!")
 
         // Send notification
         notificationManager.scheduleStoreProximityNotification(
@@ -192,8 +256,8 @@ class LocationMonitoringManager: NSObject, ObservableObject {
         // Update last notification time
         recentlyNotifiedStores[userStore.id] = Date()
 
-        let distanceInKm = distance / 1000.0
-        print("📍 Notified user about \(userStore.storeName) - Distance: \(String(format: "%.2f", distanceInKm))km, Reminders: \(reminderCount)")
+        let distanceInMeters = Int(distance)
+        print("      ✅ NOTIFICATION SENT! Store: \(userStore.storeName), Distance: \(distanceInMeters)m, Reminders: \(reminderCount)")
     }
 
     // MARK: - Helper Methods
@@ -213,24 +277,43 @@ extension LocationMonitoringManager: CLLocationManagerDelegate {
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         guard let location = locations.last else { return }
 
+        print("\n🌍 LocationMonitoring: Location update received")
+        print("   Coordinates: (\(location.coordinate.latitude), \(location.coordinate.longitude))")
+        print("   Accuracy: ±\(Int(location.horizontalAccuracy))m")
+        print("   Timestamp: \(Date())")
+
         lastLocation = location
         checkProximityToStores(userLocation: location)
     }
 
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
-        print("Location manager error: \(error)")
+        print("❌ LocationMonitoring: Location manager error: \(error)")
     }
 
     func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
         let status = manager.authorizationStatus
-        print("Location authorization changed to: \(status.rawValue)")
+        let statusStr: String
+        switch status {
+        case .notDetermined: statusStr = "Not Determined"
+        case .restricted: statusStr = "Restricted"
+        case .denied: statusStr = "Denied"
+        case .authorizedWhenInUse: statusStr = "When In Use"
+        case .authorizedAlways: statusStr = "Always"
+        @unknown default: statusStr = "Unknown"
+        }
 
-        // If permission was granted and we have a user ID, start monitoring automatically
-        if status == .authorizedAlways, let userId = currentUserId, !isMonitoring {
+        print("🔐 LocationMonitoring: Authorization changed to: \(statusStr)")
+
+        // Start monitoring with either "When In Use" or "Always" permission
+        if (status == .authorizedAlways || status == .authorizedWhenInUse), let userId = currentUserId, !isMonitoring {
+            print("   ✅ Starting monitoring automatically")
             startMonitoring(userId: userId)
-        } else if status == .authorizedAlways && isMonitoring {
+        } else if (status == .authorizedAlways || status == .authorizedWhenInUse) && isMonitoring {
+            print("   ✅ Resuming location updates")
             // Resume monitoring if already configured
             locationManager.startUpdatingLocation()
+        } else if status == .denied || status == .restricted {
+            print("   ❌ Location permission denied or restricted")
         }
     }
 }
