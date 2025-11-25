@@ -26,7 +26,8 @@ struct StoresView: View {
                 if sessionManager.isLoading || viewModel.isLoading {
                     ProgressView("Loading your stores...")
                 } else if viewModel.userStoreItems.isEmpty {
-                    Color.backgroundGradient(for: colorScheme)
+                    Rectangle()
+                        .fill(Color.backgroundGradient(for: colorScheme))
                         .ignoresSafeArea()
                         .onTapGesture {
                             if isMenuExpanded {
