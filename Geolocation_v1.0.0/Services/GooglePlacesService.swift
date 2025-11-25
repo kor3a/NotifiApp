@@ -67,11 +67,11 @@ class GooglePlacesService {
         print("🏪 GooglePlaces: First result: \(firstResult.name)")
         print("📸 GooglePlaces: Photos available: \(firstResult.photos?.count ?? 0)")
 
-        // If the place has photos, get the first photo reference
-        let photoReference = firstResult.photos?.first?.photoReference
+        // Select the best storefront photo based on scoring
+        let photoReference = selectBestStorefrontPhoto(from: firstResult.photos)
 
         if let photoRef = photoReference {
-            print("✅ GooglePlaces: Photo reference obtained: \(photoRef.prefix(20))...")
+            print("✅ GooglePlaces: Best storefront photo selected: \(photoRef.prefix(20))...")
         } else {
             print("⚠️ GooglePlaces: No photos available for this place")
         }
@@ -81,6 +81,35 @@ class GooglePlacesService {
             name: firstResult.name,
             photoReference: photoReference
         )
+    }
+
+    /// Select the best storefront photo from available photos
+    private func selectBestStorefrontPhoto(from photos: [PlacePhoto]?) -> String? {
+        guard let photos = photos, !photos.isEmpty else {
+            return nil
+        }
+
+        print("🔍 GooglePlaces: Analyzing \(photos.count) photos for best storefront match...")
+
+        // Log photo details for debugging
+        for (index, photo) in photos.enumerated() {
+            let ratio = photo.aspectRatio
+            let score = photo.storefrontScore
+            let orientation = photo.isLandscape ? "landscape" : "portrait"
+            print("   📷 Photo \(index + 1): \(photo.width)x\(photo.height) (\(String(format: "%.2f", ratio)):1, \(orientation), score: \(score))")
+        }
+
+        // Sort photos by storefront score (highest first)
+        let sortedPhotos = photos.sorted { $0.storefrontScore > $1.storefrontScore }
+
+        // Get the best photo
+        if let bestPhoto = sortedPhotos.first {
+            let ratio = bestPhoto.aspectRatio
+            print("🏆 GooglePlaces: Selected photo with best score: \(bestPhoto.width)x\(bestPhoto.height) (\(String(format: "%.2f", ratio)):1, score: \(bestPhoto.storefrontScore))")
+            return bestPhoto.photoReference
+        }
+
+        return nil
     }
 
     /// Get the photo URL for a place
@@ -133,11 +162,58 @@ struct PlacePhoto: Codable {
     let photoReference: String
     let height: Int
     let width: Int
+    let htmlAttributions: [String]?
 
     enum CodingKeys: String, CodingKey {
         case photoReference = "photo_reference"
         case height
         case width
+        case htmlAttributions = "html_attributions"
+    }
+
+    /// Calculate aspect ratio (width/height)
+    var aspectRatio: Double {
+        return Double(width) / Double(height)
+    }
+
+    /// Check if photo is landscape orientation (likely storefront)
+    var isLandscape: Bool {
+        return width > height
+    }
+
+    /// Check if photo dimensions suggest it's a storefront photo
+    /// Storefront photos typically have aspect ratios between 1.2:1 and 2:1
+    var isLikelyStorefront: Bool {
+        let ratio = aspectRatio
+        return isLandscape && ratio >= 1.2 && ratio <= 2.0
+    }
+
+    /// Score this photo for storefront likelihood (higher is better)
+    var storefrontScore: Double {
+        var score: Double = 0
+
+        // Prefer landscape photos
+        if isLandscape {
+            score += 50
+        }
+
+        // Ideal aspect ratios for storefront photos (1.3:1 to 1.8:1)
+        let ratio = aspectRatio
+        if ratio >= 1.3 && ratio <= 1.8 {
+            score += 100
+        } else if ratio >= 1.2 && ratio <= 2.0 {
+            score += 50
+        }
+
+        // Prefer higher resolution photos (indicates professional/business photos)
+        let totalPixels = width * height
+        if totalPixels >= 1_500_000 { // ~1.5 megapixels
+            score += 30
+        } else if totalPixels >= 800_000 {
+            score += 15
+        }
+
+        return score
     }
 }
 
