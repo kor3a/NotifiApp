@@ -11,10 +11,12 @@ struct HomeView: View {
     @ObservedObject private var sessionManager = UserSessionManager.shared
     @ObservedObject private var notificationManager = NotificationManager.shared
     @ObservedObject private var locationMonitor = LocationMonitoringManager.shared
+    @ObservedObject private var storesViewModel = StoresViewModel()
     @State private var selectedTab = 0
     @State private var isSearchExpanded = false
     @State private var searchQuery = ""
     @State private var hasRequestedPermissions = false
+    @State private var hasMigratedCoordinates = false
 
     var body: some View {
         TabView(selection: $selectedTab) {
@@ -71,6 +73,14 @@ struct HomeView: View {
                     // Store userId for auto-start when permission is granted
                     locationMonitor.setUserId(userId)
                     print("HomeView: User ID set, waiting for location permission")
+                }
+
+                // Run coordinate migration once per session
+                if !hasMigratedCoordinates {
+                    hasMigratedCoordinates = true
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                        storesViewModel.migrateUserStoresWithCoordinates()
+                    }
                 }
             }
         }
