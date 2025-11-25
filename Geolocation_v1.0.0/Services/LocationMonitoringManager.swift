@@ -42,7 +42,7 @@ class LocationMonitoringManager: NSObject, ObservableObject {
         locationManager.delegate = self
         locationManager.desiredAccuracy = kCLLocationAccuracyHundredMeters
         locationManager.distanceFilter = 100 // Update every 100 meters
-        locationManager.allowsBackgroundLocationUpdates = true
+        // Note: allowsBackgroundLocationUpdates will be set when monitoring starts
         locationManager.pausesLocationUpdatesAutomatically = false
     }
 
@@ -95,11 +95,14 @@ class LocationMonitoringManager: NSObject, ObservableObject {
             print("   App will monitor location while in use and use significant location changes in background")
             print("   iOS will prompt for 'Always' permission after you use location features a few times")
             // Enable significant location changes for background monitoring with "When In Use" permission
+            // This does NOT require allowsBackgroundLocationUpdates or background modes capability
             locationManager.startMonitoringSignificantLocationChanges()
         } else if permission == .authorizedAlways {
-            // With "Always" permission, we can use continuous location updates
+            // With "Always" permission, we can use continuous location updates in background
             print("✅ LocationMonitoring: Running with 'Always' permission")
             print("   App will monitor location continuously, even in background")
+            // Only enable background location updates with "Always" permission
+            locationManager.allowsBackgroundLocationUpdates = true
         }
 
         isMonitoring = true
@@ -108,10 +111,11 @@ class LocationMonitoringManager: NSObject, ObservableObject {
         print("✅ LocationMonitoring: Started location monitoring successfully")
         print("📱 LocationMonitoring: Desired accuracy: \(locationManager.desiredAccuracy)")
         print("📱 LocationMonitoring: Distance filter: \(locationManager.distanceFilter)m")
-        print("📱 LocationMonitoring: Background updates: \(locationManager.allowsBackgroundLocationUpdates)")
 
         if permission == .authorizedWhenInUse {
             print("📱 LocationMonitoring: Significant location changes: enabled")
+        } else if permission == .authorizedAlways {
+            print("📱 LocationMonitoring: Background updates: enabled")
         }
     }
 
@@ -319,10 +323,15 @@ extension LocationMonitoringManager: CLLocationManagerDelegate {
             // Resume monitoring if already configured
             locationManager.startUpdatingLocation()
 
-            // Re-enable significant location changes if we have "When In Use" permission
+            // Configure based on permission level
             if status == .authorizedWhenInUse {
+                // Re-enable significant location changes for "When In Use"
                 locationManager.startMonitoringSignificantLocationChanges()
                 print("   📱 Re-enabled significant location changes")
+            } else if status == .authorizedAlways {
+                // Enable background updates for "Always" permission
+                locationManager.allowsBackgroundLocationUpdates = true
+                print("   📱 Enabled background location updates")
             }
         } else if status == .denied || status == .restricted {
             print("   ❌ Location permission denied or restricted")
