@@ -99,7 +99,8 @@ struct HomeView: View {
         let locationStatus = locationMonitor.checkLocationPermission()
         print("📍 HomeView: Current location status: \(locationStatus.rawValue)")
 
-        if locationStatus == .notDetermined || locationStatus == .authorizedWhenInUse {
+        // Only request permission if not yet determined
+        if locationStatus == .notDetermined {
             print("   Requesting location permission...")
             locationMonitor.requestLocationPermission()
         }
