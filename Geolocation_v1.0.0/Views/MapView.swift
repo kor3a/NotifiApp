@@ -106,7 +106,7 @@ struct MapView: View {
             // (but don't track changes we made programmatically for search)
             if !isSearchExpanded {
                 // Check if we switched to userLocation mode
-                if case .userLocation = newValue {
+                if case .userLocation(followsHeading: _, fallback: _) = newValue {
                     isUserLocationTracking = true
                 } else {
                     // Any other mode (region, rect, etc.) means tracking is off
