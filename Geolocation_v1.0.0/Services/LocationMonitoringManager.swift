@@ -147,7 +147,14 @@ class LocationMonitoringManager: NSObject, ObservableObject {
                 }
 
                 self.userStores = documents.compactMap { doc -> UserStore? in
-                    try? doc.data(as: UserStore.self)
+                    do {
+                        let userStore = try doc.data(as: UserStore.self)
+                        // @DocumentID automatically sets the id from doc.documentID
+                        return userStore
+                    } catch {
+                        print("❌ LocationMonitoring: Failed to decode store \(doc.documentID): \(error)")
+                        return nil
+                    }
                 }
 
                 print("📦 LocationMonitoring: Loaded \(self.userStores.count) stores for monitoring")
@@ -166,9 +173,15 @@ class LocationMonitoringManager: NSObject, ObservableObject {
 
     private func loadReminderCounts() {
         for userStore in userStores {
+            // Skip stores without valid IDs
+            guard let userStoreId = userStore.id else {
+                print("⚠️ LocationMonitoring: Store '\(userStore.storeName)' has no ID, skipping")
+                continue
+            }
+
             // Determine which ID to use for fetching reminders
             // Priority: sourceUserStoreId (view only) > sharedStoreGroupId (can edit) > userStore.id (owner)
-            let reminderStoreId = userStore.sourceUserStoreId ?? userStore.sharedStoreGroupId ?? userStore.id
+            let reminderStoreId = userStore.sourceUserStoreId ?? userStore.sharedStoreGroupId ?? userStoreId
 
             db.collection("reminders")
                 .whereField("userStoreId", isEqualTo: reminderStoreId)
@@ -182,7 +195,7 @@ class LocationMonitoringManager: NSObject, ObservableObject {
                     }
 
                     let count = snapshot?.documents.count ?? 0
-                    self.storeReminders[userStore.id] = count
+                    self.storeReminders[userStoreId] = count
                     print("LocationMonitoring: Store '\(userStore.storeName)' has \(count) incomplete reminders (using ID: \(reminderStoreId))")
                 }
         }
@@ -231,8 +244,14 @@ class LocationMonitoringManager: NSObject, ObservableObject {
     private func handleStoreProximity(userStore: UserStore, distance: CLLocationDistance) {
         print("      🔔 Handling proximity for: \(userStore.storeName)")
 
+        // Skip stores without valid IDs
+        guard let userStoreId = userStore.id else {
+            print("      ⚠️ Store has no ID, skipping")
+            return
+        }
+
         // Check if we've recently notified about this store
-        if let lastNotification = recentlyNotifiedStores[userStore.id] {
+        if let lastNotification = recentlyNotifiedStores[userStoreId] {
             let timeSinceLastNotification = Date().timeIntervalSince(lastNotification)
             let minutesAgo = Int(timeSinceLastNotification / 60)
             if timeSinceLastNotification < notificationCooldown {
@@ -246,7 +265,7 @@ class LocationMonitoringManager: NSObject, ObservableObject {
         }
 
         // Get reminder count for this store
-        let reminderCount = storeReminders[userStore.id] ?? 0
+        let reminderCount = storeReminders[userStoreId] ?? 0
         print("      📝 Reminder count: \(reminderCount)")
 
         // Only notify if there are incomplete reminders
@@ -264,7 +283,7 @@ class LocationMonitoringManager: NSObject, ObservableObject {
         )
 
         // Update last notification time
-        recentlyNotifiedStores[userStore.id] = Date()
+        recentlyNotifiedStores[userStoreId] = Date()
 
         let distanceInMeters = Int(distance)
         print("      ✅ NOTIFICATION SENT! Store: \(userStore.storeName), Distance: \(distanceInMeters)m, Reminders: \(reminderCount)")

@@ -1,4 +1,5 @@
 import Foundation
+import FirebaseFirestore
 
 enum StorePermission: String, Codable {
     case owner = "owner"
@@ -7,7 +8,7 @@ enum StorePermission: String, Codable {
 }
 
 struct UserStore: Codable, Identifiable {
-    var id: String // Firestore document ID
+    @DocumentID var id: String? // Firestore document ID - marked with @DocumentID
     let userId: String
     let storeId: String
     let storeName: String // Denormalized for easier display
@@ -22,7 +23,7 @@ struct UserStore: Codable, Identifiable {
     var sharedAt: TimeInterval? = nil // When it was shared
 
     enum CodingKeys: String, CodingKey {
-        case id
+        // Note: id is excluded from CodingKeys because it's handled by @DocumentID
         case userId
         case storeId
         case storeName
