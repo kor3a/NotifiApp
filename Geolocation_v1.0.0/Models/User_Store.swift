@@ -37,4 +37,25 @@ struct UserStore: Codable, Identifiable {
         case sharedFrom
         case sharedAt
     }
+
+    // Custom decoder to handle missing permission field in existing documents
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+
+        userId = try container.decode(String.self, forKey: .userId)
+        storeId = try container.decode(String.self, forKey: .storeId)
+        storeName = try container.decode(String.self, forKey: .storeName)
+        storeAddress = try container.decode(String.self, forKey: .storeAddress)
+        addedAt = try container.decode(TimeInterval.self, forKey: .addedAt)
+        latitude = try container.decodeIfPresent(Double.self, forKey: .latitude)
+        longitude = try container.decodeIfPresent(Double.self, forKey: .longitude)
+
+        // Default to .owner if permission field is missing (for backward compatibility)
+        permission = try container.decodeIfPresent(StorePermission.self, forKey: .permission) ?? .owner
+
+        sharedStoreGroupId = try container.decodeIfPresent(String.self, forKey: .sharedStoreGroupId)
+        sourceUserStoreId = try container.decodeIfPresent(String.self, forKey: .sourceUserStoreId)
+        sharedFrom = try container.decodeIfPresent(String.self, forKey: .sharedFrom)
+        sharedAt = try container.decodeIfPresent(TimeInterval.self, forKey: .sharedAt)
+    }
 }
