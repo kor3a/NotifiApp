@@ -86,6 +86,9 @@ struct HomeView: View {
                     print("HomeView: User ID set, waiting for location permission")
                 }
 
+                // Fetch stores now that user data is available
+                storesViewModel.fetchUserStores()
+
                 // Run coordinate migration once per session
                 if !hasMigratedCoordinates {
                     hasMigratedCoordinates = true
