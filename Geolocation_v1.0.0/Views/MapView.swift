@@ -40,8 +40,9 @@ struct MapView: View {
         }//:MAP
         .onMapCameraChange({ ctx in
             viewingRegion = ctx.region
-            // Dismiss keyboard when user interacts with map (panning/zooming)
-            if isSearchFocused {
+            // Only dismiss keyboard when user manually interacts with map (panning/zooming)
+            // Don't dismiss for programmatic changes (location button, search results)
+            if isSearchFocused && ctx.reason == .gesture {
                 isSearchFocused = false
             }
         })
