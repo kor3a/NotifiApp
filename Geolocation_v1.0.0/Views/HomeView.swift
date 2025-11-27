@@ -70,6 +70,8 @@ struct HomeView: View {
         }
         .onAppear {
             initializeLocationNotifications()
+            // Fetch stores for the test notification button
+            storesViewModel.fetchUserStores()
         }
         .onChange(of: sessionManager.currentUser) { newUser in
             // Start monitoring when user data becomes available
