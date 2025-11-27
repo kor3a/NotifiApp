@@ -18,7 +18,7 @@ struct MapView: View {
     @State private var results = [MKMapItem]()
     @State private var mapSelection: MKMapItem?
     @State private var showDetails = false
-    @State private var isUserLocationTracking = true // Track if we're in userLocation mode
+    @State private var wasTrackingBeforeSearch = true // Track if we were in userLocation mode before search opened
     @Namespace private var mapScope
 
     @StateObject private var viewModel:MapViewModel = .init()
@@ -72,11 +72,12 @@ struct MapView: View {
         .onChange(of: isSearchExpanded) { oldValue, newValue in
             if newValue {
                 // When search expands, pause user location tracking to prevent interference with keyboard
-                if isUserLocationTracking {
-                    // Switch to fixed region to stop continuous tracking
-                    if let region = viewingRegion {
-                        cameraPosition = .region(region)
-                    }
+                // Save current tracking state before switching
+                wasTrackingBeforeSearch = String(describing: cameraPosition).contains("userLocation")
+
+                // Switch to fixed region to stop continuous tracking
+                if let region = viewingRegion {
+                    cameraPosition = .region(region)
                 }
             } else {
                 // Clear search when collapsed
@@ -84,8 +85,8 @@ struct MapView: View {
                 searchQuery = ""
                 results.removeAll(keepingCapacity: false)
                 showDetails = false
-                // Restore user location tracking if it was active before
-                if isUserLocationTracking {
+                // Restore user location tracking if it was active before search opened
+                if wasTrackingBeforeSearch {
                     cameraPosition = .userLocation(followsHeading: false, fallback: .automatic)
                 } else {
                     withAnimation(.snappy) {
@@ -101,19 +102,6 @@ struct MapView: View {
                 isSearchFocused = false
             }
         })
-        .onChange(of: cameraPosition) { oldValue, newValue in
-            // Track when user manually toggles location tracking via MapUserLocationButton
-            // (but don't track changes we made programmatically for search)
-            if !isSearchExpanded {
-                // Check if we switched to userLocation mode
-                if case .userLocation(followsHeading: _, fallback: _) = newValue {
-                    isUserLocationTracking = true
-                } else {
-                    // Any other mode (region, rect, etc.) means tracking is off
-                    isUserLocationTracking = false
-                }
-            }
-        }
         .onAppear {
             // Fetch user's stores when view appears
             storesViewModel.fetchUserStores()
