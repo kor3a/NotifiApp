@@ -24,7 +24,6 @@ struct UserStore: Codable, Identifiable {
 
     enum CodingKeys: String, CodingKey {
         // Note: id is excluded from CodingKeys because it's handled by @DocumentID
-        // Note: permission is excluded so it uses the default value (.owner) for existing stores
         case userId
         case storeId
         case storeName
@@ -32,6 +31,7 @@ struct UserStore: Codable, Identifiable {
         case addedAt
         case latitude
         case longitude
+        case permission
         case sharedStoreGroupId
         case sourceUserStoreId
         case sharedFrom

@@ -37,6 +37,15 @@ struct HomeView: View {
                                     .imageScale(.large)
                             })
                         }
+
+                        ToolbarItem(placement: .navigationBarTrailing) {
+                            Button(action: {
+                                sendTestNotification()
+                            }) {
+                                Image(systemName: "bell.badge")
+                                    .imageScale(.large)
+                            }
+                        }
                     }
             }//:NAVIGATIONSTACK
             .tabItem {
@@ -87,6 +96,14 @@ struct HomeView: View {
     }
 
     // MARK: - Location & Notification Setup
+
+    private func sendTestNotification() {
+        print("🔔 Sending test notification")
+        notificationManager.scheduleStoreProximityNotification(
+            storeName: "Test Store",
+            reminderCount: 5
+        )
+    }
 
     private func initializeLocationNotifications() {
         // Only request permissions once
