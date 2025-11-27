@@ -12,12 +12,13 @@ struct MapView: View {
 
     // MARK: - PROPERTIES
 
-    @State private var cameraPosition: MapCameraPosition = .userLocation(fallback: .automatic)
+    @State private var cameraPosition: MapCameraPosition = .userLocation(followsHeading: false, fallback: .automatic)
     @State private var viewingRegion: MKCoordinateRegion?
     @State private var searchText = ""
     @State private var results = [MKMapItem]()
     @State private var mapSelection: MKMapItem?
     @State private var showDetails = false
+    @State private var wasTrackingBeforeSearch = true // Track if we were in userLocation mode before search opened
     @Namespace private var mapScope
 
     @StateObject private var viewModel:MapViewModel = .init()
@@ -38,13 +39,9 @@ struct MapView: View {
                 Marker(placemark.name ?? "", coordinate: placemark.coordinate)
             }
         }//:MAP
-        .onMapCameraChange({ ctx in
-            viewingRegion = ctx.region
-            // Dismiss keyboard when user interacts with map (panning/zooming)
-            if isSearchFocused {
-                isSearchFocused = false
-            }
-        })
+        .onMapCameraChange(frequency: .continuous) { context in
+            viewingRegion = context.region
+        }
         .overlay(alignment: .bottomTrailing) {
             VStack(spacing: 15){
                 MapPitchToggle(scope: mapScope)
@@ -73,14 +70,28 @@ struct MapView: View {
             }
         }
         .onChange(of: isSearchExpanded) { oldValue, newValue in
-            if !newValue {
+            if newValue {
+                // When search expands, pause user location tracking to prevent interference with keyboard
+                // Save current tracking state before switching
+                wasTrackingBeforeSearch = String(describing: cameraPosition).contains("userLocation")
+
+                // Switch to fixed region to stop continuous tracking
+                if let region = viewingRegion {
+                    cameraPosition = .region(region)
+                }
+            } else {
                 // Clear search when collapsed
                 searchText = ""
                 searchQuery = ""
                 results.removeAll(keepingCapacity: false)
                 showDetails = false
-                withAnimation(.snappy) {
-                    cameraPosition = .region(viewModel.region)
+                // Restore user location tracking if it was active before search opened
+                if wasTrackingBeforeSearch {
+                    cameraPosition = .userLocation(followsHeading: false, fallback: .automatic)
+                } else {
+                    withAnimation(.snappy) {
+                        cameraPosition = .region(viewModel.region)
+                    }
                 }
             }
         }
