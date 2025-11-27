@@ -12,7 +12,7 @@ struct MapView: View {
 
     // MARK: - PROPERTIES
 
-    @State private var cameraPosition: MapCameraPosition = .userLocation(fallback: .automatic)
+    @State private var cameraPosition: MapCameraPosition = .userLocation(followsHeading: false, fallback: .automatic)
     @State private var viewingRegion: MKCoordinateRegion?
     @State private var searchText = ""
     @State private var results = [MKMapItem]()
@@ -72,8 +72,7 @@ struct MapView: View {
         .onChange(of: isSearchExpanded) { oldValue, newValue in
             if newValue {
                 // When search expands, pause user location tracking to prevent interference with keyboard
-                if case .userLocation = cameraPosition {
-                    isUserLocationTracking = true
+                if isUserLocationTracking {
                     // Switch to fixed region to stop continuous tracking
                     if let region = viewingRegion {
                         cameraPosition = .region(region)
@@ -87,7 +86,7 @@ struct MapView: View {
                 showDetails = false
                 // Restore user location tracking if it was active before
                 if isUserLocationTracking {
-                    cameraPosition = .userLocation(fallback: .automatic)
+                    cameraPosition = .userLocation(followsHeading: false, fallback: .automatic)
                 } else {
                     withAnimation(.snappy) {
                         cameraPosition = .region(viewModel.region)
@@ -106,9 +105,11 @@ struct MapView: View {
             // Track when user manually toggles location tracking via MapUserLocationButton
             // (but don't track changes we made programmatically for search)
             if !isSearchExpanded {
+                // Check if we switched to userLocation mode
                 if case .userLocation = newValue {
                     isUserLocationTracking = true
-                } else if case .region = newValue {
+                } else {
+                    // Any other mode (region, rect, etc.) means tracking is off
                     isUserLocationTracking = false
                 }
             }
