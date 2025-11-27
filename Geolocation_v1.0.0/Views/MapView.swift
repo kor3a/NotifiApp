@@ -39,14 +39,9 @@ struct MapView: View {
                 Marker(placemark.name ?? "", coordinate: placemark.coordinate)
             }
         }//:MAP
-        .onMapCameraChange({ ctx in
-            viewingRegion = ctx.region
-            // Only dismiss keyboard when user manually interacts with map (panning/zooming)
-            // Don't dismiss for programmatic changes (location button, search results)
-            if isSearchFocused && ctx.reason == .gesture {
-                isSearchFocused = false
-            }
-        })
+        .onMapCameraChange(frequency: .continuous) { context in
+            viewingRegion = context.region
+        }
         .overlay(alignment: .bottomTrailing) {
             VStack(spacing: 15){
                 MapPitchToggle(scope: mapScope)
