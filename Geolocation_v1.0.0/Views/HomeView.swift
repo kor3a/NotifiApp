@@ -99,10 +99,28 @@ struct HomeView: View {
 
     private func sendTestNotification() {
         print("🔔 Sending test notification")
-        notificationManager.scheduleStoreProximityNotification(
-            storeName: "Test Store",
-            reminderCount: 5
-        )
+
+        // Find a store with reminders to use for the test
+        if let storeWithReminders = storesViewModel.userStoreItems.first(where: { $0.store.reminderCount > 0 }) {
+            let storeName = storeWithReminders.store.name
+            let reminderCount = storeWithReminders.store.reminderCount
+            print("   Using real store: \(storeName) with \(reminderCount) reminder(s)")
+
+            notificationManager.scheduleStoreProximityNotification(
+                storeName: storeName,
+                reminderCount: reminderCount
+            )
+        } else if let anyStore = storesViewModel.userStoreItems.first {
+            // If no stores have reminders, just use the first store with 0 reminders
+            print("   No stores have reminders, using first store")
+            notificationManager.scheduleStoreProximityNotification(
+                storeName: anyStore.store.name,
+                reminderCount: 0
+            )
+        } else {
+            // No stores at all
+            print("   No stores available for test notification")
+        }
     }
 
     private func initializeLocationNotifications() {
