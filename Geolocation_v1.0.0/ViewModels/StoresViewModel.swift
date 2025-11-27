@@ -761,6 +761,91 @@ class StoresViewModel: ObservableObject {
         }
     }
 
+    /// Migrate existing user_stores to include coordinates from stores collection
+    /// Call this once to update stores that were added before coordinates were implemented
+    func migrateUserStoresWithCoordinates() {
+        guard let userId = sessionManager.currentUser?.userId else {
+            print("StoresViewModel: No user ID for migration")
+            return
+        }
+
+        print("🔄 StoresViewModel: Starting coordinate migration for user: \(userId)")
+
+        // Get all user_stores for this user
+        db.collection("user_stores")
+            .whereField("userId", isEqualTo: userId)
+            .getDocuments { [weak self] snapshot, error in
+                guard let self = self else { return }
+
+                if let error = error {
+                    print("❌ Migration error: \(error.localizedDescription)")
+                    return
+                }
+
+                guard let documents = snapshot?.documents else {
+                    print("⚠️ No user_stores found for migration")
+                    return
+                }
+
+                print("📦 Found \(documents.count) user_stores to check")
+                var updatedCount = 0
+                var skippedCount = 0
+
+                for doc in documents {
+                    let data = doc.data()
+                    let userStoreId = doc.documentID
+                    let storeName = data["storeName"] as? String ?? "Unknown"
+
+                    // Check if coordinates are already present
+                    if data["latitude"] != nil && data["longitude"] != nil {
+                        print("   ✓ \(storeName): Already has coordinates")
+                        skippedCount += 1
+                        continue
+                    }
+
+                    // Get storeId to fetch from stores collection
+                    guard let storeId = data["storeId"] as? String else {
+                        print("   ⚠️ \(storeName): No storeId found")
+                        skippedCount += 1
+                        continue
+                    }
+
+                    // Fetch coordinates from stores collection
+                    self.db.collection("stores").document(storeId).getDocument { storeDoc, storeError in
+                        if let storeError = storeError {
+                            print("   ❌ \(storeName): Error fetching store: \(storeError.localizedDescription)")
+                            return
+                        }
+
+                        guard let storeData = storeDoc?.data(),
+                              let latitude = storeData["latitude"] as? Double,
+                              let longitude = storeData["longitude"] as? Double else {
+                            print("   ⚠️ \(storeName): Store has no coordinates")
+                            return
+                        }
+
+                        // Update user_store with coordinates
+                        self.db.collection("user_stores").document(userStoreId).updateData([
+                            "latitude": latitude,
+                            "longitude": longitude
+                        ]) { updateError in
+                            if let updateError = updateError {
+                                print("   ❌ \(storeName): Update failed: \(updateError.localizedDescription)")
+                            } else {
+                                print("   ✅ \(storeName): Updated with coordinates (\(latitude), \(longitude))")
+                                updatedCount += 1
+                            }
+                        }
+                    }
+                }
+
+                // Summary after a delay
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                    print("🎉 Migration complete: \(updatedCount) updated, \(skippedCount) skipped")
+                }
+            }
+    }
+
     deinit {
         // Clean up listener when ViewModel is destroyed
         storesListener?.remove()
