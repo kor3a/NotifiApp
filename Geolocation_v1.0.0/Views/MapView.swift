@@ -19,6 +19,7 @@ struct MapView: View {
     @State private var mapSelection: MKMapItem?
     @State private var showDetails = false
     @State private var wasTrackingBeforeSearch = true // Track if we were in userLocation mode before search opened
+    @State private var searchTask: Task<Void, Never>? // For debouncing search
     @Namespace private var mapScope
 
     @StateObject private var viewModel:MapViewModel = .init()
@@ -63,10 +64,26 @@ struct MapView: View {
         })
         .onChange(of: searchQuery) { oldValue, newValue in
             searchText = newValue
-            if !newValue.isEmpty {
-                Task {
-                    await searchPlaces()
-                }
+
+            // Cancel any pending search task
+            searchTask?.cancel()
+
+            // Clear results if search is empty
+            if newValue.isEmpty {
+                results.removeAll(keepingCapacity: false)
+                return
+            }
+
+            // Create a new debounced search task
+            searchTask = Task {
+                // Wait for 500ms before searching
+                try? await Task.sleep(nanoseconds: 500_000_000)
+
+                // Check if task was cancelled
+                guard !Task.isCancelled else { return }
+
+                // Execute search
+                await searchPlaces()
             }
         }
         .onChange(of: isSearchExpanded) { oldValue, newValue in
@@ -80,6 +97,9 @@ struct MapView: View {
                     cameraPosition = .region(region)
                 }
             } else {
+                // Cancel any pending search task
+                searchTask?.cancel()
+
                 // Clear search when collapsed
                 searchText = ""
                 searchQuery = ""
