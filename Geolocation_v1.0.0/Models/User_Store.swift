@@ -8,7 +8,7 @@ enum StorePermission: String, Codable {
 }
 
 struct UserStore: Codable, Identifiable {
-    @DocumentID var id: String? // Firestore document ID - marked with @DocumentID
+    var id: String? // Firestore document ID - will be set manually from doc.documentID
     let userId: String
     let storeId: String
     let storeName: String // Denormalized for easier display
@@ -23,8 +23,8 @@ struct UserStore: Codable, Identifiable {
     var sharedAt: TimeInterval? = nil // When it was shared
 
     enum CodingKeys: String, CodingKey {
-        // Note: id is excluded from CodingKeys because it's handled by @DocumentID
-        // Note: permission is excluded so it uses the default value (.owner) for existing stores
+        // Note: id is excluded from CodingKeys and set manually from doc.documentID
+        // Note: permission is excluded to use default value (.owner) for backward compatibility
         case userId
         case storeId
         case storeName

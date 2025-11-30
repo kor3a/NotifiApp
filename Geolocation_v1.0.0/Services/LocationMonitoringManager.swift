@@ -148,8 +148,10 @@ class LocationMonitoringManager: NSObject, ObservableObject {
 
                 self.userStores = documents.compactMap { doc -> UserStore? in
                     do {
-                        let userStore = try doc.data(as: UserStore.self)
-                        // @DocumentID automatically sets the id from doc.documentID
+                        var userStore = try doc.data(as: UserStore.self)
+                        // Manually set the ID from doc.documentID
+                        userStore.id = doc.documentID
+                        print("   ✓ Decoded store '\(userStore.storeName)' with ID: \(doc.documentID)")
                         return userStore
                     } catch {
                         print("❌ LocationMonitoring: Failed to decode store \(doc.documentID): \(error)")
