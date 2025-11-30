@@ -12,6 +12,8 @@ struct ReminderView: View {
     @StateObject private var viewModel = ReminderViewModel()
     @State private var showingAddReminder = false
     @State private var reminderTitle: String = ""
+    @AppStorage("autoDeleteReminders") private var autoDeleteEnabled = false
+    @State private var fadingReminderIds: Set<String> = []
     @Environment(\.colorScheme) var colorScheme
 
     var body: some View {
@@ -67,6 +69,9 @@ struct ReminderView: View {
                                     .padding(.vertical, 4)
                             )
                             .listRowSeparator(.hidden)
+                            .opacity(fadingReminderIds.contains(reminder.id) ? 0 : 1)
+                            .scaleEffect(fadingReminderIds.contains(reminder.id) ? 0.8 : 1.0)
+                            .animation(.easeOut(duration: 0.5), value: fadingReminderIds)
                             .swipeActions(edge: .trailing) {
                                 if userStoreItem.permission != .view {
                                     Button(role: .destructive) {
@@ -78,7 +83,7 @@ struct ReminderView: View {
                             }
                             .onTapGesture {
                                 if userStoreItem.permission != .view {
-                                    viewModel.toggleReminder(reminder)
+                                    handleReminderTap(reminder)
                                 }
                             }
                     }
@@ -93,6 +98,17 @@ struct ReminderView: View {
         }
         .navigationTitle(userStoreItem.store.name)
         .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                if userStoreItem.permission != .view {
+                    Toggle(isOn: $autoDeleteEnabled) {
+                        Label("Auto-delete", systemImage: autoDeleteEnabled ? "trash.fill" : "trash")
+                    }
+                    .toggleStyle(.button)
+                    .labelStyle(.iconOnly)
+                    .tint(autoDeleteEnabled ? .red : .gray)
+                }
+            }
+
             ToolbarItem(placement: .navigationBarTrailing) {
                 if userStoreItem.permission != .view {
                     Button(action: {
@@ -109,7 +125,6 @@ struct ReminderView: View {
                 }
             }
         }
-        .animation(.none)
         .alert("Add a New Item", isPresented: $showingAddReminder) {
             TextField("What do you need?", text: $reminderTitle)
                 .textInputAutocapitalization(.sentences)
@@ -129,6 +144,12 @@ struct ReminderView: View {
         .onAppear {
             viewModel.fetchReminders(for: userStoreItem.reminderStoreId)
         }
+        .onChange(of: autoDeleteEnabled) { oldValue, newValue in
+            // When auto-delete is turned ON, clean up already-done reminders
+            if newValue && !oldValue {
+                deleteCompletedReminders()
+            }
+        }
     }
 
     private func addReminder() {
@@ -137,6 +158,46 @@ struct ReminderView: View {
 
         viewModel.addReminder(userStoreId: userStoreItem.reminderStoreId, title: title)
         reminderTitle = ""
+    }
+
+    private func handleReminderTap(_ reminder: Reminder) {
+        // Check if we're marking as done and auto-delete is enabled
+        let willMarkAsDone = !reminder.isDone
+
+        if willMarkAsDone && autoDeleteEnabled {
+            // Add to fading set for animation
+            fadingReminderIds.insert(reminder.id)
+
+            // Delay deletion to show fade animation
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                viewModel.deleteReminder(reminder)
+                fadingReminderIds.remove(reminder.id)
+            }
+        } else {
+            // Normal toggle behavior
+            viewModel.toggleReminder(reminder)
+        }
+    }
+
+    private func deleteCompletedReminders() {
+        // Find all reminders that are already marked as done
+        let completedReminders = viewModel.reminders.filter { $0.isDone }
+
+        // Stagger the animations for a cascading effect
+        for (index, reminder) in completedReminders.enumerated() {
+            let delay = Double(index) * 0.1 // 100ms between each animation
+
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+                // Start fade animation
+                fadingReminderIds.insert(reminder.id)
+
+                // Delete after animation completes
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    viewModel.deleteReminder(reminder)
+                    fadingReminderIds.remove(reminder.id)
+                }
+            }
+        }
     }
 }
 
