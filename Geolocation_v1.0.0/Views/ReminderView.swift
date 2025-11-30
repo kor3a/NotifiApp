@@ -144,6 +144,12 @@ struct ReminderView: View {
         .onAppear {
             viewModel.fetchReminders(for: userStoreItem.reminderStoreId)
         }
+        .onChange(of: autoDeleteEnabled) { oldValue, newValue in
+            // When auto-delete is turned ON, clean up already-done reminders
+            if newValue && !oldValue {
+                deleteCompletedReminders()
+            }
+        }
     }
 
     private func addReminder() {
@@ -170,6 +176,27 @@ struct ReminderView: View {
         } else {
             // Normal toggle behavior
             viewModel.toggleReminder(reminder)
+        }
+    }
+
+    private func deleteCompletedReminders() {
+        // Find all reminders that are already marked as done
+        let completedReminders = viewModel.reminders.filter { $0.isDone }
+
+        // Stagger the animations for a cascading effect
+        for (index, reminder) in completedReminders.enumerated() {
+            let delay = Double(index) * 0.1 // 100ms between each animation
+
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+                // Start fade animation
+                fadingReminderIds.insert(reminder.id)
+
+                // Delete after animation completes
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    viewModel.deleteReminder(reminder)
+                    fadingReminderIds.remove(reminder.id)
+                }
+            }
         }
     }
 }
