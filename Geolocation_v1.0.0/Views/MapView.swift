@@ -63,10 +63,10 @@ struct MapView: View {
         })
         .onChange(of: searchQuery) { oldValue, newValue in
             searchText = newValue
-            if !newValue.isEmpty {
-                Task {
-                    await searchPlaces()
-                }
+
+            // Clear results if search is empty
+            if newValue.isEmpty {
+                results.removeAll(keepingCapacity: false)
             }
         }
         .onChange(of: isSearchExpanded) { oldValue, newValue in
@@ -167,6 +167,11 @@ struct MapView: View {
                         .padding(.vertical, 12)
                         .focused($isSearchFocused)
                         .onSubmit {
+                            if !searchQuery.isEmpty {
+                                Task {
+                                    await searchPlaces()
+                                }
+                            }
                             isSearchFocused = false
                         }
                         .transition(.move(edge: .trailing).combined(with: .opacity))
