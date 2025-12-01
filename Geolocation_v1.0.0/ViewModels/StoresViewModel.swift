@@ -82,6 +82,7 @@ class StoresViewModel: ObservableObject {
                     let permission = StorePermission(rawValue: permissionString) ?? .owner
                     let sharedStoreGroupId = data["sharedStoreGroupId"] as? String
                     let sourceUserStoreId = data["sourceUserStoreId"] as? String
+                    let notificationsEnabled = data["notificationsEnabled"] as? Bool ?? true
 
                     // Determine which ID to use for fetching reminders
                     // Priority: sourceUserStoreId (view only) > sharedStoreGroupId (can edit) > userStoreId (owner)
@@ -114,7 +115,8 @@ class StoresViewModel: ObservableObject {
                                 store: store,
                                 permission: permission,
                                 sharedStoreGroupId: sharedStoreGroupId,
-                                sourceUserStoreId: sourceUserStoreId
+                                sourceUserStoreId: sourceUserStoreId,
+                                notificationsEnabled: notificationsEnabled
                             )
                             tempUserStoreItems.append(userStoreItem)
                         }
@@ -844,6 +846,22 @@ class StoresViewModel: ObservableObject {
                     print("🎉 Migration complete: \(updatedCount) updated, \(skippedCount) skipped")
                 }
             }
+    }
+
+    /// Toggle notifications for a specific user store
+    func toggleNotifications(for userStoreItem: UserStoreItem) {
+        let newValue = !userStoreItem.notificationsEnabled
+        print("StoresViewModel: Toggling notifications for store '\(userStoreItem.store.name)' to \(newValue)")
+
+        db.collection("user_stores").document(userStoreItem.id).updateData([
+            "notificationsEnabled": newValue
+        ]) { error in
+            if let error = error {
+                print("StoresViewModel: Error toggling notifications: \(error.localizedDescription)")
+            } else {
+                print("StoresViewModel: Notifications toggled successfully to \(newValue)")
+            }
+        }
     }
 
     deinit {

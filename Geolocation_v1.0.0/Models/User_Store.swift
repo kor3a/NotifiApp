@@ -21,6 +21,7 @@ struct UserStore: Codable, Identifiable {
     var sourceUserStoreId: String? = nil // For View Only: points to owner's user_store ID for fetching reminders
     var sharedFrom: String? = nil // Email of user who shared
     var sharedAt: TimeInterval? = nil // When it was shared
+    var notificationsEnabled: Bool = true // Whether notifications are enabled for this store
 
     enum CodingKeys: String, CodingKey {
         // Note: id is excluded from CodingKeys and set manually from doc.documentID
@@ -36,5 +37,6 @@ struct UserStore: Codable, Identifiable {
         case sourceUserStoreId
         case sharedFrom
         case sharedAt
+        case notificationsEnabled
     }
 }
