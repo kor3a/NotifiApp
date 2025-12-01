@@ -14,6 +14,7 @@ class NotificationManager: NSObject, ObservableObject {
 
     @Published var isAuthorized = false
     private let notificationCenter = UNUserNotificationCenter.current()
+    private let logStore = NotificationLogStore.shared
 
     private override init() {
         super.init()
@@ -85,6 +86,8 @@ class NotificationManager: NSObject, ObservableObject {
                     print("   ❌ Error scheduling notification: \(error)")
                 } else {
                     print("   ✅ Successfully scheduled notification for \(storeName)")
+                    // Log the notification event
+                    self.logStore.addEntry(storeName: storeName, reminderCount: reminderCount)
                 }
             }
         }

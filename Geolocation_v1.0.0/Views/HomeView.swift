@@ -17,6 +17,7 @@ struct HomeView: View {
     @State private var searchQuery = ""
     @State private var hasRequestedPermissions = false
     @State private var hasMigratedCoordinates = false
+    @State private var showNotificationLog = false
 
     var body: some View {
         TabView(selection: $selectedTab) {
@@ -40,7 +41,7 @@ struct HomeView: View {
 
                         ToolbarItem(placement: .navigationBarTrailing) {
                             Button(action: {
-                                sendTestNotification()
+                                showNotificationLog = true
                             }) {
                                 Image(systemName: "bell.badge")
                                     .imageScale(.large)
@@ -68,9 +69,12 @@ struct HomeView: View {
             }
             .tag(1)
         }
+        .sheet(isPresented: $showNotificationLog) {
+            NotificationLogView()
+        }
         .onAppear {
             initializeLocationNotifications()
-            // Fetch stores for the test notification button
+            // Fetch stores for migration
             storesViewModel.fetchUserStores()
         }
         .onChange(of: sessionManager.currentUser) { newUser in
@@ -101,32 +105,6 @@ struct HomeView: View {
     }
 
     // MARK: - Location & Notification Setup
-
-    private func sendTestNotification() {
-        print("🔔 Sending test notification")
-
-        // Find a store with reminders to use for the test
-        if let storeWithReminders = storesViewModel.userStoreItems.first(where: { $0.store.reminderCount > 0 }) {
-            let storeName = storeWithReminders.store.name
-            let reminderCount = storeWithReminders.store.reminderCount
-            print("   Using real store: \(storeName) with \(reminderCount) reminder(s)")
-
-            notificationManager.scheduleStoreProximityNotification(
-                storeName: storeName,
-                reminderCount: reminderCount
-            )
-        } else if let anyStore = storesViewModel.userStoreItems.first {
-            // If no stores have reminders, just use the first store with 0 reminders
-            print("   No stores have reminders, using first store")
-            notificationManager.scheduleStoreProximityNotification(
-                storeName: anyStore.store.name,
-                reminderCount: 0
-            )
-        } else {
-            // No stores at all
-            print("   No stores available for test notification")
-        }
-    }
 
     private func initializeLocationNotifications() {
         // Only request permissions once
