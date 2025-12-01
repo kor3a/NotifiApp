@@ -146,6 +146,9 @@ class LocationMonitoringManager: NSObject, ObservableObject {
                     return
                 }
 
+                // Clear old reminder counts before loading new stores
+                self.storeReminders.removeAll()
+
                 self.userStores = documents.compactMap { doc -> UserStore? in
                     do {
                         var userStore = try doc.data(as: UserStore.self)
@@ -158,7 +161,7 @@ class LocationMonitoringManager: NSObject, ObservableObject {
                             return nil
                         }
 
-                        print("   ✓ Decoded store '\(userStore.storeName)' with ID: \(doc.documentID)")
+                        print("   ✓ Decoded store '\(userStore.storeName)' with ID: \(doc.documentID) - notifications enabled")
                         return userStore
                     } catch {
                         print("❌ LocationMonitoring: Failed to decode store \(doc.documentID): \(error)")
@@ -256,6 +259,12 @@ class LocationMonitoringManager: NSObject, ObservableObject {
         // Skip stores without valid IDs
         guard let userStoreId = userStore.id else {
             print("      ⚠️ Store has no ID, skipping")
+            return
+        }
+
+        // Double-check notifications are enabled (safety check)
+        guard userStore.notificationsEnabled else {
+            print("      ⏸️ Notifications disabled for this store - skipping")
             return
         }
 
