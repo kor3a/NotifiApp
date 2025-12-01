@@ -151,6 +151,13 @@ class LocationMonitoringManager: NSObject, ObservableObject {
                         var userStore = try doc.data(as: UserStore.self)
                         // Manually set the ID from doc.documentID
                         userStore.id = doc.documentID
+
+                        // Only include stores with notifications enabled
+                        guard userStore.notificationsEnabled else {
+                            print("   ⏸️ Skipping store '\(userStore.storeName)' - notifications disabled")
+                            return nil
+                        }
+
                         print("   ✓ Decoded store '\(userStore.storeName)' with ID: \(doc.documentID)")
                         return userStore
                     } catch {
@@ -159,7 +166,7 @@ class LocationMonitoringManager: NSObject, ObservableObject {
                     }
                 }
 
-                print("📦 LocationMonitoring: Loaded \(self.userStores.count) stores for monitoring")
+                print("📦 LocationMonitoring: Loaded \(self.userStores.count) stores for monitoring (notifications enabled)")
 
                 // Log details about each store
                 for store in self.userStores {

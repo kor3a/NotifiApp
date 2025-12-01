@@ -26,6 +26,7 @@ struct UserStore: Codable, Identifiable {
     enum CodingKeys: String, CodingKey {
         // Note: id is excluded from CodingKeys and set manually from doc.documentID
         // Note: permission is excluded to use default value (.owner) for backward compatibility
+        // Note: notificationsEnabled is excluded to use default value (true) for backward compatibility
         case userId
         case storeId
         case storeName
@@ -37,6 +38,5 @@ struct UserStore: Codable, Identifiable {
         case sourceUserStoreId
         case sharedFrom
         case sharedAt
-        case notificationsEnabled
     }
 }
