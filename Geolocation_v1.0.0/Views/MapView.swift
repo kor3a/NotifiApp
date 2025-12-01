@@ -7,6 +7,7 @@
 
 import SwiftUI
 import MapKit
+import Contacts
 
 struct MapView: View {
 
@@ -34,6 +35,18 @@ struct MapView: View {
         Map(position: $cameraPosition, selection: $mapSelection, scope: mapScope){
             UserAnnotation()
 
+            // User's saved stores
+            ForEach(storesViewModel.userStoreItems) { userStoreItem in
+                if let latitude = userStoreItem.store.latitude,
+                   let longitude = userStoreItem.store.longitude {
+                    let coordinate = CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
+                    Marker(userStoreItem.store.name, systemImage: "storefront.fill", coordinate: coordinate)
+                        .tint(.blue)
+                        .tag(createMapItemForStore(userStoreItem.store, coordinate: coordinate))
+                }
+            }
+
+            // Search results
             ForEach(results, id: \.self) { item in
                 let placemark = item.placemark
                 Marker(placemark.name ?? "", coordinate: placemark.coordinate)
@@ -210,6 +223,16 @@ struct MapView: View {
 }
 
 extension MapView {
+    /// Create an MKMapItem from a Store for map selection
+    func createMapItemForStore(_ store: Store, coordinate: CLLocationCoordinate2D) -> MKMapItem {
+        let placemark = MKPlacemark(coordinate: coordinate, addressDictionary: [
+            CNPostalAddressStreetKey: store.address
+        ])
+        let mapItem = MKMapItem(placemark: placemark)
+        mapItem.name = store.name
+        return mapItem
+    }
+
     func searchPlaces() async {
         // Start with a small radius and incrementally increase until we find results
         let radiusSteps: [CLLocationDistance] = [2000, 5000, 10000, 20000, 50000] // 2km, 5km, 10km, 20km, 50km
