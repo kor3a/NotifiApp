@@ -106,39 +106,41 @@ struct LocationDetailsView: View {
                        .padding(.horizontal)
                     
                     /// Photo
-                    ZStack{
-                        if isLoadingPhoto {
-                            ProgressView()
-                                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                                .background(Color(.systemGray6))
-                        } else if let photoURLString = placePhotoURL,
-                                  let photoURL = URL(string: photoURLString) {
-                            AsyncImage(url: photoURL) { phase in
-                                switch phase {
-                                case .empty:
-                                    ProgressView()
-                                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                                        .background(Color(.systemGray6))
-                                case .success(let image):
-                                    image
-                                        .resizable()
-                                        .aspectRatio(contentMode: .fill)
-                                        .frame(height: 200)
-                                        .clipped()
-                                case .failure:
-                                    ContentUnavailableView("No Preview Available", systemImage: "eye.slash")
-                                @unknown default:
-                                    ContentUnavailableView("No Preview Available", systemImage: "eye.slash")
+                    ZStack(alignment: .topTrailing) {
+                        // Photo content
+                        ZStack{
+                            if isLoadingPhoto {
+                                ProgressView()
+                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                    .background(Color(.systemGray6))
+                            } else if let photoURLString = placePhotoURL,
+                                      let photoURL = URL(string: photoURLString) {
+                                AsyncImage(url: photoURL) { phase in
+                                    switch phase {
+                                    case .empty:
+                                        ProgressView()
+                                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                            .background(Color(.systemGray6))
+                                    case .success(let image):
+                                        image
+                                            .resizable()
+                                            .aspectRatio(contentMode: .fill)
+                                            .frame(height: 200)
+                                            .clipped()
+                                    case .failure:
+                                        ContentUnavailableView("No Preview Available", systemImage: "eye.slash")
+                                    @unknown default:
+                                        ContentUnavailableView("No Preview Available", systemImage: "eye.slash")
+                                    }
                                 }
+                            } else {
+                                ContentUnavailableView("No Preview Available", systemImage: "eye.slash")
                             }
-                        } else {
-                            ContentUnavailableView("No Preview Available", systemImage: "eye.slash")
-                        }
-                    }//:ZSTACK
-                    .frame(height: 200)
-                    .clipShape(.rect(cornerRadius: 15))
-                    .padding(.horizontal)
-                    .overlay(alignment: .topTrailing) {
+                        }//:ZSTACK
+                        .frame(height: 200)
+                        .clipShape(.rect(cornerRadius: 15))
+
+                        // Close button - outside clipped area
                         Button {
                             show.toggle()
                             withAnimation(.snappy) {
@@ -150,8 +152,9 @@ struct LocationDetailsView: View {
                                 .frame(width: 24, height: 24)
                                 .foregroundStyle(.gray, Color(.systemGray6))
                         }//:BUTTON
-                        .padding(10)
-                    }
+                        .padding(8)
+                    }//:OUTER ZSTACK
+                    .padding(.horizontal)
                     
 
                     /// Add Button
