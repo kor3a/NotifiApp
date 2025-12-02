@@ -33,18 +33,45 @@ struct MapView: View {
     @Binding var searchQuery: String
     @FocusState private var isSearchFocused: Bool
 
+    // Clustering
+    private let clusterManager = StoreClusterManager()
+    @State private var clusteredAnnotations: [StoreAnnotation] = []
+
     var body: some View {
         Map(position: $cameraPosition, selection: $mapSelection, scope: mapScope){
             UserAnnotation()
 
-            // User's saved stores
-            ForEach(storesViewModel.userStoreItems) { userStoreItem in
-                if let latitude = userStoreItem.store.latitude,
-                   let longitude = userStoreItem.store.longitude {
-                    let coordinate = CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
+            // User's saved stores (clustered)
+            ForEach(clusteredAnnotations) { annotation in
+                switch annotation {
+                case .single(let userStoreItem, let coordinate):
+                    // Single store marker
                     Marker(userStoreItem.store.name, systemImage: "storefront.fill", coordinate: coordinate)
                         .tint(.blue)
                         .tag(createMapItemForStore(userStoreItem.store, coordinate: coordinate))
+
+                case .cluster(let stores, let coordinate, let count):
+                    // Cluster marker
+                    Annotation("", coordinate: coordinate) {
+                        VStack(spacing: 2) {
+                            ZStack {
+                                Circle()
+                                    .fill(Color.blue)
+                                    .frame(width: 50, height: 50)
+                                Image(systemName: "storefront.fill")
+                                    .font(.system(size: 20))
+                                    .foregroundColor(.white)
+                            }
+                            Text("Stores+\(count)")
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundColor(.blue)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(Color.white)
+                                .cornerRadius(4)
+                        }
+                    }
+                    .tag(createMapItemForCluster(stores, coordinate: coordinate))
                 }
             }
 
@@ -56,6 +83,9 @@ struct MapView: View {
         }//:MAP
         .onMapCameraChange(frequency: .continuous) { context in
             viewingRegion = context.region
+
+            // Update clustering based on new region
+            updateClustering(for: context.region)
 
             // Auto-search when map view changes if there's an active search
             if !searchText.isEmpty && isSearchExpanded {
@@ -172,6 +202,16 @@ struct MapView: View {
         .onAppear {
             // Fetch user's stores when view appears
             storesViewModel.fetchUserStores()
+            // Initial clustering
+            if let region = viewingRegion {
+                updateClustering(for: region)
+            }
+        }
+        .onChange(of: storesViewModel.userStoreItems) { oldValue, newValue in
+            // Update clustering when stores change
+            if let region = viewingRegion {
+                updateClustering(for: region)
+            }
         }
     }
 
@@ -281,6 +321,16 @@ struct MapView: View {
 }
 
 extension MapView {
+    /// Update clustering based on current map region
+    func updateClustering(for region: MKCoordinateRegion) {
+        let newAnnotations = clusterManager.clusterStores(storesViewModel.userStoreItems, in: region)
+
+        // Only update if annotations have actually changed to avoid unnecessary redraws
+        if newAnnotations.map({ $0.id }).sorted() != clusteredAnnotations.map({ $0.id }).sorted() {
+            clusteredAnnotations = newAnnotations
+        }
+    }
+
     /// Create an MKMapItem from a Store for map selection
     func createMapItemForStore(_ store: Store, coordinate: CLLocationCoordinate2D) -> MKMapItem {
         let placemark = MKPlacemark(coordinate: coordinate, addressDictionary: [
@@ -288,6 +338,14 @@ extension MapView {
         ])
         let mapItem = MKMapItem(placemark: placemark)
         mapItem.name = store.name
+        return mapItem
+    }
+
+    /// Create an MKMapItem from a cluster for map selection
+    func createMapItemForCluster(_ stores: [UserStoreItem], coordinate: CLLocationCoordinate2D) -> MKMapItem {
+        let placemark = MKPlacemark(coordinate: coordinate)
+        let mapItem = MKMapItem(placemark: placemark)
+        mapItem.name = "Cluster of \(stores.count) stores"
         return mapItem
     }
 
