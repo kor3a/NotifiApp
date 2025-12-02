@@ -86,24 +86,24 @@ struct LocationDetailsView: View {
 //                    Text(mapSelection?.placemark.name ?? "")
 //                        .font(.title2)
 //                        .fontWeight(.semibold)
-//                    
+//
 //                    Text(mapSelection?.placemark.title ?? "")
 //                        .font(.footnote)
 //                        .foregroundStyle(.gray)
 //                        .lineLimit(2)
 //                        .padding(.trailing)
-                    
+
                     /// Name
                     Text(mapSelection?.placemark.name ?? "Store")
                        .font(.title2)
                        .fontWeight(.semibold)
-                       .padding(.leading)
+                       .padding(.horizontal)
                     /// Address
                    Text(mapSelection?.placemark.title ?? "Address")
                        .font(.footnote)
                        .foregroundStyle(.gray)
                        .lineLimit(2)
-                       .padding(.leading)
+                       .padding(.horizontal)
                     
                     /// Photo
                     ZStack{
@@ -124,6 +124,7 @@ struct LocationDetailsView: View {
                                         .resizable()
                                         .aspectRatio(contentMode: .fill)
                                         .frame(height: 200)
+                                        .clipped()
                                 case .failure:
                                     ContentUnavailableView("No Preview Available", systemImage: "eye.slash")
                                 @unknown default:
@@ -136,6 +137,7 @@ struct LocationDetailsView: View {
                     }//:ZSTACK
                     .frame(height: 200)
                     .clipShape(.rect(cornerRadius: 15))
+                    .padding(.horizontal)
                     .overlay(alignment: .topTrailing) {
                         Button {
                             show.toggle()
