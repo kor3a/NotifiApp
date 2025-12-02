@@ -64,6 +64,17 @@ struct StoresView: View {
                                     .padding(.vertical, 4)
                             )
                             .listRowSeparator(.hidden)
+                            .swipeActions(edge: .leading, allowsFullSwipe: false) {
+                                Button {
+                                    viewModel.toggleNotifications(for: userStoreItem)
+                                } label: {
+                                    Label(
+                                        userStoreItem.notificationsEnabled ? "Disable Notifications" : "Enable Notifications",
+                                        systemImage: userStoreItem.notificationsEnabled ? "bell.slash.fill" : "bell.fill"
+                                    )
+                                }
+                                .tint(userStoreItem.notificationsEnabled ? .orange : .green)
+                            }
                             .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                                 Button(role: .destructive) {
                                     if let index = viewModel.userStoreItems.firstIndex(where: { $0.id == userStoreItem.id }) {

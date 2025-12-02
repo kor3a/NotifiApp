@@ -146,12 +146,22 @@ class LocationMonitoringManager: NSObject, ObservableObject {
                     return
                 }
 
+                // Clear old reminder counts before loading new stores
+                self.storeReminders.removeAll()
+
                 self.userStores = documents.compactMap { doc -> UserStore? in
                     do {
                         var userStore = try doc.data(as: UserStore.self)
                         // Manually set the ID from doc.documentID
                         userStore.id = doc.documentID
-                        print("   ✓ Decoded store '\(userStore.storeName)' with ID: \(doc.documentID)")
+
+                        // Only include stores with notifications enabled
+                        guard userStore.notificationsEnabled else {
+                            print("   ⏸️ Skipping store '\(userStore.storeName)' - notifications disabled")
+                            return nil
+                        }
+
+                        print("   ✓ Decoded store '\(userStore.storeName)' with ID: \(doc.documentID) - notifications enabled")
                         return userStore
                     } catch {
                         print("❌ LocationMonitoring: Failed to decode store \(doc.documentID): \(error)")
@@ -159,7 +169,7 @@ class LocationMonitoringManager: NSObject, ObservableObject {
                     }
                 }
 
-                print("📦 LocationMonitoring: Loaded \(self.userStores.count) stores for monitoring")
+                print("📦 LocationMonitoring: Loaded \(self.userStores.count) stores for monitoring (notifications enabled)")
 
                 // Log details about each store
                 for store in self.userStores {
@@ -249,6 +259,12 @@ class LocationMonitoringManager: NSObject, ObservableObject {
         // Skip stores without valid IDs
         guard let userStoreId = userStore.id else {
             print("      ⚠️ Store has no ID, skipping")
+            return
+        }
+
+        // Double-check notifications are enabled (safety check)
+        guard userStore.notificationsEnabled else {
+            print("      ⏸️ Notifications disabled for this store - skipping")
             return
         }
 

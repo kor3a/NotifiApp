@@ -359,7 +359,8 @@ struct ShareStoreView: View {
             ),
             permission: .owner,
             sharedStoreGroupId: nil,
-            sourceUserStoreId: nil
+            sourceUserStoreId: nil,
+            notificationsEnabled: true
         )
     )
 }
