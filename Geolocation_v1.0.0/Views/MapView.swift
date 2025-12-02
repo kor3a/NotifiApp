@@ -20,7 +20,7 @@ struct MapView: View {
     @State private var mapSelection: MKMapItem?
     @State private var showDetails = false
     @State private var wasTrackingBeforeSearch = true // Track if we were in userLocation mode before search opened
-    @State private var previousRegionSpan: MKCoordinateSpan?
+    @State private var previousSearchRegion: MKCoordinateRegion?
     @State private var searchTask: Task<Void, Never>?
     @Namespace private var mapScope
 
@@ -57,33 +57,52 @@ struct MapView: View {
         .onMapCameraChange(frequency: .continuous) { context in
             viewingRegion = context.region
 
-            // Auto-search when zooming out if there's an active search
+            // Auto-search when map view changes if there's an active search
             if !searchText.isEmpty && isSearchExpanded {
-                let currentSpan = context.region.span
+                let currentRegion = context.region
 
-                // Check if user zoomed out (span increased by at least 20%)
-                if let previousSpan = previousRegionSpan {
-                    let latitudeIncrease = currentSpan.latitudeDelta / previousSpan.latitudeDelta
-                    let longitudeIncrease = currentSpan.longitudeDelta / previousSpan.longitudeDelta
-                    let zoomChange = max(latitudeIncrease, longitudeIncrease)
+                // Check if the map view has changed significantly
+                var shouldSearch = false
 
-                    // If zoomed out significantly, trigger a new search after a delay
-                    if zoomChange > 1.2 {
-                        // Cancel any pending search task
-                        searchTask?.cancel()
+                if let previousRegion = previousSearchRegion {
+                    // Calculate how much the center has moved (in degrees)
+                    let centerLatChange = abs(currentRegion.center.latitude - previousRegion.center.latitude)
+                    let centerLonChange = abs(currentRegion.center.longitude - previousRegion.center.longitude)
 
-                        // Debounce: wait 0.5 seconds before searching
-                        searchTask = Task {
-                            try? await Task.sleep(nanoseconds: 500_000_000)
+                    // Calculate how much the zoom has changed
+                    let spanLatChange = abs(currentRegion.span.latitudeDelta - previousRegion.span.latitudeDelta) / previousRegion.span.latitudeDelta
+                    let spanLonChange = abs(currentRegion.span.longitudeDelta - previousRegion.span.longitudeDelta) / previousRegion.span.longitudeDelta
 
-                            if !Task.isCancelled {
-                                await searchPlaces()
+                    // Trigger search if:
+                    // 1. Center moved by more than 20% of the current visible span, OR
+                    // 2. Zoom level changed by more than 15%
+                    let centerMovedSignificantly = (centerLatChange > currentRegion.span.latitudeDelta * 0.2) ||
+                                                   (centerLonChange > currentRegion.span.longitudeDelta * 0.2)
+                    let zoomChangedSignificantly = (spanLatChange > 0.15) || (spanLonChange > 0.15)
+
+                    shouldSearch = centerMovedSignificantly || zoomChangedSignificantly
+                } else {
+                    // First time tracking, don't search yet
+                    previousSearchRegion = currentRegion
+                }
+
+                if shouldSearch {
+                    // Cancel any pending search task
+                    searchTask?.cancel()
+
+                    // Debounce: wait 0.8 seconds before searching to allow smooth panning
+                    searchTask = Task {
+                        try? await Task.sleep(nanoseconds: 800_000_000)
+
+                        if !Task.isCancelled {
+                            await searchPlaces()
+                            // Update the region after successful search
+                            await MainActor.run {
+                                previousSearchRegion = currentRegion
                             }
                         }
                     }
                 }
-
-                previousRegionSpan = currentSpan
             }
         }
         .overlay(alignment: .bottomTrailing) {
@@ -111,7 +130,7 @@ struct MapView: View {
             // Clear results if search is empty
             if newValue.isEmpty {
                 results.removeAll(keepingCapacity: false)
-                previousRegionSpan = nil
+                previousSearchRegion = nil
                 searchTask?.cancel()
             }
         }
@@ -131,7 +150,7 @@ struct MapView: View {
                 searchQuery = ""
                 results.removeAll(keepingCapacity: false)
                 showDetails = false
-                previousRegionSpan = nil
+                previousSearchRegion = nil
                 searchTask?.cancel()
                 // Restore user location tracking if it was active before search opened
                 if wasTrackingBeforeSearch {
@@ -216,9 +235,9 @@ struct MapView: View {
                         .focused($isSearchFocused)
                         .onSubmit {
                             if !searchQuery.isEmpty {
-                                // Initialize region tracking for auto-search on zoom
+                                // Initialize region tracking for auto-search on map changes
                                 if let region = viewingRegion {
-                                    previousRegionSpan = region.span
+                                    previousSearchRegion = region
                                 }
                                 Task {
                                     await searchPlaces()
@@ -324,9 +343,9 @@ extension MapView {
 
         self.results = foundResults
 
-        /// Only zoom to show results on initial search (not when auto-searching on zoom)
+        /// Only zoom to show results on initial search (not when auto-searching)
         /// This prevents the map from jumping when user is exploring
-        if !self.results.isEmpty && previousRegionSpan == nil {
+        if !self.results.isEmpty && previousSearchRegion == nil {
             let region = calculateRegionForResults(self.results)
             withAnimation(.smooth(duration: 0.5)) {
                 cameraPosition = .region(region)
