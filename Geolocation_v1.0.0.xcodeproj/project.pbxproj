@@ -14,6 +14,8 @@
 		011CF6072ED638F9009A31A6 /* ForgotPasswordViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 011CF6062ED638F9009A31A6 /* ForgotPasswordViewModel.swift */; };
 		011CF6092ED63945009A31A6 /* Notifi.icon in Resources */ = {isa = PBXBuildFile; fileRef = 011CF6082ED63945009A31A6 /* Notifi.icon */; };
 		011CF60D2ED63A69009A31A6 /* NotifiApp.icon in Resources */ = {isa = PBXBuildFile; fileRef = 011CF60C2ED63A69009A31A6 /* NotifiApp.icon */; };
+		0138242D2EDCD05F0069F38C /* NotificationLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0138242C2EDCD05F0069F38C /* NotificationLog.swift */; };
+		0138242F2EDCD08C0069F38C /* NotificationLogView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0138242E2EDCD08C0069F38C /* NotificationLogView.swift */; };
 		01897B5B2EBA4AB00038A4D1 /* StoresViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01897B5A2EBA4AB00038A4D1 /* StoresViewModel.swift */; };
 		01B78C382EBD414A00201B88 /* UserStoreItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01B78C372EBD414A00201B88 /* UserStoreItem.swift */; };
 		01B78C3A2EBD415F00201B88 /* ReminderViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01B78C392EBD415F00201B88 /* ReminderViewModel.swift */; };
@@ -58,7 +60,10 @@
 		011CF6062ED638F9009A31A6 /* ForgotPasswordViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForgotPasswordViewModel.swift; sourceTree = "<group>"; };
 		011CF6082ED63945009A31A6 /* Notifi.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = Notifi.icon; sourceTree = "<group>"; };
 		011CF60C2ED63A69009A31A6 /* NotifiApp.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = NotifiApp.icon; sourceTree = "<group>"; };
+		0138242C2EDCD05F0069F38C /* NotificationLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationLog.swift; sourceTree = "<group>"; };
+		0138242E2EDCD08C0069F38C /* NotificationLogView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationLogView.swift; sourceTree = "<group>"; };
 		01897B5A2EBA4AB00038A4D1 /* StoresViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoresViewModel.swift; sourceTree = "<group>"; };
+		018D77DF2ED7C43C00E767D6 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		01B78C372EBD414A00201B88 /* UserStoreItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserStoreItem.swift; sourceTree = "<group>"; };
 		01B78C392EBD415F00201B88 /* ReminderViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderViewModel.swift; sourceTree = "<group>"; };
 		01D2D8722EC2901F009C371F /* ImagePicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImagePicker.swift; sourceTree = "<group>"; };
@@ -72,7 +77,7 @@
 		74A79E822CBDAC7500713F0E /* ReminderItemViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderItemViewModel.swift; sourceTree = "<group>"; };
 		74A79E842CBDACB800713F0E /* Store.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Store.swift; sourceTree = "<group>"; };
 		74A8AA3D2DEBB84B005855A0 /* AddReminderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddReminderView.swift; sourceTree = "<group>"; };
-		8278FDF42C5DD1C90017EB72 /* Geolocation_v1.0.0.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Geolocation_v1.0.0.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		8278FDF42C5DD1C90017EB72 /* NearBuy.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NearBuy.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		8278FDF72C5DD1C90017EB72 /* Geolocation_v1_0_0App.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Geolocation_v1_0_0App.swift; sourceTree = "<group>"; };
 		8278FDF92C5DD1C90017EB72 /* MainView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainView.swift; sourceTree = "<group>"; };
 		8278FDFB2C5DD1CB0017EB72 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -122,7 +127,7 @@
 		8278FDF52C5DD1C90017EB72 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				8278FDF42C5DD1C90017EB72 /* Geolocation_v1.0.0.app */,
+				8278FDF42C5DD1C90017EB72 /* NearBuy.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -130,6 +135,7 @@
 		8278FDF62C5DD1C90017EB72 /* Geolocation_v1.0.0 */ = {
 			isa = PBXGroup;
 			children = (
+				018D77DF2ED7C43C00E767D6 /* Info.plist */,
 				011CF60C2ED63A69009A31A6 /* NotifiApp.icon */,
 				011CF6082ED63945009A31A6 /* Notifi.icon */,
 				011CF6042ED638ED009A31A6 /* Theme */,
@@ -156,6 +162,7 @@
 		8278FE0E2C5DE5930017EB72 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				0138242E2EDCD08C0069F38C /* NotificationLogView.swift */,
 				011CF5FF2ED638DD009A31A6 /* ShareStoreView.swift */,
 				011CF5FD2ED638D6009A31A6 /* ForgotPasswordView.swift */,
 				01D2D8722EC2901F009C371F /* ImagePicker.swift */,
@@ -195,6 +202,7 @@
 		8278FE102C5DE5A60017EB72 /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				0138242C2EDCD05F0069F38C /* NotificationLog.swift */,
 				011CF6012ED638E4009A31A6 /* SharedStoreGroup.swift */,
 				01B78C372EBD414A00201B88 /* UserStoreItem.swift */,
 				82D289AF2C61D30C009F357F /* User.swift */,
@@ -225,9 +233,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		8278FDF32C5DD1C80017EB72 /* Geolocation_v1.0.0 */ = {
+		8278FDF32C5DD1C80017EB72 /* NearBuy */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 8278FE022C5DD1CB0017EB72 /* Build configuration list for PBXNativeTarget "Geolocation_v1.0.0" */;
+			buildConfigurationList = 8278FE022C5DD1CB0017EB72 /* Build configuration list for PBXNativeTarget "NearBuy" */;
 			buildPhases = (
 				8278FDF02C5DD1C80017EB72 /* Sources */,
 				8278FDF12C5DD1C80017EB72 /* Frameworks */,
@@ -241,14 +249,14 @@
 				011CF6042ED638ED009A31A6 /* Theme */,
 				01FB27582EC2A7490038E406 /* Services */,
 			);
-			name = Geolocation_v1.0.0;
+			name = NearBuy;
 			packageProductDependencies = (
 				8278FE062C5DD4310017EB72 /* FirebaseAuth */,
 				8278FE082C5DD4310017EB72 /* FirebaseFirestore */,
 				8278FE0A2C5DD4310017EB72 /* FirebaseStorage */,
 			);
 			productName = Geolocation_v1.0.0;
-			productReference = 8278FDF42C5DD1C90017EB72 /* Geolocation_v1.0.0.app */;
+			productReference = 8278FDF42C5DD1C90017EB72 /* NearBuy.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -282,7 +290,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				8278FDF32C5DD1C80017EB72 /* Geolocation_v1.0.0 */,
+				8278FDF32C5DD1C80017EB72 /* NearBuy */,
 			);
 		};
 /* End PBXProject section */
@@ -309,6 +317,7 @@
 			files = (
 				74A79E852CBDACB800713F0E /* Store.swift in Sources */,
 				74A79E7D2CBDAA4E00713F0E /* Reminder.swift in Sources */,
+				0138242F2EDCD08C0069F38C /* NotificationLogView.swift in Sources */,
 				82D289AE2C61CEBD009F357F /* SignupViewModel.swift in Sources */,
 				748542B32CB5307000C58D9B /* HomeView.swift in Sources */,
 				82D715C62C8D6B230000D1E3 /* MapView.swift in Sources */,
@@ -332,6 +341,7 @@
 				011CF6002ED638DD009A31A6 /* ShareStoreView.swift in Sources */,
 				82D289AC2C61CCD4009F357F /* LoginViewModel.swift in Sources */,
 				7498B0842CC2D49A0003C68F /* StoresView.swift in Sources */,
+				0138242D2EDCD05F0069F38C /* NotificationLog.swift in Sources */,
 				74A8AA3E2DEBB84B005855A0 /* AddReminderView.swift in Sources */,
 				82D289B32C61D403009F357F /* EncodableExtension.swift in Sources */,
 				8278FDF82C5DD1C90017EB72 /* Geolocation_v1_0_0App.swift in Sources */,
@@ -476,12 +486,14 @@
 				DEVELOPMENT_TEAM = XT28W79782;
 				ENABLE_PREVIEWS = YES;
 				INFOPLIST_FILE = Geolocation_v1.0.0/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = NearBuy;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.kor3a.Geolocation-v1-0-0";
+				PRODUCT_BUNDLE_IDENTIFIER = com.kor3a.nearbuy;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -500,12 +512,14 @@
 				DEVELOPMENT_TEAM = XT28W79782;
 				ENABLE_PREVIEWS = YES;
 				INFOPLIST_FILE = Geolocation_v1.0.0/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = NearBuy;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.kor3a.Geolocation-v1-0-0";
+				PRODUCT_BUNDLE_IDENTIFIER = com.kor3a.nearbuy;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -525,7 +539,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		8278FE022C5DD1CB0017EB72 /* Build configuration list for PBXNativeTarget "Geolocation_v1.0.0" */ = {
+		8278FE022C5DD1CB0017EB72 /* Build configuration list for PBXNativeTarget "NearBuy" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				8278FE032C5DD1CB0017EB72 /* Debug */,
