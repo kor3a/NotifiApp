@@ -71,6 +71,7 @@ class NotificationManager: NSObject, ObservableObject {
             }
 
             content.sound = .default
+            content.interruptionLevel = .timeSensitive
             content.categoryIdentifier = "STORE_PROXIMITY"
 
             // Create a unique identifier based on store name and timestamp
