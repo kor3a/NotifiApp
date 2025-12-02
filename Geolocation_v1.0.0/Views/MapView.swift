@@ -53,22 +53,22 @@ struct MapView: View {
                 case .cluster(let stores, let coordinate, let count):
                     // Cluster marker
                     Annotation("", coordinate: coordinate) {
-                        VStack(spacing: 2) {
+                        VStack(spacing: 1) {
                             ZStack {
                                 Circle()
                                     .fill(Color.blue)
-                                    .frame(width: 50, height: 50)
+                                    .frame(width: 36, height: 36)
                                 Image(systemName: "storefront.fill")
-                                    .font(.system(size: 20))
+                                    .font(.system(size: 14))
                                     .foregroundColor(.white)
                             }
                             Text("Stores+\(count)")
-                                .font(.system(size: 11, weight: .semibold))
+                                .font(.system(size: 9, weight: .semibold))
                                 .foregroundColor(.blue)
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 2)
+                                .padding(.horizontal, 4)
+                                .padding(.vertical, 1)
                                 .background(Color.white)
-                                .cornerRadius(4)
+                                .cornerRadius(3)
                         }
                     }
                     .tag(createMapItemForCluster(stores, coordinate: coordinate))
