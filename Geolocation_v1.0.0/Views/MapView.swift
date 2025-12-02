@@ -20,6 +20,8 @@ struct MapView: View {
     @State private var mapSelection: MKMapItem?
     @State private var showDetails = false
     @State private var wasTrackingBeforeSearch = true // Track if we were in userLocation mode before search opened
+    @State private var previousRegionSpan: MKCoordinateSpan?
+    @State private var searchTask: Task<Void, Never>?
     @Namespace private var mapScope
 
     @StateObject private var viewModel:MapViewModel = .init()
@@ -54,6 +56,35 @@ struct MapView: View {
         }//:MAP
         .onMapCameraChange(frequency: .continuous) { context in
             viewingRegion = context.region
+
+            // Auto-search when zooming out if there's an active search
+            if !searchText.isEmpty && isSearchExpanded {
+                let currentSpan = context.region.span
+
+                // Check if user zoomed out (span increased by at least 20%)
+                if let previousSpan = previousRegionSpan {
+                    let latitudeIncrease = currentSpan.latitudeDelta / previousSpan.latitudeDelta
+                    let longitudeIncrease = currentSpan.longitudeDelta / previousSpan.longitudeDelta
+                    let zoomChange = max(latitudeIncrease, longitudeIncrease)
+
+                    // If zoomed out significantly, trigger a new search after a delay
+                    if zoomChange > 1.2 {
+                        // Cancel any pending search task
+                        searchTask?.cancel()
+
+                        // Debounce: wait 0.5 seconds before searching
+                        searchTask = Task {
+                            try? await Task.sleep(nanoseconds: 500_000_000)
+
+                            if !Task.isCancelled {
+                                await searchPlaces()
+                            }
+                        }
+                    }
+                }
+
+                previousRegionSpan = currentSpan
+            }
         }
         .overlay(alignment: .bottomTrailing) {
             VStack(spacing: 15){
@@ -80,6 +111,8 @@ struct MapView: View {
             // Clear results if search is empty
             if newValue.isEmpty {
                 results.removeAll(keepingCapacity: false)
+                previousRegionSpan = nil
+                searchTask?.cancel()
             }
         }
         .onChange(of: isSearchExpanded) { oldValue, newValue in
@@ -98,6 +131,8 @@ struct MapView: View {
                 searchQuery = ""
                 results.removeAll(keepingCapacity: false)
                 showDetails = false
+                previousRegionSpan = nil
+                searchTask?.cancel()
                 // Restore user location tracking if it was active before search opened
                 if wasTrackingBeforeSearch {
                     cameraPosition = .userLocation(followsHeading: false, fallback: .automatic)
@@ -181,6 +216,10 @@ struct MapView: View {
                         .focused($isSearchFocused)
                         .onSubmit {
                             if !searchQuery.isEmpty {
+                                // Initialize region tracking for auto-search on zoom
+                                if let region = viewingRegion {
+                                    previousRegionSpan = region.span
+                                }
                                 Task {
                                     await searchPlaces()
                                 }
@@ -234,14 +273,33 @@ extension MapView {
     }
 
     func searchPlaces() async {
-        // Start with a small radius and incrementally increase until we find results
-        let radiusSteps: [CLLocationDistance] = [2000, 5000, 10000, 20000, 50000] // 2km, 5km, 10km, 20km, 50km
+        // Use the current viewing region if available, otherwise use user location
+        let searchCenter: CLLocationCoordinate2D
+        let baseRegion: MKCoordinateRegion
+
+        if let currentRegion = viewingRegion {
+            searchCenter = currentRegion.center
+            baseRegion = currentRegion
+        } else {
+            searchCenter = viewModel.region.center
+            baseRegion = viewModel.region
+        }
+
+        // Calculate search radius based on visible region with padding multipliers
+        let visibleRadius = max(
+            baseRegion.span.latitudeDelta * 111000, // Convert degrees to meters (roughly)
+            baseRegion.span.longitudeDelta * 111000 * cos(searchCenter.latitude * .pi / 180)
+        ) / 2
+
+        // Search with progressively larger areas: 1x, 1.5x, 2x, 3x, 5x the visible region
+        let radiusMultipliers: [Double] = [1.0, 1.5, 2.0, 3.0, 5.0]
         var foundResults: [MKMapItem] = []
-        let userLocation = CLLocation(latitude: viewModel.region.center.latitude, longitude: viewModel.region.center.longitude)
+        let centerLocation = CLLocation(latitude: searchCenter.latitude, longitude: searchCenter.longitude)
 
         // Try each radius until we find results
-        for radius in radiusSteps {
-            let searchRegion = createRegion(around: viewModel.region.center, radius: radius)
+        for multiplier in radiusMultipliers {
+            let searchRadius = visibleRadius * multiplier
+            let searchRegion = createRegion(around: searchCenter, radius: searchRadius)
 
             let request = MKLocalSearch.Request()
             request.naturalLanguageQuery = self.searchText
@@ -250,12 +308,12 @@ extension MapView {
             let results = try? await MKLocalSearch(request: request).start()
             let items = results?.mapItems ?? []
 
-            // Filter results to only include items within the current radius
+            // Filter results to only include items within the current search radius
             let filteredItems = items.filter { item in
                 let itemLocation = CLLocation(latitude: item.placemark.coordinate.latitude,
                                              longitude: item.placemark.coordinate.longitude)
-                let distance = userLocation.distance(from: itemLocation)
-                return distance <= radius
+                let distance = centerLocation.distance(from: itemLocation)
+                return distance <= searchRadius
             }
 
             if !filteredItems.isEmpty {
@@ -266,8 +324,9 @@ extension MapView {
 
         self.results = foundResults
 
-        /// Zoom to show both user location and all search results
-        if !self.results.isEmpty {
+        /// Only zoom to show results on initial search (not when auto-searching on zoom)
+        /// This prevents the map from jumping when user is exploring
+        if !self.results.isEmpty && previousRegionSpan == nil {
             let region = calculateRegionForResults(self.results)
             withAnimation(.smooth(duration: 0.5)) {
                 cameraPosition = .region(region)
