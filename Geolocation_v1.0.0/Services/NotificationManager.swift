@@ -19,7 +19,23 @@ class NotificationManager: NSObject, ObservableObject {
     private override init() {
         super.init()
         notificationCenter.delegate = self
+        registerNotificationCategories()
         checkAuthorizationStatus()
+    }
+
+    // MARK: - Category Registration
+
+    private func registerNotificationCategories() {
+        // Create a category for store proximity notifications
+        let category = UNNotificationCategory(
+            identifier: "STORE_PROXIMITY",
+            actions: [],
+            intentIdentifiers: [],
+            options: [.customDismissAction]
+        )
+
+        notificationCenter.setNotificationCategories([category])
+        print("✅ Registered notification categories")
     }
 
     // MARK: - Permission Management
@@ -72,6 +88,7 @@ class NotificationManager: NSObject, ObservableObject {
 
             content.sound = .default
             content.interruptionLevel = .timeSensitive
+            content.relevanceScore = 1.0 // Highest relevance for location-based reminders
             content.categoryIdentifier = "STORE_PROXIMITY"
 
             // Create a unique identifier based on store name and timestamp
@@ -123,7 +140,8 @@ extension NotificationManager: UNUserNotificationCenterDelegate {
                               willPresent notification: UNNotification,
                               withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
         // Show notification even when app is in foreground
-        completionHandler([.banner, .sound, .badge])
+        // .list ensures it appears in Notification Center and lock screen
+        completionHandler([.banner, .list, .sound, .badge])
     }
 
     // Handle notification tap
