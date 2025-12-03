@@ -8,6 +8,7 @@
 import Foundation
 import UserNotifications
 import CoreLocation
+import Intents
 
 class NotificationManager: NSObject, ObservableObject {
     static let shared = NotificationManager()
@@ -26,16 +27,16 @@ class NotificationManager: NSObject, ObservableObject {
     // MARK: - Category Registration
 
     private func registerNotificationCategories() {
-        // Create a category for store proximity notifications
+        // Create a category for store proximity notifications as communication
         let category = UNNotificationCategory(
             identifier: "STORE_PROXIMITY",
             actions: [],
-            intentIdentifiers: [],
+            intentIdentifiers: [INSendMessageIntent.className],
             options: [.customDismissAction]
         )
 
         notificationCenter.setNotificationCategories([category])
-        print("✅ Registered notification categories")
+        print("✅ Registered notification categories with communication intent")
     }
 
     // MARK: - Permission Management
@@ -77,38 +78,85 @@ class NotificationManager: NSObject, ObservableObject {
                 return
             }
 
-            let content = UNMutableNotificationContent()
-            content.title = "📍 You're near \(storeName)"
-
+            // Create a communication notification using INSendMessageIntent
+            // This makes CarPlay treat it as a message-style notification
+            let messageBody: String
             if reminderCount == 1 {
-                content.body = "You have 1 reminder waiting for you at this store."
+                messageBody = "You have 1 reminder waiting for you at this store."
             } else {
-                content.body = "You have \(reminderCount) reminders waiting for you at this store."
+                messageBody = "You have \(reminderCount) reminders waiting for you at this store."
             }
 
-            content.sound = .default
-            content.interruptionLevel = .timeSensitive
-            content.relevanceScore = 1.0 // Highest relevance for location-based reminders
-            content.categoryIdentifier = "STORE_PROXIMITY"
+            // Create an intent person representing the app/sender
+            let senderHandle = INPersonHandle(value: "nearbuy_app", type: .unknown)
+            let sender = INPerson(
+                personHandle: senderHandle,
+                nameComponents: nil,
+                displayName: "NearBuy",
+                image: nil,
+                contactIdentifier: nil,
+                customIdentifier: "nearbuy_app"
+            )
 
-            // Create a unique identifier based on store name and timestamp
-            let identifier = "store_proximity_\(storeName)_\(Date().timeIntervalSince1970)"
+            // Create the send message intent
+            let intent = INSendMessageIntent(
+                recipients: nil,
+                outgoingMessageType: .outgoingMessageText,
+                content: messageBody,
+                speakableGroupName: INSpeakableString(spokenPhrase: storeName),
+                conversationIdentifier: "store_proximity",
+                serviceName: nil,
+                sender: sender,
+                attachments: nil
+            )
 
-            // Trigger immediately (for location-based notifications)
-            let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
+            // Set the intent image (optional)
+            intent.setImage(INImage(named: "AppIcon"), forParameterNamed: \.sender)
 
-            let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
+            // Create notification content with the intent
+            do {
+                let content = try self.createCommunicationNotificationContent(
+                    intent: intent,
+                    storeName: storeName,
+                    messageBody: messageBody
+                )
 
-            self.notificationCenter.add(request) { error in
-                if let error = error {
-                    print("   ❌ Error scheduling notification: \(error)")
-                } else {
-                    print("   ✅ Successfully scheduled notification for \(storeName)")
-                    // Log the notification event
-                    self.logStore.addEntry(storeName: storeName, reminderCount: reminderCount)
+                // Create a unique identifier based on store name and timestamp
+                let identifier = "store_proximity_\(storeName)_\(Date().timeIntervalSince1970)"
+
+                // Trigger immediately (for location-based notifications)
+                let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
+
+                let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
+
+                self.notificationCenter.add(request) { error in
+                    if let error = error {
+                        print("   ❌ Error scheduling notification: \(error)")
+                    } else {
+                        print("   ✅ Successfully scheduled communication notification for \(storeName)")
+                        // Log the notification event
+                        self.logStore.addEntry(storeName: storeName, reminderCount: reminderCount)
+                    }
                 }
+            } catch {
+                print("   ❌ Error creating communication notification: \(error)")
             }
         }
+    }
+
+    // Helper to create communication notification content
+    private func createCommunicationNotificationContent(
+        intent: INSendMessageIntent,
+        storeName: String,
+        messageBody: String
+    ) throws -> UNNotificationContent {
+        // Create the notification content from the intent
+        let content = try UNNotificationContent(
+            intent: intent,
+            summary: "Location reminder"
+        )
+
+        return content
     }
 
     // MARK: - Notification Management
