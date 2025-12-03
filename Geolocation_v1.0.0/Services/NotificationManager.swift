@@ -31,7 +31,7 @@ class NotificationManager: NSObject, ObservableObject {
             identifier: "STORE_PROXIMITY",
             actions: [],
             intentIdentifiers: [],
-            options: [.customDismissAction, .announcement]
+            options: [.customDismissAction, .allowAnnouncement]
         )
 
         notificationCenter.setNotificationCategories([category])
@@ -42,7 +42,7 @@ class NotificationManager: NSObject, ObservableObject {
 
     func requestAuthorization() async -> Bool {
         do {
-            let granted = try await notificationCenter.requestAuthorization(options: [.alert, .sound, .badge, .announcement])
+            let granted = try await notificationCenter.requestAuthorization(options: [.alert, .sound, .badge])
             await MainActor.run {
                 isAuthorized = granted
             }
