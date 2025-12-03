@@ -87,7 +87,7 @@ class NotificationManager: NSObject, ObservableObject {
             }
 
             content.sound = .default
-            content.interruptionLevel = .timeSensitive
+            content.interruptionLevel = .active // Active interruption for CarPlay visibility
             content.relevanceScore = 1.0 // Highest relevance for location-based reminders
             content.categoryIdentifier = "STORE_PROXIMITY"
 
