@@ -26,16 +26,16 @@ class NotificationManager: NSObject, ObservableObject {
     // MARK: - Category Registration
 
     private func registerNotificationCategories() {
-        // Create a category for store proximity notifications with CarPlay support
+        // Create a category for store proximity notifications
         let category = UNNotificationCategory(
             identifier: "STORE_PROXIMITY",
             actions: [],
             intentIdentifiers: [],
-            options: [.customDismissAction, .allowAnnouncement]
+            options: [.customDismissAction]
         )
 
         notificationCenter.setNotificationCategories([category])
-        print("✅ Registered notification categories with CarPlay announcement support")
+        print("✅ Registered notification categories")
     }
 
     // MARK: - Permission Management
@@ -87,7 +87,7 @@ class NotificationManager: NSObject, ObservableObject {
             }
 
             content.sound = .default
-            content.interruptionLevel = .active // Active interruption for CarPlay visibility
+            content.interruptionLevel = .timeSensitive
             content.relevanceScore = 1.0 // Highest relevance for location-based reminders
             content.categoryIdentifier = "STORE_PROXIMITY"
 
