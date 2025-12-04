@@ -209,6 +209,12 @@ class LocationMonitoringManager: NSObject, ObservableObject {
                     let count = snapshot?.documents.count ?? 0
                     self.storeReminders[userStoreId] = count
                     print("LocationMonitoring: Store '\(userStore.storeName)' has \(count) incomplete reminders (using ID: \(reminderStoreId))")
+
+                    // Re-check proximity when reminder count updates
+                    // This ensures notifications fire when reminders load after initial location update
+                    if let location = self.lastLocation {
+                        self.checkProximityToStores(userLocation: location)
+                    }
                 }
         }
     }
