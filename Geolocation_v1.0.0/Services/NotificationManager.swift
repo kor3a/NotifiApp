@@ -163,14 +163,6 @@ class NotificationManager: NSObject, ObservableObject {
 
         // Create mutable notification content
         let content = UNMutableNotificationContent()
-
-        // Configure as communication notification
-        do {
-            content.contentType = try UNNotificationContent.ContentType(intent: intent)
-        } catch {
-            print("   ⚠️ Failed to set content type: \(error)")
-        }
-
         content.title = "📍 \(storeName)"
         content.body = messageBody
         content.sound = .default
@@ -178,10 +170,16 @@ class NotificationManager: NSObject, ObservableObject {
         content.relevanceScore = 1.0
         content.categoryIdentifier = "STORE_PROXIMITY"
 
-        // Store the intent in userInfo for handling
-        if let intentData = try? NSKeyedArchiver.archivedData(withRootObject: intent, requiringSecureCoding: false) {
-            content.userInfo = ["intent": intentData]
-        }
+        // Add thread identifier for grouping
+        content.threadIdentifier = "store_proximity_\(storeName)"
+
+        // Store the intent and sender information in userInfo
+        content.userInfo = [
+            "senderId": "nearbuy_app",
+            "senderName": "NearBuy",
+            "storeName": storeName,
+            "isLocationReminder": true
+        ]
 
         return content
     }
