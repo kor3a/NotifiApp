@@ -89,7 +89,7 @@ class NotificationManager: NSObject, ObservableObject {
             content.sound = .default
             content.interruptionLevel = .timeSensitive
             content.relevanceScore = 1.0 // Highest relevance for location-based reminders
-            content.categoryIdentifier = "STORE_PROXIMITY"
+            // Note: No categoryIdentifier set to allow CarPlay to handle notifications naturally
 
             // Create a unique identifier based on store name and timestamp
             let identifier = "store_proximity_\(storeName)_\(Date().timeIntervalSince1970)"
