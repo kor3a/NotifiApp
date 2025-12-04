@@ -31,7 +31,7 @@ class NotificationManager: NSObject, ObservableObject {
         let category = UNNotificationCategory(
             identifier: "STORE_PROXIMITY",
             actions: [],
-            intentIdentifiers: [INSendMessageIntent.className],
+            intentIdentifiers: ["INSendMessageIntent"],
             options: [.customDismissAction]
         )
 
@@ -150,11 +150,38 @@ class NotificationManager: NSObject, ObservableObject {
         storeName: String,
         messageBody: String
     ) throws -> UNNotificationContent {
-        // Create the notification content from the intent
-        let content = try UNNotificationContent(
-            intent: intent,
-            summary: "Location reminder"
-        )
+        // Create interaction from the intent
+        let interaction = INInteraction(intent: intent, response: nil)
+        interaction.direction = .incoming
+
+        // Donate the interaction to the system
+        interaction.donate { error in
+            if let error = error {
+                print("   ⚠️ Failed to donate interaction: \(error)")
+            }
+        }
+
+        // Create mutable notification content
+        let content = UNMutableNotificationContent()
+
+        // Configure as communication notification
+        do {
+            content.contentType = try UNNotificationContent.ContentType(intent: intent)
+        } catch {
+            print("   ⚠️ Failed to set content type: \(error)")
+        }
+
+        content.title = "📍 \(storeName)"
+        content.body = messageBody
+        content.sound = .default
+        content.interruptionLevel = .timeSensitive
+        content.relevanceScore = 1.0
+        content.categoryIdentifier = "STORE_PROXIMITY"
+
+        // Store the intent in userInfo for handling
+        if let intentData = try? NSKeyedArchiver.archivedData(withRootObject: intent, requiringSecureCoding: false) {
+            content.userInfo = ["intent": intentData]
+        }
 
         return content
     }
