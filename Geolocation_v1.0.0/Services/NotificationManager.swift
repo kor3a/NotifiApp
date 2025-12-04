@@ -27,6 +27,7 @@ class NotificationManager: NSObject, ObservableObject {
 
     private func registerNotificationCategories() {
         // Create a category for store proximity notifications
+        // Note: Using no options (empty array) allows CarPlay to handle notification display naturally
         let category = UNNotificationCategory(
             identifier: "STORE_PROXIMITY",
             actions: [],
@@ -77,7 +78,7 @@ class NotificationManager: NSObject, ObservableObject {
         }
 
         content.sound = .default
-        content.categoryIdentifier = "STORE_PROXIMITY"
+        // Don't set categoryIdentifier - allows CarPlay to handle notification naturally
 
         // Create a unique identifier
         let identifier = "proximity_\(storeName)_\(Date().timeIntervalSince1970)"
