@@ -26,26 +26,30 @@ class NotificationManager: NSObject, ObservableObject {
     // MARK: - Category Registration
 
     private func registerNotificationCategories() {
-        // Create a category for store proximity notifications
+        // Create a category for store proximity notifications with CarPlay support
         let category = UNNotificationCategory(
             identifier: "STORE_PROXIMITY",
             actions: [],
             intentIdentifiers: [],
-            options: [.customDismissAction]
+            options: [.customDismissAction, .allowInCarPlay, .allowAnnouncement]
         )
 
         notificationCenter.setNotificationCategories([category])
-        print("✅ Registered notification categories")
+        print("✅ Registered notification categories with CarPlay and announcement support")
     }
 
     // MARK: - Permission Management
 
     func requestAuthorization() async -> Bool {
         do {
-            let granted = try await notificationCenter.requestAuthorization(options: [.alert, .sound, .badge])
+            // Request all notification capabilities including CarPlay announcements
+            let granted = try await notificationCenter.requestAuthorization(
+                options: [.alert, .sound, .badge, .announcement, .timeSensitive]
+            )
             await MainActor.run {
                 isAuthorized = granted
             }
+            print("📱 Notification authorization granted: \(granted)")
             return granted
         } catch {
             print("Error requesting notification authorization: \(error)")
