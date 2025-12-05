@@ -121,6 +121,9 @@ struct HomeView: View {
             } else {
                 print("⚠️ HomeView: Notification permission denied")
             }
+
+            // Debug: Print detailed notification settings
+            notificationManager.debugNotificationSettings()
         }
 
         // Request location permission and start monitoring

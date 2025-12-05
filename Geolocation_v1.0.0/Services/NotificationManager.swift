@@ -61,6 +61,23 @@ class NotificationManager: NSObject, ObservableObject {
         }
     }
 
+    // MARK: - Debug Methods
+
+    func debugNotificationSettings() {
+        notificationCenter.getNotificationSettings { settings in
+            print("=== NOTIFICATION SETTINGS DEBUG ===")
+            print("Authorization: \(settings.authorizationStatus.rawValue)")
+            print("Alert: \(settings.alertSetting.rawValue)")
+            print("Sound: \(settings.soundSetting.rawValue)")
+            print("Badge: \(settings.badgeSetting.rawValue)")
+            print("CarPlay: \(settings.carPlaySetting.rawValue)")
+            print("Critical Alert: \(settings.criticalAlertSetting.rawValue)")
+            print("TimeSensitive: \(settings.timeSensitiveSetting.rawValue)")
+            print("Announcement: \(settings.announcementSetting.rawValue)")
+            print("==================================")
+        }
+    }
+
     // MARK: - Notification Scheduling
 
     func scheduleStoreProximityNotification(storeName: String, reminderCount: Int) {
