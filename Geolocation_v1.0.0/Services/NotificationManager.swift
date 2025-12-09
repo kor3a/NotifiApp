@@ -42,10 +42,9 @@ class NotificationManager: NSObject, ObservableObject {
 
     func requestAuthorization() async -> Bool {
         do {
-            // Request all notification capabilities including CarPlay announcements
-            let granted = try await notificationCenter.requestAuthorization(
-                options: [.alert, .sound, .badge, .announcement, .timeSensitive]
-            )
+
+            let granted = try await notificationCenter.requestAuthorization(options: [.alert, .sound, .badge, .carPlay])
+
             await MainActor.run {
                 isAuthorized = granted
             }

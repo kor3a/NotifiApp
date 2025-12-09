@@ -12,6 +12,7 @@ struct HomeView: View {
     @ObservedObject private var notificationManager = NotificationManager.shared
     @ObservedObject private var locationMonitor = LocationMonitoringManager.shared
     @ObservedObject private var storesViewModel = StoresViewModel()
+    @StateObject private var messagesViewModel = MessagesViewModel()
     @State private var selectedTab = 0
     @State private var isSearchExpanded = false
     @State private var searchQuery = ""
@@ -56,6 +57,17 @@ struct HomeView: View {
             .tag(0)
 
             NavigationStack {
+                MessagesView()
+                    .navigationBarTitleDisplayMode(.large)
+            }//:NAVIGATIONSTACK
+            .tabItem {
+                Image(systemName: "message")
+                Text("Messages")
+            }
+            .badge(messagesViewModel.totalUnreadCount > 0 ? messagesViewModel.totalUnreadCount : 0)
+            .tag(1)
+
+            NavigationStack {
                 MapView(
                     selectedTab: $selectedTab,
                     isSearchExpanded: $isSearchExpanded,
@@ -67,7 +79,7 @@ struct HomeView: View {
                 Image(systemName: "map")
                 Text("Search")
             }
-            .tag(1)
+            .tag(2)
         }
         .sheet(isPresented: $showNotificationLog) {
             NotificationLogView()
@@ -76,6 +88,8 @@ struct HomeView: View {
             initializeLocationNotifications()
             // Fetch stores for migration
             storesViewModel.fetchUserStores()
+            // Fetch unread message count for badge
+            messagesViewModel.fetchUnreadCount()
         }
         .onChange(of: sessionManager.currentUser) { newUser in
             // Start monitoring when user data becomes available
