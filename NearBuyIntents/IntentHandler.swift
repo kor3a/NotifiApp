@@ -52,7 +52,8 @@ class SendMessageIntentHandler: NSObject, INSendMessageIntentHandling {
         for recipient in recipients {
             dispatchGroup.enter()
 
-            if let displayName = recipient.displayName {
+            let displayName = recipient.displayName
+            if !displayName.isEmpty {
                 // Search for user by name
                 searchUser(byName: displayName) { person in
                     if let person = person {
