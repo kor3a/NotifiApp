@@ -174,11 +174,14 @@ class MessagingService: ObservableObject {
         ]
 
         if let reminder = linkedReminder {
-            messageData["linkedReminder"] = [
+            var reminderData: [String: Any] = [
                 "reminderTitle": reminder.reminderTitle,
-                "storeName": reminder.storeName,
-                "storeAddress": reminder.storeAddress ?? NSNull()
+                "storeName": reminder.storeName
             ]
+            if let address = reminder.storeAddress {
+                reminderData["storeAddress"] = address
+            }
+            messageData["linkedReminder"] = reminderData
         }
 
         var ref: DocumentReference?
