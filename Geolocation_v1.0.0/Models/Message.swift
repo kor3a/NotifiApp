@@ -40,7 +40,7 @@ struct LinkedReminder: Codable, Equatable {
 }
 
 /// Represents a conversation between users
-struct Conversation: Codable, Identifiable, Equatable {
+struct Conversation: Codable, Identifiable, Equatable, Hashable {
     let id: String
     let participantIds: [String]
     let participantNames: [String: String] // userId -> name mapping
@@ -59,6 +59,11 @@ struct Conversation: Codable, Identifiable, Equatable {
         case lastMessageAt
         case lastMessageSenderId
         case unreadCount
+    }
+
+    // Hashable conformance using only id
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
     }
 
     /// Get the other participant's name for display
