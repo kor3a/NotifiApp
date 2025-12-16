@@ -372,8 +372,11 @@ class MessagingService: ObservableObject {
                     return
                 }
 
+                // Use userId field if available, otherwise fall back to document ID
+                let userId = data["userId"] as? String ?? doc.documentID
+
                 let contact = Contact(
-                    id: doc.documentID,
+                    id: userId,
                     name: name,
                     email: email,
                     profilePictureURL: data["profilePictureURL"] as? String
