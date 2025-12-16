@@ -90,13 +90,14 @@ class MessagingService: ObservableObject {
         otherUserName: String,
         completion: @escaping (Result<Conversation, Error>) -> Void
     ) {
+        let now = Date().timeIntervalSince1970
         let conversationData: [String: Any] = [
             "participantIds": [currentUserId, otherUserId],
             "participantNames": [currentUserId: currentUserName, otherUserId: otherUserName],
-            "createdAt": Date().timeIntervalSince1970,
-            "lastMessageContent": NSNull(),
-            "lastMessageAt": NSNull(),
-            "lastMessageSenderId": NSNull(),
+            "createdAt": now,
+            "lastMessageContent": "",
+            "lastMessageAt": now,  // Use creation time so it appears in ordered queries
+            "lastMessageSenderId": "",
             "unreadCount": [currentUserId: 0, otherUserId: 0]
         ]
 
@@ -116,10 +117,10 @@ class MessagingService: ObservableObject {
                 id: docId,
                 participantIds: [currentUserId, otherUserId],
                 participantNames: [currentUserId: currentUserName, otherUserId: otherUserName],
-                createdAt: Date().timeIntervalSince1970,
-                lastMessageContent: nil,
-                lastMessageAt: nil,
-                lastMessageSenderId: nil,
+                createdAt: now,
+                lastMessageContent: "",
+                lastMessageAt: now,
+                lastMessageSenderId: "",
                 unreadCount: [currentUserId: 0, otherUserId: 0]
             )
 
