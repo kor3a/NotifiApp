@@ -14,6 +14,7 @@ struct ReminderView: View {
     @State private var reminderTitle: String = ""
     @AppStorage("autoDeleteReminders") private var autoDeleteEnabled = false
     @State private var fadingReminderIds: Set<String> = []
+    @State private var reminderToShare: Reminder?
     @Environment(\.colorScheme) var colorScheme
 
     var body: some View {
@@ -80,6 +81,14 @@ struct ReminderView: View {
                                         Label("Delete", systemImage: "trash")
                                     }
                                 }
+                            }
+                            .swipeActions(edge: .leading) {
+                                Button {
+                                    reminderToShare = reminder
+                                } label: {
+                                    Label("Share", systemImage: "square.and.arrow.up")
+                                }
+                                .tint(.blue)
                             }
                             .onTapGesture {
                                 if userStoreItem.permission != .view {
@@ -149,6 +158,9 @@ struct ReminderView: View {
             if newValue && !oldValue {
                 deleteCompletedReminders()
             }
+        }
+        .sheet(item: $reminderToShare) { reminder in
+            ShareReminderView(reminder: reminder, store: userStoreItem.store)
         }
     }
 

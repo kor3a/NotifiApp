@@ -26,26 +26,29 @@ class NotificationManager: NSObject, ObservableObject {
     // MARK: - Category Registration
 
     private func registerNotificationCategories() {
-        // Create a category for store proximity notifications
+        // Create a category for store proximity notifications with CarPlay support
         let category = UNNotificationCategory(
             identifier: "STORE_PROXIMITY",
             actions: [],
             intentIdentifiers: [],
-            options: [.customDismissAction]
+            options: [.customDismissAction, .allowInCarPlay, .allowAnnouncement]
         )
 
         notificationCenter.setNotificationCategories([category])
-        print("✅ Registered notification categories")
+        print("✅ Registered notification categories with CarPlay and announcement support")
     }
 
     // MARK: - Permission Management
 
     func requestAuthorization() async -> Bool {
         do {
-            let granted = try await notificationCenter.requestAuthorization(options: [.alert, .sound, .badge])
+
+            let granted = try await notificationCenter.requestAuthorization(options: [.alert, .sound, .badge, .carPlay])
+
             await MainActor.run {
                 isAuthorized = granted
             }
+            print("📱 Notification authorization granted: \(granted)")
             return granted
         } catch {
             print("Error requesting notification authorization: \(error)")
@@ -58,6 +61,23 @@ class NotificationManager: NSObject, ObservableObject {
             DispatchQueue.main.async {
                 self.isAuthorized = settings.authorizationStatus == .authorized
             }
+        }
+    }
+
+    // MARK: - Debug Methods
+
+    func debugNotificationSettings() {
+        notificationCenter.getNotificationSettings { settings in
+            print("=== NOTIFICATION SETTINGS DEBUG ===")
+            print("Authorization: \(settings.authorizationStatus.rawValue)")
+            print("Alert: \(settings.alertSetting.rawValue)")
+            print("Sound: \(settings.soundSetting.rawValue)")
+            print("Badge: \(settings.badgeSetting.rawValue)")
+            print("CarPlay: \(settings.carPlaySetting.rawValue)")
+            print("Critical Alert: \(settings.criticalAlertSetting.rawValue)")
+            print("TimeSensitive: \(settings.timeSensitiveSetting.rawValue)")
+            print("Announcement: \(settings.announcementSetting.rawValue)")
+            print("==================================")
         }
     }
 
