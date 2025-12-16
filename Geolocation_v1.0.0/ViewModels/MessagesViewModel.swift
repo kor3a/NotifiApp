@@ -19,8 +19,10 @@ class MessagesViewModel: ObservableObject {
     @Published var totalUnreadCount = 0
 
     private let messagingService = MessagingService.shared
+
+    // Use the userId from user profile (stored in Firestore), NOT Auth UID
     private var currentUserId: String? {
-        Auth.auth().currentUser?.uid
+        UserSessionManager.shared.currentUser?.userId
     }
 
     // MARK: - Conversations
