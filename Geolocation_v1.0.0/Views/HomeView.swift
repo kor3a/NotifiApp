@@ -57,14 +57,17 @@ struct HomeView: View {
             .tag(0)
 
             NavigationStack {
-                MessagesView()
+                MessagesView(viewModel: messagesViewModel)
                     .navigationBarTitleDisplayMode(.large)
             }//:NAVIGATIONSTACK
             .tabItem {
                 Image(systemName: "message")
                 Text("Messages")
             }
-            .badge(messagesViewModel.totalUnreadCount > 0 ? messagesViewModel.totalUnreadCount : 0)
+            .badge(messagesViewModel.totalUnreadCount)
+            .onChange(of: messagesViewModel.totalUnreadCount) { oldValue, newValue in
+                print("📱 HomeView: Badge count changed from \(oldValue) to \(newValue)")
+            }
             .tag(1)
 
             NavigationStack {
@@ -92,6 +95,11 @@ struct HomeView: View {
             messagesViewModel.fetchUnreadCount()
         }
         .onChange(of: sessionManager.currentUser) { newUser in
+            // Fetch unread message count whenever user data becomes available
+            if newUser?.userId != nil {
+                messagesViewModel.fetchUnreadCount()
+            }
+
             // Start monitoring when user data becomes available
             if let userId = newUser?.userId, !locationMonitor.isMonitoring {
                 let locationStatus = locationMonitor.checkLocationPermission()

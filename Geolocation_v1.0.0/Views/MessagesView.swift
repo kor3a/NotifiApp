@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct MessagesView: View {
-    @StateObject private var viewModel = MessagesViewModel()
+    @ObservedObject var viewModel: MessagesViewModel
     @ObservedObject private var sessionManager = UserSessionManager.shared
     @State private var showNewMessage = false
     @Environment(\.colorScheme) var colorScheme
@@ -300,6 +300,6 @@ struct ContactRow: View {
 
 #Preview {
     NavigationStack {
-        MessagesView()
+        MessagesView(viewModel: MessagesViewModel())
     }
 }
