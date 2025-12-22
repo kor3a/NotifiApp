@@ -110,6 +110,9 @@ struct HomeView: View {
                 // Fetch stores now that user data is available
                 storesViewModel.fetchUserStores()
 
+                // Fetch unread message count now that user data is available
+                messagesViewModel.fetchUnreadCount()
+
                 // Run coordinate migration once per session
                 if !hasMigratedCoordinates {
                     hasMigratedCoordinates = true
