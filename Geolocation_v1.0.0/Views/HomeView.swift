@@ -64,7 +64,7 @@ struct HomeView: View {
                 Image(systemName: "message")
                 Text("Messages")
             }
-            .badge(messagesViewModel.totalUnreadCount > 0 ? messagesViewModel.totalUnreadCount : nil)
+            .badge(messagesViewModel.totalUnreadCount)
             .tag(1)
 
             NavigationStack {
