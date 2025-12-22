@@ -65,6 +65,9 @@ struct HomeView: View {
                 Text("Messages")
             }
             .badge(messagesViewModel.totalUnreadCount)
+            .onChange(of: messagesViewModel.totalUnreadCount) { oldValue, newValue in
+                print("📱 HomeView: Badge count changed from \(oldValue) to \(newValue)")
+            }
             .tag(1)
 
             NavigationStack {

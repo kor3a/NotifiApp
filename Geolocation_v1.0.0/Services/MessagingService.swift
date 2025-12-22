@@ -524,22 +524,36 @@ class MessagingService: ObservableObject {
 
     /// Get total unread message count for badge
     func getTotalUnreadCount(for userId: String, completion: @escaping (Int) -> Void) {
+        print("📊 MessagingService.getTotalUnreadCount: Setting up listener for userId: \(userId)")
         db.collection("conversations")
             .whereField("participantIds", arrayContains: userId)
             .addSnapshotListener { snapshot, error in
-                guard let documents = snapshot?.documents else {
+                if let error = error {
+                    print("❌ MessagingService.getTotalUnreadCount: Error: \(error.localizedDescription)")
                     completion(0)
                     return
                 }
 
+                guard let documents = snapshot?.documents else {
+                    print("📊 MessagingService.getTotalUnreadCount: No documents found")
+                    completion(0)
+                    return
+                }
+
+                print("📊 MessagingService.getTotalUnreadCount: Found \(documents.count) conversations")
                 var totalUnread = 0
                 for doc in documents {
                     let data = doc.data()
                     if let unreadCount = data["unreadCount"] as? [String: Int] {
-                        totalUnread += unreadCount[userId] ?? 0
+                        let count = unreadCount[userId] ?? 0
+                        print("   - Conversation \(doc.documentID): unread count = \(count)")
+                        totalUnread += count
+                    } else {
+                        print("   - Conversation \(doc.documentID): no unreadCount field")
                     }
                 }
 
+                print("📊 MessagingService.getTotalUnreadCount: Total unread = \(totalUnread)")
                 completion(totalUnread)
             }
     }

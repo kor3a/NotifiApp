@@ -46,11 +46,17 @@ class MessagesViewModel: ObservableObject {
     }
 
     func fetchUnreadCount() {
-        guard let userId = currentUserId else { return }
+        guard let userId = currentUserId else {
+            print("⚠️ MessagesViewModel.fetchUnreadCount: No userId available")
+            return
+        }
 
+        print("📊 MessagesViewModel.fetchUnreadCount: Starting for userId: \(userId)")
         messagingService.getTotalUnreadCount(for: userId) { [weak self] count in
             DispatchQueue.main.async {
+                print("📊 MessagesViewModel.fetchUnreadCount: Received count: \(count)")
                 self?.totalUnreadCount = count
+                print("📊 MessagesViewModel.totalUnreadCount updated to: \(self?.totalUnreadCount ?? -1)")
             }
         }
     }
