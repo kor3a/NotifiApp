@@ -57,7 +57,7 @@ struct HomeView: View {
             .tag(0)
 
             NavigationStack {
-                MessagesView()
+                MessagesView(viewModel: messagesViewModel)
                     .navigationBarTitleDisplayMode(.large)
             }//:NAVIGATIONSTACK
             .tabItem {
