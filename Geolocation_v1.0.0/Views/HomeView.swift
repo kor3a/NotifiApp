@@ -95,6 +95,11 @@ struct HomeView: View {
             messagesViewModel.fetchUnreadCount()
         }
         .onChange(of: sessionManager.currentUser) { newUser in
+            // Fetch unread message count whenever user data becomes available
+            if newUser?.userId != nil {
+                messagesViewModel.fetchUnreadCount()
+            }
+
             // Start monitoring when user data becomes available
             if let userId = newUser?.userId, !locationMonitor.isMonitoring {
                 let locationStatus = locationMonitor.checkLocationPermission()
@@ -109,9 +114,6 @@ struct HomeView: View {
 
                 // Fetch stores now that user data is available
                 storesViewModel.fetchUserStores()
-
-                // Fetch unread message count now that user data is available
-                messagesViewModel.fetchUnreadCount()
 
                 // Run coordinate migration once per session
                 if !hasMigratedCoordinates {
