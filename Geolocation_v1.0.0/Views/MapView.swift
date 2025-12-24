@@ -78,10 +78,16 @@ struct MapView: View {
                 }
             }
 
-            // Search results
+            // Search results with modern pins
             ForEach(results, id: \.self) { item in
                 let placemark = item.placemark
-                Marker(placemark.name ?? "", coordinate: placemark.coordinate)
+                Annotation(placemark.name ?? "", coordinate: placemark.coordinate) {
+                    SearchResultPinView(name: placemark.name ?? "Location")
+                        .onTapGesture {
+                            mapSelection = item
+                        }
+                }
+                .annotationTitles(.hidden)
             }
         }//:MAP
         .onMapCameraChange(frequency: .continuous) { context in
@@ -497,6 +503,114 @@ extension MapView {
     }
 }
 
+// MARK: - Modern Search Result Pin
+
+struct SearchResultPinView: View {
+    let name: String
+    @State private var isAnimating = false
+
+    var body: some View {
+        VStack(spacing: 0) {
+            // Pin head with gradient and icon
+            ZStack {
+                // Outer glow/shadow circle
+                Circle()
+                    .fill(
+                        RadialGradient(
+                            colors: [Color.orange.opacity(0.3), Color.clear],
+                            center: .center,
+                            startRadius: 0,
+                            endRadius: 24
+                        )
+                    )
+                    .frame(width: 48, height: 48)
+
+                // Main pin circle with gradient
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            colors: [Color.orange, Color.red.opacity(0.85)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 38, height: 38)
+                    .shadow(color: Color.black.opacity(0.25), radius: 4, x: 0, y: 3)
+
+                // Inner highlight for 3D effect
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            colors: [Color.white.opacity(0.4), Color.clear],
+                            startPoint: .topLeading,
+                            endPoint: .center
+                        )
+                    )
+                    .frame(width: 34, height: 34)
+                    .offset(x: -3, y: -3)
+
+                // Location icon
+                Image(systemName: "mappin")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(.white)
+            }
+
+            // Pin pointer/tail
+            Triangle()
+                .fill(
+                    LinearGradient(
+                        colors: [Color.red.opacity(0.85), Color.red.opacity(0.7)],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+                .frame(width: 14, height: 10)
+                .offset(y: -3)
+                .shadow(color: Color.black.opacity(0.2), radius: 2, x: 0, y: 2)
+
+            // Name label
+            Text(name)
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundColor(.primary)
+                .lineLimit(1)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(
+                    Capsule()
+                        .fill(.ultraThinMaterial)
+                        .shadow(color: Color.black.opacity(0.15), radius: 3, x: 0, y: 2)
+                )
+                .offset(y: 4)
+        }
+        .scaleEffect(isAnimating ? 1.0 : 0.5)
+        .opacity(isAnimating ? 1.0 : 0)
+        .onAppear {
+            withAnimation(.spring(response: 0.4, dampingFraction: 0.6)) {
+                isAnimating = true
+            }
+        }
+    }
+}
+
+// Triangle shape for pin pointer
+struct Triangle: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        path.move(to: CGPoint(x: rect.midX, y: rect.maxY))
+        path.addLine(to: CGPoint(x: rect.minX, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.minY))
+        path.closeSubpath()
+        return path
+    }
+}
+
 #Preview {
     MapView(selectedTab: .constant(2), isSearchExpanded: .constant(false), searchQuery: .constant(""), messagesViewModel: MessagesViewModel())
+}
+
+#Preview("Search Pin") {
+    ZStack {
+        Color.gray.opacity(0.3)
+        SearchResultPinView(name: "Coffee Shop")
+    }
 }
