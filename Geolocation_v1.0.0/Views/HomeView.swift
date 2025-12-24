@@ -74,7 +74,8 @@ struct HomeView: View {
                 MapView(
                     selectedTab: $selectedTab,
                     isSearchExpanded: $isSearchExpanded,
-                    searchQuery: $searchQuery
+                    searchQuery: $searchQuery,
+                    messagesViewModel: messagesViewModel
                 )
                 .toolbar(.hidden, for: .tabBar)
             }//:NAVIGATIONSTACK

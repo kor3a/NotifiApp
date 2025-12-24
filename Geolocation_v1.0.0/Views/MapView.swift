@@ -33,6 +33,9 @@ struct MapView: View {
     @Binding var searchQuery: String
     @FocusState private var isSearchFocused: Bool
 
+    // Messages view model for unread badge
+    @ObservedObject var messagesViewModel: MessagesViewModel
+
     // Clustering
     private let clusterManager = StoreClusterManager()
     @State private var clusteredAnnotations: [StoreAnnotation] = []
@@ -242,10 +245,44 @@ struct MapView: View {
                     .frame(width: 60, height: 50)
                 }
 
-                // Map tab
+                // Messages tab
                 Button(action: {
                     withAnimation(.spring(response: 0.3)) {
                         selectedTab = 1
+                        // Close search when switching tabs
+                        if isSearchExpanded {
+                            isSearchExpanded = false
+                            searchQuery = ""
+                        }
+                    }
+                }) {
+                    VStack(spacing: 4) {
+                        ZStack(alignment: .topTrailing) {
+                            Image(systemName: "message")
+                                .font(.system(size: 20))
+                            // Unread badge
+                            if messagesViewModel.totalUnreadCount > 0 {
+                                Text("\(messagesViewModel.totalUnreadCount)")
+                                    .font(.system(size: 10, weight: .bold))
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, 5)
+                                    .padding(.vertical, 2)
+                                    .background(Color.red)
+                                    .clipShape(Capsule())
+                                    .offset(x: 10, y: -8)
+                            }
+                        }
+                        Text("Messages")
+                            .font(.system(size: 11))
+                    }
+                    .foregroundColor(selectedTab == 1 ? .blue : .primary)
+                    .frame(width: 60, height: 50)
+                }
+
+                // Map tab
+                Button(action: {
+                    withAnimation(.spring(response: 0.3)) {
+                        selectedTab = 2
                     }
                 }) {
                     VStack(spacing: 4) {
@@ -254,7 +291,7 @@ struct MapView: View {
                         Text("Search")
                             .font(.system(size: 11))
                     }
-                    .foregroundColor(selectedTab == 1 ? .blue : .primary)
+                    .foregroundColor(selectedTab == 2 ? .blue : .primary)
                     .frame(width: 60, height: 50)
                 }
             }
@@ -461,5 +498,5 @@ extension MapView {
 }
 
 #Preview {
-    MapView(selectedTab: .constant(1), isSearchExpanded: .constant(false), searchQuery: .constant(""))
+    MapView(selectedTab: .constant(2), isSearchExpanded: .constant(false), searchQuery: .constant(""), messagesViewModel: MessagesViewModel())
 }
