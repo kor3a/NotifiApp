@@ -205,11 +205,18 @@ class MessagesViewModel: ObservableObject {
         ) { [weak self] result in
             switch result {
             case .success(let conversation):
-                // Now send message with linked reminder
+                // Now send message with linked reminder including all necessary info for accept/reject
                 let linkedReminder = LinkedReminder(
                     reminderTitle: reminder.title,
                     storeName: store.name,
-                    storeAddress: store.address
+                    storeAddress: store.address,
+                    reminderId: reminder.id,
+                    storeId: store.id,
+                    senderUserId: userId,
+                    status: .pending,
+                    storeLatitude: store.latitude,
+                    storeLongitude: store.longitude,
+                    storeImageURL: store.imageURL
                 )
 
                 let messageContent = customMessage ?? "Can you pick up \(reminder.title) at \(store.name)?"
@@ -235,6 +242,60 @@ class MessagesViewModel: ObservableObject {
             case .failure(let error):
                 print("MessagesViewModel: Error creating conversation for reminder: \(error)")
                 DispatchQueue.main.async {
+                    completion(false)
+                }
+            }
+        }
+    }
+
+    // MARK: - Shared Reminder Accept/Reject
+
+    func acceptSharedReminder(
+        message: Message,
+        completion: @escaping (Bool) -> Void
+    ) {
+        guard let userId = currentUserId,
+              let userEmail = UserSessionManager.shared.currentUser?.email,
+              let linkedReminder = message.linkedReminder else {
+            completion(false)
+            return
+        }
+
+        messagingService.acceptSharedReminder(
+            messageId: message.id,
+            linkedReminder: linkedReminder,
+            currentUserId: userId,
+            currentUserEmail: userEmail,
+            senderName: message.senderName
+        ) { result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success:
+                    print("MessagesViewModel: Successfully accepted shared reminder")
+                    completion(true)
+                case .failure(let error):
+                    print("MessagesViewModel: Error accepting shared reminder: \(error)")
+                    completion(false)
+                }
+            }
+        }
+    }
+
+    func rejectSharedReminder(
+        message: Message,
+        completion: @escaping (Bool) -> Void
+    ) {
+        messagingService.updateLinkedReminderStatus(
+            messageId: message.id,
+            status: .rejected
+        ) { result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success:
+                    print("MessagesViewModel: Successfully rejected shared reminder")
+                    completion(true)
+                case .failure(let error):
+                    print("MessagesViewModel: Error rejecting shared reminder: \(error)")
                     completion(false)
                 }
             }

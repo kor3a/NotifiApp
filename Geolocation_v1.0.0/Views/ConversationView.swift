@@ -28,7 +28,8 @@ struct ConversationView: View {
                         ForEach(viewModel.messages) { message in
                             MessageBubble(
                                 message: message,
-                                isFromCurrentUser: viewModel.isCurrentUser(message.senderId)
+                                isFromCurrentUser: viewModel.isCurrentUser(message.senderId),
+                                viewModel: viewModel
                             )
                             .id(message.id)
                         }
@@ -117,6 +118,7 @@ struct ConversationView: View {
 struct MessageBubble: View {
     let message: Message
     let isFromCurrentUser: Bool
+    @ObservedObject var viewModel: MessagesViewModel
     @Environment(\.colorScheme) var colorScheme
 
     var body: some View {
@@ -126,7 +128,12 @@ struct MessageBubble: View {
             VStack(alignment: isFromCurrentUser ? .trailing : .leading, spacing: 4) {
                 // Linked reminder card if present
                 if let reminder = message.linkedReminder {
-                    ReminderCard(reminder: reminder, isFromCurrentUser: isFromCurrentUser)
+                    ReminderCard(
+                        message: message,
+                        reminder: reminder,
+                        isFromCurrentUser: isFromCurrentUser,
+                        viewModel: viewModel
+                    )
                 }
 
                 // Message content
@@ -160,9 +167,49 @@ struct MessageBubble: View {
 // MARK: - Reminder Card
 
 struct ReminderCard: View {
+    let message: Message
     let reminder: LinkedReminder
     let isFromCurrentUser: Bool
+    @ObservedObject var viewModel: MessagesViewModel
     @Environment(\.colorScheme) var colorScheme
+    @State private var isProcessing = false
+
+    // Determine if accept/reject buttons should be shown
+    private var showActionButtons: Bool {
+        // Only show for messages not from current user with pending status
+        // Also require that the reminder has the necessary fields for acceptance
+        guard !isFromCurrentUser,
+              reminder.storeId != nil,
+              let status = reminder.status else {
+            // For older messages without status, treat as pending if not from current user
+            return !isFromCurrentUser && reminder.storeId != nil
+        }
+        return status == .pending
+    }
+
+    private var statusText: String? {
+        guard let status = reminder.status else { return nil }
+        switch status {
+        case .accepted:
+            return "Accepted"
+        case .rejected:
+            return "Declined"
+        case .pending:
+            return nil
+        }
+    }
+
+    private var statusColor: Color {
+        guard let status = reminder.status else { return .gray }
+        switch status {
+        case .accepted:
+            return .green
+        case .rejected:
+            return .red
+        case .pending:
+            return .gray
+        }
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -173,6 +220,22 @@ struct ReminderCard: View {
                     .font(.caption)
                     .fontWeight(.semibold)
                     .foregroundColor(.appAccent)
+
+                Spacer()
+
+                // Show status badge if not pending
+                if let status = statusText {
+                    Text(status)
+                        .font(.caption2)
+                        .fontWeight(.medium)
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(
+                            Capsule()
+                                .fill(statusColor)
+                        )
+                }
             }
 
             Text(reminder.reminderTitle)
@@ -197,6 +260,55 @@ struct ReminderCard: View {
                 }
                 .foregroundColor(.secondary)
             }
+
+            // Accept/Reject buttons for pending shared reminders
+            if showActionButtons {
+                HStack(spacing: 12) {
+                    Button {
+                        acceptReminder()
+                    } label: {
+                        HStack {
+                            if isProcessing {
+                                ProgressView()
+                                    .scaleEffect(0.8)
+                            } else {
+                                Image(systemName: "checkmark")
+                            }
+                            Text("Accept")
+                        }
+                        .font(.caption)
+                        .fontWeight(.medium)
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 8)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(Color.green)
+                        )
+                    }
+                    .disabled(isProcessing)
+
+                    Button {
+                        rejectReminder()
+                    } label: {
+                        HStack {
+                            Image(systemName: "xmark")
+                            Text("Decline")
+                        }
+                        .font(.caption)
+                        .fontWeight(.medium)
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 8)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(Color.red.opacity(0.8))
+                        )
+                    }
+                    .disabled(isProcessing)
+                }
+                .padding(.top, 4)
+            }
         }
         .padding(12)
         .frame(maxWidth: 250, alignment: .leading)
@@ -208,6 +320,30 @@ struct ReminderCard: View {
                         .stroke(Color.appAccent.opacity(0.3), lineWidth: 1)
                 )
         )
+    }
+
+    private func acceptReminder() {
+        isProcessing = true
+        viewModel.acceptSharedReminder(message: message) { success in
+            isProcessing = false
+            if success {
+                print("ReminderCard: Successfully accepted reminder")
+            } else {
+                print("ReminderCard: Failed to accept reminder")
+            }
+        }
+    }
+
+    private func rejectReminder() {
+        isProcessing = true
+        viewModel.rejectSharedReminder(message: message) { success in
+            isProcessing = false
+            if success {
+                print("ReminderCard: Successfully rejected reminder")
+            } else {
+                print("ReminderCard: Failed to reject reminder")
+            }
+        }
     }
 }
 

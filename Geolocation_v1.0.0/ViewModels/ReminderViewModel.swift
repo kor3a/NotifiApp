@@ -55,12 +55,20 @@ class ReminderViewModel: ObservableObject {
                             return nil
                         }
 
+                        // Parse optional shared fields
+                        let isShared = data["isShared"] as? Bool
+                        let sharedFrom = data["sharedFrom"] as? String
+                        let sharedAt = data["sharedAt"] as? TimeInterval
+
                         return Reminder(
                             id: doc.documentID,
                             userStoreId: userStoreId,
                             title: title,
                             isDone: isDone,
-                            createdAt: createdAt
+                            createdAt: createdAt,
+                            isShared: isShared,
+                            sharedFrom: sharedFrom,
+                            sharedAt: sharedAt
                         )
                     }
 
