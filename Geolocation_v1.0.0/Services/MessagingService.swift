@@ -707,6 +707,7 @@ class MessagingService: ObservableObject {
                 }
 
                 // Create the recipient's reminder with sharedReminderId
+                // Include both sender and recipient in sharedWith so everyone sees who it's shared with
                 let reminderData: [String: Any] = [
                     "userStoreId": userStoreId,
                     "title": reminderTitle,
@@ -715,7 +716,8 @@ class MessagingService: ObservableObject {
                     "isShared": true,
                     "sharedFrom": senderName,
                     "sharedAt": Date().timeIntervalSince1970,
-                    "sharedReminderId": sharedReminderId
+                    "sharedReminderId": sharedReminderId,
+                    "sharedWith": [senderName, recipientName]
                 ]
 
                 self.db.collection("reminders").addDocument(data: reminderData) { [weak self] error in
@@ -738,7 +740,7 @@ class MessagingService: ObservableObject {
             }
     }
 
-    /// Update the sender's original reminder with sharedReminderId and sharedWith
+    /// Update the sender's original reminder with sharedReminderId and sharedWith, then sync to all linked reminders
     private func updateSenderReminder(
         originalReminderId: String?,
         recipientName: String,
@@ -776,16 +778,64 @@ class MessagingService: ObservableObject {
                 "sharedWith": sharedWith,
                 "sharedAt": Date().timeIntervalSince1970
             ]) { [weak self] error in
+                guard let self = self else { return }
+
                 if let error = error {
                     print("MessagingService: Error updating sender reminder: \(error.localizedDescription)")
-                } else {
-                    print("MessagingService: Updated sender reminder with sharedReminderId and sharedWith")
+                    self.updateLinkedReminderStatus(messageId: messageId, status: .accepted, completion: completion)
+                    return
                 }
 
-                // Update message status to accepted
-                self?.updateLinkedReminderStatus(messageId: messageId, status: .accepted, completion: completion)
+                print("MessagingService: Updated sender reminder with sharedReminderId and sharedWith")
+
+                // Sync sharedWith to ALL linked reminders so everyone sees the complete list
+                self.syncSharedWithAcrossLinkedReminders(sharedReminderId: sharedReminderId, sharedWith: sharedWith) {
+                    self.updateLinkedReminderStatus(messageId: messageId, status: .accepted, completion: completion)
+                }
             }
         }
+    }
+
+    /// Sync the sharedWith array across all reminders with the same sharedReminderId
+    private func syncSharedWithAcrossLinkedReminders(
+        sharedReminderId: String,
+        sharedWith: [String],
+        completion: @escaping () -> Void
+    ) {
+        db.collection("reminders")
+            .whereField("sharedReminderId", isEqualTo: sharedReminderId)
+            .getDocuments { [weak self] snapshot, error in
+                guard let self = self else {
+                    completion()
+                    return
+                }
+
+                if let error = error {
+                    print("MessagingService: Error finding linked reminders for sync: \(error.localizedDescription)")
+                    completion()
+                    return
+                }
+
+                guard let documents = snapshot?.documents, !documents.isEmpty else {
+                    completion()
+                    return
+                }
+
+                // Batch update all linked reminders with the same sharedWith
+                let batch = self.db.batch()
+                for doc in documents {
+                    batch.updateData(["sharedWith": sharedWith], forDocument: doc.reference)
+                }
+
+                batch.commit { error in
+                    if let error = error {
+                        print("MessagingService: Error syncing sharedWith: \(error.localizedDescription)")
+                    } else {
+                        print("MessagingService: Synced sharedWith across \(documents.count) linked reminders")
+                    }
+                    completion()
+                }
+            }
     }
 
     /// Add a new store and reminder for the user
@@ -856,6 +906,7 @@ class MessagingService: ObservableObject {
                     print("MessagingService: Created user_store: \(userStoreId)")
 
                     // Now create the reminder with sharedReminderId
+                    // Include both sender and recipient in sharedWith so everyone sees who it's shared with
                     let reminderData: [String: Any] = [
                         "userStoreId": userStoreId,
                         "title": linkedReminder.reminderTitle,
@@ -864,7 +915,8 @@ class MessagingService: ObservableObject {
                         "isShared": true,
                         "sharedFrom": senderName,
                         "sharedAt": Date().timeIntervalSince1970,
-                        "sharedReminderId": sharedReminderId
+                        "sharedReminderId": sharedReminderId,
+                        "sharedWith": [senderName, recipientName]
                     ]
 
                     self.db.collection("reminders").addDocument(data: reminderData) { [weak self] error in
