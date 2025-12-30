@@ -38,26 +38,18 @@ struct SharedBadge: View {
     let sharedFrom: String?
     let sharedWith: [String]?
 
-    private var badgeText: String {
-        if let sharedWith = sharedWith, !sharedWith.isEmpty {
-            // This user is the sender - show who they shared with
-            if sharedWith.count == 1 {
-                return sharedWith[0]
-            } else {
-                return "\(sharedWith.count) people"
-            }
-        } else if let sharedFrom = sharedFrom {
-            // This user is the receiver - show who shared it
-            return sharedFrom
-        }
-        return "Shared"
+    // Check sharedFrom FIRST to determine if user is recipient or sender
+    private var isRecipient: Bool {
+        sharedFrom != nil && !sharedFrom!.isEmpty
     }
 
     private var iconName: String {
-        if sharedWith != nil && !(sharedWith?.isEmpty ?? true) {
-            return "arrow.up.forward"
-        } else {
+        // If sharedFrom is set, user is a recipient (received from someone)
+        // If sharedFrom is NOT set, user is the sender (shared with others)
+        if isRecipient {
             return "arrow.down.backward"
+        } else {
+            return "arrow.up.forward"
         }
     }
 
@@ -79,10 +71,15 @@ struct SharedBadge: View {
     }
 
     private var tooltipText: String {
-        if let sharedWith = sharedWith, !sharedWith.isEmpty {
-            return "Shared with: \(sharedWith.joined(separator: ", "))"
-        } else if let sharedFrom = sharedFrom {
+        // Check sharedFrom FIRST - if set, user is a recipient
+        if let sharedFrom = sharedFrom, !sharedFrom.isEmpty {
+            if let sharedWith = sharedWith, !sharedWith.isEmpty {
+                return "Shared by \(sharedFrom) with \(sharedWith.count) people"
+            }
             return "Shared by \(sharedFrom)"
+        } else if let sharedWith = sharedWith, !sharedWith.isEmpty {
+            // No sharedFrom means user is the sender
+            return "Shared with: \(sharedWith.joined(separator: ", "))"
         }
         return "Shared reminder"
     }
