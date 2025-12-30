@@ -813,7 +813,7 @@ class MessagingService: ObservableObject {
 
                 let sortOrder = snapshot?.documents.count ?? 0
 
-                // Create user_store document
+                // Create user_store document with "edit" permission since it's shared
                 var userStoreData: [String: Any] = [
                     "userId": currentUserId,
                     "userEmail": currentUserEmail,
@@ -822,8 +822,10 @@ class MessagingService: ObservableObject {
                     "storeAddress": linkedReminder.storeAddress ?? "",
                     "addedAt": Date().timeIntervalSince1970,
                     "sortOrder": sortOrder,
-                    "permission": "owner",
-                    "notificationsEnabled": true
+                    "permission": "edit",
+                    "notificationsEnabled": true,
+                    "sharedFrom": senderName,
+                    "sharedAt": Date().timeIntervalSince1970
                 ]
 
                 if let latitude = linkedReminder.storeLatitude {
