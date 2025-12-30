@@ -256,6 +256,7 @@ class MessagesViewModel: ObservableObject {
     ) {
         guard let userId = currentUserId,
               let userEmail = UserSessionManager.shared.currentUser?.email,
+              let userName = UserSessionManager.shared.currentUser?.name,
               let linkedReminder = message.linkedReminder else {
             completion(false)
             return
@@ -266,7 +267,8 @@ class MessagesViewModel: ObservableObject {
             linkedReminder: linkedReminder,
             currentUserId: userId,
             currentUserEmail: userEmail,
-            senderName: message.senderName
+            senderName: message.senderName,
+            recipientName: userName
         ) { result in
             DispatchQueue.main.async {
                 switch result {

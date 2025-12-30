@@ -21,9 +21,12 @@ struct ReminderItemView: View {
 
             Spacer()
 
-            // Show "Shared" badge if the reminder was shared from another user
+            // Show "Shared" badge if the reminder is shared
             if item.isShared == true {
-                SharedBadge(sharedFrom: item.sharedFrom)
+                SharedBadge(
+                    sharedFrom: item.sharedFrom,
+                    sharedWith: item.sharedWith
+                )
             }
         }
     }
@@ -33,14 +36,37 @@ struct ReminderItemView: View {
 
 struct SharedBadge: View {
     let sharedFrom: String?
+    let sharedWith: [String]?
+
+    private var badgeText: String {
+        if let sharedWith = sharedWith, !sharedWith.isEmpty {
+            // This user is the sender - show who they shared with
+            if sharedWith.count == 1 {
+                return sharedWith[0]
+            } else {
+                return "\(sharedWith.count) people"
+            }
+        } else if let sharedFrom = sharedFrom {
+            // This user is the receiver - show who shared it
+            return sharedFrom
+        }
+        return "Shared"
+    }
+
+    private var iconName: String {
+        if sharedWith != nil && !(sharedWith?.isEmpty ?? true) {
+            return "arrow.up.forward"
+        } else {
+            return "arrow.down.backward"
+        }
+    }
 
     var body: some View {
         HStack(spacing: 4) {
             Image(systemName: "person.2.fill")
                 .font(.caption2)
-            Text("Shared")
-                .font(.caption2)
-                .fontWeight(.medium)
+            Image(systemName: iconName)
+                .font(.system(size: 8, weight: .bold))
         }
         .foregroundColor(.white)
         .padding(.horizontal, 8)
@@ -49,7 +75,16 @@ struct SharedBadge: View {
             Capsule()
                 .fill(Color.appAccent.opacity(0.9))
         )
-        .help(sharedFrom != nil ? "Shared by \(sharedFrom!)" : "Shared reminder")
+        .help(tooltipText)
+    }
+
+    private var tooltipText: String {
+        if let sharedWith = sharedWith, !sharedWith.isEmpty {
+            return "Shared with: \(sharedWith.joined(separator: ", "))"
+        } else if let sharedFrom = sharedFrom {
+            return "Shared by \(sharedFrom)"
+        }
+        return "Shared reminder"
     }
 }
 

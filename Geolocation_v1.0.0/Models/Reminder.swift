@@ -15,9 +15,13 @@ struct Reminder: Codable, Identifiable {
     let createdAt: TimeInterval
 
     // Shared reminder tracking
-    var isShared: Bool? // True if this reminder was received from another user
-    var sharedFrom: String? // Email or name of the user who shared it
+    var isShared: Bool? // True if this reminder is shared with another user
+    var sharedFrom: String? // Name of the user who shared it (for receiver)
     var sharedAt: TimeInterval? // When it was shared/accepted
+
+    // Sync fields for linking shared reminders
+    var sharedReminderId: String? // Unique ID linking all instances of the same shared reminder
+    var sharedWith: [String]? // Array of user names this reminder is shared with (for sender)
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -28,5 +32,7 @@ struct Reminder: Codable, Identifiable {
         case isShared
         case sharedFrom
         case sharedAt
+        case sharedReminderId
+        case sharedWith
     }
 }
