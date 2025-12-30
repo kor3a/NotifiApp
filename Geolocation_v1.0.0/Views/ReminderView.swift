@@ -75,7 +75,8 @@ struct ReminderView: View {
                             .opacity(fadingReminderIds.contains(reminder.id) ? 0 : 1)
                             .scaleEffect(fadingReminderIds.contains(reminder.id) ? 0.8 : 1.0)
                             .animation(.easeOut(duration: 0.5), value: fadingReminderIds)
-                            .swipeActions(edge: .trailing) {
+                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                // Delete button (rightmost)
                                 if userStoreItem.permission != .view {
                                     Button(role: .destructive) {
                                         // If shared, show confirmation dialog
@@ -85,28 +86,27 @@ struct ReminderView: View {
                                             viewModel.deleteReminder(reminder)
                                         }
                                     } label: {
-                                        Label("Delete", systemImage: "trash")
+                                        Image(systemName: "trash")
                                     }
                                 }
-                            }
-                            .swipeActions(edge: .leading) {
-                                // Show shared info if reminder is shared
+
+                                // Share button
+                                Button {
+                                    reminderToShare = reminder
+                                } label: {
+                                    Image(systemName: "square.and.arrow.up")
+                                }
+                                .tint(.blue)
+
+                                // Info button (only if reminder is shared)
                                 if reminder.isShared == true {
                                     Button {
                                         showingSharedInfo = reminder
                                     } label: {
-                                        Label("Info", systemImage: "person.2.fill")
+                                        Image(systemName: "person.2.fill")
                                     }
                                     .tint(.appAccent)
                                 }
-
-                                // Share button (only if not already shared or user wants to share with more people)
-                                Button {
-                                    reminderToShare = reminder
-                                } label: {
-                                    Label("Share", systemImage: "square.and.arrow.up")
-                                }
-                                .tint(.blue)
                             }
                             .onTapGesture {
                                 if userStoreItem.permission != .view {
