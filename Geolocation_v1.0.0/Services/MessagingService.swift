@@ -157,22 +157,23 @@ class MessagingService: ObservableObject {
             }
     }
 
-    /// Fetch initial paginated messages for a conversation (most recent first)
-    /// Returns messages sorted oldest to newest for display, with hasMore flag
-    func fetchInitialMessages(
+    /// Fetch paginated messages for a conversation with real-time updates
+    /// Returns a listener that provides messages sorted oldest to newest for display
+    func fetchPaginatedMessages(
         for conversationId: String,
         limit: Int = MessagingService.messagePageSize,
         completion: @escaping (Result<(messages: [Message], hasMore: Bool), Error>) -> Void
-    ) {
-        // Fetch limit + 1 to determine if there are more messages
-        db.collection("messages")
+    ) -> ListenerRegistration {
+        // Use snapshot listener for real-time updates on the most recent messages
+        return db.collection("messages")
             .whereField("conversationId", isEqualTo: conversationId)
             .order(by: "createdAt", descending: true)
             .limit(to: limit + 1)
-            .getDocuments { [weak self] snapshot, error in
+            .addSnapshotListener { [weak self] snapshot, error in
                 guard let self = self else { return }
 
                 if let error = error {
+                    print("MessagingService: Error fetching paginated messages: \(error)")
                     completion(.failure(error))
                     return
                 }
@@ -193,7 +194,7 @@ class MessagingService: ObservableObject {
             }
     }
 
-    /// Load older messages before a given timestamp
+    /// Load older messages before a given timestamp (one-time fetch)
     func loadOlderMessages(
         for conversationId: String,
         beforeTimestamp: TimeInterval,
@@ -210,6 +211,7 @@ class MessagingService: ObservableObject {
                 guard let self = self else { return }
 
                 if let error = error {
+                    print("MessagingService: Error loading older messages: \(error)")
                     completion(.failure(error))
                     return
                 }
@@ -230,32 +232,15 @@ class MessagingService: ObservableObject {
             }
     }
 
-    /// Listen for new messages after a given timestamp (real-time updates)
-    func listenForNewMessages(
-        for conversationId: String,
-        afterTimestamp: TimeInterval,
-        completion: @escaping (Result<[Message], Error>) -> Void
-    ) -> ListenerRegistration {
-        return db.collection("messages")
-            .whereField("conversationId", isEqualTo: conversationId)
-            .whereField("createdAt", isGreaterThan: afterTimestamp)
-            .order(by: "createdAt", descending: false)
-            .addSnapshotListener { [weak self] snapshot, error in
-                guard let self = self else { return }
-
-                if let error = error {
-                    completion(.failure(error))
-                    return
-                }
-
-                guard let documents = snapshot?.documents else {
-                    completion(.success([]))
-                    return
-                }
-
-                let messages = documents.compactMap { self.parseMessage(from: $0) }
-                completion(.success(messages))
+    /// Delete a message
+    func deleteMessage(messageId: String, completion: @escaping (Result<Void, Error>) -> Void) {
+        db.collection("messages").document(messageId).delete { error in
+            if let error = error {
+                completion(.failure(error))
+            } else {
+                completion(.success(()))
             }
+        }
     }
 
     /// Send a message

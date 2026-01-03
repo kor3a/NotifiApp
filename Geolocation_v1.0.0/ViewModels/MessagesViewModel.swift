@@ -33,7 +33,7 @@ class MessagesViewModel: ObservableObject {
     }
 
     deinit {
-        stopListeningForNewMessages()
+        stopListeningForMessages()
     }
 
     // MARK: - Conversations
@@ -74,30 +74,36 @@ class MessagesViewModel: ObservableObject {
 
     // MARK: - Messages
 
-    /// Fetch initial paginated messages for a conversation
+    // Track the oldest timestamp from the initial load to know where older messages start
+    private var oldestLoadedTimestamp: TimeInterval?
+
+    /// Fetch paginated messages for a conversation with real-time updates
     func fetchMessages(for conversationId: String) {
         // Clean up previous listener if switching conversations
         if currentConversationId != conversationId {
-            stopListeningForNewMessages()
+            stopListeningForMessages()
             messages = []
             hasMoreMessages = false
+            oldestLoadedTimestamp = nil
         }
 
         currentConversationId = conversationId
         isLoading = true
 
-        messagingService.fetchInitialMessages(for: conversationId) { [weak self] result in
+        // Use snapshot listener for real-time updates on the most recent messages
+        newMessagesListener = messagingService.fetchPaginatedMessages(for: conversationId) { [weak self] result in
             DispatchQueue.main.async {
                 guard let self = self else { return }
                 self.isLoading = false
 
                 switch result {
                 case .success(let (fetchedMessages, hasMore)):
+                    // Store the oldest timestamp from initial load for pagination
+                    if self.oldestLoadedTimestamp == nil {
+                        self.oldestLoadedTimestamp = fetchedMessages.first?.createdAt
+                    }
                     self.messages = fetchedMessages
                     self.hasMoreMessages = hasMore
-
-                    // Start listening for new messages after the most recent one
-                    self.startListeningForNewMessages(conversationId: conversationId)
 
                 case .failure(let error):
                     self.errorMessage = error.localizedDescription
@@ -112,13 +118,13 @@ class MessagesViewModel: ObservableObject {
         guard let conversationId = currentConversationId,
               hasMoreMessages,
               !isLoadingMore,
-              let oldestMessage = messages.first else { return }
+              let oldestTimestamp = oldestLoadedTimestamp else { return }
 
         isLoadingMore = true
 
         messagingService.loadOlderMessages(
             for: conversationId,
-            beforeTimestamp: oldestMessage.createdAt
+            beforeTimestamp: oldestTimestamp
         ) { [weak self] result in
             DispatchQueue.main.async {
                 guard let self = self else { return }
@@ -129,6 +135,10 @@ class MessagesViewModel: ObservableObject {
                     // Prepend older messages to the beginning
                     self.messages = olderMessages + self.messages
                     self.hasMoreMessages = hasMore
+                    // Update oldest timestamp for next pagination
+                    if let firstOldMessage = olderMessages.first {
+                        self.oldestLoadedTimestamp = firstOldMessage.createdAt
+                    }
 
                 case .failure(let error):
                     self.errorMessage = error.localizedDescription
@@ -138,39 +148,26 @@ class MessagesViewModel: ObservableObject {
         }
     }
 
-    /// Start listening for new messages in real-time
-    private func startListeningForNewMessages(conversationId: String) {
-        // Use the most recent message timestamp, or current time if no messages
-        let afterTimestamp = messages.last?.createdAt ?? Date().timeIntervalSince1970
+    /// Stop listening for messages
+    func stopListeningForMessages() {
+        newMessagesListener?.remove()
+        newMessagesListener = nil
+    }
 
-        newMessagesListener = messagingService.listenForNewMessages(
-            for: conversationId,
-            afterTimestamp: afterTimestamp
-        ) { [weak self] result in
+    /// Delete a message
+    func deleteMessage(_ message: Message) {
+        messagingService.deleteMessage(messageId: message.id) { [weak self] result in
             DispatchQueue.main.async {
-                guard let self = self else { return }
-
                 switch result {
-                case .success(let newMessages):
-                    // Add only messages that aren't already in our list
-                    let existingIds = Set(self.messages.map { $0.id })
-                    let uniqueNewMessages = newMessages.filter { !existingIds.contains($0.id) }
-
-                    if !uniqueNewMessages.isEmpty {
-                        self.messages.append(contentsOf: uniqueNewMessages)
-                    }
-
+                case .success:
+                    // Message will be removed automatically via snapshot listener
+                    print("MessagesViewModel: Successfully deleted message")
                 case .failure(let error):
-                    print("MessagesViewModel: Error listening for new messages: \(error)")
+                    self?.errorMessage = error.localizedDescription
+                    print("MessagesViewModel: Error deleting message: \(error)")
                 }
             }
         }
-    }
-
-    /// Stop listening for new messages
-    func stopListeningForNewMessages() {
-        newMessagesListener?.remove()
-        newMessagesListener = nil
     }
 
     func sendMessage(

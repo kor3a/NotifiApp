@@ -24,25 +24,37 @@ struct ConversationView: View {
         VStack(spacing: 0) {
             // Messages list
             ScrollViewReader { proxy in
-                ScrollView {
-                    LazyVStack(spacing: 12) {
-                        // Load more indicator at top
-                        if viewModel.hasMoreMessages {
-                            loadMoreButton
-                                .id("loadMore")
-                        }
+                List {
+                    // Load more indicator at top
+                    if viewModel.hasMoreMessages {
+                        loadMoreButton
+                            .id("loadMore")
+                            .listRowBackground(Color.clear)
+                            .listRowSeparator(.hidden)
+                            .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
+                    }
 
-                        ForEach(viewModel.messages) { message in
-                            MessageBubble(
-                                message: message,
-                                isFromCurrentUser: viewModel.isCurrentUser(message.senderId),
-                                viewModel: viewModel
-                            )
-                            .id(message.id)
+                    ForEach(viewModel.messages) { message in
+                        MessageBubble(
+                            message: message,
+                            isFromCurrentUser: viewModel.isCurrentUser(message.senderId),
+                            viewModel: viewModel
+                        )
+                        .id(message.id)
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
+                        .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                            Button(role: .destructive) {
+                                viewModel.deleteMessage(message)
+                            } label: {
+                                Image(systemName: "trash")
+                            }
                         }
                     }
-                    .padding()
                 }
+                .listStyle(.plain)
+                .scrollContentBackground(.hidden)
                 .onChange(of: viewModel.messages.count) { oldCount, newCount in
                     // Only auto-scroll if new messages were added (not when loading older)
                     if newCount > oldCount, let lastMessage = viewModel.messages.last {
@@ -75,7 +87,7 @@ struct ConversationView: View {
         }
         .onDisappear {
             viewModel.markAsRead(conversationId: conversation.id)
-            viewModel.stopListeningForNewMessages()
+            viewModel.stopListeningForMessages()
         }
     }
 
