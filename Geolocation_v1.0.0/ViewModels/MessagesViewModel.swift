@@ -72,6 +72,22 @@ class MessagesViewModel: ObservableObject {
         }
     }
 
+    /// Delete a conversation and all its messages
+    func deleteConversation(_ conversation: Conversation) {
+        messagingService.deleteConversation(conversationId: conversation.id) { [weak self] result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success:
+                    // Conversation will be removed automatically via snapshot listener
+                    print("MessagesViewModel: Successfully deleted conversation")
+                case .failure(let error):
+                    self?.errorMessage = error.localizedDescription
+                    print("MessagesViewModel: Error deleting conversation: \(error)")
+                }
+            }
+        }
+    }
+
     // MARK: - Messages
 
     // Track the oldest timestamp from the initial load to know where older messages start

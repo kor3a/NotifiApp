@@ -93,6 +93,13 @@ struct MessagesView: View {
                         .padding(.vertical, 4)
                 )
                 .listRowSeparator(.hidden)
+                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                    Button(role: .destructive) {
+                        viewModel.deleteConversation(conversation)
+                    } label: {
+                        Image(systemName: "trash")
+                    }
+                }
             }
         }
         .listStyle(.plain)

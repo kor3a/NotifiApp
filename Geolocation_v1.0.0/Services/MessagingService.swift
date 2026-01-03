@@ -243,6 +243,41 @@ class MessagingService: ObservableObject {
         }
     }
 
+    /// Delete a conversation and all its messages
+    func deleteConversation(conversationId: String, completion: @escaping (Result<Void, Error>) -> Void) {
+        // First delete all messages in the conversation
+        db.collection("messages")
+            .whereField("conversationId", isEqualTo: conversationId)
+            .getDocuments { [weak self] snapshot, error in
+                guard let self = self else { return }
+
+                if let error = error {
+                    completion(.failure(error))
+                    return
+                }
+
+                let batch = self.db.batch()
+
+                // Add all messages to batch delete
+                snapshot?.documents.forEach { doc in
+                    batch.deleteDocument(doc.reference)
+                }
+
+                // Add the conversation document to batch delete
+                let conversationRef = self.db.collection("conversations").document(conversationId)
+                batch.deleteDocument(conversationRef)
+
+                // Commit the batch
+                batch.commit { error in
+                    if let error = error {
+                        completion(.failure(error))
+                    } else {
+                        completion(.success(()))
+                    }
+                }
+            }
+    }
+
     /// Send a message
     func sendMessage(
         conversationId: String,
