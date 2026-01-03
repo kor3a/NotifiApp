@@ -7,6 +7,7 @@
 
 import Foundation
 import FirebaseAuth
+import FirebaseFirestore
 
 class MessagesViewModel: ObservableObject {
     @Published var conversations: [Conversation] = []
@@ -18,11 +19,21 @@ class MessagesViewModel: ObservableObject {
     @Published var errorMessage: String?
     @Published var totalUnreadCount = 0
 
+    // Pagination state
+    @Published var hasMoreMessages = false
+    @Published var isLoadingMore = false
+
     private let messagingService = MessagingService.shared
+    private var newMessagesListener: ListenerRegistration?
+    private var currentConversationId: String?
 
     // Use the userId from user profile (stored in Firestore), NOT Auth UID
     private var currentUserId: String? {
         UserSessionManager.shared.currentUser?.userId
+    }
+
+    deinit {
+        stopListeningForNewMessages()
     }
 
     // MARK: - Conversations
@@ -63,21 +74,103 @@ class MessagesViewModel: ObservableObject {
 
     // MARK: - Messages
 
+    /// Fetch initial paginated messages for a conversation
     func fetchMessages(for conversationId: String) {
+        // Clean up previous listener if switching conversations
+        if currentConversationId != conversationId {
+            stopListeningForNewMessages()
+            messages = []
+            hasMoreMessages = false
+        }
+
+        currentConversationId = conversationId
         isLoading = true
 
-        messagingService.fetchMessages(for: conversationId) { [weak self] result in
+        messagingService.fetchInitialMessages(for: conversationId) { [weak self] result in
             DispatchQueue.main.async {
-                self?.isLoading = false
+                guard let self = self else { return }
+                self.isLoading = false
+
                 switch result {
-                case .success(let messages):
-                    self?.messages = messages
+                case .success(let (fetchedMessages, hasMore)):
+                    self.messages = fetchedMessages
+                    self.hasMoreMessages = hasMore
+
+                    // Start listening for new messages after the most recent one
+                    self.startListeningForNewMessages(conversationId: conversationId)
+
                 case .failure(let error):
-                    self?.errorMessage = error.localizedDescription
+                    self.errorMessage = error.localizedDescription
                     print("MessagesViewModel: Error fetching messages: \(error)")
                 }
             }
         }
+    }
+
+    /// Load older messages when user scrolls to top
+    func loadMoreMessages() {
+        guard let conversationId = currentConversationId,
+              hasMoreMessages,
+              !isLoadingMore,
+              let oldestMessage = messages.first else { return }
+
+        isLoadingMore = true
+
+        messagingService.loadOlderMessages(
+            for: conversationId,
+            beforeTimestamp: oldestMessage.createdAt
+        ) { [weak self] result in
+            DispatchQueue.main.async {
+                guard let self = self else { return }
+                self.isLoadingMore = false
+
+                switch result {
+                case .success(let (olderMessages, hasMore)):
+                    // Prepend older messages to the beginning
+                    self.messages = olderMessages + self.messages
+                    self.hasMoreMessages = hasMore
+
+                case .failure(let error):
+                    self.errorMessage = error.localizedDescription
+                    print("MessagesViewModel: Error loading more messages: \(error)")
+                }
+            }
+        }
+    }
+
+    /// Start listening for new messages in real-time
+    private func startListeningForNewMessages(conversationId: String) {
+        // Use the most recent message timestamp, or current time if no messages
+        let afterTimestamp = messages.last?.createdAt ?? Date().timeIntervalSince1970
+
+        newMessagesListener = messagingService.listenForNewMessages(
+            for: conversationId,
+            afterTimestamp: afterTimestamp
+        ) { [weak self] result in
+            DispatchQueue.main.async {
+                guard let self = self else { return }
+
+                switch result {
+                case .success(let newMessages):
+                    // Add only messages that aren't already in our list
+                    let existingIds = Set(self.messages.map { $0.id })
+                    let uniqueNewMessages = newMessages.filter { !existingIds.contains($0.id) }
+
+                    if !uniqueNewMessages.isEmpty {
+                        self.messages.append(contentsOf: uniqueNewMessages)
+                    }
+
+                case .failure(let error):
+                    print("MessagesViewModel: Error listening for new messages: \(error)")
+                }
+            }
+        }
+    }
+
+    /// Stop listening for new messages
+    func stopListeningForNewMessages() {
+        newMessagesListener?.remove()
+        newMessagesListener = nil
     }
 
     func sendMessage(

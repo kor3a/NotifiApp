@@ -130,7 +130,10 @@ class MessagingService: ObservableObject {
 
     // MARK: - Messages
 
-    /// Fetch messages for a conversation
+    /// Default page size for message pagination
+    static let messagePageSize = 25
+
+    /// Fetch messages for a conversation (legacy - loads all messages)
     func fetchMessages(for conversationId: String, completion: @escaping (Result<[Message], Error>) -> Void) {
         db.collection("messages")
             .whereField("conversationId", isEqualTo: conversationId)
@@ -150,6 +153,107 @@ class MessagingService: ObservableObject {
                     return self.parseMessage(from: doc)
                 }
 
+                completion(.success(messages))
+            }
+    }
+
+    /// Fetch initial paginated messages for a conversation (most recent first)
+    /// Returns messages sorted oldest to newest for display, with hasMore flag
+    func fetchInitialMessages(
+        for conversationId: String,
+        limit: Int = MessagingService.messagePageSize,
+        completion: @escaping (Result<(messages: [Message], hasMore: Bool), Error>) -> Void
+    ) {
+        // Fetch limit + 1 to determine if there are more messages
+        db.collection("messages")
+            .whereField("conversationId", isEqualTo: conversationId)
+            .order(by: "createdAt", descending: true)
+            .limit(to: limit + 1)
+            .getDocuments { [weak self] snapshot, error in
+                guard let self = self else { return }
+
+                if let error = error {
+                    completion(.failure(error))
+                    return
+                }
+
+                guard let documents = snapshot?.documents else {
+                    completion(.success((messages: [], hasMore: false)))
+                    return
+                }
+
+                // Check if there are more messages beyond our limit
+                let hasMore = documents.count > limit
+                let docsToProcess = hasMore ? Array(documents.prefix(limit)) : documents
+
+                // Parse and reverse to get oldest-first order for display
+                let messages = docsToProcess.compactMap { self.parseMessage(from: $0) }.reversed()
+
+                completion(.success((messages: Array(messages), hasMore: hasMore)))
+            }
+    }
+
+    /// Load older messages before a given timestamp
+    func loadOlderMessages(
+        for conversationId: String,
+        beforeTimestamp: TimeInterval,
+        limit: Int = MessagingService.messagePageSize,
+        completion: @escaping (Result<(messages: [Message], hasMore: Bool), Error>) -> Void
+    ) {
+        // Fetch limit + 1 to determine if there are more older messages
+        db.collection("messages")
+            .whereField("conversationId", isEqualTo: conversationId)
+            .whereField("createdAt", isLessThan: beforeTimestamp)
+            .order(by: "createdAt", descending: true)
+            .limit(to: limit + 1)
+            .getDocuments { [weak self] snapshot, error in
+                guard let self = self else { return }
+
+                if let error = error {
+                    completion(.failure(error))
+                    return
+                }
+
+                guard let documents = snapshot?.documents else {
+                    completion(.success((messages: [], hasMore: false)))
+                    return
+                }
+
+                // Check if there are more messages beyond our limit
+                let hasMore = documents.count > limit
+                let docsToProcess = hasMore ? Array(documents.prefix(limit)) : documents
+
+                // Parse and reverse to get oldest-first order for display
+                let messages = docsToProcess.compactMap { self.parseMessage(from: $0) }.reversed()
+
+                completion(.success((messages: Array(messages), hasMore: hasMore)))
+            }
+    }
+
+    /// Listen for new messages after a given timestamp (real-time updates)
+    func listenForNewMessages(
+        for conversationId: String,
+        afterTimestamp: TimeInterval,
+        completion: @escaping (Result<[Message], Error>) -> Void
+    ) -> ListenerRegistration {
+        return db.collection("messages")
+            .whereField("conversationId", isEqualTo: conversationId)
+            .whereField("createdAt", isGreaterThan: afterTimestamp)
+            .order(by: "createdAt", descending: false)
+            .addSnapshotListener { [weak self] snapshot, error in
+                guard let self = self else { return }
+
+                if let error = error {
+                    completion(.failure(error))
+                    return
+                }
+
+                guard let documents = snapshot?.documents else {
+                    completion(.success([]))
+                    return
+                }
+
+                let messages = documents.compactMap { self.parseMessage(from: $0) }
                 completion(.success(messages))
             }
     }
