@@ -15,6 +15,8 @@ struct ReminderView: View {
     @AppStorage("autoDeleteReminders") private var autoDeleteEnabled = false
     @State private var fadingReminderIds: Set<String> = []
     @State private var reminderToShare: Reminder?
+    @State private var reminderToDelete: Reminder?
+    @State private var showingSharedInfo: Reminder?
     @Environment(\.colorScheme) var colorScheme
 
     var body: some View {
@@ -73,22 +75,38 @@ struct ReminderView: View {
                             .opacity(fadingReminderIds.contains(reminder.id) ? 0 : 1)
                             .scaleEffect(fadingReminderIds.contains(reminder.id) ? 0.8 : 1.0)
                             .animation(.easeOut(duration: 0.5), value: fadingReminderIds)
-                            .swipeActions(edge: .trailing) {
+                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                // Delete button (rightmost)
                                 if userStoreItem.permission != .view {
                                     Button(role: .destructive) {
-                                        viewModel.deleteReminder(reminder)
+                                        // If shared, show confirmation dialog
+                                        if reminder.isShared == true && reminder.sharedReminderId != nil {
+                                            reminderToDelete = reminder
+                                        } else {
+                                            viewModel.deleteReminder(reminder)
+                                        }
                                     } label: {
-                                        Label("Delete", systemImage: "trash")
+                                        Image(systemName: "trash")
                                     }
                                 }
-                            }
-                            .swipeActions(edge: .leading) {
+
+                                // Share button
                                 Button {
                                     reminderToShare = reminder
                                 } label: {
-                                    Label("Share", systemImage: "square.and.arrow.up")
+                                    Image(systemName: "square.and.arrow.up")
                                 }
                                 .tint(.blue)
+
+                                // Info button (only if reminder is shared)
+                                if reminder.isShared == true {
+                                    Button {
+                                        showingSharedInfo = reminder
+                                    } label: {
+                                        Image(systemName: "person.2.fill")
+                                    }
+                                    .tint(.appAccent)
+                                }
                             }
                             .onTapGesture {
                                 if userStoreItem.permission != .view {
@@ -161,6 +179,54 @@ struct ReminderView: View {
         }
         .sheet(item: $reminderToShare) { reminder in
             ShareReminderView(reminder: reminder, store: userStoreItem.store)
+        }
+        .alert("Delete Shared Reminder", isPresented: .init(
+            get: { reminderToDelete != nil },
+            set: { if !$0 { reminderToDelete = nil } }
+        )) {
+            Button("Delete for Everyone", role: .destructive) {
+                if let reminder = reminderToDelete {
+                    viewModel.deleteReminder(reminder)
+                    reminderToDelete = nil
+                }
+            }
+            Button("Cancel", role: .cancel) {
+                reminderToDelete = nil
+            }
+        } message: {
+            if let reminder = reminderToDelete {
+                if let sharedWith = reminder.sharedWith, !sharedWith.isEmpty {
+                    Text("This reminder is shared with \(sharedWith.joined(separator: ", ")). Deleting it will remove it for everyone.")
+                } else if let sharedFrom = reminder.sharedFrom {
+                    Text("This reminder was shared by \(sharedFrom). Deleting it will remove it for everyone.")
+                } else {
+                    Text("This reminder is shared. Deleting it will remove it for everyone.")
+                }
+            }
+        }
+        .alert("Shared Reminder", isPresented: .init(
+            get: { showingSharedInfo != nil },
+            set: { if !$0 { showingSharedInfo = nil } }
+        )) {
+            Button("OK", role: .cancel) {
+                showingSharedInfo = nil
+            }
+        } message: {
+            if let reminder = showingSharedInfo {
+                // Check sharedFrom FIRST - if set, user is a recipient
+                if let sharedFrom = reminder.sharedFrom, !sharedFrom.isEmpty {
+                    if let sharedWith = reminder.sharedWith, !sharedWith.isEmpty {
+                        Text("Shared by: \(sharedFrom)\nAlso shared with: \(sharedWith.filter { $0 != sharedFrom }.joined(separator: ", "))\n\nChanges sync automatically.")
+                    } else {
+                        Text("Shared by: \(sharedFrom)\n\nChanges sync automatically.")
+                    }
+                } else if let sharedWith = reminder.sharedWith, !sharedWith.isEmpty {
+                    // No sharedFrom means user is the sender
+                    Text("You shared this reminder with:\n\(sharedWith.joined(separator: "\n"))\n\nChanges sync automatically.")
+                } else {
+                    Text("This reminder is synced across users.")
+                }
+            }
         }
     }
 

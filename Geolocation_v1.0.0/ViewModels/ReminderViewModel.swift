@@ -55,12 +55,24 @@ class ReminderViewModel: ObservableObject {
                             return nil
                         }
 
+                        // Parse optional shared fields
+                        let isShared = data["isShared"] as? Bool
+                        let sharedFrom = data["sharedFrom"] as? String
+                        let sharedAt = data["sharedAt"] as? TimeInterval
+                        let sharedReminderId = data["sharedReminderId"] as? String
+                        let sharedWith = data["sharedWith"] as? [String]
+
                         return Reminder(
                             id: doc.documentID,
                             userStoreId: userStoreId,
                             title: title,
                             isDone: isDone,
-                            createdAt: createdAt
+                            createdAt: createdAt,
+                            isShared: isShared,
+                            sharedFrom: sharedFrom,
+                            sharedAt: sharedAt,
+                            sharedReminderId: sharedReminderId,
+                            sharedWith: sharedWith
                         )
                     }
 
@@ -102,12 +114,59 @@ class ReminderViewModel: ObservableObject {
         }
     }
 
-    /// Toggle reminder isDone status
+    /// Toggle reminder isDone status - syncs across all linked shared reminders
     func toggleReminder(_ reminder: Reminder) {
         print("ReminderViewModel: Toggling reminder '\(reminder.title)'")
 
-        db.collection("reminders").document(reminder.id).updateData([
-            "isDone": !reminder.isDone
+        let newIsDone = !reminder.isDone
+
+        // If this reminder has a sharedReminderId, sync toggle across all linked reminders
+        if let sharedReminderId = reminder.sharedReminderId {
+            print("ReminderViewModel: Syncing toggle across shared reminders with sharedReminderId: \(sharedReminderId)")
+
+            db.collection("reminders")
+                .whereField("sharedReminderId", isEqualTo: sharedReminderId)
+                .getDocuments { [weak self] snapshot, error in
+                    guard let self = self else { return }
+
+                    if let error = error {
+                        print("ReminderViewModel: Error finding linked reminders: \(error.localizedDescription)")
+                        // Fall back to updating just this reminder
+                        self.updateSingleReminder(reminder.id, isDone: newIsDone)
+                        return
+                    }
+
+                    guard let documents = snapshot?.documents, !documents.isEmpty else {
+                        // No linked reminders found, update just this one
+                        self.updateSingleReminder(reminder.id, isDone: newIsDone)
+                        return
+                    }
+
+                    // Batch update all linked reminders
+                    let batch = self.db.batch()
+                    for doc in documents {
+                        batch.updateData(["isDone": newIsDone], forDocument: doc.reference)
+                    }
+
+                    batch.commit { error in
+                        DispatchQueue.main.async {
+                            if let error = error {
+                                print("ReminderViewModel: Error syncing toggle: \(error.localizedDescription)")
+                            } else {
+                                print("ReminderViewModel: Synced toggle across \(documents.count) linked reminders")
+                            }
+                        }
+                    }
+                }
+        } else {
+            // No sharing, just update this reminder
+            updateSingleReminder(reminder.id, isDone: newIsDone)
+        }
+    }
+
+    private func updateSingleReminder(_ reminderId: String, isDone: Bool) {
+        db.collection("reminders").document(reminderId).updateData([
+            "isDone": isDone
         ]) { error in
             DispatchQueue.main.async {
                 if let error = error {
@@ -119,11 +178,56 @@ class ReminderViewModel: ObservableObject {
         }
     }
 
-    /// Delete a reminder
+    /// Delete a reminder - syncs deletion across all linked shared reminders
     func deleteReminder(_ reminder: Reminder) {
         print("ReminderViewModel: Deleting reminder '\(reminder.title)'")
 
-        db.collection("reminders").document(reminder.id).delete { error in
+        // If this reminder has a sharedReminderId, delete all linked reminders
+        if let sharedReminderId = reminder.sharedReminderId {
+            print("ReminderViewModel: Syncing deletion across shared reminders with sharedReminderId: \(sharedReminderId)")
+
+            db.collection("reminders")
+                .whereField("sharedReminderId", isEqualTo: sharedReminderId)
+                .getDocuments { [weak self] snapshot, error in
+                    guard let self = self else { return }
+
+                    if let error = error {
+                        print("ReminderViewModel: Error finding linked reminders: \(error.localizedDescription)")
+                        // Fall back to deleting just this reminder
+                        self.deleteSingleReminder(reminder.id)
+                        return
+                    }
+
+                    guard let documents = snapshot?.documents, !documents.isEmpty else {
+                        // No linked reminders found, delete just this one
+                        self.deleteSingleReminder(reminder.id)
+                        return
+                    }
+
+                    // Batch delete all linked reminders
+                    let batch = self.db.batch()
+                    for doc in documents {
+                        batch.deleteDocument(doc.reference)
+                    }
+
+                    batch.commit { error in
+                        DispatchQueue.main.async {
+                            if let error = error {
+                                print("ReminderViewModel: Error syncing deletion: \(error.localizedDescription)")
+                            } else {
+                                print("ReminderViewModel: Synced deletion across \(documents.count) linked reminders")
+                            }
+                        }
+                    }
+                }
+        } else {
+            // No sharing, just delete this reminder
+            deleteSingleReminder(reminder.id)
+        }
+    }
+
+    private func deleteSingleReminder(_ reminderId: String) {
+        db.collection("reminders").document(reminderId).delete { error in
             DispatchQueue.main.async {
                 if let error = error {
                     print("ReminderViewModel: Error deleting reminder: \(error.localizedDescription)")

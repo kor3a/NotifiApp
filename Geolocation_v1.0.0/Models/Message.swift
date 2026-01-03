@@ -32,11 +32,43 @@ struct Message: Codable, Identifiable, Equatable {
     }
 }
 
+/// Status of a shared reminder
+enum SharedReminderStatus: String, Codable {
+    case pending
+    case accepted
+    case rejected
+}
+
 /// Represents a reminder that was shared in a message
 struct LinkedReminder: Codable, Equatable {
     let reminderTitle: String
     let storeName: String
     let storeAddress: String?
+
+    // Additional fields for accept/reject functionality
+    let reminderId: String?
+    let storeId: String?
+    let senderUserId: String?
+    var status: SharedReminderStatus?
+
+    // Store coordinates for adding the store
+    let storeLatitude: Double?
+    let storeLongitude: Double?
+    let storeImageURL: String?
+
+    // Initializer for backward compatibility
+    init(reminderTitle: String, storeName: String, storeAddress: String?, reminderId: String? = nil, storeId: String? = nil, senderUserId: String? = nil, status: SharedReminderStatus? = .pending, storeLatitude: Double? = nil, storeLongitude: Double? = nil, storeImageURL: String? = nil) {
+        self.reminderTitle = reminderTitle
+        self.storeName = storeName
+        self.storeAddress = storeAddress
+        self.reminderId = reminderId
+        self.storeId = storeId
+        self.senderUserId = senderUserId
+        self.status = status
+        self.storeLatitude = storeLatitude
+        self.storeLongitude = storeLongitude
+        self.storeImageURL = storeImageURL
+    }
 }
 
 /// Represents a conversation between users

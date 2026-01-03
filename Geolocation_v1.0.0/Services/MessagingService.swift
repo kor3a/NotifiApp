@@ -182,6 +182,27 @@ class MessagingService: ObservableObject {
             if let address = reminder.storeAddress {
                 reminderData["storeAddress"] = address
             }
+            if let reminderId = reminder.reminderId {
+                reminderData["reminderId"] = reminderId
+            }
+            if let storeId = reminder.storeId {
+                reminderData["storeId"] = storeId
+            }
+            if let senderUserId = reminder.senderUserId {
+                reminderData["senderUserId"] = senderUserId
+            }
+            if let status = reminder.status {
+                reminderData["status"] = status.rawValue
+            }
+            if let latitude = reminder.storeLatitude {
+                reminderData["storeLatitude"] = latitude
+            }
+            if let longitude = reminder.storeLongitude {
+                reminderData["storeLongitude"] = longitude
+            }
+            if let imageURL = reminder.storeImageURL {
+                reminderData["storeImageURL"] = imageURL
+            }
             messageData["linkedReminder"] = reminderData
         }
 
@@ -501,10 +522,21 @@ class MessagingService: ObservableObject {
         if let reminderData = data["linkedReminder"] as? [String: Any],
            let reminderTitle = reminderData["reminderTitle"] as? String,
            let storeName = reminderData["storeName"] as? String {
+            var status: SharedReminderStatus? = nil
+            if let statusString = reminderData["status"] as? String {
+                status = SharedReminderStatus(rawValue: statusString)
+            }
             linkedReminder = LinkedReminder(
                 reminderTitle: reminderTitle,
                 storeName: storeName,
-                storeAddress: reminderData["storeAddress"] as? String
+                storeAddress: reminderData["storeAddress"] as? String,
+                reminderId: reminderData["reminderId"] as? String,
+                storeId: reminderData["storeId"] as? String,
+                senderUserId: reminderData["senderUserId"] as? String,
+                status: status,
+                storeLatitude: reminderData["storeLatitude"] as? Double,
+                storeLongitude: reminderData["storeLongitude"] as? Double,
+                storeImageURL: reminderData["storeImageURL"] as? String
             )
         }
 
@@ -555,6 +587,358 @@ class MessagingService: ObservableObject {
 
                 print("📊 MessagingService.getTotalUnreadCount: Total unread = \(totalUnread)")
                 completion(totalUnread)
+            }
+    }
+
+    // MARK: - Shared Reminder Accept/Reject
+
+    /// Update the status of a linked reminder in a message
+    func updateLinkedReminderStatus(messageId: String, status: SharedReminderStatus, completion: @escaping (Result<Void, Error>) -> Void) {
+        db.collection("messages").document(messageId).updateData([
+            "linkedReminder.status": status.rawValue
+        ]) { error in
+            if let error = error {
+                completion(.failure(error))
+            } else {
+                completion(.success(()))
+            }
+        }
+    }
+
+    /// Accept a shared reminder - adds the store and reminder to the user's list and links them for sync
+    func acceptSharedReminder(
+        messageId: String,
+        linkedReminder: LinkedReminder,
+        currentUserId: String,
+        currentUserEmail: String,
+        senderName: String,
+        recipientName: String,
+        completion: @escaping (Result<Void, Error>) -> Void
+    ) {
+        guard let storeId = linkedReminder.storeId else {
+            completion(.failure(NSError(domain: "MessagingService", code: -1, userInfo: [NSLocalizedDescriptionKey: "Missing store ID"])))
+            return
+        }
+
+        print("MessagingService: Accepting shared reminder for store: \(linkedReminder.storeName)")
+
+        // Generate a unique sharedReminderId to link the reminders
+        let sharedReminderId = UUID().uuidString
+
+        // Step 1: Check if user already has this store
+        db.collection("user_stores")
+            .whereField("userId", isEqualTo: currentUserId)
+            .whereField("storeId", isEqualTo: storeId)
+            .getDocuments { [weak self] snapshot, error in
+                guard let self = self else { return }
+
+                if let error = error {
+                    completion(.failure(error))
+                    return
+                }
+
+                if let existingDoc = snapshot?.documents.first {
+                    // User already has this store, add the reminder to it
+                    let userStoreId = existingDoc.documentID
+                    let data = existingDoc.data()
+
+                    // Determine the correct reminder store ID based on permission
+                    let sharedStoreGroupId = data["sharedStoreGroupId"] as? String
+                    let sourceUserStoreId = data["sourceUserStoreId"] as? String
+
+                    // Priority: sourceUserStoreId (view only) > sharedStoreGroupId (can edit) > userStoreId (owner)
+                    let reminderStoreId = sourceUserStoreId ?? sharedStoreGroupId ?? userStoreId
+
+                    self.addReminderToStore(
+                        userStoreId: reminderStoreId,
+                        reminderTitle: linkedReminder.reminderTitle,
+                        originalReminderId: linkedReminder.reminderId,
+                        senderName: senderName,
+                        recipientName: recipientName,
+                        sharedReminderId: sharedReminderId,
+                        messageId: messageId,
+                        completion: completion
+                    )
+                } else {
+                    // User doesn't have this store, add store first then add reminder
+                    self.addStoreAndReminder(
+                        storeId: storeId,
+                        linkedReminder: linkedReminder,
+                        currentUserId: currentUserId,
+                        currentUserEmail: currentUserEmail,
+                        senderName: senderName,
+                        recipientName: recipientName,
+                        sharedReminderId: sharedReminderId,
+                        messageId: messageId,
+                        completion: completion
+                    )
+                }
+            }
+    }
+
+    /// Add a reminder to an existing user store and link to sender's reminder
+    private func addReminderToStore(
+        userStoreId: String,
+        reminderTitle: String,
+        originalReminderId: String?,
+        senderName: String,
+        recipientName: String,
+        sharedReminderId: String,
+        messageId: String,
+        completion: @escaping (Result<Void, Error>) -> Void
+    ) {
+        // Check if this reminder already exists (by title)
+        db.collection("reminders")
+            .whereField("userStoreId", isEqualTo: userStoreId)
+            .whereField("title", isEqualTo: reminderTitle)
+            .getDocuments { [weak self] snapshot, error in
+                guard let self = self else { return }
+
+                if let error = error {
+                    completion(.failure(error))
+                    return
+                }
+
+                if snapshot?.documents.isEmpty == false {
+                    // Reminder with same title already exists, just update status
+                    print("MessagingService: Reminder '\(reminderTitle)' already exists, marking as shared")
+                    self.updateLinkedReminderStatus(messageId: messageId, status: .accepted, completion: completion)
+                    return
+                }
+
+                // Create the recipient's reminder with sharedReminderId
+                // Include both sender and recipient in sharedWith so everyone sees who it's shared with
+                let reminderData: [String: Any] = [
+                    "userStoreId": userStoreId,
+                    "title": reminderTitle,
+                    "isDone": false,
+                    "createdAt": Date().timeIntervalSince1970,
+                    "isShared": true,
+                    "sharedFrom": senderName,
+                    "sharedAt": Date().timeIntervalSince1970,
+                    "sharedReminderId": sharedReminderId,
+                    "sharedWith": [senderName, recipientName]
+                ]
+
+                self.db.collection("reminders").addDocument(data: reminderData) { [weak self] error in
+                    guard let self = self else { return }
+
+                    if let error = error {
+                        completion(.failure(error))
+                        return
+                    }
+
+                    // Update the original sender's reminder to link them
+                    self.updateSenderReminder(
+                        originalReminderId: originalReminderId,
+                        recipientName: recipientName,
+                        sharedReminderId: sharedReminderId,
+                        messageId: messageId,
+                        completion: completion
+                    )
+                }
+            }
+    }
+
+    /// Update the sender's original reminder with sharedReminderId and sharedWith, then sync to all linked reminders
+    private func updateSenderReminder(
+        originalReminderId: String?,
+        recipientName: String,
+        sharedReminderId: String,
+        messageId: String,
+        completion: @escaping (Result<Void, Error>) -> Void
+    ) {
+        guard let reminderId = originalReminderId else {
+            // No original reminder ID, just update message status
+            print("MessagingService: No original reminder ID, skipping sender update")
+            self.updateLinkedReminderStatus(messageId: messageId, status: .accepted, completion: completion)
+            return
+        }
+
+        // Get the original reminder to check existing sharedWith
+        db.collection("reminders").document(reminderId).getDocument { [weak self] snapshot, error in
+            guard let self = self else { return }
+
+            if let error = error {
+                print("MessagingService: Error fetching original reminder: \(error.localizedDescription)")
+                // Still mark as accepted even if we can't update sender
+                self.updateLinkedReminderStatus(messageId: messageId, status: .accepted, completion: completion)
+                return
+            }
+
+            var sharedWith = snapshot?.data()?["sharedWith"] as? [String] ?? []
+            if !sharedWith.contains(recipientName) {
+                sharedWith.append(recipientName)
+            }
+
+            // Update sender's reminder with sharedReminderId and sharedWith
+            self.db.collection("reminders").document(reminderId).updateData([
+                "isShared": true,
+                "sharedReminderId": sharedReminderId,
+                "sharedWith": sharedWith,
+                "sharedAt": Date().timeIntervalSince1970
+            ]) { [weak self] error in
+                guard let self = self else { return }
+
+                if let error = error {
+                    print("MessagingService: Error updating sender reminder: \(error.localizedDescription)")
+                    self.updateLinkedReminderStatus(messageId: messageId, status: .accepted, completion: completion)
+                    return
+                }
+
+                print("MessagingService: Updated sender reminder with sharedReminderId and sharedWith")
+
+                // Sync sharedWith to ALL linked reminders so everyone sees the complete list
+                self.syncSharedWithAcrossLinkedReminders(sharedReminderId: sharedReminderId, sharedWith: sharedWith) {
+                    self.updateLinkedReminderStatus(messageId: messageId, status: .accepted, completion: completion)
+                }
+            }
+        }
+    }
+
+    /// Sync the sharedWith array across all reminders with the same sharedReminderId
+    private func syncSharedWithAcrossLinkedReminders(
+        sharedReminderId: String,
+        sharedWith: [String],
+        completion: @escaping () -> Void
+    ) {
+        db.collection("reminders")
+            .whereField("sharedReminderId", isEqualTo: sharedReminderId)
+            .getDocuments { [weak self] snapshot, error in
+                guard let self = self else {
+                    completion()
+                    return
+                }
+
+                if let error = error {
+                    print("MessagingService: Error finding linked reminders for sync: \(error.localizedDescription)")
+                    completion()
+                    return
+                }
+
+                guard let documents = snapshot?.documents, !documents.isEmpty else {
+                    completion()
+                    return
+                }
+
+                // Batch update all linked reminders with the same sharedWith
+                let batch = self.db.batch()
+                for doc in documents {
+                    batch.updateData(["sharedWith": sharedWith], forDocument: doc.reference)
+                }
+
+                batch.commit { error in
+                    if let error = error {
+                        print("MessagingService: Error syncing sharedWith: \(error.localizedDescription)")
+                    } else {
+                        print("MessagingService: Synced sharedWith across \(documents.count) linked reminders")
+                    }
+                    completion()
+                }
+            }
+    }
+
+    /// Add a new store and reminder for the user
+    private func addStoreAndReminder(
+        storeId: String,
+        linkedReminder: LinkedReminder,
+        currentUserId: String,
+        currentUserEmail: String,
+        senderName: String,
+        recipientName: String,
+        sharedReminderId: String,
+        messageId: String,
+        completion: @escaping (Result<Void, Error>) -> Void
+    ) {
+        // Get user's current store count for sortOrder
+        db.collection("user_stores")
+            .whereField("userId", isEqualTo: currentUserId)
+            .getDocuments { [weak self] snapshot, error in
+                guard let self = self else { return }
+
+                if let error = error {
+                    completion(.failure(error))
+                    return
+                }
+
+                let sortOrder = snapshot?.documents.count ?? 0
+
+                // Create user_store document with "edit" permission since it's shared
+                var userStoreData: [String: Any] = [
+                    "userId": currentUserId,
+                    "userEmail": currentUserEmail,
+                    "storeId": storeId,
+                    "storeName": linkedReminder.storeName,
+                    "storeAddress": linkedReminder.storeAddress ?? "",
+                    "addedAt": Date().timeIntervalSince1970,
+                    "sortOrder": sortOrder,
+                    "permission": "edit",
+                    "notificationsEnabled": true,
+                    "sharedFrom": senderName,
+                    "sharedAt": Date().timeIntervalSince1970
+                ]
+
+                if let latitude = linkedReminder.storeLatitude {
+                    userStoreData["latitude"] = latitude
+                }
+                if let longitude = linkedReminder.storeLongitude {
+                    userStoreData["longitude"] = longitude
+                }
+                if let imageURL = linkedReminder.storeImageURL {
+                    userStoreData["imageURL"] = imageURL
+                }
+
+                // Create user_store first
+                var userStoreRef: DocumentReference?
+                userStoreRef = self.db.collection("user_stores").addDocument(data: userStoreData) { [weak self] error in
+                    guard let self = self else { return }
+
+                    if let error = error {
+                        completion(.failure(error))
+                        return
+                    }
+
+                    guard let userStoreId = userStoreRef?.documentID else {
+                        completion(.failure(NSError(domain: "MessagingService", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to create user store"])))
+                        return
+                    }
+
+                    print("MessagingService: Created user_store: \(userStoreId)")
+
+                    // Now create the reminder with sharedReminderId
+                    // Include both sender and recipient in sharedWith so everyone sees who it's shared with
+                    let reminderData: [String: Any] = [
+                        "userStoreId": userStoreId,
+                        "title": linkedReminder.reminderTitle,
+                        "isDone": false,
+                        "createdAt": Date().timeIntervalSince1970,
+                        "isShared": true,
+                        "sharedFrom": senderName,
+                        "sharedAt": Date().timeIntervalSince1970,
+                        "sharedReminderId": sharedReminderId,
+                        "sharedWith": [senderName, recipientName]
+                    ]
+
+                    self.db.collection("reminders").addDocument(data: reminderData) { [weak self] error in
+                        guard let self = self else { return }
+
+                        if let error = error {
+                            completion(.failure(error))
+                            return
+                        }
+
+                        print("MessagingService: Created shared reminder with sharedReminderId")
+
+                        // Update the original sender's reminder to link them
+                        self.updateSenderReminder(
+                            originalReminderId: linkedReminder.reminderId,
+                            recipientName: recipientName,
+                            sharedReminderId: sharedReminderId,
+                            messageId: messageId,
+                            completion: completion
+                        )
+                    }
+                }
             }
     }
 }
