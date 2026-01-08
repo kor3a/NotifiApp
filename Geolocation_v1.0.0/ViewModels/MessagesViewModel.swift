@@ -90,8 +90,10 @@ class MessagesViewModel: ObservableObject {
 
     // MARK: - Messages
 
-    // Track the oldest timestamp from the initial load to know where older messages start
-    private var oldestLoadedTimestamp: TimeInterval?
+    // Track the oldest timestamp from displayed messages for pagination
+    private var oldestDisplayedTimestamp: TimeInterval?
+    // Store manually loaded older messages (messages older than what snapshot returns)
+    private var olderLoadedMessages: [Message] = []
 
     /// Fetch paginated messages for a conversation with real-time updates
     func fetchMessages(for conversationId: String) {
@@ -100,7 +102,8 @@ class MessagesViewModel: ObservableObject {
             stopListeningForMessages()
             messages = []
             hasMoreMessages = false
-            oldestLoadedTimestamp = nil
+            oldestDisplayedTimestamp = nil
+            olderLoadedMessages = []
         }
 
         currentConversationId = conversationId
@@ -113,13 +116,19 @@ class MessagesViewModel: ObservableObject {
                 self.isLoading = false
 
                 switch result {
-                case .success(let (fetchedMessages, hasMore)):
-                    // Store the oldest timestamp from initial load for pagination
-                    if self.oldestLoadedTimestamp == nil {
-                        self.oldestLoadedTimestamp = fetchedMessages.first?.createdAt
+                case .success(let (recentMessages, hasMore)):
+                    // Merge older loaded messages with recent messages from snapshot
+                    // Filter out any duplicates (messages that appear in both)
+                    let recentIds = Set(recentMessages.map { $0.id })
+                    let uniqueOlderMessages = self.olderLoadedMessages.filter { !recentIds.contains($0.id) }
+
+                    self.messages = uniqueOlderMessages + recentMessages
+                    self.hasMoreMessages = hasMore || !uniqueOlderMessages.isEmpty
+
+                    // Track oldest displayed timestamp for pagination
+                    if let firstMessage = self.messages.first {
+                        self.oldestDisplayedTimestamp = firstMessage.createdAt
                     }
-                    self.messages = fetchedMessages
-                    self.hasMoreMessages = hasMore
 
                 case .failure(let error):
                     self.errorMessage = error.localizedDescription
@@ -134,7 +143,7 @@ class MessagesViewModel: ObservableObject {
         guard let conversationId = currentConversationId,
               hasMoreMessages,
               !isLoadingMore,
-              let oldestTimestamp = oldestLoadedTimestamp else { return }
+              let oldestTimestamp = oldestDisplayedTimestamp else { return }
 
         isLoadingMore = true
 
@@ -148,12 +157,14 @@ class MessagesViewModel: ObservableObject {
 
                 switch result {
                 case .success(let (olderMessages, hasMore)):
+                    // Store these older messages so they persist across snapshot updates
+                    self.olderLoadedMessages = olderMessages + self.olderLoadedMessages
                     // Prepend older messages to the beginning
                     self.messages = olderMessages + self.messages
                     self.hasMoreMessages = hasMore
                     // Update oldest timestamp for next pagination
                     if let firstOldMessage = olderMessages.first {
-                        self.oldestLoadedTimestamp = firstOldMessage.createdAt
+                        self.oldestDisplayedTimestamp = firstOldMessage.createdAt
                     }
 
                 case .failure(let error):

@@ -164,11 +164,11 @@ class MessagingService: ObservableObject {
         limit: Int = MessagingService.messagePageSize,
         completion: @escaping (Result<(messages: [Message], hasMore: Bool), Error>) -> Void
     ) -> ListenerRegistration {
-        // Use snapshot listener for real-time updates on the most recent messages
+        // Use snapshot listener with ascending order for reliable real-time updates
+        // The limit is applied in the result processing to show only recent messages
         return db.collection("messages")
             .whereField("conversationId", isEqualTo: conversationId)
-            .order(by: "createdAt", descending: true)
-            .limit(to: limit + 1)
+            .order(by: "createdAt", descending: false)
             .addSnapshotListener { [weak self] snapshot, error in
                 guard let self = self else { return }
 
@@ -183,14 +183,16 @@ class MessagingService: ObservableObject {
                     return
                 }
 
-                // Check if there are more messages beyond our limit
-                let hasMore = documents.count > limit
-                let docsToProcess = hasMore ? Array(documents.prefix(limit)) : documents
+                // Parse all messages (already in oldest-first order)
+                let allMessages = documents.compactMap { self.parseMessage(from: $0) }
 
-                // Parse and reverse to get oldest-first order for display
-                let messages = docsToProcess.compactMap { self.parseMessage(from: $0) }.reversed()
+                // Check if there are more messages than our display limit
+                let hasMore = allMessages.count > limit
 
-                completion(.success((messages: Array(messages), hasMore: hasMore)))
+                // Only return the most recent messages (last N)
+                let messages = hasMore ? Array(allMessages.suffix(limit)) : allMessages
+
+                completion(.success((messages: messages, hasMore: hasMore)))
             }
     }
 
