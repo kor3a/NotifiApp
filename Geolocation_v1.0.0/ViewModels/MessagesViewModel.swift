@@ -479,14 +479,25 @@ class MessagesViewModel: ObservableObject {
                     senderName: currentUserName,
                     content: messageContent,
                     linkedStore: linkedStore
-                ) { messageResult in
-                    DispatchQueue.main.async {
-                        switch messageResult {
-                        case .success(let message):
-                            print("📤 MessagesViewModel.shareStore: SUCCESS - Message sent with id=\(message.id)")
-                            completion(true)
-                        case .failure(let error):
-                            print("📤 MessagesViewModel.shareStore: ERROR sending message: \(error)")
+                ) { [weak self] messageResult in
+                    switch messageResult {
+                    case .success(let message):
+                        print("📤 MessagesViewModel.shareStore: SUCCESS - Message sent with id=\(message.id)")
+
+                        // Mark all reminders in this store as shared
+                        self?.markRemindersAsShared(
+                            userStoreItem: userStoreItem,
+                            recipientName: contact.name,
+                            currentUserName: currentUserName
+                        ) {
+                            DispatchQueue.main.async {
+                                completion(true)
+                            }
+                        }
+
+                    case .failure(let error):
+                        print("📤 MessagesViewModel.shareStore: ERROR sending message: \(error)")
+                        DispatchQueue.main.async {
                             completion(false)
                         }
                     }
@@ -499,6 +510,72 @@ class MessagesViewModel: ObservableObject {
                 }
             }
         }
+    }
+
+    /// Mark all reminders in a store as shared
+    private func markRemindersAsShared(
+        userStoreItem: UserStoreItem,
+        recipientName: String,
+        currentUserName: String,
+        completion: @escaping () -> Void
+    ) {
+        let db = Firestore.firestore()
+
+        // Determine which ID to use for fetching reminders
+        let reminderStoreId = userStoreItem.sourceUserStoreId ?? userStoreItem.sharedStoreGroupId ?? userStoreItem.id
+
+        print("📤 markRemindersAsShared: Marking reminders as shared for storeId=\(reminderStoreId)")
+
+        db.collection("reminders")
+            .whereField("userStoreId", isEqualTo: reminderStoreId)
+            .whereField("isDone", isEqualTo: false)
+            .getDocuments { snapshot, error in
+                if let error = error {
+                    print("📤 markRemindersAsShared: ERROR fetching reminders - \(error)")
+                    completion()
+                    return
+                }
+
+                guard let documents = snapshot?.documents, !documents.isEmpty else {
+                    print("📤 markRemindersAsShared: No reminders to mark")
+                    completion()
+                    return
+                }
+
+                print("📤 markRemindersAsShared: Found \(documents.count) reminders to mark as shared")
+
+                let batch = db.batch()
+
+                for doc in documents {
+                    let data = doc.data()
+                    var sharedWith = data["sharedWith"] as? [String] ?? []
+
+                    // Add recipient if not already in the list
+                    if !sharedWith.contains(recipientName) {
+                        sharedWith.append(recipientName)
+                    }
+
+                    // Add sender name if not already in the list (for display purposes)
+                    if !sharedWith.contains(currentUserName) {
+                        sharedWith.insert(currentUserName, at: 0)
+                    }
+
+                    batch.updateData([
+                        "isShared": true,
+                        "sharedWith": sharedWith,
+                        "sharedAt": Date().timeIntervalSince1970
+                    ], forDocument: doc.reference)
+                }
+
+                batch.commit { error in
+                    if let error = error {
+                        print("📤 markRemindersAsShared: ERROR committing batch - \(error)")
+                    } else {
+                        print("📤 markRemindersAsShared: SUCCESS - \(documents.count) reminders marked as shared")
+                    }
+                    completion()
+                }
+            }
     }
 
     // MARK: - Shared Store Accept/Reject
