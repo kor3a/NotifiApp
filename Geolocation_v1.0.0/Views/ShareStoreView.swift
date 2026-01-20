@@ -21,6 +21,7 @@ struct ShareStoreView: View {
     @Environment(\.dismiss) var dismiss
     @Environment(\.colorScheme) var colorScheme
     @ObservedObject var viewModel: StoresViewModel
+    @ObservedObject var messagesViewModel: MessagesViewModel
     let userStoreItem: UserStoreItem
 
     @State private var recipientEmail: String = ""
@@ -31,8 +32,10 @@ struct ShareStoreView: View {
     @State private var alertTitle: String = ""
     @State private var sharedUsers: [SharedUser] = []
     @State private var isLoadingSharedUsers: Bool = false
+    @State private var reminderTitles: [String] = []
 
     private let db = Firestore.firestore()
+    private let messagingService = MessagingService.shared
 
     // MARK: - BODY
 
@@ -177,7 +180,7 @@ struct ShareStoreView: View {
                     Image(systemName: "info.circle.fill")
                         .foregroundStyle(.blue)
 
-                    Text("The store and all its active reminders will be shared. The recipient must have an account with the email address you provide.")
+                    Text("A share request will be sent to the recipient's messages. They must accept before the store appears in their list. The recipient must have an account with the email address you provide.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -187,6 +190,24 @@ struct ShareStoreView: View {
                     RoundedRectangle(cornerRadius: 10)
                         .fill(Color.blue.opacity(0.1))
                 )
+
+                // Show reminder count
+                if !reminderTitles.isEmpty {
+                    HStack(alignment: .top, spacing: 8) {
+                        Image(systemName: "list.bullet")
+                            .foregroundStyle(.green)
+
+                        Text("\(reminderTitles.count) active reminder(s) will be included with this store.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .padding()
+                    .background(
+                        RoundedRectangle(cornerRadius: 10)
+                            .fill(Color.green.opacity(0.1))
+                    )
+                }
 
                 // Share Button
                 Button(action: shareStore) {
@@ -235,6 +256,7 @@ struct ShareStoreView: View {
             }
             .onAppear {
                 fetchSharedUsers()
+                fetchReminderTitles()
             }
         }
     }
@@ -250,25 +272,112 @@ struct ShareStoreView: View {
             return
         }
 
+        guard let currentUserId = viewModel.sessionManager.currentUser?.userId,
+              let currentUserName = viewModel.sessionManager.currentUser?.name else {
+            alertTitle = "Error"
+            alertMessage = "No user data available."
+            showAlert = true
+            return
+        }
+
+        let cleanedEmail = recipientEmail.lowercased().trimmingCharacters(in: .whitespaces)
+
+        // Check if trying to share with self
+        if cleanedEmail == viewModel.sessionManager.currentUser?.email?.lowercased() {
+            alertTitle = "Error"
+            alertMessage = "You cannot share a store with yourself."
+            showAlert = true
+            return
+        }
+
         isSharing = true
 
-        viewModel.shareStore(
-            userStoreItem: userStoreItem,
-            recipientEmail: recipientEmail.lowercased().trimmingCharacters(in: .whitespaces),
-            permission: selectedPermission
-        ) { success, message in
-            isSharing = false
+        // First, find the recipient user by email
+        messagingService.searchUserByEmail(cleanedEmail) { [self] result in
+            switch result {
+            case .success(let contact):
+                guard let contact = contact else {
+                    DispatchQueue.main.async {
+                        self.isSharing = false
+                        self.alertTitle = "Error"
+                        self.alertMessage = "No user found with this email address. Make sure the recipient has an account."
+                        self.showAlert = true
+                    }
+                    return
+                }
 
-            if success {
-                alertTitle = "Success"
-                alertMessage = message ?? "Store shared successfully!"
-            } else {
-                alertTitle = "Error"
-                alertMessage = message ?? "Failed to share store. Please try again."
+                // Check if recipient already has this store
+                self.db.collection("user_stores")
+                    .whereField("userId", isEqualTo: contact.id)
+                    .whereField("storeId", isEqualTo: self.userStoreItem.store.id)
+                    .getDocuments { snapshot, error in
+                        if let documents = snapshot?.documents, !documents.isEmpty {
+                            DispatchQueue.main.async {
+                                self.isSharing = false
+                                self.alertTitle = "Error"
+                                self.alertMessage = "This user already has this store."
+                                self.showAlert = true
+                            }
+                            return
+                        }
+
+                        // Send the store share request via messaging
+                        let permissionString = self.selectedPermission == .edit ? "edit" : "view"
+                        self.messagesViewModel.shareStore(
+                            userStoreItem: self.userStoreItem,
+                            to: contact,
+                            permission: permissionString,
+                            currentUserName: currentUserName,
+                            reminderTitles: self.reminderTitles
+                        ) { success in
+                            DispatchQueue.main.async {
+                                self.isSharing = false
+
+                                if success {
+                                    self.alertTitle = "Success"
+                                    self.alertMessage = "Share request sent! The recipient will see it in their messages and can accept or decline."
+                                } else {
+                                    self.alertTitle = "Error"
+                                    self.alertMessage = "Failed to send share request. Please try again."
+                                }
+
+                                self.showAlert = true
+                            }
+                        }
+                    }
+
+            case .failure(let error):
+                DispatchQueue.main.async {
+                    self.isSharing = false
+                    self.alertTitle = "Error"
+                    self.alertMessage = "Error finding recipient: \(error.localizedDescription)"
+                    self.showAlert = true
+                }
             }
-
-            showAlert = true
         }
+    }
+
+    private func fetchReminderTitles() {
+        // Determine which ID to use for fetching reminders
+        let reminderStoreId = userStoreItem.sourceUserStoreId ?? userStoreItem.sharedStoreGroupId ?? userStoreItem.id
+
+        db.collection("reminders")
+            .whereField("userStoreId", isEqualTo: reminderStoreId)
+            .whereField("isDone", isEqualTo: false)
+            .getDocuments { snapshot, error in
+                if let error = error {
+                    print("ShareStoreView: Error fetching reminder titles: \(error.localizedDescription)")
+                    return
+                }
+
+                let titles = snapshot?.documents.compactMap { doc -> String? in
+                    doc.data()["title"] as? String
+                } ?? []
+
+                DispatchQueue.main.async {
+                    self.reminderTitles = titles
+                }
+            }
     }
 
     private func isValidEmail(_ email: String) -> Bool {
@@ -349,6 +458,7 @@ struct ShareStoreView: View {
 #Preview {
     ShareStoreView(
         viewModel: StoresViewModel(),
+        messagesViewModel: MessagesViewModel(),
         userStoreItem: UserStoreItem(
             id: "preview-id",
             store: Store(

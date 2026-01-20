@@ -421,6 +421,131 @@ class MessagesViewModel: ObservableObject {
         }
     }
 
+    // MARK: - Share Store
+
+    func shareStore(
+        userStoreItem: UserStoreItem,
+        to contact: Contact,
+        permission: String,
+        currentUserName: String,
+        reminderTitles: [String]?,
+        completion: @escaping (Bool) -> Void
+    ) {
+        guard let userId = currentUserId else {
+            completion(false)
+            return
+        }
+
+        // First, find or create conversation
+        messagingService.findOrCreateConversation(
+            currentUserId: userId,
+            currentUserName: currentUserName,
+            otherUserId: contact.id,
+            otherUserName: contact.name
+        ) { [weak self] result in
+            switch result {
+            case .success(let conversation):
+                // Create LinkedStore with all necessary info
+                let linkedStore = LinkedStore(
+                    storeName: userStoreItem.store.name,
+                    storeAddress: userStoreItem.store.address,
+                    storeId: userStoreItem.store.id,
+                    senderUserId: userId,
+                    senderUserStoreId: userStoreItem.id,  // Include sender's user_store ID for linking
+                    status: .pending,
+                    permission: permission,
+                    storeLatitude: userStoreItem.store.latitude,
+                    storeLongitude: userStoreItem.store.longitude,
+                    storeImageURL: userStoreItem.store.imageURL,
+                    reminderTitles: reminderTitles
+                )
+
+                let permissionText = permission == "edit" ? "Can Edit" : "View Only"
+                let reminderCountText = reminderTitles?.count ?? 0
+                let messageContent = "I'd like to share \(userStoreItem.store.name) with you (\(permissionText)). It has \(reminderCountText) reminder(s)."
+
+                self?.messagingService.sendMessage(
+                    conversationId: conversation.id,
+                    senderId: userId,
+                    senderName: currentUserName,
+                    content: messageContent,
+                    linkedStore: linkedStore
+                ) { messageResult in
+                    DispatchQueue.main.async {
+                        switch messageResult {
+                        case .success:
+                            completion(true)
+                        case .failure(let error):
+                            print("MessagesViewModel: Error sending store share request: \(error)")
+                            completion(false)
+                        }
+                    }
+                }
+
+            case .failure(let error):
+                print("MessagesViewModel: Error creating conversation for store: \(error)")
+                DispatchQueue.main.async {
+                    completion(false)
+                }
+            }
+        }
+    }
+
+    // MARK: - Shared Store Accept/Reject
+
+    func acceptSharedStore(
+        message: Message,
+        completion: @escaping (Bool) -> Void
+    ) {
+        guard let userId = currentUserId,
+              let userEmail = UserSessionManager.shared.currentUser?.email,
+              let linkedStore = message.linkedStore else {
+            completion(false)
+            return
+        }
+
+        messagingService.acceptSharedStore(
+            messageId: message.id,
+            linkedStore: linkedStore,
+            currentUserId: userId,
+            currentUserEmail: userEmail,
+            senderUserId: linkedStore.senderUserId,
+            senderUserStoreId: linkedStore.senderUserStoreId
+        ) { result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success:
+                    print("MessagesViewModel: Successfully accepted shared store")
+                    completion(true)
+                case .failure(let error):
+                    print("MessagesViewModel: Error accepting shared store: \(error)")
+                    completion(false)
+                }
+            }
+        }
+    }
+
+    func rejectSharedStore(
+        message: Message,
+        completion: @escaping (Bool) -> Void
+    ) {
+        messagingService.updateLinkedStoreStatus(
+            messageId: message.id,
+            status: .rejected
+        ) { result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success:
+                    print("MessagesViewModel: Successfully rejected shared store")
+                    completion(true)
+                case .failure(let error):
+                    print("MessagesViewModel: Error rejecting shared store: \(error)")
+                    completion(false)
+                }
+            }
+        }
+    }
+
     // MARK: - Helpers
 
     func isCurrentUser(_ senderId: String) -> Bool {

@@ -11,6 +11,7 @@ struct StoresView: View {
     // MARK: - PROPERTIES
 
     @StateObject private var viewModel = StoresViewModel()
+    @StateObject private var messagesViewModel = MessagesViewModel()
     @ObservedObject private var sessionManager = UserSessionManager.shared
     @State private var showingAddStore = false
     @State private var isMenuExpanded = false
@@ -206,7 +207,7 @@ struct StoresView: View {
             AddStoreView(viewModel: viewModel)
         }
         .sheet(item: $selectedStoreToShare) { storeToShare in
-            ShareStoreView(viewModel: viewModel, userStoreItem: storeToShare)
+            ShareStoreView(viewModel: viewModel, messagesViewModel: messagesViewModel, userStoreItem: storeToShare)
         }
         .onAppear() {
             // Try to fetch immediately if user data is available
