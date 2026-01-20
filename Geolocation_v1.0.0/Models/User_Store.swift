@@ -19,7 +19,8 @@ struct UserStore: Codable, Identifiable {
     var permission: StorePermission = .owner // Default to owner for existing stores
     var sharedStoreGroupId: String? = nil // Links co-owners for Can Edit permission
     var sourceUserStoreId: String? = nil // For View Only: points to owner's user_store ID for fetching reminders
-    var sharedFrom: String? = nil // Email of user who shared
+    var sharedFrom: String? = nil // User ID of user who shared
+    var sharedFromName: String? = nil // Display name of user who shared
     var sharedAt: TimeInterval? = nil // When it was shared
     var notificationsEnabled: Bool = true // Whether notifications are enabled for this store
 
@@ -36,6 +37,7 @@ struct UserStore: Codable, Identifiable {
         case sharedStoreGroupId
         case sourceUserStoreId
         case sharedFrom
+        case sharedFromName
         case sharedAt
         case notificationsEnabled
     }
@@ -52,6 +54,7 @@ struct UserStore: Codable, Identifiable {
         sharedStoreGroupId = try container.decodeIfPresent(String.self, forKey: .sharedStoreGroupId)
         sourceUserStoreId = try container.decodeIfPresent(String.self, forKey: .sourceUserStoreId)
         sharedFrom = try container.decodeIfPresent(String.self, forKey: .sharedFrom)
+        sharedFromName = try container.decodeIfPresent(String.self, forKey: .sharedFromName)
         sharedAt = try container.decodeIfPresent(TimeInterval.self, forKey: .sharedAt)
 
         // Handle permission with default value for backward compatibility
@@ -78,6 +81,7 @@ struct UserStore: Codable, Identifiable {
         try container.encodeIfPresent(sharedStoreGroupId, forKey: .sharedStoreGroupId)
         try container.encodeIfPresent(sourceUserStoreId, forKey: .sourceUserStoreId)
         try container.encodeIfPresent(sharedFrom, forKey: .sharedFrom)
+        try container.encodeIfPresent(sharedFromName, forKey: .sharedFromName)
         try container.encodeIfPresent(sharedAt, forKey: .sharedAt)
         try container.encode(notificationsEnabled, forKey: .notificationsEnabled)
     }

@@ -82,6 +82,7 @@ class StoresViewModel: ObservableObject {
                     let permission = StorePermission(rawValue: permissionString) ?? .owner
                     let sharedStoreGroupId = data["sharedStoreGroupId"] as? String
                     let sourceUserStoreId = data["sourceUserStoreId"] as? String
+                    let sharedFromName = data["sharedFromName"] as? String
                     let notificationsEnabled = data["notificationsEnabled"] as? Bool ?? true
 
                     // Determine which ID to use for fetching reminders
@@ -116,6 +117,7 @@ class StoresViewModel: ObservableObject {
                                 permission: permission,
                                 sharedStoreGroupId: sharedStoreGroupId,
                                 sourceUserStoreId: sourceUserStoreId,
+                                sharedFromName: sharedFromName,
                                 notificationsEnabled: notificationsEnabled
                             )
                             tempUserStoreItems.append(userStoreItem)

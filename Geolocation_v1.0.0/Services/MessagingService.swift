@@ -812,6 +812,7 @@ class MessagingService: ObservableObject {
         currentUserEmail: String,
         senderUserId: String,
         senderUserStoreId: String?,
+        senderName: String,
         completion: @escaping (Result<Void, Error>) -> Void
     ) {
         print("🟢 MessagingService.acceptSharedStore: Starting for store '\(linkedStore.storeName)'")
@@ -872,6 +873,7 @@ class MessagingService: ObservableObject {
                                 currentUserEmail: currentUserEmail,
                                 senderUserId: senderUserId,
                                 senderUserStoreId: senderUserStoreId,
+                                senderName: senderName,
                                 sortOrder: sortOrder,
                                 messageId: messageId,
                                 completion: completion
@@ -884,6 +886,7 @@ class MessagingService: ObservableObject {
                                 currentUserEmail: currentUserEmail,
                                 senderUserId: senderUserId,
                                 senderUserStoreId: senderUserStoreId,
+                                senderName: senderName,
                                 sortOrder: sortOrder,
                                 messageId: messageId,
                                 completion: completion
@@ -900,6 +903,7 @@ class MessagingService: ObservableObject {
         currentUserEmail: String,
         senderUserId: String,
         senderUserStoreId: String?,
+        senderName: String,
         sortOrder: Int,
         messageId: String,
         completion: @escaping (Result<Void, Error>) -> Void
@@ -919,6 +923,7 @@ class MessagingService: ObservableObject {
             "sortOrder": sortOrder,
             "permission": "edit",
             "sharedFrom": senderUserId,
+            "sharedFromName": senderName,  // Store sender's name for display
             "sharedAt": Date().timeIntervalSince1970,
             "notificationsEnabled": true
         ]
@@ -958,6 +963,7 @@ class MessagingService: ObservableObject {
         currentUserEmail: String,
         senderUserId: String,
         senderUserStoreId: String?,
+        senderName: String,
         sortOrder: Int,
         messageId: String,
         completion: @escaping (Result<Void, Error>) -> Void
@@ -972,6 +978,7 @@ class MessagingService: ObservableObject {
             "sortOrder": sortOrder,
             "permission": "view",
             "sharedFrom": senderUserId,
+            "sharedFromName": senderName,  // Store sender's name for display
             "sharedAt": Date().timeIntervalSince1970,
             "notificationsEnabled": true
         ]

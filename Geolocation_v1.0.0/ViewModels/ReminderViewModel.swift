@@ -16,9 +16,12 @@ class ReminderViewModel: ObservableObject {
     @Published var errorMessage: String = ""
 
     /// Fetch reminders for a specific user_store document
-    func fetchReminders(for userStoreId: String) {
+    /// - Parameters:
+    ///   - userStoreId: The user_store ID to fetch reminders for
+    ///   - sharedFromName: If this is a shared store, the name of the user who shared it (to populate sharedFrom on reminders)
+    func fetchReminders(for userStoreId: String, sharedFromName: String? = nil) {
         isLoading = true
-        print("ReminderViewModel: Fetching reminders for userStoreId: \(userStoreId)")
+        print("ReminderViewModel: Fetching reminders for userStoreId: \(userStoreId), sharedFromName: \(sharedFromName ?? "nil")")
 
         db.collection("reminders")
             .whereField("userStoreId", isEqualTo: userStoreId)
@@ -57,10 +60,16 @@ class ReminderViewModel: ObservableObject {
 
                         // Parse optional shared fields
                         let isShared = data["isShared"] as? Bool
-                        let sharedFrom = data["sharedFrom"] as? String
+                        var sharedFrom = data["sharedFrom"] as? String
                         let sharedAt = data["sharedAt"] as? TimeInterval
                         let sharedReminderId = data["sharedReminderId"] as? String
                         let sharedWith = data["sharedWith"] as? [String]
+
+                        // If viewing a shared store and reminder is shared but has no sharedFrom,
+                        // populate it with the store owner's name for proper display
+                        if isShared == true && sharedFrom == nil && sharedFromName != nil {
+                            sharedFrom = sharedFromName
+                        }
 
                         return Reminder(
                             id: doc.documentID,

@@ -550,14 +550,11 @@ class MessagesViewModel: ObservableObject {
                     let data = doc.data()
                     var sharedWith = data["sharedWith"] as? [String] ?? []
 
-                    // Add recipient if not already in the list
+                    // Only add recipient to sharedWith (not the sender)
+                    // The sender is the owner - they see "Shared with [recipient]"
+                    // The recipient will see "Shared by [sender]" via sharedFromName on their user_store
                     if !sharedWith.contains(recipientName) {
                         sharedWith.append(recipientName)
-                    }
-
-                    // Add sender name if not already in the list (for display purposes)
-                    if !sharedWith.contains(currentUserName) {
-                        sharedWith.insert(currentUserName, at: 0)
                     }
 
                     batch.updateData([
@@ -612,7 +609,8 @@ class MessagesViewModel: ObservableObject {
             currentUserId: userId,
             currentUserEmail: userEmail,
             senderUserId: linkedStore.senderUserId,
-            senderUserStoreId: linkedStore.senderUserStoreId
+            senderUserStoreId: linkedStore.senderUserStoreId,
+            senderName: message.senderName  // Pass sender name for display
         ) { result in
             DispatchQueue.main.async {
                 switch result {

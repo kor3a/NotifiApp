@@ -169,7 +169,7 @@ struct ReminderView: View {
             Text("Enter the item name you wish to add.")
         }
         .onAppear {
-            viewModel.fetchReminders(for: userStoreItem.reminderStoreId)
+            viewModel.fetchReminders(for: userStoreItem.reminderStoreId, sharedFromName: userStoreItem.sharedFromName)
         }
         .onChange(of: autoDeleteEnabled) { oldValue, newValue in
             // When auto-delete is turned ON, clean up already-done reminders
@@ -286,6 +286,7 @@ struct ReminderView: View {
         permission: .owner,
         sharedStoreGroupId: nil,
         sourceUserStoreId: nil,
+        sharedFromName: nil,
         notificationsEnabled: true
     ))
 }
