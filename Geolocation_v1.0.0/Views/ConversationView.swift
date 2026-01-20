@@ -12,6 +12,7 @@ struct ConversationView: View {
     @ObservedObject var viewModel: MessagesViewModel
     @ObservedObject private var sessionManager = UserSessionManager.shared
     @State private var messageText = ""
+    @State private var scrolledToTopMessageId: String?
     @FocusState private var isInputFocused: Bool
     @Environment(\.colorScheme) var colorScheme
 
@@ -25,6 +26,12 @@ struct ConversationView: View {
             ScrollViewReader { proxy in
                 ScrollView {
                     LazyVStack(spacing: 12) {
+                        // Load more indicator at top
+                        if viewModel.hasMoreMessages {
+                            loadMoreButton
+                                .id("loadMore")
+                        }
+
                         ForEach(viewModel.messages) { message in
                             MessageBubble(
                                 message: message,
@@ -36,12 +43,18 @@ struct ConversationView: View {
                     }
                     .padding()
                 }
-                .onChange(of: viewModel.messages.count) { _, _ in
-                    if let lastMessage = viewModel.messages.last {
-                        withAnimation {
-                            proxy.scrollTo(lastMessage.id, anchor: .bottom)
+                .onChange(of: viewModel.messages.count) { oldCount, newCount in
+                    // Only auto-scroll if new messages were added (not when loading older)
+                    if newCount > oldCount, let lastMessage = viewModel.messages.last {
+                        // Check if the new message is at the end (new message) vs beginning (older messages)
+                        if scrolledToTopMessageId == nil {
+                            withAnimation {
+                                proxy.scrollTo(lastMessage.id, anchor: .bottom)
+                            }
                         }
                     }
+                    // Reset the scroll tracking after processing
+                    scrolledToTopMessageId = nil
                 }
                 .onAppear {
                     if let lastMessage = viewModel.messages.last {
@@ -62,7 +75,31 @@ struct ConversationView: View {
         }
         .onDisappear {
             viewModel.markAsRead(conversationId: conversation.id)
+            viewModel.stopListeningForMessages()
         }
+    }
+
+    private var loadMoreButton: some View {
+        Button {
+            // Remember the first message to maintain scroll position
+            scrolledToTopMessageId = viewModel.messages.first?.id
+            viewModel.loadMoreMessages()
+        } label: {
+            HStack(spacing: 8) {
+                if viewModel.isLoadingMore {
+                    ProgressView()
+                        .scaleEffect(0.8)
+                } else {
+                    Image(systemName: "arrow.up.circle")
+                }
+                Text(viewModel.isLoadingMore ? "Loading..." : "Load earlier messages")
+                    .font(.subheadline)
+            }
+            .foregroundColor(.secondary)
+            .padding(.vertical, 8)
+            .frame(maxWidth: .infinity)
+        }
+        .disabled(viewModel.isLoadingMore)
     }
 
     private var inputBar: some View {

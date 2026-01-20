@@ -7,6 +7,7 @@
 
 import Foundation
 import FirebaseAuth
+import FirebaseFirestore
 
 class MessagesViewModel: ObservableObject {
     @Published var conversations: [Conversation] = []
@@ -18,11 +19,21 @@ class MessagesViewModel: ObservableObject {
     @Published var errorMessage: String?
     @Published var totalUnreadCount = 0
 
+    // Pagination state
+    @Published var hasMoreMessages = false
+    @Published var isLoadingMore = false
+
     private let messagingService = MessagingService.shared
+    private var newMessagesListener: ListenerRegistration?
+    private var currentConversationId: String?
 
     // Use the userId from user profile (stored in Firestore), NOT Auth UID
     private var currentUserId: String? {
         UserSessionManager.shared.currentUser?.userId
+    }
+
+    deinit {
+        stopListeningForMessages()
     }
 
     // MARK: - Conversations
@@ -61,20 +72,126 @@ class MessagesViewModel: ObservableObject {
         }
     }
 
-    // MARK: - Messages
-
-    func fetchMessages(for conversationId: String) {
-        isLoading = true
-
-        messagingService.fetchMessages(for: conversationId) { [weak self] result in
+    /// Delete a conversation and all its messages
+    func deleteConversation(_ conversation: Conversation) {
+        messagingService.deleteConversation(conversationId: conversation.id) { [weak self] result in
             DispatchQueue.main.async {
-                self?.isLoading = false
                 switch result {
-                case .success(let messages):
-                    self?.messages = messages
+                case .success:
+                    // Conversation will be removed automatically via snapshot listener
+                    print("MessagesViewModel: Successfully deleted conversation")
                 case .failure(let error):
                     self?.errorMessage = error.localizedDescription
+                    print("MessagesViewModel: Error deleting conversation: \(error)")
+                }
+            }
+        }
+    }
+
+    // MARK: - Messages
+
+    // Track the oldest timestamp from displayed messages for pagination
+    private var oldestDisplayedTimestamp: TimeInterval?
+    // Store manually loaded older messages (messages older than what snapshot returns)
+    private var olderLoadedMessages: [Message] = []
+
+    /// Fetch paginated messages for a conversation with real-time updates
+    func fetchMessages(for conversationId: String) {
+        // Clean up previous listener if switching conversations
+        if currentConversationId != conversationId {
+            stopListeningForMessages()
+            messages = []
+            hasMoreMessages = false
+            oldestDisplayedTimestamp = nil
+            olderLoadedMessages = []
+        }
+
+        currentConversationId = conversationId
+        isLoading = true
+
+        // Use snapshot listener for real-time updates on the most recent messages
+        newMessagesListener = messagingService.fetchPaginatedMessages(for: conversationId) { [weak self] result in
+            DispatchQueue.main.async {
+                guard let self = self else { return }
+                self.isLoading = false
+
+                switch result {
+                case .success(let (recentMessages, hasMore)):
+                    // Merge older loaded messages with recent messages from snapshot
+                    // Filter out any duplicates (messages that appear in both)
+                    let recentIds = Set(recentMessages.map { $0.id })
+                    let uniqueOlderMessages = self.olderLoadedMessages.filter { !recentIds.contains($0.id) }
+
+                    self.messages = uniqueOlderMessages + recentMessages
+                    self.hasMoreMessages = hasMore || !uniqueOlderMessages.isEmpty
+
+                    // Track oldest displayed timestamp for pagination
+                    if let firstMessage = self.messages.first {
+                        self.oldestDisplayedTimestamp = firstMessage.createdAt
+                    }
+
+                case .failure(let error):
+                    self.errorMessage = error.localizedDescription
                     print("MessagesViewModel: Error fetching messages: \(error)")
+                }
+            }
+        }
+    }
+
+    /// Load older messages when user scrolls to top
+    func loadMoreMessages() {
+        guard let conversationId = currentConversationId,
+              hasMoreMessages,
+              !isLoadingMore,
+              let oldestTimestamp = oldestDisplayedTimestamp else { return }
+
+        isLoadingMore = true
+
+        messagingService.loadOlderMessages(
+            for: conversationId,
+            beforeTimestamp: oldestTimestamp
+        ) { [weak self] result in
+            DispatchQueue.main.async {
+                guard let self = self else { return }
+                self.isLoadingMore = false
+
+                switch result {
+                case .success(let (olderMessages, hasMore)):
+                    // Store these older messages so they persist across snapshot updates
+                    self.olderLoadedMessages = olderMessages + self.olderLoadedMessages
+                    // Prepend older messages to the beginning
+                    self.messages = olderMessages + self.messages
+                    self.hasMoreMessages = hasMore
+                    // Update oldest timestamp for next pagination
+                    if let firstOldMessage = olderMessages.first {
+                        self.oldestDisplayedTimestamp = firstOldMessage.createdAt
+                    }
+
+                case .failure(let error):
+                    self.errorMessage = error.localizedDescription
+                    print("MessagesViewModel: Error loading more messages: \(error)")
+                }
+            }
+        }
+    }
+
+    /// Stop listening for messages
+    func stopListeningForMessages() {
+        newMessagesListener?.remove()
+        newMessagesListener = nil
+    }
+
+    /// Delete a message
+    func deleteMessage(_ message: Message) {
+        messagingService.deleteMessage(messageId: message.id) { [weak self] result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success:
+                    // Message will be removed automatically via snapshot listener
+                    print("MessagesViewModel: Successfully deleted message")
+                case .failure(let error):
+                    self?.errorMessage = error.localizedDescription
+                    print("MessagesViewModel: Error deleting message: \(error)")
                 }
             }
         }

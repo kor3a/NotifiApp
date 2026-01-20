@@ -130,7 +130,10 @@ class MessagingService: ObservableObject {
 
     // MARK: - Messages
 
-    /// Fetch messages for a conversation
+    /// Default page size for message pagination
+    static let messagePageSize = 25
+
+    /// Fetch messages for a conversation (legacy - loads all messages)
     func fetchMessages(for conversationId: String, completion: @escaping (Result<[Message], Error>) -> Void) {
         db.collection("messages")
             .whereField("conversationId", isEqualTo: conversationId)
@@ -151,6 +154,129 @@ class MessagingService: ObservableObject {
                 }
 
                 completion(.success(messages))
+            }
+    }
+
+    /// Fetch paginated messages for a conversation with real-time updates
+    /// Returns a listener that provides messages sorted oldest to newest for display
+    func fetchPaginatedMessages(
+        for conversationId: String,
+        limit: Int = MessagingService.messagePageSize,
+        completion: @escaping (Result<(messages: [Message], hasMore: Bool), Error>) -> Void
+    ) -> ListenerRegistration {
+        // Use snapshot listener with ascending order for reliable real-time updates
+        // The limit is applied in the result processing to show only recent messages
+        return db.collection("messages")
+            .whereField("conversationId", isEqualTo: conversationId)
+            .order(by: "createdAt", descending: false)
+            .addSnapshotListener { [weak self] snapshot, error in
+                guard let self = self else { return }
+
+                if let error = error {
+                    print("MessagingService: Error fetching paginated messages: \(error)")
+                    completion(.failure(error))
+                    return
+                }
+
+                guard let documents = snapshot?.documents else {
+                    completion(.success((messages: [], hasMore: false)))
+                    return
+                }
+
+                // Parse all messages (already in oldest-first order)
+                let allMessages = documents.compactMap { self.parseMessage(from: $0) }
+
+                // Check if there are more messages than our display limit
+                let hasMore = allMessages.count > limit
+
+                // Only return the most recent messages (last N)
+                let messages = hasMore ? Array(allMessages.suffix(limit)) : allMessages
+
+                completion(.success((messages: messages, hasMore: hasMore)))
+            }
+    }
+
+    /// Load older messages before a given timestamp (one-time fetch)
+    func loadOlderMessages(
+        for conversationId: String,
+        beforeTimestamp: TimeInterval,
+        limit: Int = MessagingService.messagePageSize,
+        completion: @escaping (Result<(messages: [Message], hasMore: Bool), Error>) -> Void
+    ) {
+        // Fetch limit + 1 to determine if there are more older messages
+        db.collection("messages")
+            .whereField("conversationId", isEqualTo: conversationId)
+            .whereField("createdAt", isLessThan: beforeTimestamp)
+            .order(by: "createdAt", descending: true)
+            .limit(to: limit + 1)
+            .getDocuments { [weak self] snapshot, error in
+                guard let self = self else { return }
+
+                if let error = error {
+                    print("MessagingService: Error loading older messages: \(error)")
+                    completion(.failure(error))
+                    return
+                }
+
+                guard let documents = snapshot?.documents else {
+                    completion(.success((messages: [], hasMore: false)))
+                    return
+                }
+
+                // Check if there are more messages beyond our limit
+                let hasMore = documents.count > limit
+                let docsToProcess = hasMore ? Array(documents.prefix(limit)) : documents
+
+                // Parse and reverse to get oldest-first order for display
+                let messages = docsToProcess.compactMap { self.parseMessage(from: $0) }.reversed()
+
+                completion(.success((messages: Array(messages), hasMore: hasMore)))
+            }
+    }
+
+    /// Delete a message
+    func deleteMessage(messageId: String, completion: @escaping (Result<Void, Error>) -> Void) {
+        db.collection("messages").document(messageId).delete { error in
+            if let error = error {
+                completion(.failure(error))
+            } else {
+                completion(.success(()))
+            }
+        }
+    }
+
+    /// Delete a conversation and all its messages
+    func deleteConversation(conversationId: String, completion: @escaping (Result<Void, Error>) -> Void) {
+        // First delete all messages in the conversation
+        db.collection("messages")
+            .whereField("conversationId", isEqualTo: conversationId)
+            .getDocuments { [weak self] snapshot, error in
+                guard let self = self else { return }
+
+                if let error = error {
+                    completion(.failure(error))
+                    return
+                }
+
+                let batch = self.db.batch()
+
+                // Add all messages to batch delete
+                snapshot?.documents.forEach { doc in
+                    batch.deleteDocument(doc.reference)
+                }
+
+                // Add the conversation document to batch delete
+                let conversationRef = self.db.collection("conversations").document(conversationId)
+                batch.deleteDocument(conversationRef)
+
+                // Commit the batch
+                batch.commit { error in
+                    if let error = error {
+                        completion(.failure(error))
+                    } else {
+                        completion(.success(()))
+                    }
+                }
             }
     }
 
