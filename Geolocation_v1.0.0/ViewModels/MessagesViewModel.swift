@@ -507,12 +507,27 @@ class MessagesViewModel: ObservableObject {
         message: Message,
         completion: @escaping (Bool) -> Void
     ) {
-        guard let userId = currentUserId,
-              let userEmail = UserSessionManager.shared.currentUser?.email,
-              let linkedStore = message.linkedStore else {
+        print("🔵 MessagesViewModel.acceptSharedStore: Starting for message \(message.id)")
+
+        guard let userId = currentUserId else {
+            print("🔵 MessagesViewModel.acceptSharedStore: ERROR - No currentUserId")
             completion(false)
             return
         }
+
+        guard let userEmail = UserSessionManager.shared.currentUser?.email else {
+            print("🔵 MessagesViewModel.acceptSharedStore: ERROR - No userEmail")
+            completion(false)
+            return
+        }
+
+        guard let linkedStore = message.linkedStore else {
+            print("🔵 MessagesViewModel.acceptSharedStore: ERROR - No linkedStore in message")
+            completion(false)
+            return
+        }
+
+        print("🔵 MessagesViewModel.acceptSharedStore: linkedStore=\(linkedStore.storeName), senderUserStoreId=\(linkedStore.senderUserStoreId ?? "nil")")
 
         messagingService.acceptSharedStore(
             messageId: message.id,
@@ -525,10 +540,10 @@ class MessagesViewModel: ObservableObject {
             DispatchQueue.main.async {
                 switch result {
                 case .success:
-                    print("MessagesViewModel: Successfully accepted shared store")
+                    print("🔵 MessagesViewModel.acceptSharedStore: SUCCESS")
                     completion(true)
                 case .failure(let error):
-                    print("MessagesViewModel: Error accepting shared store: \(error)")
+                    print("🔵 MessagesViewModel.acceptSharedStore: FAILURE - \(error)")
                     completion(false)
                 }
             }

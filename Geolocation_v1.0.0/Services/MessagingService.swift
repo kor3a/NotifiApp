@@ -814,42 +814,58 @@ class MessagingService: ObservableObject {
         senderUserStoreId: String?,
         completion: @escaping (Result<Void, Error>) -> Void
     ) {
-        print("MessagingService: Accepting shared store: \(linkedStore.storeName)")
+        print("🟢 MessagingService.acceptSharedStore: Starting for store '\(linkedStore.storeName)'")
+        print("🟢 MessagingService.acceptSharedStore: messageId=\(messageId), currentUserId=\(currentUserId)")
+        print("🟢 MessagingService.acceptSharedStore: senderUserStoreId=\(senderUserStoreId ?? "nil"), permission=\(linkedStore.permission)")
 
         // Check if user already has this store
         db.collection("user_stores")
             .whereField("userId", isEqualTo: currentUserId)
             .whereField("storeId", isEqualTo: linkedStore.storeId)
             .getDocuments { [weak self] snapshot, error in
-                guard let self = self else { return }
+                guard let self = self else {
+                    print("🟢 MessagingService.acceptSharedStore: ERROR - self is nil")
+                    return
+                }
 
                 if let error = error {
+                    print("🟢 MessagingService.acceptSharedStore: ERROR checking existing store - \(error)")
                     completion(.failure(error))
                     return
                 }
 
+                print("🟢 MessagingService.acceptSharedStore: Existing stores check - found \(snapshot?.documents.count ?? 0) documents")
+
                 if snapshot?.documents.isEmpty == false {
                     // User already has this store, just update status
-                    print("MessagingService: User already has store '\(linkedStore.storeName)', marking as accepted")
+                    print("🟢 MessagingService.acceptSharedStore: User already has store, marking as accepted")
                     self.updateLinkedStoreStatus(messageId: messageId, status: .accepted, completion: completion)
                     return
                 }
+
+                print("🟢 MessagingService.acceptSharedStore: Getting store count for sortOrder...")
 
                 // Get user's current store count for sortOrder
                 self.db.collection("user_stores")
                     .whereField("userId", isEqualTo: currentUserId)
                     .getDocuments { [weak self] countSnapshot, countError in
-                        guard let self = self else { return }
+                        guard let self = self else {
+                            print("🟢 MessagingService.acceptSharedStore: ERROR - self is nil in count callback")
+                            return
+                        }
 
                         if let countError = countError {
+                            print("🟢 MessagingService.acceptSharedStore: ERROR getting count - \(countError)")
                             completion(.failure(countError))
                             return
                         }
 
                         let sortOrder = countSnapshot?.documents.count ?? 0
+                        print("🟢 MessagingService.acceptSharedStore: sortOrder=\(sortOrder), permission=\(linkedStore.permission)")
 
                         // Create the user_store based on permission
                         if linkedStore.permission == "edit" {
+                            print("🟢 MessagingService.acceptSharedStore: Creating with EDIT permission...")
                             self.createSharedStoreWithEditPermission(
                                 linkedStore: linkedStore,
                                 currentUserId: currentUserId,
@@ -861,6 +877,7 @@ class MessagingService: ObservableObject {
                                 completion: completion
                             )
                         } else {
+                            print("🟢 MessagingService.acceptSharedStore: Creating with VIEW permission...")
                             self.createSharedStoreWithViewPermission(
                                 linkedStore: linkedStore,
                                 currentUserId: currentUserId,
@@ -887,6 +904,8 @@ class MessagingService: ObservableObject {
         messageId: String,
         completion: @escaping (Result<Void, Error>) -> Void
     ) {
+        print("🟡 createSharedStoreWithEditPermission: Starting...")
+
         // Create a SharedStoreGroup to link both users' stores
         let sharedGroupRef = db.collection("shared_store_groups").document()
         let sharedGroupId = sharedGroupRef.documentID
@@ -921,29 +940,40 @@ class MessagingService: ObservableObject {
         let recipientUserStoreId = recipientUserStoreRef.documentID
 
         guard let senderUserStoreId = senderUserStoreId else {
+            print("🟡 createSharedStoreWithEditPermission: No senderUserStoreId, creating store without linking...")
             // No sender user_store ID provided, just create recipient's store without linking
             db.collection("user_stores").addDocument(data: recipientUserStore) { [weak self] error in
                 if let error = error {
+                    print("🟡 createSharedStoreWithEditPermission: ERROR creating store - \(error)")
                     completion(.failure(error))
                     return
                 }
+                print("🟡 createSharedStoreWithEditPermission: SUCCESS - store created without linking")
                 self?.updateLinkedStoreStatus(messageId: messageId, status: .accepted, completion: completion)
             }
             return
         }
+
+        print("🟡 createSharedStoreWithEditPermission: Fetching sender's reminders from userStoreId=\(senderUserStoreId)...")
 
         // Fetch sender's reminders to migrate to shared group
         db.collection("reminders")
             .whereField("userStoreId", isEqualTo: senderUserStoreId)
             .whereField("isDone", isEqualTo: false)
             .getDocuments { [weak self] reminderSnapshot, reminderError in
-                guard let self = self else { return }
+                guard let self = self else {
+                    print("🟡 createSharedStoreWithEditPermission: ERROR - self is nil")
+                    return
+                }
 
                 if let reminderError = reminderError {
-                    print("MessagingService: Error fetching reminders: \(reminderError.localizedDescription)")
+                    print("🟡 createSharedStoreWithEditPermission: ERROR fetching reminders - \(reminderError)")
                     completion(.failure(reminderError))
                     return
                 }
+
+                let reminderCount = reminderSnapshot?.documents.count ?? 0
+                print("🟡 createSharedStoreWithEditPermission: Found \(reminderCount) reminders to migrate")
 
                 let batch = self.db.batch()
 
@@ -975,14 +1005,15 @@ class MessagingService: ObservableObject {
                     }
                 }
 
+                print("🟡 createSharedStoreWithEditPermission: Committing batch...")
+
                 // Commit the batch
                 batch.commit { [weak self] error in
                     if let error = error {
-                        print("MessagingService: Error creating shared store group: \(error.localizedDescription)")
+                        print("🟡 createSharedStoreWithEditPermission: ERROR committing batch - \(error)")
                         completion(.failure(error))
                     } else {
-                        let reminderCount = reminderSnapshot?.documents.count ?? 0
-                        print("MessagingService: Successfully created shared store group with \(reminderCount) reminders")
+                        print("🟡 createSharedStoreWithEditPermission: SUCCESS - batch committed, updating message status...")
                         self?.updateLinkedStoreStatus(messageId: messageId, status: .accepted, completion: completion)
                     }
                 }
