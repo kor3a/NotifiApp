@@ -431,10 +431,15 @@ class MessagesViewModel: ObservableObject {
         reminderTitles: [String]?,
         completion: @escaping (Bool) -> Void
     ) {
+        print("📤 MessagesViewModel.shareStore: Starting - store=\(userStoreItem.store.name), to=\(contact.name), permission=\(permission)")
+
         guard let userId = currentUserId else {
+            print("📤 MessagesViewModel.shareStore: ERROR - No currentUserId")
             completion(false)
             return
         }
+
+        print("📤 MessagesViewModel.shareStore: Finding or creating conversation...")
 
         // First, find or create conversation
         messagingService.findOrCreateConversation(
@@ -445,6 +450,8 @@ class MessagesViewModel: ObservableObject {
         ) { [weak self] result in
             switch result {
             case .success(let conversation):
+                print("📤 MessagesViewModel.shareStore: Got conversation \(conversation.id), creating LinkedStore...")
+
                 // Create LinkedStore with all necessary info
                 let linkedStore = LinkedStore(
                     storeName: userStoreItem.store.name,
@@ -464,6 +471,8 @@ class MessagesViewModel: ObservableObject {
                 let reminderCountText = reminderTitles?.count ?? 0
                 let messageContent = "I'd like to share \(userStoreItem.store.name) with you (\(permissionText)). It has \(reminderCountText) reminder(s)."
 
+                print("📤 MessagesViewModel.shareStore: Sending message with linkedStore...")
+
                 self?.messagingService.sendMessage(
                     conversationId: conversation.id,
                     senderId: userId,
@@ -473,17 +482,18 @@ class MessagesViewModel: ObservableObject {
                 ) { messageResult in
                     DispatchQueue.main.async {
                         switch messageResult {
-                        case .success:
+                        case .success(let message):
+                            print("📤 MessagesViewModel.shareStore: SUCCESS - Message sent with id=\(message.id)")
                             completion(true)
                         case .failure(let error):
-                            print("MessagesViewModel: Error sending store share request: \(error)")
+                            print("📤 MessagesViewModel.shareStore: ERROR sending message: \(error)")
                             completion(false)
                         }
                     }
                 }
 
             case .failure(let error):
-                print("MessagesViewModel: Error creating conversation for store: \(error)")
+                print("📤 MessagesViewModel.shareStore: ERROR creating conversation: \(error)")
                 DispatchQueue.main.async {
                     completion(false)
                 }

@@ -264,6 +264,8 @@ struct ShareStoreView: View {
     // MARK: - FUNCTIONS
 
     private func shareStore() {
+        print("ShareStoreView: shareStore() called - NEW MESSAGE-BASED FLOW")
+
         // Validate email format
         guard isValidEmail(recipientEmail) else {
             alertTitle = "Invalid Email"
@@ -291,6 +293,7 @@ struct ShareStoreView: View {
         }
 
         isSharing = true
+        print("ShareStoreView: Looking up user by email: \(cleanedEmail)")
 
         // First, find the recipient user by email
         messagingService.searchUserByEmail(cleanedEmail) { [self] result in
@@ -305,6 +308,8 @@ struct ShareStoreView: View {
                     }
                     return
                 }
+
+                print("ShareStoreView: Found contact: \(contact.name) (\(contact.id))")
 
                 // Check if recipient already has this store
                 self.db.collection("user_stores")
@@ -321,6 +326,8 @@ struct ShareStoreView: View {
                             return
                         }
 
+                        print("ShareStoreView: Recipient doesn't have store yet, sending share request via messaging...")
+
                         // Send the store share request via messaging
                         let permissionString = self.selectedPermission == .edit ? "edit" : "view"
                         self.messagesViewModel.shareStore(
@@ -330,6 +337,7 @@ struct ShareStoreView: View {
                             currentUserName: currentUserName,
                             reminderTitles: self.reminderTitles
                         ) { success in
+                            print("ShareStoreView: messagesViewModel.shareStore completed with success=\(success)")
                             DispatchQueue.main.async {
                                 self.isSharing = false
 
