@@ -283,7 +283,7 @@ struct ShareStoreView: View {
         let cleanedEmail = recipientEmail.lowercased().trimmingCharacters(in: .whitespaces)
 
         // Check if trying to share with self
-        if cleanedEmail == viewModel.sessionManager.currentUser?.email?.lowercased() {
+        if cleanedEmail == viewModel.sessionManager.currentUser?.email.lowercased() {
             alertTitle = "Error"
             alertMessage = "You cannot share a store with yourself."
             showAlert = true
