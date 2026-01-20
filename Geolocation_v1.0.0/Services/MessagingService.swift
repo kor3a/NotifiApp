@@ -906,11 +906,9 @@ class MessagingService: ObservableObject {
     ) {
         print("🟡 createSharedStoreWithEditPermission: Starting...")
 
-        // Create a SharedStoreGroup to link both users' stores
-        let sharedGroupRef = db.collection("shared_store_groups").document()
-        let sharedGroupId = sharedGroupRef.documentID
-
-        // Create recipient's user_store document
+        // Create recipient's user_store document with edit permission
+        // Note: We don't create SharedStoreGroup here because recipient can't modify sender's data
+        // The shared functionality works through the storeId being the same
         var recipientUserStore: [String: Any] = [
             "userId": currentUserId,
             "userEmail": currentUserEmail,
@@ -920,11 +918,15 @@ class MessagingService: ObservableObject {
             "addedAt": Date().timeIntervalSince1970,
             "sortOrder": sortOrder,
             "permission": "edit",
-            "sharedStoreGroupId": sharedGroupId,
             "sharedFrom": senderUserId,
             "sharedAt": Date().timeIntervalSince1970,
             "notificationsEnabled": true
         ]
+
+        // Link to sender's user_store for reference
+        if let senderUserStoreId = senderUserStoreId {
+            recipientUserStore["sourceUserStoreId"] = senderUserStoreId
+        }
 
         if let latitude = linkedStore.storeLatitude {
             recipientUserStore["latitude"] = latitude
@@ -936,88 +938,17 @@ class MessagingService: ObservableObject {
             recipientUserStore["imageURL"] = imageURL
         }
 
-        let recipientUserStoreRef = db.collection("user_stores").document()
-        let recipientUserStoreId = recipientUserStoreRef.documentID
+        print("🟡 createSharedStoreWithEditPermission: Creating recipient's user_store...")
 
-        guard let senderUserStoreId = senderUserStoreId else {
-            print("🟡 createSharedStoreWithEditPermission: No senderUserStoreId, creating store without linking...")
-            // No sender user_store ID provided, just create recipient's store without linking
-            db.collection("user_stores").addDocument(data: recipientUserStore) { [weak self] error in
-                if let error = error {
-                    print("🟡 createSharedStoreWithEditPermission: ERROR creating store - \(error)")
-                    completion(.failure(error))
-                    return
-                }
-                print("🟡 createSharedStoreWithEditPermission: SUCCESS - store created without linking")
-                self?.updateLinkedStoreStatus(messageId: messageId, status: .accepted, completion: completion)
+        db.collection("user_stores").addDocument(data: recipientUserStore) { [weak self] error in
+            if let error = error {
+                print("🟡 createSharedStoreWithEditPermission: ERROR creating store - \(error)")
+                completion(.failure(error))
+                return
             }
-            return
+            print("🟡 createSharedStoreWithEditPermission: SUCCESS - store created")
+            self?.updateLinkedStoreStatus(messageId: messageId, status: .accepted, completion: completion)
         }
-
-        print("🟡 createSharedStoreWithEditPermission: Fetching sender's reminders from userStoreId=\(senderUserStoreId)...")
-
-        // Fetch sender's reminders to migrate to shared group
-        db.collection("reminders")
-            .whereField("userStoreId", isEqualTo: senderUserStoreId)
-            .whereField("isDone", isEqualTo: false)
-            .getDocuments { [weak self] reminderSnapshot, reminderError in
-                guard let self = self else {
-                    print("🟡 createSharedStoreWithEditPermission: ERROR - self is nil")
-                    return
-                }
-
-                if let reminderError = reminderError {
-                    print("🟡 createSharedStoreWithEditPermission: ERROR fetching reminders - \(reminderError)")
-                    completion(.failure(reminderError))
-                    return
-                }
-
-                let reminderCount = reminderSnapshot?.documents.count ?? 0
-                print("🟡 createSharedStoreWithEditPermission: Found \(reminderCount) reminders to migrate")
-
-                let batch = self.db.batch()
-
-                // 1. Create SharedStoreGroup
-                let sharedGroupData: [String: Any] = [
-                    "storeId": linkedStore.storeId,
-                    "userStoreIds": [senderUserStoreId, recipientUserStoreId],
-                    "createdAt": Date().timeIntervalSince1970,
-                    "updatedAt": Date().timeIntervalSince1970
-                ]
-                batch.setData(sharedGroupData, forDocument: sharedGroupRef)
-
-                // 2. Update sender's user_store
-                let senderUserStoreRef = self.db.collection("user_stores").document(senderUserStoreId)
-                batch.updateData([
-                    "permission": "edit",
-                    "sharedStoreGroupId": sharedGroupId
-                ], forDocument: senderUserStoreRef)
-
-                // 3. Create recipient's user_store
-                batch.setData(recipientUserStore, forDocument: recipientUserStoreRef)
-
-                // 4. Update all active reminders to use sharedStoreGroupId
-                if let reminderDocs = reminderSnapshot?.documents {
-                    for doc in reminderDocs {
-                        batch.updateData([
-                            "userStoreId": sharedGroupId
-                        ], forDocument: doc.reference)
-                    }
-                }
-
-                print("🟡 createSharedStoreWithEditPermission: Committing batch...")
-
-                // Commit the batch
-                batch.commit { [weak self] error in
-                    if let error = error {
-                        print("🟡 createSharedStoreWithEditPermission: ERROR committing batch - \(error)")
-                        completion(.failure(error))
-                    } else {
-                        print("🟡 createSharedStoreWithEditPermission: SUCCESS - batch committed, updating message status...")
-                        self?.updateLinkedStoreStatus(messageId: messageId, status: .accepted, completion: completion)
-                    }
-                }
-            }
     }
 
     /// Create a shared store with view-only permission
