@@ -11,6 +11,11 @@ struct ReminderItemView: View {
     let item: Reminder
     @StateObject private var viewModel = ReminderItemViewModel()
 
+    // Get current user's name to determine if they created the reminder
+    private var currentUserName: String? {
+        UserSessionManager.shared.currentUser?.name
+    }
+
     var body: some View {
         HStack {
             Image(systemName: item.isDone ? "checkmark.square" : "square")
@@ -25,7 +30,8 @@ struct ReminderItemView: View {
             if item.isShared == true {
                 SharedBadge(
                     sharedFrom: item.sharedFrom,
-                    sharedWith: item.sharedWith
+                    sharedWith: item.sharedWith,
+                    currentUserName: currentUserName
                 )
             }
         }
@@ -37,15 +43,29 @@ struct ReminderItemView: View {
 struct SharedBadge: View {
     let sharedFrom: String?
     let sharedWith: [String]?
+    let currentUserName: String?
 
-    // Check sharedFrom FIRST to determine if user is recipient or sender
+    // Check if current user is the one who shared/created this reminder
+    private var isCurrentUserTheSharer: Bool {
+        guard let sharedFrom = sharedFrom, !sharedFrom.isEmpty,
+              let currentUserName = currentUserName else {
+            return false
+        }
+        return sharedFrom == currentUserName
+    }
+
+    // Determine if user is recipient (received from someone else)
     private var isRecipient: Bool {
-        sharedFrom != nil && !sharedFrom!.isEmpty
+        // If sharedFrom is set AND it's not the current user, they're a recipient
+        if let sharedFrom = sharedFrom, !sharedFrom.isEmpty {
+            return !isCurrentUserTheSharer
+        }
+        return false
     }
 
     private var iconName: String {
-        // If sharedFrom is set, user is a recipient (received from someone)
-        // If sharedFrom is NOT set, user is the sender (shared with others)
+        // If user is a recipient (received from someone else), show down arrow
+        // If user is the sender/creator, show up arrow
         if isRecipient {
             return "arrow.down.backward"
         } else {
@@ -71,16 +91,27 @@ struct SharedBadge: View {
     }
 
     private var tooltipText: String {
-        // Check sharedFrom FIRST - if set, user is a recipient
+        // If current user created/shared this reminder
+        if isCurrentUserTheSharer {
+            if let sharedWith = sharedWith, !sharedWith.isEmpty {
+                return "You shared with: \(sharedWith.joined(separator: ", "))"
+            }
+            return "You shared this reminder"
+        }
+
+        // If sharedFrom is set and it's someone else, user is a recipient
         if let sharedFrom = sharedFrom, !sharedFrom.isEmpty {
             if let sharedWith = sharedWith, !sharedWith.isEmpty {
                 return "Shared by \(sharedFrom) with \(sharedWith.count) people"
             }
             return "Shared by \(sharedFrom)"
-        } else if let sharedWith = sharedWith, !sharedWith.isEmpty {
-            // No sharedFrom means user is the sender
+        }
+
+        // No sharedFrom means user is the original sender (owner added it)
+        if let sharedWith = sharedWith, !sharedWith.isEmpty {
             return "Shared with: \(sharedWith.joined(separator: ", "))"
         }
+
         return "Shared reminder"
     }
 }

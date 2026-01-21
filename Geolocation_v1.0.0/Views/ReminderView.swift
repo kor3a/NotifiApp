@@ -213,15 +213,27 @@ struct ReminderView: View {
             }
         } message: {
             if let reminder = showingSharedInfo {
-                // Check sharedFrom FIRST - if set, user is a recipient
-                if let sharedFrom = reminder.sharedFrom, !sharedFrom.isEmpty {
+                let currentUserName = UserSessionManager.shared.currentUser?.name
+                let isCurrentUserTheSharer = reminder.sharedFrom != nil &&
+                    !reminder.sharedFrom!.isEmpty &&
+                    reminder.sharedFrom == currentUserName
+
+                if isCurrentUserTheSharer {
+                    // Current user created/shared this reminder
+                    if let sharedWith = reminder.sharedWith, !sharedWith.isEmpty {
+                        Text("You shared this reminder with:\n\(sharedWith.joined(separator: "\n"))\n\nChanges sync automatically.")
+                    } else {
+                        Text("You shared this reminder.\n\nChanges sync automatically.")
+                    }
+                } else if let sharedFrom = reminder.sharedFrom, !sharedFrom.isEmpty {
+                    // Someone else shared this reminder with the user
                     if let sharedWith = reminder.sharedWith, !sharedWith.isEmpty {
                         Text("Shared by: \(sharedFrom)\nAlso shared with: \(sharedWith.filter { $0 != sharedFrom }.joined(separator: ", "))\n\nChanges sync automatically.")
                     } else {
                         Text("Shared by: \(sharedFrom)\n\nChanges sync automatically.")
                     }
                 } else if let sharedWith = reminder.sharedWith, !sharedWith.isEmpty {
-                    // No sharedFrom means user is the sender
+                    // No sharedFrom means user is the original owner/sender
                     Text("You shared this reminder with:\n\(sharedWith.joined(separator: "\n"))\n\nChanges sync automatically.")
                 } else {
                     Text("This reminder is synced across users.")
