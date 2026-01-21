@@ -98,8 +98,9 @@ class ReminderViewModel: ObservableObject {
     ///   - userStoreId: The user_store ID to add the reminder to
     ///   - title: The reminder title
     ///   - sharedWith: If the store is shared (owner's perspective), the names of users it's shared with
-    ///   - sharedFromName: If the store is shared (recipient's perspective), the name of the owner who shared it
-    func addReminder(userStoreId: String, title: String, sharedWith: [String]? = nil, sharedFromName: String? = nil) {
+    ///   - sharedFromName: If the store is shared (recipient's perspective), the name of the owner who shared the store
+    ///   - currentUserName: The name of the user adding the reminder (for tracking who created it in shared stores)
+    func addReminder(userStoreId: String, title: String, sharedWith: [String]? = nil, sharedFromName: String? = nil, currentUserName: String? = nil) {
         guard !title.isEmpty else {
             DispatchQueue.main.async {
                 self.errorMessage = "Reminder title cannot be empty"
@@ -107,7 +108,7 @@ class ReminderViewModel: ObservableObject {
             return
         }
 
-        print("ReminderViewModel: Adding reminder '\(title)' for userStoreId: \(userStoreId), sharedWith: \(sharedWith ?? []), sharedFromName: \(sharedFromName ?? "nil")")
+        print("ReminderViewModel: Adding reminder '\(title)' for userStoreId: \(userStoreId), sharedWith: \(sharedWith ?? []), sharedFromName: \(sharedFromName ?? "nil"), currentUserName: \(currentUserName ?? "nil")")
 
         var reminderData: [String: Any] = [
             "userStoreId": userStoreId,
@@ -130,6 +131,10 @@ class ReminderViewModel: ObservableObject {
             } else if let sharedFromName = sharedFromName {
                 // Recipient adding reminder - mark as shared with the owner
                 reminderData["sharedWith"] = [sharedFromName]
+                // Also set sharedFrom to the current user (recipient) who created this reminder
+                if let currentUserName = currentUserName {
+                    reminderData["sharedFrom"] = currentUserName
+                }
             }
         }
 

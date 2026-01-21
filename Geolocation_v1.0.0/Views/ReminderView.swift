@@ -237,11 +237,13 @@ struct ReminderView: View {
         // Pass sharedWith and sharedFromName so new reminders are auto-marked as shared
         // - sharedWith is set for the owner (who shared the store with others)
         // - sharedFromName is set for the recipient (who received the shared store)
+        // - currentUserName tracks who actually added this reminder in a shared store
         viewModel.addReminder(
             userStoreId: userStoreItem.reminderStoreId,
             title: title,
             sharedWith: userStoreItem.sharedWith,
-            sharedFromName: userStoreItem.sharedFromName
+            sharedFromName: userStoreItem.sharedFromName,
+            currentUserName: UserSessionManager.shared.currentUser?.name
         )
         reminderTitle = ""
     }
