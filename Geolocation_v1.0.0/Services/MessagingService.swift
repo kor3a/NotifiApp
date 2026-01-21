@@ -287,6 +287,7 @@ class MessagingService: ObservableObject {
         senderName: String,
         content: String,
         linkedReminder: LinkedReminder? = nil,
+        linkedStore: LinkedStore? = nil,
         completion: @escaping (Result<Message, Error>) -> Void
     ) {
         let now = Date().timeIntervalSince1970
@@ -332,6 +333,37 @@ class MessagingService: ObservableObject {
             messageData["linkedReminder"] = reminderData
         }
 
+        if let store = linkedStore {
+            var storeData: [String: Any] = [
+                "storeName": store.storeName,
+                "storeId": store.storeId,
+                "senderUserId": store.senderUserId,
+                "permission": store.permission
+            ]
+            if let address = store.storeAddress {
+                storeData["storeAddress"] = address
+            }
+            if let senderUserStoreId = store.senderUserStoreId {
+                storeData["senderUserStoreId"] = senderUserStoreId
+            }
+            if let status = store.status {
+                storeData["status"] = status.rawValue
+            }
+            if let latitude = store.storeLatitude {
+                storeData["storeLatitude"] = latitude
+            }
+            if let longitude = store.storeLongitude {
+                storeData["storeLongitude"] = longitude
+            }
+            if let imageURL = store.storeImageURL {
+                storeData["storeImageURL"] = imageURL
+            }
+            if let reminderTitles = store.reminderTitles, !reminderTitles.isEmpty {
+                storeData["reminderTitles"] = reminderTitles
+            }
+            messageData["linkedStore"] = storeData
+        }
+
         var ref: DocumentReference?
         ref = db.collection("messages").addDocument(data: messageData) { [weak self] error in
             guard let self = self else { return }
@@ -362,7 +394,8 @@ class MessagingService: ObservableObject {
                 content: content,
                 createdAt: now,
                 isRead: false,
-                linkedReminder: linkedReminder
+                linkedReminder: linkedReminder,
+                linkedStore: linkedStore
             )
 
             completion(.success(message))
@@ -666,6 +699,30 @@ class MessagingService: ObservableObject {
             )
         }
 
+        var linkedStore: LinkedStore?
+        if let storeData = data["linkedStore"] as? [String: Any],
+           let storeName = storeData["storeName"] as? String,
+           let storeId = storeData["storeId"] as? String,
+           let senderUserId = storeData["senderUserId"] as? String {
+            var status: SharedReminderStatus? = nil
+            if let statusString = storeData["status"] as? String {
+                status = SharedReminderStatus(rawValue: statusString)
+            }
+            linkedStore = LinkedStore(
+                storeName: storeName,
+                storeAddress: storeData["storeAddress"] as? String,
+                storeId: storeId,
+                senderUserId: senderUserId,
+                senderUserStoreId: storeData["senderUserStoreId"] as? String,
+                status: status,
+                permission: storeData["permission"] as? String ?? "edit",
+                storeLatitude: storeData["storeLatitude"] as? Double,
+                storeLongitude: storeData["storeLongitude"] as? Double,
+                storeImageURL: storeData["storeImageURL"] as? String,
+                reminderTitles: storeData["reminderTitles"] as? [String]
+            )
+        }
+
         return Message(
             id: doc.documentID,
             conversationId: conversationId,
@@ -674,7 +731,8 @@ class MessagingService: ObservableObject {
             content: content,
             createdAt: createdAt,
             isRead: data["isRead"] as? Bool ?? false,
-            linkedReminder: linkedReminder
+            linkedReminder: linkedReminder,
+            linkedStore: linkedStore
         )
     }
 
@@ -728,6 +786,227 @@ class MessagingService: ObservableObject {
             } else {
                 completion(.success(()))
             }
+        }
+    }
+
+    /// Update the status of a linked store in a message
+    func updateLinkedStoreStatus(messageId: String, status: SharedReminderStatus, completion: @escaping (Result<Void, Error>) -> Void) {
+        db.collection("messages").document(messageId).updateData([
+            "linkedStore.status": status.rawValue
+        ]) { error in
+            if let error = error {
+                completion(.failure(error))
+            } else {
+                completion(.success(()))
+            }
+        }
+    }
+
+    // MARK: - Shared Store Accept/Reject
+
+    /// Accept a shared store - adds the store to the user's list with appropriate permission
+    func acceptSharedStore(
+        messageId: String,
+        linkedStore: LinkedStore,
+        currentUserId: String,
+        currentUserEmail: String,
+        senderUserId: String,
+        senderUserStoreId: String?,
+        senderName: String,
+        completion: @escaping (Result<Void, Error>) -> Void
+    ) {
+        print("🟢 MessagingService.acceptSharedStore: Starting for store '\(linkedStore.storeName)'")
+        print("🟢 MessagingService.acceptSharedStore: messageId=\(messageId), currentUserId=\(currentUserId)")
+        print("🟢 MessagingService.acceptSharedStore: senderUserStoreId=\(senderUserStoreId ?? "nil"), permission=\(linkedStore.permission)")
+
+        // Check if user already has this store
+        db.collection("user_stores")
+            .whereField("userId", isEqualTo: currentUserId)
+            .whereField("storeId", isEqualTo: linkedStore.storeId)
+            .getDocuments { [weak self] snapshot, error in
+                guard let self = self else {
+                    print("🟢 MessagingService.acceptSharedStore: ERROR - self is nil")
+                    return
+                }
+
+                if let error = error {
+                    print("🟢 MessagingService.acceptSharedStore: ERROR checking existing store - \(error)")
+                    completion(.failure(error))
+                    return
+                }
+
+                print("🟢 MessagingService.acceptSharedStore: Existing stores check - found \(snapshot?.documents.count ?? 0) documents")
+
+                if snapshot?.documents.isEmpty == false {
+                    // User already has this store, just update status
+                    print("🟢 MessagingService.acceptSharedStore: User already has store, marking as accepted")
+                    self.updateLinkedStoreStatus(messageId: messageId, status: .accepted, completion: completion)
+                    return
+                }
+
+                print("🟢 MessagingService.acceptSharedStore: Getting store count for sortOrder...")
+
+                // Get user's current store count for sortOrder
+                self.db.collection("user_stores")
+                    .whereField("userId", isEqualTo: currentUserId)
+                    .getDocuments { [weak self] countSnapshot, countError in
+                        guard let self = self else {
+                            print("🟢 MessagingService.acceptSharedStore: ERROR - self is nil in count callback")
+                            return
+                        }
+
+                        if let countError = countError {
+                            print("🟢 MessagingService.acceptSharedStore: ERROR getting count - \(countError)")
+                            completion(.failure(countError))
+                            return
+                        }
+
+                        let sortOrder = countSnapshot?.documents.count ?? 0
+                        print("🟢 MessagingService.acceptSharedStore: sortOrder=\(sortOrder), permission=\(linkedStore.permission)")
+
+                        // Create the user_store based on permission
+                        if linkedStore.permission == "edit" {
+                            print("🟢 MessagingService.acceptSharedStore: Creating with EDIT permission...")
+                            self.createSharedStoreWithEditPermission(
+                                linkedStore: linkedStore,
+                                currentUserId: currentUserId,
+                                currentUserEmail: currentUserEmail,
+                                senderUserId: senderUserId,
+                                senderUserStoreId: senderUserStoreId,
+                                senderName: senderName,
+                                sortOrder: sortOrder,
+                                messageId: messageId,
+                                completion: completion
+                            )
+                        } else {
+                            print("🟢 MessagingService.acceptSharedStore: Creating with VIEW permission...")
+                            self.createSharedStoreWithViewPermission(
+                                linkedStore: linkedStore,
+                                currentUserId: currentUserId,
+                                currentUserEmail: currentUserEmail,
+                                senderUserId: senderUserId,
+                                senderUserStoreId: senderUserStoreId,
+                                senderName: senderName,
+                                sortOrder: sortOrder,
+                                messageId: messageId,
+                                completion: completion
+                            )
+                        }
+                    }
+            }
+    }
+
+    /// Create a shared store with edit permission (creates SharedStoreGroup)
+    private func createSharedStoreWithEditPermission(
+        linkedStore: LinkedStore,
+        currentUserId: String,
+        currentUserEmail: String,
+        senderUserId: String,
+        senderUserStoreId: String?,
+        senderName: String,
+        sortOrder: Int,
+        messageId: String,
+        completion: @escaping (Result<Void, Error>) -> Void
+    ) {
+        print("🟡 createSharedStoreWithEditPermission: Starting...")
+
+        // Create recipient's user_store document with edit permission
+        // Note: We don't create SharedStoreGroup here because recipient can't modify sender's data
+        // The shared functionality works through the storeId being the same
+        var recipientUserStore: [String: Any] = [
+            "userId": currentUserId,
+            "userEmail": currentUserEmail,
+            "storeId": linkedStore.storeId,
+            "storeName": linkedStore.storeName,
+            "storeAddress": linkedStore.storeAddress ?? "",
+            "addedAt": Date().timeIntervalSince1970,
+            "sortOrder": sortOrder,
+            "permission": "edit",
+            "sharedFrom": senderUserId,
+            "sharedFromName": senderName,  // Store sender's name for display
+            "sharedAt": Date().timeIntervalSince1970,
+            "notificationsEnabled": true
+        ]
+
+        // Link to sender's user_store for reference
+        if let senderUserStoreId = senderUserStoreId {
+            recipientUserStore["sourceUserStoreId"] = senderUserStoreId
+        }
+
+        if let latitude = linkedStore.storeLatitude {
+            recipientUserStore["latitude"] = latitude
+        }
+        if let longitude = linkedStore.storeLongitude {
+            recipientUserStore["longitude"] = longitude
+        }
+        if let imageURL = linkedStore.storeImageURL {
+            recipientUserStore["imageURL"] = imageURL
+        }
+
+        print("🟡 createSharedStoreWithEditPermission: Creating recipient's user_store...")
+
+        db.collection("user_stores").addDocument(data: recipientUserStore) { [weak self] error in
+            if let error = error {
+                print("🟡 createSharedStoreWithEditPermission: ERROR creating store - \(error)")
+                completion(.failure(error))
+                return
+            }
+            print("🟡 createSharedStoreWithEditPermission: SUCCESS - store created")
+            self?.updateLinkedStoreStatus(messageId: messageId, status: .accepted, completion: completion)
+        }
+    }
+
+    /// Create a shared store with view-only permission
+    private func createSharedStoreWithViewPermission(
+        linkedStore: LinkedStore,
+        currentUserId: String,
+        currentUserEmail: String,
+        senderUserId: String,
+        senderUserStoreId: String?,
+        senderName: String,
+        sortOrder: Int,
+        messageId: String,
+        completion: @escaping (Result<Void, Error>) -> Void
+    ) {
+        var recipientUserStore: [String: Any] = [
+            "userId": currentUserId,
+            "userEmail": currentUserEmail,
+            "storeId": linkedStore.storeId,
+            "storeName": linkedStore.storeName,
+            "storeAddress": linkedStore.storeAddress ?? "",
+            "addedAt": Date().timeIntervalSince1970,
+            "sortOrder": sortOrder,
+            "permission": "view",
+            "sharedFrom": senderUserId,
+            "sharedFromName": senderName,  // Store sender's name for display
+            "sharedAt": Date().timeIntervalSince1970,
+            "notificationsEnabled": true
+        ]
+
+        // For view-only, set sourceUserStoreId to point to owner's user_store for reminders
+        if let sourceId = senderUserStoreId {
+            recipientUserStore["sourceUserStoreId"] = sourceId
+        }
+
+        if let latitude = linkedStore.storeLatitude {
+            recipientUserStore["latitude"] = latitude
+        }
+        if let longitude = linkedStore.storeLongitude {
+            recipientUserStore["longitude"] = longitude
+        }
+        if let imageURL = linkedStore.storeImageURL {
+            recipientUserStore["imageURL"] = imageURL
+        }
+
+        db.collection("user_stores").addDocument(data: recipientUserStore) { [weak self] error in
+            if let error = error {
+                print("MessagingService: Error creating view-only user_store: \(error.localizedDescription)")
+                completion(.failure(error))
+                return
+            }
+
+            print("MessagingService: Successfully created view-only shared store")
+            self?.updateLinkedStoreStatus(messageId: messageId, status: .accepted, completion: completion)
         }
     }
 

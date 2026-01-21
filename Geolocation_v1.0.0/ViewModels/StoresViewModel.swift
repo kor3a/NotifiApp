@@ -17,6 +17,9 @@ class StoresViewModel: ObservableObject {
     // Store the listener registration so we can remove it later
     private var storesListener: ListenerRegistration?
 
+    // Reminder count listeners for real-time updates (keyed by reminderStoreId)
+    private var reminderCountListeners: [String: ListenerRegistration] = [:]
+
     // Flag to prevent listener from overwriting during manual sort
     private var isManuallyReordering = false
 
@@ -35,8 +38,9 @@ class StoresViewModel: ObservableObject {
     }
 
     private func fetchUserStoresById(userId: String) {
-        // Remove existing listener to prevent duplicates
+        // Remove existing listeners to prevent duplicates
         storesListener?.remove()
+        removeAllReminderCountListeners()
 
         // Add new snapshot listener and store the registration
         storesListener = db.collection("user_stores")
@@ -55,14 +59,15 @@ class StoresViewModel: ObservableObject {
                 guard let documents = snapshot?.documents else {
                     print("StoresViewModel: No stores found for user")
                     self.userStoreItems = []
+                    self.removeAllReminderCountListeners()
                     return
                 }
 
                 print("StoresViewModel: Found \(documents.count) user stores")
 
-                // Use DispatchGroup to coordinate fetching reminder counts
-                let group = DispatchGroup()
+                // Parse user store data (without reminder counts initially)
                 var tempUserStoreItems: [UserStoreItem] = []
+                var reminderStoreIds: Set<String> = []
 
                 for doc in documents {
                     let data = doc.data()
@@ -82,63 +87,143 @@ class StoresViewModel: ObservableObject {
                     let permission = StorePermission(rawValue: permissionString) ?? .owner
                     let sharedStoreGroupId = data["sharedStoreGroupId"] as? String
                     let sourceUserStoreId = data["sourceUserStoreId"] as? String
+                    let sharedFromName = data["sharedFromName"] as? String
+                    let sharedWith = data["sharedWith"] as? [String]
                     let notificationsEnabled = data["notificationsEnabled"] as? Bool ?? true
 
                     // Determine which ID to use for fetching reminders
-                    // Priority: sourceUserStoreId (view only) > sharedStoreGroupId (can edit) > userStoreId (owner)
                     let reminderStoreId = sourceUserStoreId ?? sharedStoreGroupId ?? userStoreId
+                    reminderStoreIds.insert(reminderStoreId)
 
-                    group.enter()
-
-                    // Fetch reminder count for this user_store
-                    self.db.collection("reminders")
-                        .whereField("userStoreId", isEqualTo: reminderStoreId)
-                        .whereField("isDone", isEqualTo: false)
-                        .getDocuments { snapshot, error in
-                            defer { group.leave() }
-
-                            let reminderCount = snapshot?.documents.count ?? 0
-                            print("StoresViewModel: Store '\(storeName)' has \(reminderCount) active reminders")
-
-                            var store = Store(
-                                id: storeId,
-                                name: storeName,
-                                address: storeAddress,
-                                reminderCount: reminderCount,
-                                sortOrder: sortOrder,
-                                latitude: latitude,
-                                longitude: longitude,
-                                imageURL: imageURL
-                            )
-                            let userStoreItem = UserStoreItem(
-                                id: userStoreId,
-                                store: store,
-                                permission: permission,
-                                sharedStoreGroupId: sharedStoreGroupId,
-                                sourceUserStoreId: sourceUserStoreId,
-                                notificationsEnabled: notificationsEnabled
-                            )
-                            tempUserStoreItems.append(userStoreItem)
-                        }
+                    let store = Store(
+                        id: storeId,
+                        name: storeName,
+                        address: storeAddress,
+                        reminderCount: 0, // Will be updated by reminder listener
+                        sortOrder: sortOrder,
+                        latitude: latitude,
+                        longitude: longitude,
+                        imageURL: imageURL
+                    )
+                    let userStoreItem = UserStoreItem(
+                        id: userStoreId,
+                        store: store,
+                        permission: permission,
+                        sharedStoreGroupId: sharedStoreGroupId,
+                        sourceUserStoreId: sourceUserStoreId,
+                        sharedFromName: sharedFromName,
+                        sharedWith: sharedWith,
+                        notificationsEnabled: notificationsEnabled
+                    )
+                    tempUserStoreItems.append(userStoreItem)
                 }
 
-                // When all reminder counts are fetched, update the published property
-                group.notify(queue: .main) {
-                    // Skip updating if we're manually reordering (to prevent race conditions)
-                    guard !self.isManuallyReordering else {
-                        print("StoresViewModel: Skipping listener update during manual reorder")
+                // Skip updating if we're manually reordering
+                guard !self.isManuallyReordering else {
+                    print("StoresViewModel: Skipping listener update during manual reorder")
+                    return
+                }
+
+                // Sort by sortOrder
+                self.userStoreItems = tempUserStoreItems.sorted { item1, item2 in
+                    let order1 = item1.store.sortOrder ?? Int.max
+                    let order2 = item2.store.sortOrder ?? Int.max
+                    return order1 < order2
+                }
+
+                // Set up real-time listeners for reminder counts
+                self.setupReminderCountListeners(for: reminderStoreIds)
+
+                print("StoresViewModel: Loaded \(self.userStoreItems.count) stores, setting up reminder listeners")
+            }
+    }
+
+    /// Set up snapshot listeners for reminder counts (for real-time updates)
+    private func setupReminderCountListeners(for reminderStoreIds: Set<String>) {
+        // Remove listeners that are no longer needed
+        let currentIds = Set(reminderCountListeners.keys)
+        let idsToRemove = currentIds.subtracting(reminderStoreIds)
+        for id in idsToRemove {
+            reminderCountListeners[id]?.remove()
+            reminderCountListeners.removeValue(forKey: id)
+        }
+
+        // Add listeners for new store IDs
+        for reminderStoreId in reminderStoreIds {
+            // Skip if already listening
+            if reminderCountListeners[reminderStoreId] != nil {
+                continue
+            }
+
+            let listener = db.collection("reminders")
+                .whereField("userStoreId", isEqualTo: reminderStoreId)
+                .whereField("isDone", isEqualTo: false)
+                .addSnapshotListener { [weak self] snapshot, error in
+                    guard let self = self else { return }
+
+                    if let error = error {
+                        print("StoresViewModel: Error listening to reminders for \(reminderStoreId): \(error)")
                         return
                     }
 
-                    // Sort by sortOrder, putting items without sortOrder at the end
-                    self.userStoreItems = tempUserStoreItems.sorted { item1, item2 in
-                        let order1 = item1.store.sortOrder ?? Int.max
-                        let order2 = item2.store.sortOrder ?? Int.max
-                        return order1 < order2
-                    }
-                    print("StoresViewModel: Loaded \(self.userStoreItems.count) stores with reminder counts")
+                    let reminderCount = snapshot?.documents.count ?? 0
+                    self.updateReminderCount(for: reminderStoreId, count: reminderCount)
                 }
+
+            reminderCountListeners[reminderStoreId] = listener
+        }
+    }
+
+    /// Update the reminder count for stores matching the given reminderStoreId
+    private func updateReminderCount(for reminderStoreId: String, count: Int) {
+        // Skip if manually reordering
+        guard !isManuallyReordering else { return }
+
+        // Find and update all UserStoreItems that use this reminderStoreId
+        var updated = false
+        for (index, item) in userStoreItems.enumerated() {
+            let itemReminderStoreId = item.sourceUserStoreId ?? item.sharedStoreGroupId ?? item.id
+
+            if itemReminderStoreId == reminderStoreId && item.store.reminderCount != count {
+                // Create updated store with new count
+                let updatedStore = Store(
+                    id: item.store.id,
+                    name: item.store.name,
+                    address: item.store.address,
+                    reminderCount: count,
+                    sortOrder: item.store.sortOrder,
+                    latitude: item.store.latitude,
+                    longitude: item.store.longitude,
+                    imageURL: item.store.imageURL
+                )
+                let updatedItem = UserStoreItem(
+                    id: item.id,
+                    store: updatedStore,
+                    permission: item.permission,
+                    sharedStoreGroupId: item.sharedStoreGroupId,
+                    sourceUserStoreId: item.sourceUserStoreId,
+                    sharedFromName: item.sharedFromName,
+                    sharedWith: item.sharedWith,
+                    notificationsEnabled: item.notificationsEnabled
+                )
+                userStoreItems[index] = updatedItem
+                updated = true
+                print("StoresViewModel: Updated reminder count for '\(item.store.name)' to \(count)")
             }
+        }
+
+        if updated {
+            // Trigger UI update by reassigning (in case SwiftUI doesn't detect the change)
+            objectWillChange.send()
+        }
+    }
+
+    /// Remove all reminder count listeners
+    private func removeAllReminderCountListeners() {
+        for (_, listener) in reminderCountListeners {
+            listener.remove()
+        }
+        reminderCountListeners.removeAll()
     }
 
     /// Fetch all available stores from the stores collection
@@ -463,306 +548,6 @@ class StoresViewModel: ObservableObject {
         }
     }
 
-    /// Share a store with another user by email
-    func shareStore(userStoreItem: UserStoreItem, recipientEmail: String, permission: StorePermission = .view, completion: @escaping (Bool, String?) -> Void) {
-        guard let senderUserId = sessionManager.currentUser?.userId else {
-            completion(false, "No user data available")
-            return
-        }
-
-        print("StoresViewModel: Sharing store '\(userStoreItem.store.name)' with \(recipientEmail)")
-
-        // First, find the recipient user by email
-        db.collection("users")
-            .whereField("email", isEqualTo: recipientEmail)
-            .getDocuments { [weak self] snapshot, error in
-                guard let self = self else { return }
-
-                if let error = error {
-                    print("StoresViewModel: Error finding recipient: \(error.localizedDescription)")
-                    completion(false, "Error finding recipient: \(error.localizedDescription)")
-                    return
-                }
-
-                guard let recipientDocument = snapshot?.documents.first else {
-                    print("StoresViewModel: No user found with email: \(recipientEmail)")
-                    completion(false, "No user found with this email address. Make sure the recipient has an account.")
-                    return
-                }
-
-                let recipientUserId = recipientDocument.data()["userId"] as? String ?? recipientDocument.documentID
-
-                // Check if user is trying to share with themselves
-                if recipientUserId == senderUserId {
-                    completion(false, "You cannot share a store with yourself.")
-                    return
-                }
-
-                print("StoresViewModel: Found recipient user: \(recipientUserId)")
-
-                // Check if recipient already has this store
-                self.db.collection("user_stores")
-                    .whereField("userId", isEqualTo: recipientUserId)
-                    .whereField("storeId", isEqualTo: userStoreItem.store.id)
-                    .getDocuments { snapshot, error in
-                        if let documents = snapshot?.documents, !documents.isEmpty {
-                            completion(false, "This user already has this store.")
-                            return
-                        }
-
-                        // Create new user_store for recipient with permission
-                        if permission == .edit {
-                            // For Can Edit, create a shared store group
-                            self.createSharedStoreWithEditPermission(
-                                senderUserId: senderUserId,
-                                recipientUserId: recipientUserId,
-                                recipientEmail: recipientEmail,
-                                userStoreItem: userStoreItem,
-                                completion: completion
-                            )
-                        } else {
-                            // For View Only, create a separate copy
-                            self.createSharedUserStore(
-                                recipientUserId: recipientUserId,
-                                recipientEmail: recipientEmail,
-                                userStoreItem: userStoreItem,
-                                permission: permission,
-                                completion: completion
-                            )
-                        }
-                    }
-            }
-    }
-
-    private func createSharedStoreWithEditPermission(senderUserId: String, recipientUserId: String, recipientEmail: String, userStoreItem: UserStoreItem, completion: @escaping (Bool, String?) -> Void) {
-        // Create a SharedStoreGroup to link both users' stores
-        let sharedGroupRef = db.collection("shared_store_groups").document()
-        let sharedGroupId = sharedGroupRef.documentID
-
-        // Get recipient's current store count for sortOrder
-        db.collection("user_stores")
-            .whereField("userId", isEqualTo: recipientUserId)
-            .getDocuments { [weak self] snapshot, error in
-                guard let self = self else { return }
-
-                let recipientSortOrder = snapshot?.documents.count ?? 0
-
-                // Create recipient's user_store document with edit permission
-                var recipientUserStore: [String: Any] = [
-                    "userId": recipientUserId,
-                    "userEmail": recipientEmail,
-                    "storeId": userStoreItem.store.id,
-                    "storeName": userStoreItem.store.name,
-                    "storeAddress": userStoreItem.store.address,
-                    "addedAt": Date().timeIntervalSince1970,
-                    "sortOrder": recipientSortOrder,
-                    "permission": StorePermission.edit.rawValue,
-                    "sharedStoreGroupId": sharedGroupId,
-                    "sharedFrom": senderUserId,
-                    "sharedAt": Date().timeIntervalSince1970
-                ]
-
-                if let latitude = userStoreItem.store.latitude {
-                    recipientUserStore["latitude"] = latitude
-                }
-                if let longitude = userStoreItem.store.longitude {
-                    recipientUserStore["longitude"] = longitude
-                }
-
-                let recipientUserStoreRef = self.db.collection("user_stores").document()
-                let recipientUserStoreId = recipientUserStoreRef.documentID
-
-                // Update sender's user_store to include sharedStoreGroupId and change permission to edit
-                let senderUserStoreRef = self.db.collection("user_stores").document(userStoreItem.id)
-
-                // Fetch all reminders from sender's user_store
-                self.db.collection("reminders")
-                    .whereField("userStoreId", isEqualTo: userStoreItem.id)
-                    .whereField("isDone", isEqualTo: false)
-                    .getDocuments { reminderSnapshot, reminderError in
-                        if let reminderError = reminderError {
-                            print("StoresViewModel: Error fetching reminders: \(reminderError.localizedDescription)")
-                            completion(false, "Error sharing store: \(reminderError.localizedDescription)")
-                            return
-                        }
-
-                        // Use batch to update everything atomically
-                        let batch = self.db.batch()
-
-                        // 1. Create SharedStoreGroup
-                        let sharedGroupData: [String: Any] = [
-                            "storeId": userStoreItem.store.id,
-                            "userStoreIds": [userStoreItem.id, recipientUserStoreId],
-                            "createdAt": Date().timeIntervalSince1970,
-                            "updatedAt": Date().timeIntervalSince1970
-                        ]
-                        batch.setData(sharedGroupData, forDocument: sharedGroupRef)
-
-                        // 2. Update sender's user_store
-                        batch.updateData([
-                            "permission": StorePermission.edit.rawValue,
-                            "sharedStoreGroupId": sharedGroupId
-                        ], forDocument: senderUserStoreRef)
-
-                        // 3. Create recipient's user_store
-                        batch.setData(recipientUserStore, forDocument: recipientUserStoreRef)
-
-                        // 4. Update all active reminders to use sharedStoreGroupId
-                        if let reminderDocs = reminderSnapshot?.documents {
-                            for doc in reminderDocs {
-                                batch.updateData([
-                                    "userStoreId": sharedGroupId
-                                ], forDocument: doc.reference)
-                            }
-                        }
-
-                        // Commit the batch
-                        batch.commit { error in
-                            if let error = error {
-                                print("StoresViewModel: Error creating shared store group: \(error.localizedDescription)")
-                                completion(false, "Error sharing store: \(error.localizedDescription)")
-                            } else {
-                                let reminderCount = reminderSnapshot?.documents.count ?? 0
-                                print("StoresViewModel: Successfully created shared store group with \(reminderCount) reminders")
-                                completion(true, "Store and \(reminderCount) reminder(s) shared successfully with Can Edit permission!")
-                            }
-                        }
-                    }
-            }
-    }
-
-    private func createSharedUserStore(recipientUserId: String, recipientEmail: String, userStoreItem: UserStoreItem, permission: StorePermission = .view, completion: @escaping (Bool, String?) -> Void) {
-        // Get the recipient's current store count for sortOrder
-        db.collection("user_stores")
-            .whereField("userId", isEqualTo: recipientUserId)
-            .getDocuments { [weak self] snapshot, error in
-                guard let self = self else { return }
-
-                let sortOrder = snapshot?.documents.count ?? 0
-
-                // Create user_store document for recipient
-                var newUserStore: [String: Any] = [
-                    "userId": recipientUserId,
-                    "userEmail": recipientEmail,
-                    "storeId": userStoreItem.store.id,
-                    "storeName": userStoreItem.store.name,
-                    "storeAddress": userStoreItem.store.address,
-                    "addedAt": Date().timeIntervalSince1970,
-                    "sortOrder": sortOrder,
-                    "permission": permission.rawValue,
-                    "sharedFrom": self.sessionManager.currentUser?.userId ?? "",
-                    "sharedAt": Date().timeIntervalSince1970
-                ]
-
-                // For view-only, set sourceUserStoreId to point to owner's user_store for reminders
-                if permission == .view {
-                    newUserStore["sourceUserStoreId"] = userStoreItem.id
-                }
-
-                // Add coordinates if available
-                if let latitude = userStoreItem.store.latitude {
-                    newUserStore["latitude"] = latitude
-                }
-                if let longitude = userStoreItem.store.longitude {
-                    newUserStore["longitude"] = longitude
-                }
-
-                // Create a new document reference with auto-generated ID
-                let newDocRef = self.db.collection("user_stores").document()
-
-                // Set the data to that document
-                newDocRef.setData(newUserStore) { error in
-                    if let error = error {
-                        print("StoresViewModel: Error creating shared user_store: \(error.localizedDescription)")
-                        completion(false, "Error sharing store: \(error.localizedDescription)")
-                        return
-                    }
-
-                    print("StoresViewModel: User_store created successfully with ID: \(newDocRef.documentID)")
-
-                    // For view-only, don't copy reminders - they'll see owner's reminders via sourceUserStoreId
-                    if permission == .view {
-                        // Count how many reminders they'll be able to see
-                        self.db.collection("reminders")
-                            .whereField("userStoreId", isEqualTo: userStoreItem.id)
-                            .whereField("isDone", isEqualTo: false)
-                            .getDocuments { snapshot, error in
-                                let reminderCount = snapshot?.documents.count ?? 0
-                                completion(true, "Store shared with view-only access! \(reminderCount) reminder(s) visible.")
-                            }
-                    } else {
-                        // For other permissions, copy reminders (though this shouldn't be called for edit)
-                        self.copyReminders(
-                            fromUserStoreId: userStoreItem.id,
-                            toUserStoreId: newDocRef.documentID,
-                            recipientUserId: recipientUserId,
-                            completion: completion
-                        )
-                    }
-                }
-            }
-    }
-
-    private func copyReminders(fromUserStoreId: String, toUserStoreId: String, recipientUserId: String, completion: @escaping (Bool, String?) -> Void) {
-        // First, fetch all active reminders from the source user_store
-        db.collection("reminders")
-            .whereField("userStoreId", isEqualTo: fromUserStoreId)
-            .whereField("isDone", isEqualTo: false)
-            .getDocuments { [weak self] snapshot, error in
-                guard let self = self else { return }
-
-                if let error = error {
-                    print("StoresViewModel: Error fetching reminders to copy: \(error.localizedDescription)")
-                    completion(false, "Store shared, but error copying reminders: \(error.localizedDescription)")
-                    return
-                }
-
-                guard let reminderDocuments = snapshot?.documents, !reminderDocuments.isEmpty else {
-                    print("StoresViewModel: No reminders to copy")
-                    completion(true, "Store shared successfully with no reminders.")
-                    return
-                }
-
-                // Copy reminders to the new user_store
-                self.performReminderCopy(
-                    reminderDocuments: reminderDocuments,
-                    toUserStoreId: toUserStoreId,
-                    completion: completion
-                )
-            }
-    }
-
-    private func performReminderCopy(reminderDocuments: [QueryDocumentSnapshot], toUserStoreId: String, completion: @escaping (Bool, String?) -> Void) {
-        print("StoresViewModel: Copying \(reminderDocuments.count) reminders")
-
-        let batch = db.batch()
-
-        for doc in reminderDocuments {
-            let data = doc.data()
-            guard let title = data["title"] as? String else { continue }
-
-            let newReminder: [String: Any] = [
-                "userStoreId": toUserStoreId,
-                "title": title,
-                "isDone": false,
-                "createdAt": Date().timeIntervalSince1970
-            ]
-
-            let newDocRef = self.db.collection("reminders").document()
-            batch.setData(newReminder, forDocument: newDocRef)
-        }
-
-        batch.commit { error in
-            if let error = error {
-                print("StoresViewModel: Error copying reminders: \(error.localizedDescription)")
-                completion(false, "Store shared, but error copying reminders: \(error.localizedDescription)")
-            } else {
-                print("StoresViewModel: Successfully copied \(reminderDocuments.count) reminders")
-                completion(true, "Store and \(reminderDocuments.count) reminder(s) shared successfully!")
-            }
-        }
-    }
-
     /// Migrate existing user_stores to include coordinates from stores collection
     /// Call this once to update stores that were added before coordinates were implemented
     func migrateUserStoresWithCoordinates() {
@@ -865,7 +650,8 @@ class StoresViewModel: ObservableObject {
     }
 
     deinit {
-        // Clean up listener when ViewModel is destroyed
+        // Clean up listeners when ViewModel is destroyed
         storesListener?.remove()
+        removeAllReminderCountListeners()
     }
 }

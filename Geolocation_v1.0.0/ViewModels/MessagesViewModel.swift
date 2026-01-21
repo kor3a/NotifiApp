@@ -421,6 +421,281 @@ class MessagesViewModel: ObservableObject {
         }
     }
 
+    // MARK: - Share Store
+
+    func shareStore(
+        userStoreItem: UserStoreItem,
+        to contact: Contact,
+        permission: String,
+        currentUserName: String,
+        reminderTitles: [String]?,
+        completion: @escaping (Bool) -> Void
+    ) {
+        print("📤 MessagesViewModel.shareStore: Starting - store=\(userStoreItem.store.name), to=\(contact.name), permission=\(permission)")
+
+        guard let userId = currentUserId else {
+            print("📤 MessagesViewModel.shareStore: ERROR - No currentUserId")
+            completion(false)
+            return
+        }
+
+        print("📤 MessagesViewModel.shareStore: Finding or creating conversation...")
+
+        // First, find or create conversation
+        messagingService.findOrCreateConversation(
+            currentUserId: userId,
+            currentUserName: currentUserName,
+            otherUserId: contact.id,
+            otherUserName: contact.name
+        ) { [weak self] result in
+            switch result {
+            case .success(let conversation):
+                print("📤 MessagesViewModel.shareStore: Got conversation \(conversation.id), creating LinkedStore...")
+
+                // Create LinkedStore with all necessary info
+                let linkedStore = LinkedStore(
+                    storeName: userStoreItem.store.name,
+                    storeAddress: userStoreItem.store.address,
+                    storeId: userStoreItem.store.id,
+                    senderUserId: userId,
+                    senderUserStoreId: userStoreItem.id,  // Include sender's user_store ID for linking
+                    status: .pending,
+                    permission: permission,
+                    storeLatitude: userStoreItem.store.latitude,
+                    storeLongitude: userStoreItem.store.longitude,
+                    storeImageURL: userStoreItem.store.imageURL,
+                    reminderTitles: reminderTitles
+                )
+
+                let permissionText = permission == "edit" ? "Can Edit" : "View Only"
+                let reminderCountText = reminderTitles?.count ?? 0
+                let messageContent = "I'd like to share \(userStoreItem.store.name) with you (\(permissionText)). It has \(reminderCountText) reminder(s)."
+
+                print("📤 MessagesViewModel.shareStore: Sending message with linkedStore...")
+
+                self?.messagingService.sendMessage(
+                    conversationId: conversation.id,
+                    senderId: userId,
+                    senderName: currentUserName,
+                    content: messageContent,
+                    linkedStore: linkedStore
+                ) { [weak self] messageResult in
+                    switch messageResult {
+                    case .success(let message):
+                        print("📤 MessagesViewModel.shareStore: SUCCESS - Message sent with id=\(message.id)")
+
+                        // Mark all reminders in this store as shared and update owner's user_store
+                        self?.markRemindersAsShared(
+                            userStoreItem: userStoreItem,
+                            recipientName: contact.name,
+                            currentUserName: currentUserName
+                        ) {
+                            // Also update owner's user_store with sharedWith array
+                            self?.updateOwnerStoreSharedWith(
+                                userStoreId: userStoreItem.id,
+                                recipientName: contact.name
+                            ) {
+                                DispatchQueue.main.async {
+                                    completion(true)
+                                }
+                            }
+                        }
+
+                    case .failure(let error):
+                        print("📤 MessagesViewModel.shareStore: ERROR sending message: \(error)")
+                        DispatchQueue.main.async {
+                            completion(false)
+                        }
+                    }
+                }
+
+            case .failure(let error):
+                print("📤 MessagesViewModel.shareStore: ERROR creating conversation: \(error)")
+                DispatchQueue.main.async {
+                    completion(false)
+                }
+            }
+        }
+    }
+
+    /// Mark all reminders in a store as shared
+    private func markRemindersAsShared(
+        userStoreItem: UserStoreItem,
+        recipientName: String,
+        currentUserName: String,
+        completion: @escaping () -> Void
+    ) {
+        let db = Firestore.firestore()
+
+        // Determine which ID to use for fetching reminders
+        let reminderStoreId = userStoreItem.sourceUserStoreId ?? userStoreItem.sharedStoreGroupId ?? userStoreItem.id
+
+        print("📤 markRemindersAsShared: Marking reminders as shared for storeId=\(reminderStoreId)")
+
+        db.collection("reminders")
+            .whereField("userStoreId", isEqualTo: reminderStoreId)
+            .whereField("isDone", isEqualTo: false)
+            .getDocuments { snapshot, error in
+                if let error = error {
+                    print("📤 markRemindersAsShared: ERROR fetching reminders - \(error)")
+                    completion()
+                    return
+                }
+
+                guard let documents = snapshot?.documents, !documents.isEmpty else {
+                    print("📤 markRemindersAsShared: No reminders to mark")
+                    completion()
+                    return
+                }
+
+                print("📤 markRemindersAsShared: Found \(documents.count) reminders to mark as shared")
+
+                let batch = db.batch()
+
+                for doc in documents {
+                    let data = doc.data()
+                    var sharedWith = data["sharedWith"] as? [String] ?? []
+
+                    // Only add recipient to sharedWith (not the sender)
+                    // The sender is the owner - they see "Shared with [recipient]"
+                    // The recipient will see "Shared by [sender]" via sharedFromName on their user_store
+                    if !sharedWith.contains(recipientName) {
+                        sharedWith.append(recipientName)
+                    }
+
+                    batch.updateData([
+                        "isShared": true,
+                        "sharedWith": sharedWith,
+                        "sharedAt": Date().timeIntervalSince1970
+                    ], forDocument: doc.reference)
+                }
+
+                batch.commit { error in
+                    if let error = error {
+                        print("📤 markRemindersAsShared: ERROR committing batch - \(error)")
+                    } else {
+                        print("📤 markRemindersAsShared: SUCCESS - \(documents.count) reminders marked as shared")
+                    }
+                    completion()
+                }
+            }
+    }
+
+    /// Update the owner's user_store with sharedWith array (for auto-marking new reminders as shared)
+    private func updateOwnerStoreSharedWith(
+        userStoreId: String,
+        recipientName: String,
+        completion: @escaping () -> Void
+    ) {
+        let db = Firestore.firestore()
+
+        print("📤 updateOwnerStoreSharedWith: Updating user_store \(userStoreId) with sharedWith")
+
+        db.collection("user_stores").document(userStoreId).getDocument { snapshot, error in
+            if let error = error {
+                print("📤 updateOwnerStoreSharedWith: ERROR fetching user_store - \(error)")
+                completion()
+                return
+            }
+
+            guard let data = snapshot?.data() else {
+                print("📤 updateOwnerStoreSharedWith: No data found")
+                completion()
+                return
+            }
+
+            var sharedWith = data["sharedWith"] as? [String] ?? []
+
+            // Add recipient if not already in the list
+            if !sharedWith.contains(recipientName) {
+                sharedWith.append(recipientName)
+            }
+
+            db.collection("user_stores").document(userStoreId).updateData([
+                "sharedWith": sharedWith,
+                "isSharedStore": true
+            ]) { error in
+                if let error = error {
+                    print("📤 updateOwnerStoreSharedWith: ERROR updating - \(error)")
+                } else {
+                    print("📤 updateOwnerStoreSharedWith: SUCCESS - sharedWith=\(sharedWith)")
+                }
+                completion()
+            }
+        }
+    }
+
+    // MARK: - Shared Store Accept/Reject
+
+    func acceptSharedStore(
+        message: Message,
+        completion: @escaping (Bool) -> Void
+    ) {
+        print("🔵 MessagesViewModel.acceptSharedStore: Starting for message \(message.id)")
+
+        guard let userId = currentUserId else {
+            print("🔵 MessagesViewModel.acceptSharedStore: ERROR - No currentUserId")
+            completion(false)
+            return
+        }
+
+        guard let userEmail = UserSessionManager.shared.currentUser?.email else {
+            print("🔵 MessagesViewModel.acceptSharedStore: ERROR - No userEmail")
+            completion(false)
+            return
+        }
+
+        guard let linkedStore = message.linkedStore else {
+            print("🔵 MessagesViewModel.acceptSharedStore: ERROR - No linkedStore in message")
+            completion(false)
+            return
+        }
+
+        print("🔵 MessagesViewModel.acceptSharedStore: linkedStore=\(linkedStore.storeName), senderUserStoreId=\(linkedStore.senderUserStoreId ?? "nil")")
+
+        messagingService.acceptSharedStore(
+            messageId: message.id,
+            linkedStore: linkedStore,
+            currentUserId: userId,
+            currentUserEmail: userEmail,
+            senderUserId: linkedStore.senderUserId,
+            senderUserStoreId: linkedStore.senderUserStoreId,
+            senderName: message.senderName  // Pass sender name for display
+        ) { result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success:
+                    print("🔵 MessagesViewModel.acceptSharedStore: SUCCESS")
+                    completion(true)
+                case .failure(let error):
+                    print("🔵 MessagesViewModel.acceptSharedStore: FAILURE - \(error)")
+                    completion(false)
+                }
+            }
+        }
+    }
+
+    func rejectSharedStore(
+        message: Message,
+        completion: @escaping (Bool) -> Void
+    ) {
+        messagingService.updateLinkedStoreStatus(
+            messageId: message.id,
+            status: .rejected
+        ) { result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success:
+                    print("MessagesViewModel: Successfully rejected shared store")
+                    completion(true)
+                case .failure(let error):
+                    print("MessagesViewModel: Error rejecting shared store: \(error)")
+                    completion(false)
+                }
+            }
+        }
+    }
+
     // MARK: - Helpers
 
     func isCurrentUser(_ senderId: String) -> Bool {

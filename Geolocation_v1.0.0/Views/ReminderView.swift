@@ -169,7 +169,7 @@ struct ReminderView: View {
             Text("Enter the item name you wish to add.")
         }
         .onAppear {
-            viewModel.fetchReminders(for: userStoreItem.reminderStoreId)
+            viewModel.fetchReminders(for: userStoreItem.reminderStoreId, sharedFromName: userStoreItem.sharedFromName)
         }
         .onChange(of: autoDeleteEnabled) { oldValue, newValue in
             // When auto-delete is turned ON, clean up already-done reminders
@@ -213,15 +213,27 @@ struct ReminderView: View {
             }
         } message: {
             if let reminder = showingSharedInfo {
-                // Check sharedFrom FIRST - if set, user is a recipient
-                if let sharedFrom = reminder.sharedFrom, !sharedFrom.isEmpty {
+                let currentUserName = UserSessionManager.shared.currentUser?.name
+                let isCurrentUserTheSharer = reminder.sharedFrom != nil &&
+                    !reminder.sharedFrom!.isEmpty &&
+                    reminder.sharedFrom == currentUserName
+
+                if isCurrentUserTheSharer {
+                    // Current user created/shared this reminder
+                    if let sharedWith = reminder.sharedWith, !sharedWith.isEmpty {
+                        Text("You shared this reminder with:\n\(sharedWith.joined(separator: "\n"))\n\nChanges sync automatically.")
+                    } else {
+                        Text("You shared this reminder.\n\nChanges sync automatically.")
+                    }
+                } else if let sharedFrom = reminder.sharedFrom, !sharedFrom.isEmpty {
+                    // Someone else shared this reminder with the user
                     if let sharedWith = reminder.sharedWith, !sharedWith.isEmpty {
                         Text("Shared by: \(sharedFrom)\nAlso shared with: \(sharedWith.filter { $0 != sharedFrom }.joined(separator: ", "))\n\nChanges sync automatically.")
                     } else {
                         Text("Shared by: \(sharedFrom)\n\nChanges sync automatically.")
                     }
                 } else if let sharedWith = reminder.sharedWith, !sharedWith.isEmpty {
-                    // No sharedFrom means user is the sender
+                    // No sharedFrom means user is the original owner/sender
                     Text("You shared this reminder with:\n\(sharedWith.joined(separator: "\n"))\n\nChanges sync automatically.")
                 } else {
                     Text("This reminder is synced across users.")
@@ -234,7 +246,17 @@ struct ReminderView: View {
         let title = reminderTitle.trimmingCharacters(in: .whitespaces)
         guard !title.isEmpty else { return }
 
-        viewModel.addReminder(userStoreId: userStoreItem.reminderStoreId, title: title)
+        // Pass sharedWith and sharedFromName so new reminders are auto-marked as shared
+        // - sharedWith is set for the owner (who shared the store with others)
+        // - sharedFromName is set for the recipient (who received the shared store)
+        // - currentUserName tracks who actually added this reminder in a shared store
+        viewModel.addReminder(
+            userStoreId: userStoreItem.reminderStoreId,
+            title: title,
+            sharedWith: userStoreItem.sharedWith,
+            sharedFromName: userStoreItem.sharedFromName,
+            currentUserName: UserSessionManager.shared.currentUser?.name
+        )
         reminderTitle = ""
     }
 
@@ -286,6 +308,8 @@ struct ReminderView: View {
         permission: .owner,
         sharedStoreGroupId: nil,
         sourceUserStoreId: nil,
+        sharedFromName: nil,
+        sharedWith: nil,
         notificationsEnabled: true
     ))
 }

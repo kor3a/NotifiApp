@@ -20,6 +20,9 @@ struct Message: Codable, Identifiable, Equatable {
     // Optional: linked reminder info
     let linkedReminder: LinkedReminder?
 
+    // Optional: linked store info (for store sharing)
+    let linkedStore: LinkedStore?
+
     enum CodingKeys: String, CodingKey {
         case id
         case conversationId
@@ -29,14 +32,48 @@ struct Message: Codable, Identifiable, Equatable {
         case createdAt
         case isRead
         case linkedReminder
+        case linkedStore
     }
 }
 
-/// Status of a shared reminder
+/// Status of a shared reminder or store
 enum SharedReminderStatus: String, Codable {
     case pending
     case accepted
     case rejected
+}
+
+/// Represents a store that was shared in a message
+struct LinkedStore: Codable, Equatable {
+    let storeName: String
+    let storeAddress: String?
+    let storeId: String
+    let senderUserId: String
+    let senderUserStoreId: String? // Sender's user_store ID for linking
+    var status: SharedReminderStatus?
+    let permission: String // "edit" or "view"
+
+    // Store coordinates for adding the store
+    let storeLatitude: Double?
+    let storeLongitude: Double?
+    let storeImageURL: String?
+
+    // List of reminder titles being shared with the store
+    let reminderTitles: [String]?
+
+    init(storeName: String, storeAddress: String?, storeId: String, senderUserId: String, senderUserStoreId: String? = nil, status: SharedReminderStatus? = .pending, permission: String = "edit", storeLatitude: Double? = nil, storeLongitude: Double? = nil, storeImageURL: String? = nil, reminderTitles: [String]? = nil) {
+        self.storeName = storeName
+        self.storeAddress = storeAddress
+        self.storeId = storeId
+        self.senderUserId = senderUserId
+        self.senderUserStoreId = senderUserStoreId
+        self.status = status
+        self.permission = permission
+        self.storeLatitude = storeLatitude
+        self.storeLongitude = storeLongitude
+        self.storeImageURL = storeImageURL
+        self.reminderTitles = reminderTitles
+    }
 }
 
 /// Represents a reminder that was shared in a message

@@ -173,6 +173,16 @@ struct MessageBubble: View {
                     )
                 }
 
+                // Linked store card if present
+                if let store = message.linkedStore {
+                    StoreCard(
+                        message: message,
+                        store: store,
+                        isFromCurrentUser: isFromCurrentUser,
+                        viewModel: viewModel
+                    )
+                }
+
                 // Message content
                 Text(message.content)
                     .padding(.horizontal, 14)
@@ -379,6 +389,205 @@ struct ReminderCard: View {
                 print("ReminderCard: Successfully rejected reminder")
             } else {
                 print("ReminderCard: Failed to reject reminder")
+            }
+        }
+    }
+}
+
+// MARK: - Store Card
+
+struct StoreCard: View {
+    let message: Message
+    let store: LinkedStore
+    let isFromCurrentUser: Bool
+    @ObservedObject var viewModel: MessagesViewModel
+    @Environment(\.colorScheme) var colorScheme
+    @State private var isProcessing = false
+
+    // Determine if accept/reject buttons should be shown
+    private var showActionButtons: Bool {
+        guard !isFromCurrentUser,
+              let status = store.status else {
+            return !isFromCurrentUser
+        }
+        return status == .pending
+    }
+
+    private var statusText: String? {
+        guard let status = store.status else { return nil }
+        switch status {
+        case .accepted:
+            return "Accepted"
+        case .rejected:
+            return "Declined"
+        case .pending:
+            return nil
+        }
+    }
+
+    private var statusColor: Color {
+        guard let status = store.status else { return .gray }
+        switch status {
+        case .accepted:
+            return .green
+        case .rejected:
+            return .red
+        case .pending:
+            return .gray
+        }
+    }
+
+    private var permissionText: String {
+        store.permission == "edit" ? "Can Edit" : "View Only"
+    }
+
+    private var permissionColor: Color {
+        store.permission == "edit" ? .green : .orange
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Image(systemName: "storefront.fill")
+                    .foregroundColor(.blue)
+                Text("Shared Store")
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.blue)
+
+                Spacer()
+
+                // Show status badge if not pending
+                if let status = statusText {
+                    Text(status)
+                        .font(.caption2)
+                        .fontWeight(.medium)
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(
+                            Capsule()
+                                .fill(statusColor)
+                        )
+                }
+            }
+
+            Text(store.storeName)
+                .font(.subheadline)
+                .fontWeight(.medium)
+
+            if let address = store.storeAddress, !address.isEmpty {
+                HStack {
+                    Image(systemName: "mappin")
+                        .font(.caption)
+                    Text(address)
+                        .font(.caption)
+                        .lineLimit(1)
+                }
+                .foregroundColor(.secondary)
+            }
+
+            // Permission badge
+            HStack {
+                Image(systemName: store.permission == "edit" ? "pencil.circle.fill" : "eye.circle.fill")
+                    .font(.caption)
+                Text(permissionText)
+                    .font(.caption)
+            }
+            .foregroundColor(permissionColor)
+
+            // Show reminder count if available
+            if let reminderTitles = store.reminderTitles, !reminderTitles.isEmpty {
+                HStack {
+                    Image(systemName: "list.bullet")
+                        .font(.caption)
+                    Text("\(reminderTitles.count) reminder(s)")
+                        .font(.caption)
+                }
+                .foregroundColor(.secondary)
+            }
+
+            // Accept/Reject buttons for pending shared stores
+            if showActionButtons {
+                HStack(spacing: 12) {
+                    Button {
+                        acceptStore()
+                    } label: {
+                        HStack {
+                            if isProcessing {
+                                ProgressView()
+                                    .scaleEffect(0.8)
+                            } else {
+                                Image(systemName: "checkmark")
+                            }
+                            Text("Accept")
+                        }
+                        .font(.caption)
+                        .fontWeight(.medium)
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 8)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(Color.green)
+                        )
+                    }
+                    .disabled(isProcessing)
+
+                    Button {
+                        rejectStore()
+                    } label: {
+                        HStack {
+                            Image(systemName: "xmark")
+                            Text("Decline")
+                        }
+                        .font(.caption)
+                        .fontWeight(.medium)
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 8)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(Color.red.opacity(0.8))
+                        )
+                    }
+                    .disabled(isProcessing)
+                }
+                .padding(.top, 4)
+            }
+        }
+        .padding(12)
+        .frame(maxWidth: 250, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(colorScheme == .dark ? Color.white.opacity(0.1) : Color.gray.opacity(0.1))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(Color.blue.opacity(0.3), lineWidth: 1)
+                )
+        )
+    }
+
+    private func acceptStore() {
+        isProcessing = true
+        viewModel.acceptSharedStore(message: message) { success in
+            isProcessing = false
+            if success {
+                print("StoreCard: Successfully accepted store")
+            } else {
+                print("StoreCard: Failed to accept store")
+            }
+        }
+    }
+
+    private func rejectStore() {
+        isProcessing = true
+        viewModel.rejectSharedStore(message: message) { success in
+            isProcessing = false
+            if success {
+                print("StoreCard: Successfully rejected store")
+            } else {
+                print("StoreCard: Failed to reject store")
             }
         }
     }
