@@ -97,8 +97,9 @@ class ReminderViewModel: ObservableObject {
     /// - Parameters:
     ///   - userStoreId: The user_store ID to add the reminder to
     ///   - title: The reminder title
-    ///   - sharedWith: If the store is shared, the names of users it's shared with (auto-marks reminder as shared)
-    func addReminder(userStoreId: String, title: String, sharedWith: [String]? = nil) {
+    ///   - sharedWith: If the store is shared (owner's perspective), the names of users it's shared with
+    ///   - sharedFromName: If the store is shared (recipient's perspective), the name of the owner who shared it
+    func addReminder(userStoreId: String, title: String, sharedWith: [String]? = nil, sharedFromName: String? = nil) {
         guard !title.isEmpty else {
             DispatchQueue.main.async {
                 self.errorMessage = "Reminder title cannot be empty"
@@ -106,7 +107,7 @@ class ReminderViewModel: ObservableObject {
             return
         }
 
-        print("ReminderViewModel: Adding reminder '\(title)' for userStoreId: \(userStoreId), sharedWith: \(sharedWith ?? [])")
+        print("ReminderViewModel: Adding reminder '\(title)' for userStoreId: \(userStoreId), sharedWith: \(sharedWith ?? []), sharedFromName: \(sharedFromName ?? "nil")")
 
         var reminderData: [String: Any] = [
             "userStoreId": userStoreId,
@@ -115,11 +116,21 @@ class ReminderViewModel: ObservableObject {
             "createdAt": Date().timeIntervalSince1970
         ]
 
-        // If this store is shared, automatically mark the new reminder as shared
-        if let sharedWith = sharedWith, !sharedWith.isEmpty {
+        // Check if this is a shared store (either owner or recipient perspective)
+        let isSharedStore = (sharedWith != nil && !sharedWith!.isEmpty) || sharedFromName != nil
+
+        if isSharedStore {
             reminderData["isShared"] = true
-            reminderData["sharedWith"] = sharedWith
             reminderData["sharedAt"] = Date().timeIntervalSince1970
+
+            // Set sharedWith appropriately based on perspective
+            if let sharedWith = sharedWith, !sharedWith.isEmpty {
+                // Owner adding reminder - use their sharedWith list
+                reminderData["sharedWith"] = sharedWith
+            } else if let sharedFromName = sharedFromName {
+                // Recipient adding reminder - mark as shared with the owner
+                reminderData["sharedWith"] = [sharedFromName]
+            }
         }
 
         db.collection("reminders").addDocument(data: reminderData) { [weak self] error in
@@ -128,7 +139,7 @@ class ReminderViewModel: ObservableObject {
                     print("ReminderViewModel: Error adding reminder: \(error.localizedDescription)")
                     self?.errorMessage = "Error adding reminder: \(error.localizedDescription)"
                 } else {
-                    print("ReminderViewModel: Reminder added successfully")
+                    print("ReminderViewModel: Reminder added successfully (isShared: \(isSharedStore))")
                 }
             }
         }
