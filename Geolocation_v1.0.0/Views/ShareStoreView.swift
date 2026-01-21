@@ -479,6 +479,7 @@ struct ShareStoreView: View {
             sharedStoreGroupId: nil,
             sourceUserStoreId: nil,
             sharedFromName: nil,
+            sharedWith: nil,
             notificationsEnabled: true
         )
     )

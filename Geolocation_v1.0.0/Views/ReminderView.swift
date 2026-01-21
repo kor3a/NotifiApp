@@ -234,7 +234,12 @@ struct ReminderView: View {
         let title = reminderTitle.trimmingCharacters(in: .whitespaces)
         guard !title.isEmpty else { return }
 
-        viewModel.addReminder(userStoreId: userStoreItem.reminderStoreId, title: title)
+        // Pass sharedWith so new reminders are auto-marked as shared if the store is shared
+        viewModel.addReminder(
+            userStoreId: userStoreItem.reminderStoreId,
+            title: title,
+            sharedWith: userStoreItem.sharedWith
+        )
         reminderTitle = ""
     }
 
@@ -287,6 +292,7 @@ struct ReminderView: View {
         sharedStoreGroupId: nil,
         sourceUserStoreId: nil,
         sharedFromName: nil,
+        sharedWith: nil,
         notificationsEnabled: true
     ))
 }

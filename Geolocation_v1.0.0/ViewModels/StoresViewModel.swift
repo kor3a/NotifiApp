@@ -83,6 +83,7 @@ class StoresViewModel: ObservableObject {
                     let sharedStoreGroupId = data["sharedStoreGroupId"] as? String
                     let sourceUserStoreId = data["sourceUserStoreId"] as? String
                     let sharedFromName = data["sharedFromName"] as? String
+                    let sharedWith = data["sharedWith"] as? [String]
                     let notificationsEnabled = data["notificationsEnabled"] as? Bool ?? true
 
                     // Determine which ID to use for fetching reminders
@@ -118,6 +119,7 @@ class StoresViewModel: ObservableObject {
                                 sharedStoreGroupId: sharedStoreGroupId,
                                 sourceUserStoreId: sourceUserStoreId,
                                 sharedFromName: sharedFromName,
+                                sharedWith: sharedWith,
                                 notificationsEnabled: notificationsEnabled
                             )
                             tempUserStoreItems.append(userStoreItem)

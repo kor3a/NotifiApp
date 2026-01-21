@@ -484,14 +484,20 @@ class MessagesViewModel: ObservableObject {
                     case .success(let message):
                         print("📤 MessagesViewModel.shareStore: SUCCESS - Message sent with id=\(message.id)")
 
-                        // Mark all reminders in this store as shared
+                        // Mark all reminders in this store as shared and update owner's user_store
                         self?.markRemindersAsShared(
                             userStoreItem: userStoreItem,
                             recipientName: contact.name,
                             currentUserName: currentUserName
                         ) {
-                            DispatchQueue.main.async {
-                                completion(true)
+                            // Also update owner's user_store with sharedWith array
+                            self?.updateOwnerStoreSharedWith(
+                                userStoreId: userStoreItem.id,
+                                recipientName: contact.name
+                            ) {
+                                DispatchQueue.main.async {
+                                    completion(true)
+                                }
                             }
                         }
 
@@ -573,6 +579,50 @@ class MessagesViewModel: ObservableObject {
                     completion()
                 }
             }
+    }
+
+    /// Update the owner's user_store with sharedWith array (for auto-marking new reminders as shared)
+    private func updateOwnerStoreSharedWith(
+        userStoreId: String,
+        recipientName: String,
+        completion: @escaping () -> Void
+    ) {
+        let db = Firestore.firestore()
+
+        print("📤 updateOwnerStoreSharedWith: Updating user_store \(userStoreId) with sharedWith")
+
+        db.collection("user_stores").document(userStoreId).getDocument { snapshot, error in
+            if let error = error {
+                print("📤 updateOwnerStoreSharedWith: ERROR fetching user_store - \(error)")
+                completion()
+                return
+            }
+
+            guard let data = snapshot?.data() else {
+                print("📤 updateOwnerStoreSharedWith: No data found")
+                completion()
+                return
+            }
+
+            var sharedWith = data["sharedWith"] as? [String] ?? []
+
+            // Add recipient if not already in the list
+            if !sharedWith.contains(recipientName) {
+                sharedWith.append(recipientName)
+            }
+
+            db.collection("user_stores").document(userStoreId).updateData([
+                "sharedWith": sharedWith,
+                "isSharedStore": true
+            ]) { error in
+                if let error = error {
+                    print("📤 updateOwnerStoreSharedWith: ERROR updating - \(error)")
+                } else {
+                    print("📤 updateOwnerStoreSharedWith: SUCCESS - sharedWith=\(sharedWith)")
+                }
+                completion()
+            }
+        }
     }
 
     // MARK: - Shared Store Accept/Reject

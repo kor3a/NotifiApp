@@ -94,7 +94,11 @@ class ReminderViewModel: ObservableObject {
     }
 
     /// Add a new reminder
-    func addReminder(userStoreId: String, title: String) {
+    /// - Parameters:
+    ///   - userStoreId: The user_store ID to add the reminder to
+    ///   - title: The reminder title
+    ///   - sharedWith: If the store is shared, the names of users it's shared with (auto-marks reminder as shared)
+    func addReminder(userStoreId: String, title: String, sharedWith: [String]? = nil) {
         guard !title.isEmpty else {
             DispatchQueue.main.async {
                 self.errorMessage = "Reminder title cannot be empty"
@@ -102,14 +106,21 @@ class ReminderViewModel: ObservableObject {
             return
         }
 
-        print("ReminderViewModel: Adding reminder '\(title)' for userStoreId: \(userStoreId)")
+        print("ReminderViewModel: Adding reminder '\(title)' for userStoreId: \(userStoreId), sharedWith: \(sharedWith ?? [])")
 
-        let reminderData: [String: Any] = [
+        var reminderData: [String: Any] = [
             "userStoreId": userStoreId,
             "title": title,
             "isDone": false,
             "createdAt": Date().timeIntervalSince1970
         ]
+
+        // If this store is shared, automatically mark the new reminder as shared
+        if let sharedWith = sharedWith, !sharedWith.isEmpty {
+            reminderData["isShared"] = true
+            reminderData["sharedWith"] = sharedWith
+            reminderData["sharedAt"] = Date().timeIntervalSince1970
+        }
 
         db.collection("reminders").addDocument(data: reminderData) { [weak self] error in
             DispatchQueue.main.async {

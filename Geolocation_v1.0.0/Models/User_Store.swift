@@ -22,6 +22,7 @@ struct UserStore: Codable, Identifiable {
     var sharedFrom: String? = nil // User ID of user who shared
     var sharedFromName: String? = nil // Display name of user who shared
     var sharedAt: TimeInterval? = nil // When it was shared
+    var sharedWith: [String]? = nil // Names of users this store is shared with (for owner)
     var notificationsEnabled: Bool = true // Whether notifications are enabled for this store
 
     enum CodingKeys: String, CodingKey {
@@ -39,6 +40,7 @@ struct UserStore: Codable, Identifiable {
         case sharedFrom
         case sharedFromName
         case sharedAt
+        case sharedWith
         case notificationsEnabled
     }
 
@@ -56,6 +58,7 @@ struct UserStore: Codable, Identifiable {
         sharedFrom = try container.decodeIfPresent(String.self, forKey: .sharedFrom)
         sharedFromName = try container.decodeIfPresent(String.self, forKey: .sharedFromName)
         sharedAt = try container.decodeIfPresent(TimeInterval.self, forKey: .sharedAt)
+        sharedWith = try container.decodeIfPresent([String].self, forKey: .sharedWith)
 
         // Handle permission with default value for backward compatibility
         if let permissionString = try container.decodeIfPresent(String.self, forKey: .permission) {
@@ -83,6 +86,7 @@ struct UserStore: Codable, Identifiable {
         try container.encodeIfPresent(sharedFrom, forKey: .sharedFrom)
         try container.encodeIfPresent(sharedFromName, forKey: .sharedFromName)
         try container.encodeIfPresent(sharedAt, forKey: .sharedAt)
+        try container.encodeIfPresent(sharedWith, forKey: .sharedWith)
         try container.encode(notificationsEnabled, forKey: .notificationsEnabled)
     }
 }
