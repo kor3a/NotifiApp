@@ -13,6 +13,7 @@ struct HomeView: View {
     @ObservedObject private var locationMonitor = LocationMonitoringManager.shared
     @ObservedObject private var storesViewModel = StoresViewModel()
     @StateObject private var messagesViewModel = MessagesViewModel()
+    @StateObject private var friendsViewModel = FriendsViewModel()
     @State private var selectedTab = 0
     @State private var isSearchExpanded = false
     @State private var searchQuery = ""
@@ -71,6 +72,17 @@ struct HomeView: View {
             .tag(1)
 
             NavigationStack {
+                FriendsView(messagesViewModel: messagesViewModel)
+                    .navigationBarTitleDisplayMode(.large)
+            }//:NAVIGATIONSTACK
+            .tabItem {
+                Image(systemName: "person.2")
+                Text("Friends")
+            }
+            .badge(friendsViewModel.pendingRequestCount)
+            .tag(2)
+
+            NavigationStack {
                 MapView(
                     selectedTab: $selectedTab,
                     isSearchExpanded: $isSearchExpanded,
@@ -83,7 +95,7 @@ struct HomeView: View {
                 Image(systemName: "map")
                 Text("Search")
             }
-            .tag(2)
+            .tag(3)
         }
         .sheet(isPresented: $showNotificationLog) {
             NotificationLogView()
@@ -94,11 +106,14 @@ struct HomeView: View {
             storesViewModel.fetchUserStores()
             // Fetch unread message count for badge
             messagesViewModel.fetchUnreadCount()
+            // Fetch pending friend requests count for badge
+            friendsViewModel.fetchPendingRequestCount()
         }
         .onChange(of: sessionManager.currentUser) { newUser in
             // Fetch unread message count whenever user data becomes available
             if newUser?.userId != nil {
                 messagesViewModel.fetchUnreadCount()
+                friendsViewModel.fetchPendingRequestCount()
             }
 
             // Start monitoring when user data becomes available
