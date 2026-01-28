@@ -68,6 +68,42 @@ service cloud.firestore {
                          !exists(/databases/$(database)/documents/shared_store_groups/$(resource.data.sharedStoreGroupId))));
     }
 
+    // Friends collection
+    match /friends/{friendshipId} {
+      // Allow authenticated users to read friendships they are part of
+      // Query by participantIds array requires a Firestore index
+      allow read: if request.auth != null;
+
+      // Allow authenticated users to create friend requests
+      allow create: if request.auth != null &&
+                       request.resource.data.requesterId is string &&
+                       request.resource.data.receiverId is string &&
+                       request.resource.data.participantIds is list &&
+                       request.resource.data.status is string;
+
+      // Allow participants to update friendship status (accept/reject)
+      allow update: if request.auth != null;
+
+      // Allow participants to delete friendships (unfriend/cancel request)
+      allow delete: if request.auth != null;
+    }
+
+    // Conversations collection
+    match /conversations/{conversationId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update: if request.auth != null;
+      allow delete: if request.auth != null;
+    }
+
+    // Messages collection
+    match /messages/{messageId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update: if request.auth != null;
+      allow delete: if request.auth != null;
+    }
+
     // Shared Store Groups collection
     match /shared_store_groups/{groupId} {
       // Allow authenticated users to read shared store groups
