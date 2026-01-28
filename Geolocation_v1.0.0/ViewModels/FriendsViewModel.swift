@@ -109,12 +109,16 @@ class FriendsViewModel: ObservableObject {
     func searchUser(query: String) {
         guard !query.isEmpty,
               let userId = currentUserId else {
-            searchedUser = nil
+            DispatchQueue.main.async { [weak self] in
+                self?.searchedUser = nil
+            }
             return
         }
 
-        isSearching = true
-        searchedUser = nil
+        DispatchQueue.main.async { [weak self] in
+            self?.isSearching = true
+            self?.searchedUser = nil
+        }
 
         // Check if query looks like an email
         if query.contains("@") {
@@ -149,25 +153,31 @@ class FriendsViewModel: ObservableObject {
 
     func sendFriendRequest(to contact: Contact) {
         guard let user = UserSessionManager.shared.currentUser else {
-            errorMessage = "User not logged in"
+            DispatchQueue.main.async { [weak self] in
+                self?.errorMessage = "User not logged in"
+            }
             return
         }
 
         // Check if already friends or request exists
         if let existing = findExistingRelationship(with: contact.id) {
-            if existing.status == .accepted {
-                errorMessage = "You're already friends with \(contact.name)"
-            } else if existing.status == .pending {
-                if existing.isRequester(currentUserId: user.userId) {
-                    errorMessage = "Friend request already sent to \(contact.name)"
-                } else {
-                    errorMessage = "\(contact.name) already sent you a friend request"
+            DispatchQueue.main.async { [weak self] in
+                if existing.status == .accepted {
+                    self?.errorMessage = "You're already friends with \(contact.name)"
+                } else if existing.status == .pending {
+                    if existing.isRequester(currentUserId: user.userId) {
+                        self?.errorMessage = "Friend request already sent to \(contact.name)"
+                    } else {
+                        self?.errorMessage = "\(contact.name) already sent you a friend request"
+                    }
                 }
             }
             return
         }
 
-        isLoading = true
+        DispatchQueue.main.async { [weak self] in
+            self?.isLoading = true
+        }
 
         friendsService.sendFriendRequest(from: user, to: contact) { [weak self] result in
             DispatchQueue.main.async {
