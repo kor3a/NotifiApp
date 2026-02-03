@@ -210,15 +210,22 @@ class FriendsViewModel: ObservableObject {
     }
 
     func removeFriend(_ friendship: Friendship) {
-        guard let userId = currentUserId else { return }
+        guard let userId = currentUserId else {
+            print("FriendsViewModel: Cannot remove friend - no current user ID")
+            return
+        }
         let friendName = friendship.friendName(currentUserId: userId)
+
+        print("FriendsViewModel: Removing friend '\(friendName)' with friendship ID: \(friendship.id)")
 
         friendsService.removeFriend(friendshipId: friendship.id) { [weak self] result in
             DispatchQueue.main.async {
                 switch result {
                 case .success:
+                    print("FriendsViewModel: Successfully removed friend '\(friendName)'")
                     self?.successMessage = "\(friendName) removed from friends"
                 case .failure(let error):
+                    print("FriendsViewModel: Failed to remove friend '\(friendName)': \(error.localizedDescription)")
                     self?.errorMessage = error.localizedDescription
                 }
             }

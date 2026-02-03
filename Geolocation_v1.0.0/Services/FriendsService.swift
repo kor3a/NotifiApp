@@ -22,25 +22,32 @@ class FriendsService: ObservableObject {
         for userId: String,
         completion: @escaping (Result<[Friendship], Error>) -> Void
     ) -> ListenerRegistration {
+        print("FriendsService: Setting up friendships listener for userId: \(userId)")
+
         // Query for friendships where user is either requester or receiver
         // Using two queries and merging results
         let listener = db.collection("friends")
             .whereField("participantIds", arrayContains: userId)
             .addSnapshotListener { snapshot, error in
                 if let error = error {
+                    print("FriendsService: Error fetching friendships: \(error.localizedDescription)")
                     completion(.failure(error))
                     return
                 }
 
                 guard let documents = snapshot?.documents else {
+                    print("FriendsService: No friendship documents found")
                     completion(.success([]))
                     return
                 }
+
+                print("FriendsService: Received \(documents.count) friendship documents from Firestore")
 
                 let friendships = documents.compactMap { doc -> Friendship? in
                     return self.parseFriendship(from: doc)
                 }
 
+                print("FriendsService: Parsed \(friendships.count) valid friendships")
                 completion(.success(friendships))
             }
 
@@ -244,10 +251,14 @@ class FriendsService: ObservableObject {
         friendshipId: String,
         completion: @escaping (Result<Void, Error>) -> Void
     ) {
+        print("FriendsService: Attempting to delete friendship with ID: \(friendshipId)")
+
         db.collection("friends").document(friendshipId).delete { error in
             if let error = error {
+                print("FriendsService: ERROR deleting friendship \(friendshipId): \(error.localizedDescription)")
                 completion(.failure(error))
             } else {
+                print("FriendsService: Successfully deleted friendship \(friendshipId)")
                 completion(.success(()))
             }
         }
