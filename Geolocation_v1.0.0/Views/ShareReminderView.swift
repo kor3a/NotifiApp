@@ -11,6 +11,7 @@ struct ShareReminderView: View {
     let reminder: Reminder
     let store: Store
     @StateObject private var viewModel = MessagesViewModel()
+    @StateObject private var friendsViewModel = FriendsViewModel()
     @ObservedObject private var sessionManager = UserSessionManager.shared
     @Environment(\.dismiss) private var dismiss
     @State private var searchEmail = ""
@@ -83,6 +84,18 @@ struct ShareReminderView: View {
                     }
                 }
 
+                // Friends list
+                if selectedContact == nil && !friendsViewModel.friends.isEmpty {
+                    Section("Friends") {
+                        ForEach(friendsViewModel.friends) { friendship in
+                            let contact = friendship.toContact(currentUserId: sessionManager.currentUser?.userId ?? "")
+                            Button(action: { selectedContact = contact }) {
+                                ContactRow(contact: contact)
+                            }
+                        }
+                    }
+                }
+
                 // Recent contacts
                 if selectedContact == nil && !viewModel.recentContacts.isEmpty {
                     Section("Recent Contacts") {
@@ -126,6 +139,10 @@ struct ShareReminderView: View {
             }
             .onAppear {
                 viewModel.fetchRecentContacts()
+                friendsViewModel.fetchFriendships()
+            }
+            .onDisappear {
+                friendsViewModel.stopListening()
             }
             .alert("Reminder Shared!", isPresented: $showSuccess) {
                 Button("OK") {

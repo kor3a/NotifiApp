@@ -12,7 +12,9 @@ struct HomeView: View {
     @ObservedObject private var notificationManager = NotificationManager.shared
     @ObservedObject private var locationMonitor = LocationMonitoringManager.shared
     @ObservedObject private var storesViewModel = StoresViewModel()
+    @ObservedObject private var friendRequestService = FriendRequestService.shared
     @StateObject private var messagesViewModel = MessagesViewModel()
+    @StateObject private var friendsViewModel = FriendsViewModel()
     @State private var selectedTab = 0
     @State private var isSearchExpanded = false
     @State private var searchQuery = ""
@@ -71,6 +73,17 @@ struct HomeView: View {
             .tag(1)
 
             NavigationStack {
+                FriendsView(messagesViewModel: messagesViewModel)
+                    .navigationBarTitleDisplayMode(.large)
+            }//:NAVIGATIONSTACK
+            .tabItem {
+                Image(systemName: "person.2")
+                Text("Friends")
+            }
+            .badge(friendsViewModel.pendingRequestCount)
+            .tag(2)
+
+            NavigationStack {
                 MapView(
                     selectedTab: $selectedTab,
                     isSearchExpanded: $isSearchExpanded,
@@ -83,7 +96,7 @@ struct HomeView: View {
                 Image(systemName: "map")
                 Text("Search")
             }
-            .tag(2)
+            .tag(3)
         }
         .sheet(isPresented: $showNotificationLog) {
             NotificationLogView()
@@ -94,11 +107,19 @@ struct HomeView: View {
             storesViewModel.fetchUserStores()
             // Fetch unread message count for badge
             messagesViewModel.fetchUnreadCount()
+
+            // Start listening for friend requests if user is already logged in
+            if let userId = sessionManager.currentUser?.userId {
+                friendRequestService.listenForIncomingRequests(userId: userId)
+            }
         }
         .onChange(of: sessionManager.currentUser) { newUser in
             // Fetch unread message count whenever user data becomes available
-            if newUser?.userId != nil {
+            if let userId = newUser?.userId {
                 messagesViewModel.fetchUnreadCount()
+
+                // Start listening for friend requests
+                friendRequestService.listenForIncomingRequests(userId: userId)
             }
 
             // Start monitoring when user data becomes available

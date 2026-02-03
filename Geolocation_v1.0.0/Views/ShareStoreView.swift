@@ -24,6 +24,7 @@ struct ShareStoreView: View {
     @ObservedObject var messagesViewModel: MessagesViewModel
     let userStoreItem: UserStoreItem
 
+    @StateObject private var friendsViewModel = FriendsViewModel()
     @State private var recipientEmail: String = ""
     @State private var selectedPermission: StorePermission = .edit
     @State private var isSharing: Bool = false
@@ -33,6 +34,7 @@ struct ShareStoreView: View {
     @State private var sharedUsers: [SharedUser] = []
     @State private var isLoadingSharedUsers: Bool = false
     @State private var reminderTitles: [String] = []
+    @State private var selectedFriend: Contact?
 
     private let db = Firestore.firestore()
     private let messagingService = MessagingService.shared
@@ -125,6 +127,86 @@ struct ShareStoreView: View {
 
                     Divider()
 
+                    // Friends Section
+                    if !friendsViewModel.friends.isEmpty {
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("Share with Friends")
+                                .font(.headline)
+
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: 12) {
+                                    ForEach(friendsViewModel.friends) { friendship in
+                                        let contact = friendship.toContact(currentUserId: viewModel.sessionManager.currentUser?.userId ?? "")
+                                        // Check if already shared with this friend
+                                        let isAlreadyShared = sharedUsers.contains { $0.userEmail.lowercased() == contact.email.lowercased() }
+
+                                        Button(action: {
+                                            if !isAlreadyShared {
+                                                selectedFriend = contact
+                                                recipientEmail = contact.email
+                                            }
+                                        }) {
+                                            VStack(spacing: 8) {
+                                                Circle()
+                                                    .fill(isAlreadyShared ? Color.appSuccess.opacity(0.2) : Color.appAccent.opacity(0.2))
+                                                    .frame(width: 50, height: 50)
+                                                    .overlay(
+                                                        Group {
+                                                            if isAlreadyShared {
+                                                                Image(systemName: "checkmark")
+                                                                    .foregroundColor(.appSuccess)
+                                                            } else {
+                                                                Text(String(contact.name.prefix(1)).uppercased())
+                                                                    .font(.headline)
+                                                                    .foregroundColor(.appAccent)
+                                                            }
+                                                        }
+                                                    )
+
+                                                Text(contact.name)
+                                                    .font(.caption)
+                                                    .foregroundColor(isAlreadyShared ? .secondary : .primary)
+                                                    .lineLimit(1)
+                                                    .frame(width: 60)
+                                            }
+                                        }
+                                        .buttonStyle(.plain)
+                                        .disabled(isAlreadyShared)
+                                    }
+                                }
+                                .padding(.vertical, 4)
+                            }
+
+                            if selectedFriend != nil {
+                                HStack {
+                                    Image(systemName: "person.fill.checkmark")
+                                        .foregroundColor(.appAccent)
+                                    Text("Selected: \(selectedFriend?.name ?? "")")
+                                        .font(.subheadline)
+                                    Spacer()
+                                    Button(action: {
+                                        selectedFriend = nil
+                                        recipientEmail = ""
+                                    }) {
+                                        Image(systemName: "xmark.circle.fill")
+                                            .foregroundColor(.secondary)
+                                    }
+                                }
+                                .padding(12)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 10)
+                                        .fill(Color.appAccent.opacity(0.1))
+                                )
+                            }
+                        }
+
+                        Text("Or enter email manually")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .center)
+                            .padding(.vertical, 8)
+                    }
+
                     // Email Input
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Recipient's Email")
@@ -143,6 +225,12 @@ struct ShareStoreView: View {
                                         .stroke(Color.gray.opacity(0.3), lineWidth: 1)
                                 )
                         )
+                        .onChange(of: recipientEmail) { _, newValue in
+                            // Clear selected friend if email changes
+                            if selectedFriend != nil && newValue != selectedFriend?.email {
+                                selectedFriend = nil
+                            }
+                        }
                 }
 
                 // Permission Selection
@@ -257,6 +345,10 @@ struct ShareStoreView: View {
             .onAppear {
                 fetchSharedUsers()
                 fetchReminderTitles()
+                friendsViewModel.fetchFriendships()
+            }
+            .onDisappear {
+                friendsViewModel.stopListening()
             }
         }
     }
