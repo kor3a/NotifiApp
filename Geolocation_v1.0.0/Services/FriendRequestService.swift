@@ -217,6 +217,88 @@ class FriendRequestService: ObservableObject {
         }
     }
 
+    // MARK: - Remove Friend
+
+    /// Remove a friend by deleting the friend request document
+    func removeFriend(currentUserId: String, friendUserId: String, completion: @escaping (Result<Void, Error>) -> Void) {
+        // Find the friend request document (could be in either direction)
+        let group = DispatchGroup()
+        var foundDocId: String?
+        var fetchError: Error?
+
+        // Check if current user sent the request
+        group.enter()
+        db.collection("friend_requests")
+            .whereField("fromUserId", isEqualTo: currentUserId)
+            .whereField("toUserId", isEqualTo: friendUserId)
+            .limit(to: 1)
+            .getDocuments { snapshot, error in
+                if let error = error {
+                    fetchError = error
+                } else if let doc = snapshot?.documents.first {
+                    foundDocId = doc.documentID
+                }
+                group.leave()
+            }
+
+        // Check if friend sent the request
+        group.enter()
+        db.collection("friend_requests")
+            .whereField("fromUserId", isEqualTo: friendUserId)
+            .whereField("toUserId", isEqualTo: currentUserId)
+            .limit(to: 1)
+            .getDocuments { snapshot, error in
+                if let error = error, fetchError == nil {
+                    fetchError = error
+                } else if let doc = snapshot?.documents.first, foundDocId == nil {
+                    foundDocId = doc.documentID
+                }
+                group.leave()
+            }
+
+        group.notify(queue: .main) { [weak self] in
+            guard let self = self else { return }
+
+            if let error = fetchError {
+                completion(.failure(error))
+                return
+            }
+
+            guard let docId = foundDocId else {
+                completion(.failure(NSError(domain: "FriendRequestService", code: -1, userInfo: [NSLocalizedDescriptionKey: "Friend relationship not found"])))
+                return
+            }
+
+            // Delete the friend request document
+            self.db.collection("friend_requests").document(docId).delete { error in
+                if let error = error {
+                    print("FriendRequestService: Error removing friend: \(error)")
+                    completion(.failure(error))
+                } else {
+                    // Also remove from knownRequestIds so if they send a new request, we get notified
+                    self.knownRequestIds.remove(docId)
+                    print("FriendRequestService: Successfully removed friend (deleted request \(docId))")
+                    completion(.success(()))
+                }
+            }
+        }
+    }
+
+    /// Remove a friend request by its ID (for direct deletion)
+    func removeFriendRequest(requestId: String, completion: @escaping (Result<Void, Error>) -> Void) {
+        db.collection("friend_requests").document(requestId).delete { [weak self] error in
+            if let error = error {
+                print("FriendRequestService: Error removing friend request: \(error)")
+                completion(.failure(error))
+            } else {
+                // Also remove from knownRequestIds
+                self?.knownRequestIds.remove(requestId)
+                print("FriendRequestService: Successfully removed friend request \(requestId)")
+                completion(.success(()))
+            }
+        }
+    }
+
     // MARK: - Listeners
 
     /// Start listening for incoming friend requests (requests sent TO the current user)
