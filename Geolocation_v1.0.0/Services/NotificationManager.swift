@@ -27,14 +27,22 @@ class NotificationManager: NSObject, ObservableObject {
 
     private func registerNotificationCategories() {
         // Create a category for store proximity notifications with CarPlay support
-        let category = UNNotificationCategory(
+        let storeProximityCategory = UNNotificationCategory(
             identifier: "STORE_PROXIMITY",
             actions: [],
             intentIdentifiers: [],
             options: [.customDismissAction, .allowInCarPlay, .allowAnnouncement]
         )
 
-        notificationCenter.setNotificationCategories([category])
+        // Create a category for friend request notifications
+        let friendRequestCategory = UNNotificationCategory(
+            identifier: "FRIEND_REQUEST",
+            actions: [],
+            intentIdentifiers: [],
+            options: [.customDismissAction, .allowInCarPlay, .allowAnnouncement]
+        )
+
+        notificationCenter.setNotificationCategories([storeProximityCategory, friendRequestCategory])
         print("✅ Registered notification categories with CarPlay and announcement support")
     }
 
@@ -126,6 +134,44 @@ class NotificationManager: NSObject, ObservableObject {
                     print("   ✅ Successfully scheduled notification for \(storeName)")
                     // Log the notification event
                     self.logStore.addEntry(storeName: storeName, reminderCount: reminderCount)
+                }
+            }
+        }
+    }
+
+    func scheduleFriendRequestNotification(fromUserName: String) {
+        print("🔔 NotificationManager: Attempting to schedule friend request notification from \(fromUserName)")
+
+        // First check if we have permission
+        notificationCenter.getNotificationSettings { settings in
+            print("   Notification authorization: \(settings.authorizationStatus.rawValue)")
+
+            guard settings.authorizationStatus == .authorized else {
+                print("   ❌ Notifications not authorized!")
+                return
+            }
+
+            let content = UNMutableNotificationContent()
+            content.title = "New Friend Request"
+            content.body = "\(fromUserName) wants to be your friend."
+            content.sound = .default
+            content.interruptionLevel = .timeSensitive
+            content.relevanceScore = 0.9
+            content.categoryIdentifier = "FRIEND_REQUEST"
+
+            // Create a unique identifier based on user name and timestamp
+            let identifier = "friend_request_\(fromUserName)_\(Date().timeIntervalSince1970)"
+
+            // Trigger immediately
+            let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
+
+            let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
+
+            self.notificationCenter.add(request) { error in
+                if let error = error {
+                    print("   ❌ Error scheduling friend request notification: \(error)")
+                } else {
+                    print("   ✅ Successfully scheduled friend request notification from \(fromUserName)")
                 }
             }
         }
