@@ -14,6 +14,10 @@ struct FriendsView: View {
     @State private var showAddFriend = false
     @State private var selectedFriendForMessage: Contact?
     @State private var selectedConversation: Conversation?
+    @State private var friendshipToRemove: Friendship?
+    @State private var showingRemoveAlert = false
+    @State private var friendshipToCancel: Friendship?
+    @State private var showingCancelAlert = false
     @Environment(\.colorScheme) var colorScheme
 
     var body: some View {
@@ -64,6 +68,40 @@ struct FriendsView: View {
         } message: {
             Text(viewModel.errorMessage ?? "")
         }
+        .alert("Remove Friend", isPresented: $showingRemoveAlert) {
+            Button("Cancel", role: .cancel) {
+                friendshipToRemove = nil
+            }
+            Button("Remove", role: .destructive) {
+                if let friendship = friendshipToRemove {
+                    viewModel.removeFriend(friendship)
+                    friendshipToRemove = nil
+                }
+            }
+        } message: {
+            if let friendship = friendshipToRemove {
+                Text("Are you sure you want to remove \(friendship.friendName(currentUserId: sessionManager.currentUser?.userId ?? "")) from your friends?")
+            } else {
+                Text("Are you sure you want to remove this friend?")
+            }
+        }
+        .alert("Cancel Request", isPresented: $showingCancelAlert) {
+            Button("No", role: .cancel) {
+                friendshipToCancel = nil
+            }
+            Button("Yes, Cancel", role: .destructive) {
+                if let friendship = friendshipToCancel {
+                    viewModel.cancelRequest(friendship)
+                    friendshipToCancel = nil
+                }
+            }
+        } message: {
+            if let friendship = friendshipToCancel {
+                Text("Cancel your friend request to \(friendship.receiverName)?")
+            } else {
+                Text("Cancel this friend request?")
+            }
+        }
     }
 
     private var mainContent: some View {
@@ -103,7 +141,10 @@ struct FriendsView: View {
                             friendship: friendship,
                             currentUserId: sessionManager.currentUser?.userId ?? "",
                             onMessage: { startConversation(with: friendship) },
-                            onRemove: { viewModel.removeFriend(friendship) }
+                            onRemove: {
+                                friendshipToRemove = friendship
+                                showingRemoveAlert = true
+                            }
                         )
                         .listRowBackground(cardBackground)
                     }
@@ -118,7 +159,10 @@ struct FriendsView: View {
                         SentRequestRow(
                             friendship: friendship,
                             currentUserId: sessionManager.currentUser?.userId ?? "",
-                            onCancel: { viewModel.cancelRequest(friendship) }
+                            onCancel: {
+                                friendshipToCancel = friendship
+                                showingCancelAlert = true
+                            }
                         )
                         .listRowBackground(cardBackground)
                     }
@@ -200,8 +244,6 @@ struct FriendRow: View {
     let onMessage: () -> Void
     let onRemove: () -> Void
 
-    @State private var showingRemoveAlert = false
-
     var body: some View {
         HStack(spacing: 12) {
             // Avatar
@@ -240,18 +282,10 @@ struct FriendRow: View {
         .padding(.vertical, 8)
         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
             Button(role: .destructive) {
-                showingRemoveAlert = true
+                onRemove()
             } label: {
                 Image(systemName: "person.badge.minus")
             }
-        }
-        .alert("Remove Friend", isPresented: $showingRemoveAlert) {
-            Button("Cancel", role: .cancel) { }
-            Button("Remove", role: .destructive) {
-                onRemove()
-            }
-        } message: {
-            Text("Are you sure you want to remove \(friendship.friendName(currentUserId: currentUserId)) from your friends?")
         }
     }
 
@@ -328,8 +362,6 @@ struct SentRequestRow: View {
     let currentUserId: String
     let onCancel: () -> Void
 
-    @State private var showingCancelAlert = false
-
     var body: some View {
         HStack(spacing: 12) {
             // Avatar
@@ -364,7 +396,7 @@ struct SentRequestRow: View {
             Spacer()
 
             // Cancel button
-            Button(action: { showingCancelAlert = true }) {
+            Button(action: onCancel) {
                 Text("Cancel")
                     .font(.caption)
                     .foregroundColor(.appError)
@@ -376,14 +408,6 @@ struct SentRequestRow: View {
             .buttonStyle(.plain)
         }
         .padding(.vertical, 8)
-        .alert("Cancel Request", isPresented: $showingCancelAlert) {
-            Button("No", role: .cancel) { }
-            Button("Yes, Cancel", role: .destructive) {
-                onCancel()
-            }
-        } message: {
-            Text("Cancel your friend request to \(friendship.receiverName)?")
-        }
     }
 }
 
