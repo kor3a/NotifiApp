@@ -302,16 +302,17 @@ class FriendRequestService: ObservableObject {
     // MARK: - Listeners
 
     /// Start listening for incoming friend requests (requests sent TO the current user)
+    /// Listens to the 'friends' collection where pending requests have receiverId = userId
     func listenForIncomingRequests(userId: String) {
         // Remove existing listener
         incomingListener?.remove()
 
-        print("FriendRequestService: Setting up listener for incoming requests for userId: \(userId)")
+        print("FriendRequestService: Setting up listener for incoming friend requests (friends collection) for userId: \(userId)")
 
-        incomingListener = db.collection("friend_requests")
-            .whereField("toUserId", isEqualTo: userId)
-            .whereField("status", isEqualTo: FriendRequestStatus.pending.rawValue)
-            .order(by: "createdAt", descending: true)
+        // Listen to 'friends' collection for pending requests where user is the receiver
+        incomingListener = db.collection("friends")
+            .whereField("receiverId", isEqualTo: userId)
+            .whereField("status", isEqualTo: "pending")
             .addSnapshotListener { [weak self] snapshot, error in
                 guard let self = self else { return }
 
@@ -321,23 +322,59 @@ class FriendRequestService: ObservableObject {
                 }
 
                 guard let documents = snapshot?.documents else {
-                    self.incomingRequests = []
-                    self.pendingRequestCount = 0
+                    DispatchQueue.main.async {
+                        self.incomingRequests = []
+                        self.pendingRequestCount = 0
+                    }
+                    print("FriendRequestService: No pending friend requests found")
                     return
                 }
 
-                let requests = documents.compactMap { self.parseFriendRequest(from: $0) }
+                print("FriendRequestService: Received \(documents.count) pending friend request documents")
 
                 // Check for new requests to trigger notifications
-                for request in requests {
-                    if !self.knownRequestIds.contains(request.id) {
+                for doc in documents {
+                    let requestId = doc.documentID
+                    if !self.knownRequestIds.contains(requestId) {
                         // This is a new request, trigger notification
-                        self.knownRequestIds.insert(request.id)
+                        self.knownRequestIds.insert(requestId)
+
+                        let data = doc.data()
+                        let fromUserName = data["requesterName"] as? String ?? "Someone"
+
+                        print("FriendRequestService: NEW friend request detected from \(fromUserName), scheduling notification...")
                         NotificationManager.shared.scheduleFriendRequestNotification(
-                            fromUserName: request.fromUserName
+                            fromUserName: fromUserName
                         )
-                        print("FriendRequestService: New friend request from \(request.fromUserName), notification scheduled")
                     }
+                }
+
+                // Parse documents into FriendRequest format for compatibility
+                let requests = documents.compactMap { doc -> FriendRequest? in
+                    let data = doc.data()
+                    guard let requesterId = data["requesterId"] as? String,
+                          let requesterName = data["requesterName"] as? String,
+                          let requesterEmail = data["requesterEmail"] as? String,
+                          let receiverId = data["receiverId"] as? String,
+                          let receiverName = data["receiverName"] as? String,
+                          let receiverEmail = data["receiverEmail"] as? String,
+                          let createdAt = data["createdAt"] as? TimeInterval else {
+                        return nil
+                    }
+
+                    return FriendRequest(
+                        id: doc.documentID,
+                        fromUserId: requesterId,
+                        toUserId: receiverId,
+                        fromUserName: requesterName,
+                        toUserName: receiverName,
+                        fromUserEmail: requesterEmail,
+                        toUserEmail: receiverEmail,
+                        status: .pending,
+                        createdAt: createdAt,
+                        fromUserProfilePictureURL: data["requesterProfilePictureURL"] as? String,
+                        toUserProfilePictureURL: data["receiverProfilePictureURL"] as? String
+                    )
                 }
 
                 DispatchQueue.main.async {
@@ -345,7 +382,7 @@ class FriendRequestService: ObservableObject {
                     self.pendingRequestCount = requests.count
                 }
 
-                print("FriendRequestService: Found \(requests.count) pending incoming requests")
+                print("FriendRequestService: Found \(requests.count) pending incoming friend requests")
             }
     }
 
