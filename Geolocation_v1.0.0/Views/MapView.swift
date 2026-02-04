@@ -345,6 +345,9 @@ struct MapView: View {
 extension MapView {
     /// Search for nearby store locations based on current map region
     func updateClustering(for region: MKCoordinateRegion) {
+        // Don't update locations while details sheet is showing to prevent selection reset
+        guard !showDetails else { return }
+
         // Cancel any existing search task
         storeSearchTask?.cancel()
 
@@ -355,9 +358,14 @@ extension MapView {
 
             guard !Task.isCancelled else { return }
 
+            // Double-check showDetails hasn't changed during the delay
+            guard !showDetails else { return }
+
             // Search for nearby stores
             clusterManager.searchNearbyStores(storesViewModel.userStoreItems, in: region) { locations in
-                // Only update if locations changed
+                // Only update if locations changed and details sheet is not showing
+                guard !showDetails else { return }
+
                 let newIds = Set(locations.map { $0.id })
                 let currentIds = Set(storeLocations.map { $0.id })
 
