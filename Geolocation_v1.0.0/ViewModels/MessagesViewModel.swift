@@ -326,13 +326,13 @@ class MessagesViewModel: ObservableObject {
                 let linkedReminder = LinkedReminder(
                     reminderTitle: reminder.title,
                     storeName: store.name,
-                    storeAddress: store.address,
+                    storeAddress: nil, // No longer storing addresses
                     reminderId: reminder.id,
                     storeId: store.id,
                     senderUserId: userId,
                     status: .pending,
-                    storeLatitude: store.latitude,
-                    storeLongitude: store.longitude,
+                    storeLatitude: nil, // No longer storing coordinates
+                    storeLongitude: nil,
                     storeImageURL: store.imageURL
                 )
 
@@ -452,17 +452,17 @@ class MessagesViewModel: ObservableObject {
             case .success(let conversation):
                 print("📤 MessagesViewModel.shareStore: Got conversation \(conversation.id), creating LinkedStore...")
 
-                // Create LinkedStore with all necessary info
+                // Create LinkedStore with all necessary info (no address/coordinates - name-based)
                 let linkedStore = LinkedStore(
                     storeName: userStoreItem.store.name,
-                    storeAddress: userStoreItem.store.address,
+                    storeAddress: nil, // No longer storing addresses
                     storeId: userStoreItem.store.id,
                     senderUserId: userId,
                     senderUserStoreId: userStoreItem.id,  // Include sender's user_store ID for linking
                     status: .pending,
                     permission: permission,
-                    storeLatitude: userStoreItem.store.latitude,
-                    storeLongitude: userStoreItem.store.longitude,
+                    storeLatitude: nil, // No longer storing coordinates
+                    storeLongitude: nil,
                     storeImageURL: userStoreItem.store.imageURL,
                     reminderTitles: reminderTitles
                 )

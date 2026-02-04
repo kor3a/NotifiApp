@@ -61,7 +61,7 @@ struct ShareStoreView: View {
                                     .font(.title3)
                                     .bold()
 
-                                Text(userStoreItem.store.address)
+                                Text("All locations")
                                     .font(.subheadline)
                                     .foregroundStyle(.secondary)
                             }
@@ -561,12 +561,7 @@ struct ShareStoreView: View {
         messagesViewModel: MessagesViewModel(),
         userStoreItem: UserStoreItem(
             id: "preview-id",
-            store: Store(
-                id: "store-id",
-                name: "Target",
-                address: "123 Main St, City, ST 12345",
-                reminderCount: 3
-            ),
+            store: Store(name: "Target", reminderCount: 3),
             permission: .owner,
             sharedStoreGroupId: nil,
             sourceUserStoreId: nil,

@@ -17,15 +17,15 @@ struct LocationDetailsView: View {
     @State private var placePhotoURL: String?
     @State private var isLoadingPhoto = false
 
-    // Check if the currently selected store is already in user's list
+    // Check if the currently selected store is already in user's list (by normalized name)
     private var isStoreAlreadyAdded: Bool {
         guard let mapSelection = mapSelection else { return false }
         let storeName = mapSelection.placemark.name ?? ""
-        let storeAddress = mapSelection.placemark.title ?? ""
+        let normalizedId = Store.normalizedId(from: storeName)
 
-        // Check if any user store matches this location
+        // Check if any user store matches this store name
         return viewModel.userStoreItems.contains { userStoreItem in
-            userStoreItem.store.name == storeName && userStoreItem.store.address == storeAddress
+            Store.normalizedId(from: userStoreItem.store.name) == normalizedId
         }
     }
 
@@ -161,15 +161,9 @@ struct LocationDetailsView: View {
                     Button(action: {
                         guard let selectedItem = mapSelection else { return }
 
-                        // Create a Store object from the MKMapItem with Google Places photo
+                        // Create a Store object from the MKMapItem (name-based, no address/coords stored)
                         let store = Store(
-                            id: UUID().uuidString, // Generate temporary ID
                             name: selectedItem.placemark.name ?? "Unknown Store",
-                            address: selectedItem.placemark.title ?? "Unknown Address",
-                            reminderCount: 0,
-                            sortOrder: nil,
-                            latitude: selectedItem.placemark.coordinate.latitude,
-                            longitude: selectedItem.placemark.coordinate.longitude,
                             imageURL: placePhotoURL
                         )
 

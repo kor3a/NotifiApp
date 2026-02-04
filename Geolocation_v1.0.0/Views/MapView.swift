@@ -376,9 +376,7 @@ extension MapView {
 
     /// Create an MKMapItem from a Store for map selection
     func createMapItemForStore(_ store: Store, coordinate: CLLocationCoordinate2D) -> MKMapItem {
-        let placemark = MKPlacemark(coordinate: coordinate, addressDictionary: [
-            CNPostalAddressStreetKey: store.address
-        ])
+        let placemark = MKPlacemark(coordinate: coordinate)
         let mapItem = MKMapItem(placemark: placemark)
         mapItem.name = store.name
         return mapItem

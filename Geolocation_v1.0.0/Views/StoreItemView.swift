@@ -9,7 +9,7 @@ import SwiftUI
 
 struct StoreItemView: View {
     let store: Store
-    
+
     var body: some View {
         HStack(spacing: 16) {
             // Store icon with glass effect
@@ -36,13 +36,11 @@ struct StoreItemView: View {
                 Text(store.name)
                     .font(.headline)
                     .foregroundColor(.primary)
-                
-                Text(store.address)
+
+                Text("All locations")
                     .font(.caption)
                     .foregroundColor(.secondary)
-                    
             }
-            
 
             Spacer()
 
@@ -67,8 +65,8 @@ struct StoreItemView: View {
 
 #Preview {
     VStack {
-        StoreItemView(store: Store(id: "1", name: "Example Store", address: "123 Main St, City, Country", reminderCount: 3))
-        StoreItemView(store: Store(id: "2", name: "Another Store", address: "456 Oak Ave, Town, Country", reminderCount: 0))
+        StoreItemView(store: Store(name: "Example Store", reminderCount: 3))
+        StoreItemView(store: Store(name: "Another Store", reminderCount: 0))
     }
 }
 

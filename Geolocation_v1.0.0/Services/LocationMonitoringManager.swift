@@ -9,6 +9,7 @@ import Foundation
 import CoreLocation
 import Combine
 import FirebaseFirestore
+import MapKit
 
 class LocationMonitoringManager: NSObject, ObservableObject {
     static let shared = LocationMonitoringManager()
@@ -17,18 +18,19 @@ class LocationMonitoringManager: NSObject, ObservableObject {
     private let db = Firestore.firestore()
     private let notificationManager = NotificationManager.shared
 
-    // Distance threshold in meters (1km = 1000m)
-    private let proximityThreshold: CLLocationDistance = 100
+    // Distance threshold in meters for proximity notification
+    private let proximityThreshold: CLLocationDistance = 150
 
-    // Geofence radius - must be at least 100m for iOS
-    private let geofenceRadius: CLLocationDistance = 150
+    // Search radius for finding nearby stores (5km)
+    private let searchRadius: CLLocationDistance = 5000
 
-    // Track recently notified stores to avoid spam (store ID -> last notification time)
+    // Track recently notified stores to avoid spam (store name -> last notification time)
     private var recentlyNotifiedStores: [String: Date] = [:]
     private let notificationCooldown: TimeInterval = 3600 // 1 hour cooldown
 
-    // Track active geofences (region identifier -> userStore ID)
-    private var activeGeofences: [String: String] = [:]
+    // Debounce for location searches
+    private var lastSearchTime: Date?
+    private let searchDebounceInterval: TimeInterval = 30 // Don't search more than once per 30 seconds
 
     @Published var isMonitoring = false
     @Published var lastLocation: CLLocation?
@@ -70,7 +72,6 @@ class LocationMonitoringManager: NSObject, ObservableObject {
         locationManager.delegate = self
         locationManager.desiredAccuracy = kCLLocationAccuracyHundredMeters
         locationManager.distanceFilter = 100 // Update every 100 meters
-        // Note: allowsBackgroundLocationUpdates will be set when monitoring starts
         locationManager.pausesLocationUpdatesAutomatically = false
     }
 
@@ -121,15 +122,10 @@ class LocationMonitoringManager: NSObject, ObservableObject {
         if permission == .authorizedWhenInUse {
             print("⚠️ LocationMonitoring: Running with 'When In Use' permission")
             print("   App will monitor location while in use and use significant location changes in background")
-            print("   iOS will prompt for 'Always' permission after you use location features a few times")
-            // Enable significant location changes for background monitoring with "When In Use" permission
-            // This does NOT require allowsBackgroundLocationUpdates or background modes capability
             locationManager.startMonitoringSignificantLocationChanges()
         } else if permission == .authorizedAlways {
-            // With "Always" permission, we can use continuous location updates in background
             print("✅ LocationMonitoring: Running with 'Always' permission")
             print("   App will monitor location continuously, even in background")
-            // Only enable background location updates with "Always" permission
             locationManager.allowsBackgroundLocationUpdates = true
         }
 
@@ -139,20 +135,13 @@ class LocationMonitoringManager: NSObject, ObservableObject {
         print("✅ LocationMonitoring: Started location monitoring successfully")
         print("📱 LocationMonitoring: Desired accuracy: \(locationManager.desiredAccuracy)")
         print("📱 LocationMonitoring: Distance filter: \(locationManager.distanceFilter)m")
-
-        if permission == .authorizedWhenInUse {
-            print("📱 LocationMonitoring: Significant location changes: enabled")
-        } else if permission == .authorizedAlways {
-            print("📱 LocationMonitoring: Background updates: enabled")
-        }
     }
 
     func stopMonitoring() {
         isMonitoring = false
         locationManager.stopUpdatingLocation()
         locationManager.stopMonitoringSignificantLocationChanges()
-        removeAllGeofences()
-        print("Stopped location monitoring and geofencing")
+        print("Stopped location monitoring")
     }
 
     // MARK: - Data Loading
@@ -181,7 +170,6 @@ class LocationMonitoringManager: NSObject, ObservableObject {
                 self.userStores = documents.compactMap { doc -> UserStore? in
                     do {
                         var userStore = try doc.data(as: UserStore.self)
-                        // Manually set the ID from doc.documentID
                         userStore.id = doc.documentID
 
                         // Only include stores with notifications enabled
@@ -190,7 +178,7 @@ class LocationMonitoringManager: NSObject, ObservableObject {
                             return nil
                         }
 
-                        print("   ✓ Decoded store '\(userStore.storeName)' with ID: \(doc.documentID) - notifications enabled")
+                        print("   ✓ Loaded store '\(userStore.storeName)' - notifications enabled")
                         return userStore
                     } catch {
                         print("❌ LocationMonitoring: Failed to decode store \(doc.documentID): \(error)")
@@ -198,33 +186,21 @@ class LocationMonitoringManager: NSObject, ObservableObject {
                     }
                 }
 
-                print("📦 LocationMonitoring: Loaded \(self.userStores.count) stores for monitoring (notifications enabled)")
-
-                // Log details about each store
-                for store in self.userStores {
-                    let hasCoords = store.latitude != nil && store.longitude != nil
-                    let coordsStr = hasCoords ? "✓ (\(store.latitude!), \(store.longitude!))" : "✗ NO COORDINATES"
-                    print("   - \(store.storeName): \(coordsStr)")
-                }
+                print("📦 LocationMonitoring: Loaded \(self.userStores.count) stores for monitoring")
 
                 // Load reminder counts for each store
                 self.loadReminderCounts()
-
-                // Set up geofences for all stores
-                self.setupGeofences()
             }
     }
 
     private func loadReminderCounts() {
         for userStore in userStores {
-            // Skip stores without valid IDs
             guard let userStoreId = userStore.id else {
                 print("⚠️ LocationMonitoring: Store '\(userStore.storeName)' has no ID, skipping")
                 continue
             }
 
             // Determine which ID to use for fetching reminders
-            // Priority: sourceUserStoreId (view only) > sharedStoreGroupId (can edit) > userStore.id (owner)
             let reminderStoreId = userStore.sourceUserStoreId ?? userStore.sharedStoreGroupId ?? userStoreId
 
             db.collection("reminders")
@@ -240,132 +216,107 @@ class LocationMonitoringManager: NSObject, ObservableObject {
 
                     let count = snapshot?.documents.count ?? 0
                     self.storeReminders[userStoreId] = count
-                    print("LocationMonitoring: Store '\(userStore.storeName)' has \(count) incomplete reminders (using ID: \(reminderStoreId))")
+                    print("LocationMonitoring: Store '\(userStore.storeName)' has \(count) incomplete reminders")
                 }
         }
     }
 
-    // MARK: - Geofencing
+    // MARK: - Nearby Store Search
 
-    private func setupGeofences() {
-        print("🗺️ LocationMonitoring: Setting up geofences")
-
-        // Clear existing geofences
-        removeAllGeofences()
-
-        // iOS limits to 20 regions per app, so prioritize stores with reminders
-        let storesWithCoordinates = userStores.filter { $0.latitude != nil && $0.longitude != nil }
-
-        // Sort by reminder count (stores with more reminders get priority)
-        let sortedStores = storesWithCoordinates.sorted { store1, store2 in
-            let count1 = storeReminders[store1.id ?? ""] ?? 0
-            let count2 = storeReminders[store2.id ?? ""] ?? 0
-            return count1 > count2
+    /// Search for nearby stores matching user's saved store names
+    private func searchForNearbyMatchingStores(userLocation: CLLocation) {
+        // Debounce: don't search too frequently
+        if let lastSearch = lastSearchTime,
+           Date().timeIntervalSince(lastSearch) < searchDebounceInterval {
+            print("📍 LocationMonitoring: Skipping search (debounce)")
+            return
         }
+        lastSearchTime = Date()
 
-        // Take up to 20 stores (iOS limit)
-        let storesToMonitor = Array(sortedStores.prefix(20))
+        print("📍 LocationMonitoring: Searching for nearby stores at (\(userLocation.coordinate.latitude), \(userLocation.coordinate.longitude))")
 
-        print("   Creating geofences for \(storesToMonitor.count) stores (iOS limit: 20)")
+        // Get unique store names that user is tracking
+        let storeNames = Set(userStores.map { $0.storeName })
 
-        for store in storesToMonitor {
-            guard let storeId = store.id,
-                  let lat = store.latitude,
-                  let lon = store.longitude else {
-                continue
-            }
-
-            let center = CLLocationCoordinate2D(latitude: lat, longitude: lon)
-            let region = CLCircularRegion(
-                center: center,
-                radius: geofenceRadius,
-                identifier: "store_\(storeId)"
-            )
-
-            // Only notify when entering the region
-            region.notifyOnEntry = true
-            region.notifyOnExit = false
-
-            locationManager.startMonitoring(for: region)
-            activeGeofences[region.identifier] = storeId
-
-            let reminderCount = storeReminders[storeId] ?? 0
-            print("   ✓ Geofence created for '\(store.storeName)' (\(Int(geofenceRadius))m radius, \(reminderCount) reminders)")
-        }
-
-        print("   📍 Total active geofences: \(activeGeofences.count)")
-    }
-
-    private func removeAllGeofences() {
-        for region in locationManager.monitoredRegions {
-            locationManager.stopMonitoring(for: region)
-        }
-        activeGeofences.removeAll()
-        print("   🗑️ Removed all existing geofences")
-    }
-
-    private func refreshGeofences() {
-        // Re-setup geofences when stores or reminders change
-        setupGeofences()
-    }
-
-    // MARK: - Distance Calculation & Notification
-
-    private func checkProximityToStores(userLocation: CLLocation) {
-        print("📍 LocationMonitoring: Checking proximity - User at (\(userLocation.coordinate.latitude), \(userLocation.coordinate.longitude))")
-        print("   Checking against \(userStores.count) stores with \(proximityThreshold)m threshold")
-
-        var storesChecked = 0
-        var storesWithinRange = 0
-
-        for userStore in userStores {
-            // Skip stores without coordinates
-            guard let lat = userStore.latitude,
-                  let lon = userStore.longitude else {
-                print("   ⚠️ \(userStore.storeName): SKIPPED - No coordinates")
-                continue
-            }
-
-            storesChecked += 1
-
-            let storeLocation = CLLocation(latitude: lat, longitude: lon)
-            let distance = userLocation.distance(from: storeLocation)
-            let distanceStr = String(format: "%.0f", distance)
-
-            print("   📏 \(userStore.storeName): \(distanceStr)m away")
-
-            // Check if within proximity threshold
-            if distance <= proximityThreshold {
-                storesWithinRange += 1
-                print("      ✅ WITHIN RANGE! Checking notification conditions...")
-                handleStoreProximity(userStore: userStore, distance: distance)
-            }
-        }
-
-        if storesChecked == 0 {
-            print("   ⚠️ No stores have coordinates to check")
-        } else if storesWithinRange == 0 {
-            print("   ℹ️ No stores within \(proximityThreshold)m range")
-        }
-    }
-
-    private func handleStoreProximity(userStore: UserStore, distance: CLLocationDistance) {
-        print("      🔔 Handling proximity for: \(userStore.storeName)")
-
-        // Skip stores without valid IDs
-        guard let userStoreId = userStore.id else {
-            print("      ⚠️ Store has no ID, skipping")
+        guard !storeNames.isEmpty else {
+            print("   ⚠️ No stores to search for")
             return
         }
 
-        // Double-check notifications are enabled (safety check)
-        guard userStore.notificationsEnabled else {
-            print("      ⏸️ Notifications disabled for this store - skipping")
+        print("   🔍 Looking for: \(storeNames.joined(separator: ", "))")
+
+        // Search for each store name
+        for storeName in storeNames {
+            searchForStore(name: storeName, near: userLocation)
+        }
+    }
+
+    /// Search MapKit for a specific store near user's location
+    private func searchForStore(name: String, near userLocation: CLLocation) {
+        let request = MKLocalSearch.Request()
+        request.naturalLanguageQuery = name
+        request.region = MKCoordinateRegion(
+            center: userLocation.coordinate,
+            latitudinalMeters: searchRadius * 2,
+            longitudinalMeters: searchRadius * 2
+        )
+
+        let search = MKLocalSearch(request: request)
+        search.start { [weak self] response, error in
+            guard let self = self else { return }
+
+            if let error = error {
+                print("   ❌ Search error for '\(name)': \(error.localizedDescription)")
+                return
+            }
+
+            guard let response = response else {
+                print("   ℹ️ No results for '\(name)'")
+                return
+            }
+
+            // Check each result for proximity
+            for mapItem in response.mapItems {
+                guard let itemName = mapItem.name,
+                      let location = mapItem.placemark.location else {
+                    continue
+                }
+
+                // Check if this result matches our store name (normalized comparison)
+                let normalizedSearchName = Store.normalizedId(from: name)
+                let normalizedResultName = Store.normalizedId(from: itemName)
+
+                guard normalizedSearchName == normalizedResultName else {
+                    continue
+                }
+
+                let distance = userLocation.distance(from: location)
+
+                if distance <= self.proximityThreshold {
+                    print("   ✅ Found '\(itemName)' within \(Int(distance))m!")
+                    self.handleNearbyStoreFound(storeName: name, distance: distance)
+                    return // Only notify once per store name
+                }
+            }
+        }
+    }
+
+    /// Handle finding a nearby store that matches user's saved stores
+    private func handleNearbyStoreFound(storeName: String, distance: CLLocationDistance) {
+        print("      🔔 Handling proximity for: \(storeName)")
+
+        // Find the user store for this name
+        guard let userStore = userStores.first(where: { $0.storeName == storeName }),
+              let userStoreId = userStore.id else {
+            print("      ⚠️ Could not find user store for '\(storeName)'")
             return
         }
 
-        // Check if we've recently notified about this store
-        if let lastNotification = recentlyNotifiedStores[userStoreId] {
+        // Use normalized store name for cooldown tracking (so all locations share cooldown)
+        let normalizedName = Store.normalizedId(from: storeName)
+
+        // Check cooldown
+        if let lastNotification = recentlyNotifiedStores[normalizedName] {
             let timeSinceLastNotification = Date().timeIntervalSince(lastNotification)
             let minutesAgo = Int(timeSinceLastNotification / 60)
             if timeSinceLastNotification < notificationCooldown {
@@ -378,7 +329,7 @@ class LocationMonitoringManager: NSObject, ObservableObject {
             print("      ✓ No previous notifications")
         }
 
-        // Get reminder count for this store
+        // Get reminder count
         let reminderCount = storeReminders[userStoreId] ?? 0
         print("      📝 Reminder count: \(reminderCount)")
 
@@ -392,15 +343,15 @@ class LocationMonitoringManager: NSObject, ObservableObject {
 
         // Send notification
         notificationManager.scheduleStoreProximityNotification(
-            storeName: userStore.storeName,
+            storeName: storeName,
             reminderCount: reminderCount
         )
 
-        // Update last notification time
-        recentlyNotifiedStores[userStoreId] = Date()
+        // Update cooldown using normalized name
+        recentlyNotifiedStores[normalizedName] = Date()
 
         let distanceInMeters = Int(distance)
-        print("      ✅ NOTIFICATION SENT! Store: \(userStore.storeName), Distance: \(distanceInMeters)m, Reminders: \(reminderCount)")
+        print("      ✅ NOTIFICATION SENT! Store: \(storeName), Distance: \(distanceInMeters)m, Reminders: \(reminderCount)")
     }
 
     // MARK: - Helper Methods
@@ -410,7 +361,7 @@ class LocationMonitoringManager: NSObject, ObservableObject {
     }
 
     func getMonitoredStoreCount() -> Int {
-        return userStores.filter { $0.latitude != nil && $0.longitude != nil }.count
+        return userStores.count
     }
 }
 
@@ -426,7 +377,9 @@ extension LocationMonitoringManager: CLLocationManagerDelegate {
         print("   Timestamp: \(Date())")
 
         lastLocation = location
-        checkProximityToStores(userLocation: location)
+
+        // Search for nearby stores matching user's saved store names
+        searchForNearbyMatchingStores(userLocation: location)
     }
 
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
@@ -453,78 +406,17 @@ extension LocationMonitoringManager: CLLocationManagerDelegate {
             startMonitoring(userId: userId)
         } else if (status == .authorizedAlways || status == .authorizedWhenInUse) && isMonitoring {
             print("   ✅ Resuming location updates")
-            // Resume monitoring if already configured
             locationManager.startUpdatingLocation()
 
-            // Configure based on permission level
             if status == .authorizedWhenInUse {
-                // Re-enable significant location changes for "When In Use"
                 locationManager.startMonitoringSignificantLocationChanges()
                 print("   📱 Re-enabled significant location changes")
             } else if status == .authorizedAlways {
-                // Enable background updates for "Always" permission
                 locationManager.allowsBackgroundLocationUpdates = true
                 print("   📱 Enabled background location updates")
             }
         } else if status == .denied || status == .restricted {
             print("   ❌ Location permission denied or restricted")
         }
-    }
-
-    // MARK: - Region Monitoring Delegates
-
-    func locationManager(_ manager: CLLocationManager, didEnterRegion region: CLRegion) {
-        print("\n🎯 LocationMonitoring: ENTERED GEOFENCE!")
-        print("   Region: \(region.identifier)")
-
-        guard let storeId = activeGeofences[region.identifier] else {
-            print("   ⚠️ Unknown region, ignoring")
-            return
-        }
-
-        // Find the store
-        guard let store = userStores.first(where: { $0.id == storeId }) else {
-            print("   ⚠️ Store not found: \(storeId)")
-            return
-        }
-
-        print("   Store: \(store.storeName)")
-
-        // Get current location for precise distance calculation
-        if let currentLocation = lastLocation ?? manager.location {
-            // Use the existing proximity check logic
-            let storeLocation = CLLocation(
-                latitude: store.latitude ?? 0,
-                longitude: store.longitude ?? 0
-            )
-            let distance = currentLocation.distance(from: storeLocation)
-
-            print("   Distance: \(Int(distance))m")
-
-            // Handle the store proximity
-            handleStoreProximity(userStore: store, distance: distance)
-        } else {
-            print("   ⚠️ No current location available")
-
-            // Request a location update to get current position
-            manager.requestLocation()
-        }
-    }
-
-    func locationManager(_ manager: CLLocationManager, didExitRegion region: CLRegion) {
-        print("\n🚪 LocationMonitoring: Exited geofence: \(region.identifier)")
-        // We don't need to do anything on exit for now
-    }
-
-    func locationManager(_ manager: CLLocationManager, monitoringDidFailFor region: CLRegion?, withError error: Error) {
-        if let region = region {
-            print("❌ LocationMonitoring: Geofence monitoring failed for \(region.identifier): \(error)")
-        } else {
-            print("❌ LocationMonitoring: Geofence monitoring failed: \(error)")
-        }
-    }
-
-    func locationManager(_ manager: CLLocationManager, didStartMonitoringFor region: CLRegion) {
-        print("✅ LocationMonitoring: Started monitoring geofence: \(region.identifier)")
     }
 }
