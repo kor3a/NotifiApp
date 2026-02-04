@@ -36,46 +36,25 @@ struct MapView: View {
     // Messages view model for unread badge
     @ObservedObject var messagesViewModel: MessagesViewModel
 
-    // Clustering
+    // Store location search
     private let clusterManager = StoreClusterManager()
     @State private var clusteredAnnotations: [StoreAnnotation] = []
+    @State private var storeLocations: [StoreLocation] = []
+    @State private var storeSearchTask: Task<Void, Never>?
 
     var body: some View {
         Map(position: $cameraPosition, selection: $mapSelection, scope: mapScope){
             UserAnnotation()
 
-            // User's saved stores (clustered)
-            ForEach(clusteredAnnotations) { annotation in
-                switch annotation {
-                case .single(let userStoreItem, let coordinate):
-                    // Single store marker
-                    Marker(userStoreItem.store.name, systemImage: "storefront.fill", coordinate: coordinate)
-                        .tint(.blue)
-                        .tag(createMapItemForStore(userStoreItem.store, coordinate: coordinate))
-
-                case .cluster(let stores, let coordinate, let count):
-                    // Cluster marker
-                    Annotation("", coordinate: coordinate) {
-                        VStack(spacing: 1) {
-                            ZStack {
-                                Circle()
-                                    .fill(Color.blue)
-                                    .frame(width: 36, height: 36)
-                                Image(systemName: "storefront.fill")
-                                    .font(.system(size: 14))
-                                    .foregroundColor(.white)
-                            }
-                            Text("Stores+\(count)")
-                                .font(.system(size: 9, weight: .semibold))
-                                .foregroundColor(.blue)
-                                .padding(.horizontal, 4)
-                                .padding(.vertical, 1)
-                                .background(Color.white)
-                                .cornerRadius(3)
+            // User's saved store locations (found via search)
+            ForEach(storeLocations) { storeLocation in
+                Annotation("", coordinate: storeLocation.coordinate) {
+                    StoreIconView(storeName: storeLocation.userStoreItem.store.name)
+                        .onTapGesture {
+                            mapSelection = createMapItemForStoreLocation(storeLocation)
                         }
-                    }
-                    .tag(createMapItemForCluster(stores, coordinate: coordinate))
                 }
+                .annotationTitles(.hidden)
             }
 
             // Search results with modern pins
@@ -364,14 +343,39 @@ struct MapView: View {
 }
 
 extension MapView {
-    /// Update clustering based on current map region
+    /// Search for nearby store locations based on current map region
     func updateClustering(for region: MKCoordinateRegion) {
-        let newAnnotations = clusterManager.clusterStores(storesViewModel.userStoreItems, in: region)
+        // Cancel any existing search task
+        storeSearchTask?.cancel()
 
-        // Only update if annotations have actually changed to avoid unnecessary redraws
-        if newAnnotations.map({ $0.id }).sorted() != clusteredAnnotations.map({ $0.id }).sorted() {
-            clusteredAnnotations = newAnnotations
+        // Debounce the search to avoid too many requests
+        storeSearchTask = Task {
+            // Wait a bit to allow for smooth panning
+            try? await Task.sleep(nanoseconds: 300_000_000)
+
+            guard !Task.isCancelled else { return }
+
+            // Search for nearby stores
+            clusterManager.searchNearbyStores(storesViewModel.userStoreItems, in: region) { locations in
+                // Only update if locations changed
+                let newIds = Set(locations.map { $0.id })
+                let currentIds = Set(storeLocations.map { $0.id })
+
+                if newIds != currentIds {
+                    withAnimation(.easeInOut(duration: 0.3)) {
+                        storeLocations = locations
+                    }
+                }
+            }
         }
+    }
+
+    /// Create an MKMapItem from a StoreLocation for map selection
+    func createMapItemForStoreLocation(_ storeLocation: StoreLocation) -> MKMapItem {
+        let placemark = MKPlacemark(coordinate: storeLocation.coordinate)
+        let mapItem = MKMapItem(placemark: placemark)
+        mapItem.name = storeLocation.placeName
+        return mapItem
     }
 
     /// Create an MKMapItem from a Store for map selection
@@ -501,6 +505,72 @@ extension MapView {
     }
 }
 
+// MARK: - Store Icon View (First Letter Circle)
+
+struct StoreIconView: View {
+    let storeName: String
+    @State private var isAnimating = false
+
+    private var firstLetter: String {
+        let letter = storeName.prefix(1).uppercased()
+        return letter.isEmpty ? "?" : letter
+    }
+
+    private var storeColor: Color {
+        // Generate a consistent color based on store name
+        let hash = abs(storeName.hashValue)
+        let colors: [Color] = [
+            .blue, .green, .orange, .purple, .pink, .teal, .indigo, .cyan
+        ]
+        return colors[hash % colors.count]
+    }
+
+    var body: some View {
+        ZStack {
+            // Outer glow for visibility
+            Circle()
+                .fill(storeColor.opacity(0.3))
+                .frame(width: 36, height: 36)
+
+            // Main circle with gradient
+            Circle()
+                .fill(
+                    LinearGradient(
+                        colors: [storeColor, storeColor.opacity(0.8)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .frame(width: 28, height: 28)
+                .shadow(color: Color.black.opacity(0.25), radius: 3, x: 0, y: 2)
+
+            // Inner highlight for 3D effect
+            Circle()
+                .fill(
+                    LinearGradient(
+                        colors: [Color.white.opacity(0.4), Color.clear],
+                        startPoint: .topLeading,
+                        endPoint: .center
+                    )
+                )
+                .frame(width: 24, height: 24)
+                .offset(x: -2, y: -2)
+
+            // First letter
+            Text(firstLetter)
+                .font(.system(size: 14, weight: .bold, design: .rounded))
+                .foregroundColor(.white)
+        }
+        .scaleEffect(isAnimating ? 1.0 : 0.5)
+        .opacity(isAnimating ? 1.0 : 0)
+        .onAppear {
+            withAnimation(.spring(response: 0.4, dampingFraction: 0.6)) {
+                isAnimating = true
+            }
+        }
+    }
+}
+
 // MARK: - Modern Search Result Pin
 
 struct SearchResultPinView: View {
@@ -610,5 +680,17 @@ struct Triangle: Shape {
     ZStack {
         Color.gray.opacity(0.3)
         SearchResultPinView(name: "Coffee Shop")
+    }
+}
+
+#Preview("Store Icon") {
+    ZStack {
+        Color.gray.opacity(0.3)
+        HStack(spacing: 20) {
+            StoreIconView(storeName: "Walmart")
+            StoreIconView(storeName: "Target")
+            StoreIconView(storeName: "Costco")
+            StoreIconView(storeName: "Best Buy")
+        }
     }
 }
