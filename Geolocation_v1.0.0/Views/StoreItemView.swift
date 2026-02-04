@@ -32,15 +32,9 @@ struct StoreItemView: View {
                         )
                     )
             }
-            VStack(alignment: .leading, spacing: 4) {
-                Text(store.name)
-                    .font(.headline)
-                    .foregroundColor(.primary)
-
-                Text("All locations")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
+            Text(store.name)
+                .font(.headline)
+                .foregroundColor(.primary)
 
             Spacer()
 
