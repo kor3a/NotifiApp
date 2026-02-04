@@ -19,7 +19,6 @@ struct HomeView: View {
     @State private var isSearchExpanded = false
     @State private var searchQuery = ""
     @State private var hasRequestedPermissions = false
-    @State private var hasMigratedCoordinates = false
     @State private var showNotificationLog = false
 
     var body: some View {
@@ -113,7 +112,7 @@ struct HomeView: View {
                 friendRequestService.listenForIncomingRequests(userId: userId)
             }
         }
-        .onChange(of: sessionManager.currentUser) { newUser in
+        .onChange(of: sessionManager.currentUser) { oldUser, newUser in
             // Fetch unread message count whenever user data becomes available
             if let userId = newUser?.userId {
                 messagesViewModel.fetchUnreadCount()
@@ -136,14 +135,6 @@ struct HomeView: View {
 
                 // Fetch stores now that user data is available
                 storesViewModel.fetchUserStores()
-
-                // Run coordinate migration once per session
-                if !hasMigratedCoordinates {
-                    hasMigratedCoordinates = true
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                        storesViewModel.migrateUserStoresWithCoordinates()
-                    }
-                }
             }
         }
     }
