@@ -41,6 +41,7 @@ struct MapView: View {
     @State private var clusteredAnnotations: [StoreAnnotation] = []
     @State private var storeLocations: [StoreLocation] = []
     @State private var storeSearchTask: Task<Void, Never>?
+    @State private var selectedStoreLocation: StoreLocation?
 
     var body: some View {
         Map(position: $cameraPosition, selection: $mapSelection, scope: mapScope){
@@ -51,7 +52,10 @@ struct MapView: View {
                 Annotation("", coordinate: storeLocation.coordinate) {
                     StoreIconView(storeName: storeLocation.userStoreItem.store.name)
                         .onTapGesture {
-                            mapSelection = createMapItemForStoreLocation(storeLocation)
+                            // Use separate state for store location selection to avoid Map resetting it
+                            selectedStoreLocation = storeLocation
+                            mapSelection = nil // Clear any search result selection
+                            showDetails = true
                         }
                 }
                 .annotationTitles(.hidden)
@@ -136,11 +140,19 @@ struct MapView: View {
             customTabBar
         }
         .mapScope(mapScope)
-        .sheet(isPresented: $showDetails, content: {
-            LocationDetailsView(mapSelection: $mapSelection, show: $showDetails, viewModel: storesViewModel)
-                .presentationDetents([.height(340)])
-                .presentationBackgroundInteraction(.enabled(upThrough: .height(340)))
-                .presentationCornerRadius(25)
+        .sheet(isPresented: $showDetails, onDismiss: {
+            // Clear both selection sources when sheet is dismissed
+            selectedStoreLocation = nil
+            mapSelection = nil
+        }, content: {
+            LocationDetailsView(
+                mapSelection: effectiveMapSelectionBinding,
+                show: $showDetails,
+                viewModel: storesViewModel
+            )
+            .presentationDetents([.height(340)])
+            .presentationBackgroundInteraction(.enabled(upThrough: .height(340)))
+            .presentationCornerRadius(25)
         })
         .onChange(of: searchQuery) { oldValue, newValue in
             searchText = newValue
@@ -181,10 +193,15 @@ struct MapView: View {
             }
         }
         .onChange(of: mapSelection, { oldValue, newValue in
-            showDetails = newValue != nil
+            // Only update showDetails from mapSelection if we don't have a store location selected
+            if selectedStoreLocation == nil {
+                showDetails = newValue != nil
+            }
             // Dismiss keyboard when a pin is tapped
             if newValue != nil {
                 isSearchFocused = false
+                // Clear store location selection when selecting a search result
+                selectedStoreLocation = nil
             }
         })
         .onAppear {
@@ -343,10 +360,29 @@ struct MapView: View {
 }
 
 extension MapView {
+    /// Computed binding that returns either the selected store location as MKMapItem or the search result selection
+    var effectiveMapSelectionBinding: Binding<MKMapItem?> {
+        Binding(
+            get: {
+                // Prioritize store location selection over search result selection
+                if let storeLocation = selectedStoreLocation {
+                    return createMapItemForStoreLocation(storeLocation)
+                }
+                return mapSelection
+            },
+            set: { newValue in
+                if newValue == nil {
+                    selectedStoreLocation = nil
+                    mapSelection = nil
+                }
+            }
+        )
+    }
+
     /// Search for nearby store locations based on current map region
     func updateClustering(for region: MKCoordinateRegion) {
-        // Don't update locations while details sheet is showing to prevent selection reset
-        guard !showDetails else { return }
+        // Don't update locations while details sheet is showing or a store is selected
+        guard !showDetails && selectedStoreLocation == nil else { return }
 
         // Cancel any existing search task
         storeSearchTask?.cancel()
@@ -358,13 +394,13 @@ extension MapView {
 
             guard !Task.isCancelled else { return }
 
-            // Double-check showDetails hasn't changed during the delay
-            guard !showDetails else { return }
+            // Double-check conditions haven't changed during the delay
+            guard !showDetails && selectedStoreLocation == nil else { return }
 
             // Search for nearby stores
             clusterManager.searchNearbyStores(storesViewModel.userStoreItems, in: region) { locations in
-                // Only update if locations changed and details sheet is not showing
-                guard !showDetails else { return }
+                // Only update if locations changed and no selection is active
+                guard !showDetails && selectedStoreLocation == nil else { return }
 
                 let newIds = Set(locations.map { $0.id })
                 let currentIds = Set(storeLocations.map { $0.id })
