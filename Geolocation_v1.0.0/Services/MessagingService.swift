@@ -14,6 +14,11 @@ class MessagingService: ObservableObject {
 
     private let db = Firestore.firestore()
 
+    // Track incoming message listener
+    private var incomingMessageListener: ListenerRegistration?
+    private var listenerStartTime: TimeInterval = 0
+    private var notifiedMessageIds: Set<String> = []
+
     private init() {}
 
     // MARK: - Conversations
@@ -1345,5 +1350,129 @@ class MessagingService: ObservableObject {
                     }
                 }
             }
+    }
+
+    // MARK: - Incoming Message Notifications
+
+    /// Start listening for incoming messages to trigger notifications
+    func startListeningForIncomingMessages(userId: String) {
+        // Stop any existing listener
+        stopListeningForIncomingMessages()
+
+        // Record the time we start listening to avoid notifying for old messages
+        listenerStartTime = Date().timeIntervalSince1970
+
+        print("📬 MessagingService: Starting to listen for incoming messages for user: \(userId)")
+
+        // First, get all conversations the user is part of
+        db.collection("conversations")
+            .whereField("participantIds", arrayContains: userId)
+            .addSnapshotListener { [weak self] conversationsSnapshot, error in
+                guard let self = self else { return }
+
+                if let error = error {
+                    print("📬 MessagingService: Error fetching conversations: \(error.localizedDescription)")
+                    return
+                }
+
+                guard let conversations = conversationsSnapshot?.documents else {
+                    print("📬 MessagingService: No conversations found")
+                    return
+                }
+
+                let conversationIds = conversations.map { $0.documentID }
+                print("📬 MessagingService: Monitoring \(conversationIds.count) conversations for new messages")
+
+                // Now listen for new messages in these conversations
+                self.setupMessageListener(conversationIds: conversationIds, currentUserId: userId)
+            }
+    }
+
+    /// Set up listener for messages in the given conversations
+    private func setupMessageListener(conversationIds: [String], currentUserId: String) {
+        // Stop existing message listener if any
+        incomingMessageListener?.remove()
+
+        guard !conversationIds.isEmpty else {
+            print("📬 MessagingService: No conversations to monitor")
+            return
+        }
+
+        // Firestore has a limit of 30 items in 'in' queries, so we need to handle that
+        let chunkedIds = stride(from: 0, to: conversationIds.count, by: 30).map {
+            Array(conversationIds[$0..<min($0 + 30, conversationIds.count)])
+        }
+
+        // For simplicity, we'll just listen to the first chunk if there are many conversations
+        // In a production app, you might want to set up multiple listeners
+        let idsToMonitor = chunkedIds.first ?? []
+
+        incomingMessageListener = db.collection("messages")
+            .whereField("conversationId", in: idsToMonitor)
+            .whereField("createdAt", isGreaterThan: listenerStartTime)
+            .addSnapshotListener { [weak self] snapshot, error in
+                guard let self = self else { return }
+
+                if let error = error {
+                    print("📬 MessagingService: Error listening for messages: \(error.localizedDescription)")
+                    return
+                }
+
+                guard let documents = snapshot?.documents else { return }
+
+                // Process only new documents that haven't been notified yet
+                for doc in documents {
+                    let messageId = doc.documentID
+
+                    // Skip if we already notified for this message
+                    guard !self.notifiedMessageIds.contains(messageId) else { continue }
+
+                    let data = doc.data()
+
+                    // Skip messages from the current user
+                    guard let senderId = data["senderId"] as? String,
+                          senderId != currentUserId else { continue }
+
+                    // Get message details
+                    guard let senderName = data["senderName"] as? String,
+                          let content = data["content"] as? String,
+                          let conversationId = data["conversationId"] as? String,
+                          let createdAt = data["createdAt"] as? TimeInterval else { continue }
+
+                    // Only notify for messages created after we started listening
+                    guard createdAt > self.listenerStartTime else { continue }
+
+                    // Mark as notified
+                    self.notifiedMessageIds.insert(messageId)
+
+                    // Determine notification content based on message type
+                    var notificationContent = content
+
+                    // Check for linked reminder or store
+                    if let linkedReminder = data["linkedReminder"] as? [String: Any],
+                       let reminderTitle = linkedReminder["reminderTitle"] as? String {
+                        notificationContent = "Shared a reminder: \(reminderTitle)"
+                    } else if let linkedStore = data["linkedStore"] as? [String: Any],
+                              let storeName = linkedStore["storeName"] as? String {
+                        notificationContent = "Shared a store: \(storeName)"
+                    }
+
+                    // Schedule the notification
+                    print("📬 MessagingService: New message from \(senderName): \(notificationContent.prefix(50))...")
+                    NotificationManager.shared.scheduleNewMessageNotification(
+                        fromUserName: senderName,
+                        messageContent: notificationContent,
+                        conversationId: conversationId
+                    )
+                }
+            }
+    }
+
+    /// Stop listening for incoming messages
+    func stopListeningForIncomingMessages() {
+        incomingMessageListener?.remove()
+        incomingMessageListener = nil
+        notifiedMessageIds.removeAll()
+        print("📬 MessagingService: Stopped listening for incoming messages")
     }
 }

@@ -13,6 +13,7 @@ struct HomeView: View {
     @ObservedObject private var locationMonitor = LocationMonitoringManager.shared
     @ObservedObject private var storesViewModel = StoresViewModel()
     @ObservedObject private var friendRequestService = FriendRequestService.shared
+    @ObservedObject private var messagingService = MessagingService.shared
     @StateObject private var messagesViewModel = MessagesViewModel()
     @StateObject private var friendsViewModel = FriendsViewModel()
     @State private var selectedTab = 0
@@ -107,9 +108,10 @@ struct HomeView: View {
             // Fetch unread message count for badge
             messagesViewModel.fetchUnreadCount()
 
-            // Start listening for friend requests if user is already logged in
+            // Start listening for friend requests and incoming messages if user is already logged in
             if let userId = sessionManager.currentUser?.userId {
                 friendRequestService.listenForIncomingRequests(userId: userId)
+                messagingService.startListeningForIncomingMessages(userId: userId)
             }
         }
         .onChange(of: sessionManager.currentUser) { oldUser, newUser in
@@ -119,6 +121,9 @@ struct HomeView: View {
 
                 // Start listening for friend requests
                 friendRequestService.listenForIncomingRequests(userId: userId)
+
+                // Start listening for incoming messages
+                messagingService.startListeningForIncomingMessages(userId: userId)
             }
 
             // Start monitoring when user data becomes available
