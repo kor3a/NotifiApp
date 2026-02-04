@@ -208,10 +208,6 @@ struct ShareReminderView: View {
             isDone: false,
             createdAt: Date().timeIntervalSince1970
         ),
-        store: Store(
-            id: "store1",
-            name: "Trader Joe's",
-            address: "123 Main St"
-        )
+        store: Store(name: "Trader Joe's")
     )
 }
