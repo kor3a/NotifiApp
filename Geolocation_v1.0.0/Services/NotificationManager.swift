@@ -42,7 +42,15 @@ class NotificationManager: NSObject, ObservableObject {
             options: [.customDismissAction, .allowInCarPlay, .allowAnnouncement]
         )
 
-        notificationCenter.setNotificationCategories([storeProximityCategory, friendRequestCategory])
+        // Create a category for new message notifications
+        let newMessageCategory = UNNotificationCategory(
+            identifier: "NEW_MESSAGE",
+            actions: [],
+            intentIdentifiers: [],
+            options: [.customDismissAction, .allowInCarPlay, .allowAnnouncement]
+        )
+
+        notificationCenter.setNotificationCategories([storeProximityCategory, friendRequestCategory, newMessageCategory])
         print("✅ Registered notification categories with CarPlay and announcement support")
     }
 
@@ -172,6 +180,53 @@ class NotificationManager: NSObject, ObservableObject {
                     print("   ❌ Error scheduling friend request notification: \(error)")
                 } else {
                     print("   ✅ Successfully scheduled friend request notification from \(fromUserName)")
+                }
+            }
+        }
+    }
+
+    func scheduleNewMessageNotification(fromUserName: String, messageContent: String, conversationId: String) {
+        print("🔔 NotificationManager: Attempting to schedule new message notification from \(fromUserName)")
+
+        // First check if we have permission
+        notificationCenter.getNotificationSettings { settings in
+            print("   Notification authorization: \(settings.authorizationStatus.rawValue)")
+
+            guard settings.authorizationStatus == .authorized else {
+                print("   ❌ Notifications not authorized!")
+                return
+            }
+
+            let content = UNMutableNotificationContent()
+            content.title = "New Message from \(fromUserName)"
+
+            // Truncate message content if too long
+            let truncatedContent = messageContent.count > 100
+                ? String(messageContent.prefix(100)) + "..."
+                : messageContent
+            content.body = truncatedContent
+
+            content.sound = .default
+            content.interruptionLevel = .timeSensitive
+            content.relevanceScore = 0.95
+            content.categoryIdentifier = "NEW_MESSAGE"
+
+            // Add conversation ID to userInfo for navigation on tap
+            content.userInfo = ["conversationId": conversationId]
+
+            // Create a unique identifier based on sender and timestamp
+            let identifier = "new_message_\(conversationId)_\(Date().timeIntervalSince1970)"
+
+            // Trigger immediately
+            let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
+
+            let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
+
+            self.notificationCenter.add(request) { error in
+                if let error = error {
+                    print("   ❌ Error scheduling new message notification: \(error)")
+                } else {
+                    print("   ✅ Successfully scheduled new message notification from \(fromUserName)")
                 }
             }
         }
