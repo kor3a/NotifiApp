@@ -439,6 +439,9 @@ class MessagesViewModel: ObservableObject {
             return
         }
 
+        // Get current user's email for Firestore rule validation when removing access
+        let currentUserEmail = UserSessionManager.shared.currentUser?.email
+
         print("📤 MessagesViewModel.shareStore: Finding or creating conversation...")
 
         // First, find or create conversation
@@ -459,6 +462,7 @@ class MessagesViewModel: ObservableObject {
                     storeId: userStoreItem.store.id,
                     senderUserId: userId,
                     senderUserStoreId: userStoreItem.id,  // Include sender's user_store ID for linking
+                    senderEmail: currentUserEmail, // Include for Firestore rule validation
                     status: .pending,
                     permission: permission,
                     storeLatitude: nil, // No longer storing coordinates

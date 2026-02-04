@@ -719,6 +719,7 @@ class MessagingService: ObservableObject {
                 storeId: storeId,
                 senderUserId: senderUserId,
                 senderUserStoreId: storeData["senderUserStoreId"] as? String,
+                senderEmail: storeData["senderEmail"] as? String,
                 status: status,
                 permission: storeData["permission"] as? String ?? "edit",
                 storeLatitude: storeData["storeLatitude"] as? Double,
@@ -879,6 +880,7 @@ class MessagingService: ObservableObject {
                                 senderUserId: senderUserId,
                                 senderUserStoreId: senderUserStoreId,
                                 senderName: senderName,
+                                senderEmail: linkedStore.senderEmail,
                                 sortOrder: sortOrder,
                                 messageId: messageId,
                                 completion: completion
@@ -892,6 +894,7 @@ class MessagingService: ObservableObject {
                                 senderUserId: senderUserId,
                                 senderUserStoreId: senderUserStoreId,
                                 senderName: senderName,
+                                senderEmail: linkedStore.senderEmail,
                                 sortOrder: sortOrder,
                                 messageId: messageId,
                                 completion: completion
@@ -909,6 +912,7 @@ class MessagingService: ObservableObject {
         senderUserId: String,
         senderUserStoreId: String?,
         senderName: String,
+        senderEmail: String?,
         sortOrder: Int,
         messageId: String,
         completion: @escaping (Result<Void, Error>) -> Void
@@ -932,6 +936,11 @@ class MessagingService: ObservableObject {
             "sharedAt": Date().timeIntervalSince1970,
             "notificationsEnabled": true
         ]
+
+        // Store sender's email for Firestore rule validation (allows owner to remove access)
+        if let senderEmail = senderEmail {
+            recipientUserStore["sharedFromEmail"] = senderEmail
+        }
 
         // Link to sender's user_store for reference
         if let senderUserStoreId = senderUserStoreId {
@@ -969,6 +978,7 @@ class MessagingService: ObservableObject {
         senderUserId: String,
         senderUserStoreId: String?,
         senderName: String,
+        senderEmail: String?,
         sortOrder: Int,
         messageId: String,
         completion: @escaping (Result<Void, Error>) -> Void
@@ -987,6 +997,11 @@ class MessagingService: ObservableObject {
             "sharedAt": Date().timeIntervalSince1970,
             "notificationsEnabled": true
         ]
+
+        // Store sender's email for Firestore rule validation (allows owner to remove access)
+        if let senderEmail = senderEmail {
+            recipientUserStore["sharedFromEmail"] = senderEmail
+        }
 
         // For view-only, set sourceUserStoreId to point to owner's user_store for reminders
         if let sourceId = senderUserStoreId {

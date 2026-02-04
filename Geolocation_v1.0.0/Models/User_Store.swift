@@ -18,6 +18,7 @@ struct UserStore: Codable, Identifiable {
     var sourceUserStoreId: String? = nil // For View Only: points to owner's user_store ID for fetching reminders
     var sharedFrom: String? = nil // User ID of user who shared
     var sharedFromName: String? = nil // Display name of user who shared
+    var sharedFromEmail: String? = nil // Email of user who shared (for Firestore rule validation)
     var sharedAt: TimeInterval? = nil // When it was shared
     var sharedWith: [String]? = nil // Names of users this store is shared with (for owner)
     var notificationsEnabled: Bool = true // Whether notifications are enabled for this store
@@ -33,6 +34,7 @@ struct UserStore: Codable, Identifiable {
         case sourceUserStoreId
         case sharedFrom
         case sharedFromName
+        case sharedFromEmail
         case sharedAt
         case sharedWith
         case notificationsEnabled
@@ -48,6 +50,7 @@ struct UserStore: Codable, Identifiable {
         sourceUserStoreId = try container.decodeIfPresent(String.self, forKey: .sourceUserStoreId)
         sharedFrom = try container.decodeIfPresent(String.self, forKey: .sharedFrom)
         sharedFromName = try container.decodeIfPresent(String.self, forKey: .sharedFromName)
+        sharedFromEmail = try container.decodeIfPresent(String.self, forKey: .sharedFromEmail)
         sharedAt = try container.decodeIfPresent(TimeInterval.self, forKey: .sharedAt)
         sharedWith = try container.decodeIfPresent([String].self, forKey: .sharedWith)
 
@@ -73,6 +76,7 @@ struct UserStore: Codable, Identifiable {
         try container.encodeIfPresent(sourceUserStoreId, forKey: .sourceUserStoreId)
         try container.encodeIfPresent(sharedFrom, forKey: .sharedFrom)
         try container.encodeIfPresent(sharedFromName, forKey: .sharedFromName)
+        try container.encodeIfPresent(sharedFromEmail, forKey: .sharedFromEmail)
         try container.encodeIfPresent(sharedAt, forKey: .sharedAt)
         try container.encodeIfPresent(sharedWith, forKey: .sharedWith)
         try container.encode(notificationsEnabled, forKey: .notificationsEnabled)
