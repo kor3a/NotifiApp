@@ -34,6 +34,7 @@ class LocationSearchManager: NSObject, ObservableObject {
     }
 
     /// Search for places near user's location based on query
+    /// Results are grouped by store name - each unique store name appears once
     func searchNearbyStores(query: String) {
         guard !query.isEmpty else {
             DispatchQueue.main.async {
@@ -86,57 +87,47 @@ class LocationSearchManager: NSObject, ObservableObject {
                 return
             }
 
-            // Convert MKMapItem results to SearchResultStore
-            let stores = response.mapItems.compactMap { mapItem -> SearchResultStore? in
+            // Group results by normalized store name
+            // Key: normalized name, Value: (displayName, distances array)
+            var storeGroups: [String: (displayName: String, distances: [CLLocationDistance])] = [:]
+
+            for mapItem in response.mapItems {
                 guard let name = mapItem.name,
                       let location = mapItem.placemark.location else {
-                    return nil
+                    continue
                 }
 
-                // Build address string
-                let placemark = mapItem.placemark
-                var addressComponents: [String] = []
-
-                if let street = placemark.thoroughfare {
-                    if let streetNumber = placemark.subThoroughfare {
-                        addressComponents.append("\(streetNumber) \(street)")
-                    } else {
-                        addressComponents.append(street)
-                    }
-                }
-                if let city = placemark.locality {
-                    addressComponents.append(city)
-                }
-                if let state = placemark.administrativeArea {
-                    addressComponents.append(state)
-                }
-                if let zip = placemark.postalCode {
-                    addressComponents.append(zip)
-                }
-
-                let address = addressComponents.isEmpty ? "Address unavailable" : addressComponents.joined(separator: ", ")
-
-                // Calculate distance from user
+                let normalizedName = Store.normalizedId(from: name)
                 let distance = location.distance(from: CLLocation(
                     latitude: userLocation.latitude,
                     longitude: userLocation.longitude
                 ))
 
+                if var existing = storeGroups[normalizedName] {
+                    existing.distances.append(distance)
+                    storeGroups[normalizedName] = existing
+                } else {
+                    storeGroups[normalizedName] = (displayName: name, distances: [distance])
+                }
+            }
+
+            // Convert grouped results to SearchResultStore
+            let groupedStores = storeGroups.map { (normalizedName, data) -> SearchResultStore in
+                let nearestDistance = data.distances.min() ?? 0
                 return SearchResultStore(
-                    name: name,
-                    address: address,
-                    coordinate: location.coordinate,
-                    distance: distance,
-                    phoneNumber: mapItem.phoneNumber
+                    id: normalizedName,
+                    name: data.displayName,
+                    nearestDistance: nearestDistance,
+                    locationCount: data.distances.count
                 )
             }
 
-            // Sort by distance
-            let sortedStores = stores.sorted { $0.distance < $1.distance }
+            // Sort by nearest distance
+            let sortedStores = groupedStores.sorted { $0.nearestDistance < $1.nearestDistance }
 
             DispatchQueue.main.async {
                 self.searchResults = sortedStores
-                print("LocationSearchManager: Found \(sortedStores.count) nearby stores")
+                print("LocationSearchManager: Found \(sortedStores.count) unique store names")
             }
         }
     }
@@ -192,39 +183,30 @@ extension LocationSearchManager: CLLocationManagerDelegate {
 }
 
 // MARK: - SearchResultStore Model
+/// Represents a unique store name from search results
+/// Groups all locations of the same store chain together
 struct SearchResultStore: Identifiable {
-    let id = UUID()
+    let id: String // Normalized store name as ID
     let name: String
-    let address: String
-    let coordinate: CLLocationCoordinate2D
-    let distance: CLLocationDistance // in meters
-    let phoneNumber: String?
+    let nearestDistance: CLLocationDistance // Distance to nearest location in meters
+    let locationCount: Int // Number of locations found nearby
 
     var distanceFormatted: String {
-        let miles = distance * 0.000621371 // Convert meters to miles
-        if miles < 1 {
-            return String(format: "%.1f mi", miles)
+        let miles = nearestDistance * 0.000621371 // Convert meters to miles
+        return String(format: "%.1f mi", miles)
+    }
+
+    var locationCountFormatted: String {
+        if locationCount == 1 {
+            return "1 location nearby"
         } else {
-            return String(format: "%.1f mi", miles)
+            return "\(locationCount) locations nearby"
         }
     }
 
     /// Convert to Store model for saving to database
     func toStore() -> Store {
-        // Generate a consistent ID based on name and coordinate
-        let idString = "\(name)-\(coordinate.latitude)-\(coordinate.longitude)"
-        let id = idString.replacingOccurrences(of: " ", with: "-")
-            .replacingOccurrences(of: ".", with: "")
-            .lowercased()
-
-        return Store(
-            id: id,
-            name: name,
-            address: address,
-            reminderCount: 0,
-            sortOrder: nil,
-            latitude: coordinate.latitude,
-            longitude: coordinate.longitude
-        )
+        // Use normalized name-based ID so all locations share the same store
+        return Store(name: name)
     }
 }

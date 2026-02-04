@@ -100,14 +100,14 @@ struct AddStoreView: View {
                                             .font(.headline)
                                             .foregroundStyle(.primary)
 
-                                        Text(searchResult.address)
+                                        Text(searchResult.locationCountFormatted)
                                             .font(.caption)
                                             .foregroundStyle(.secondary)
 
                                         HStack(spacing: 5) {
                                             Image(systemName: "location.fill")
                                                 .font(.caption2)
-                                            Text(searchResult.distanceFormatted)
+                                            Text("Nearest: \(searchResult.distanceFormatted)")
                                                 .font(.caption2)
                                         }
                                         .foregroundStyle(.blue)
@@ -115,10 +115,9 @@ struct AddStoreView: View {
 
                                     Spacer()
 
-                                    // Check if store is already added by comparing name and address
+                                    // Check if store is already added by comparing normalized name
                                     if viewModel.userStoreItems.contains(where: {
-                                        $0.store.name == searchResult.name &&
-                                        $0.store.address == searchResult.address
+                                        Store.normalizedId(from: $0.store.name) == searchResult.id
                                     }) {
                                         Image(systemName: "checkmark.circle.fill")
                                             .foregroundStyle(.green)
@@ -129,8 +128,7 @@ struct AddStoreView: View {
                                 }
                             }
                             .disabled(viewModel.userStoreItems.contains(where: {
-                                $0.store.name == searchResult.name &&
-                                $0.store.address == searchResult.address
+                                Store.normalizedId(from: $0.store.name) == searchResult.id
                             }))
                         }
                     }

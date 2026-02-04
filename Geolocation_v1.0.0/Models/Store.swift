@@ -8,23 +8,48 @@
 import Foundation
 
 struct Store: Codable, Identifiable, Hashable {
-    var id: String // Firestore document ID
+    var id: String // Firestore document ID - now based on normalized store name
     let name: String
-    let address: String
     var reminderCount: Int = 0
     var sortOrder: Int? = nil
-    var latitude: Double? = nil
-    var longitude: Double? = nil
     var imageURL: String? = nil
 
     enum CodingKeys: String, CodingKey {
         case id
         case name
-        case address
         case reminderCount
         case sortOrder
-        case latitude
-        case longitude
         case imageURL
+    }
+
+    /// Generate a normalized store ID from a store name
+    /// This ensures all locations of the same store chain share the same ID
+    static func normalizedId(from name: String) -> String {
+        return name
+            .lowercased()
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: " ", with: "-")
+            .replacingOccurrences(of: "'", with: "")
+            .replacingOccurrences(of: ".", with: "")
+            .replacingOccurrences(of: ",", with: "")
+            .replacingOccurrences(of: "&", with: "and")
+    }
+
+    /// Create a Store from just a name (for name-based store tracking)
+    init(name: String, reminderCount: Int = 0, sortOrder: Int? = nil, imageURL: String? = nil) {
+        self.id = Store.normalizedId(from: name)
+        self.name = name
+        self.reminderCount = reminderCount
+        self.sortOrder = sortOrder
+        self.imageURL = imageURL
+    }
+
+    /// Full initializer for backward compatibility and explicit ID setting
+    init(id: String, name: String, reminderCount: Int = 0, sortOrder: Int? = nil, imageURL: String? = nil) {
+        self.id = id
+        self.name = name
+        self.reminderCount = reminderCount
+        self.sortOrder = sortOrder
+        self.imageURL = imageURL
     }
 }

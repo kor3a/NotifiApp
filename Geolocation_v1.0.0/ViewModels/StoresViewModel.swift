@@ -72,16 +72,13 @@ class StoresViewModel: ObservableObject {
                 for doc in documents {
                     let data = doc.data()
                     guard let storeId = data["storeId"] as? String,
-                          let storeName = data["storeName"] as? String,
-                          let storeAddress = data["storeAddress"] as? String else {
+                          let storeName = data["storeName"] as? String else {
                         print("StoresViewModel: Missing fields in user_store document")
                         continue
                     }
 
                     let userStoreId = doc.documentID
                     let sortOrder = data["sortOrder"] as? Int
-                    let latitude = data["latitude"] as? Double
-                    let longitude = data["longitude"] as? Double
                     let imageURL = data["imageURL"] as? String
                     let permissionString = data["permission"] as? String ?? "owner"
                     let permission = StorePermission(rawValue: permissionString) ?? .owner
@@ -98,11 +95,8 @@ class StoresViewModel: ObservableObject {
                     let store = Store(
                         id: storeId,
                         name: storeName,
-                        address: storeAddress,
                         reminderCount: 0, // Will be updated by reminder listener
                         sortOrder: sortOrder,
-                        latitude: latitude,
-                        longitude: longitude,
                         imageURL: imageURL
                     )
                     let userStoreItem = UserStoreItem(
@@ -189,11 +183,8 @@ class StoresViewModel: ObservableObject {
                 let updatedStore = Store(
                     id: item.store.id,
                     name: item.store.name,
-                    address: item.store.address,
                     reminderCount: count,
                     sortOrder: item.store.sortOrder,
-                    latitude: item.store.latitude,
-                    longitude: item.store.longitude,
                     imageURL: item.store.imageURL
                 )
                 let updatedItem = UserStoreItem(
@@ -277,21 +268,15 @@ class StoresViewModel: ObservableObject {
 
             let stores = documents.compactMap { doc -> Store? in
                 let data = doc.data()
-                guard let name = data["name"] as? String,
-                      let address = data["address"] as? String else {
+                guard let name = data["name"] as? String else {
                     return nil
                 }
-                let latitude = data["latitude"] as? Double
-                let longitude = data["longitude"] as? Double
                 let imageURL = data["imageURL"] as? String
                 return Store(
                     id: doc.documentID,
                     name: name,
-                    address: address,
                     reminderCount: 0,
                     sortOrder: nil,
-                    latitude: latitude,
-                    longitude: longitude,
                     imageURL: imageURL
                 )
             }
@@ -306,6 +291,7 @@ class StoresViewModel: ObservableObject {
     }
 
     /// Add a store to the current user's list
+    /// Stores are identified by name - adding "Walmart" tracks all Walmart locations
     func addStoreToUser(store: Store) {
         guard let userId = sessionManager.currentUser?.userId,
               let userEmail = sessionManager.currentUser?.email else {
@@ -317,10 +303,11 @@ class StoresViewModel: ObservableObject {
 
         print("StoresViewModel: Adding store '\(store.name)' to user")
 
-        // Check if store is already added
+        // Check if store is already added (by normalized store ID based on name)
+        let normalizedStoreId = Store.normalizedId(from: store.name)
         db.collection("user_stores")
             .whereField("userId", isEqualTo: userId)
-            .whereField("storeId", isEqualTo: store.id)
+            .whereField("storeId", isEqualTo: normalizedStoreId)
             .getDocuments { [weak self] snapshot, error in
                 guard let self = self else { return }
 
@@ -332,25 +319,15 @@ class StoresViewModel: ObservableObject {
                 }
 
                 // Add store to user's list
-                // Assign sortOrder as the count of current stores (to append at the end)
                 let sortOrder = self.userStoreItems.count
                 var userStore: [String: Any] = [
                     "userId": userId,
                     "userEmail": userEmail,
-                    "storeId": store.id,
+                    "storeId": normalizedStoreId,
                     "storeName": store.name,
-                    "storeAddress": store.address,
                     "addedAt": Date().timeIntervalSince1970,
                     "sortOrder": sortOrder
                 ]
-
-                // Add coordinates if available
-                if let latitude = store.latitude {
-                    userStore["latitude"] = latitude
-                }
-                if let longitude = store.longitude {
-                    userStore["longitude"] = longitude
-                }
 
                 // Add image URL if available
                 if let imageURL = store.imageURL {
@@ -364,7 +341,7 @@ class StoresViewModel: ObservableObject {
                             self.errorMessage = "Error adding store: \(error.localizedDescription)"
                         }
                     } else {
-                        print("StoresViewModel: Store added successfully")
+                        print("StoresViewModel: Store '\(store.name)' added successfully")
                     }
                 }
             }
@@ -546,91 +523,6 @@ class StoresViewModel: ObservableObject {
                 print("StoresViewModel: Sort order updated successfully")
             }
         }
-    }
-
-    /// Migrate existing user_stores to include coordinates from stores collection
-    /// Call this once to update stores that were added before coordinates were implemented
-    func migrateUserStoresWithCoordinates() {
-        guard let userId = sessionManager.currentUser?.userId else {
-            print("StoresViewModel: No user ID for migration")
-            return
-        }
-
-        print("🔄 StoresViewModel: Starting coordinate migration for user: \(userId)")
-
-        // Get all user_stores for this user
-        db.collection("user_stores")
-            .whereField("userId", isEqualTo: userId)
-            .getDocuments { [weak self] snapshot, error in
-                guard let self = self else { return }
-
-                if let error = error {
-                    print("❌ Migration error: \(error.localizedDescription)")
-                    return
-                }
-
-                guard let documents = snapshot?.documents else {
-                    print("⚠️ No user_stores found for migration")
-                    return
-                }
-
-                print("📦 Found \(documents.count) user_stores to check")
-                var updatedCount = 0
-                var skippedCount = 0
-
-                for doc in documents {
-                    let data = doc.data()
-                    let userStoreId = doc.documentID
-                    let storeName = data["storeName"] as? String ?? "Unknown"
-
-                    // Check if coordinates are already present
-                    if data["latitude"] != nil && data["longitude"] != nil {
-                        print("   ✓ \(storeName): Already has coordinates")
-                        skippedCount += 1
-                        continue
-                    }
-
-                    // Get storeId to fetch from stores collection
-                    guard let storeId = data["storeId"] as? String else {
-                        print("   ⚠️ \(storeName): No storeId found")
-                        skippedCount += 1
-                        continue
-                    }
-
-                    // Fetch coordinates from stores collection
-                    self.db.collection("stores").document(storeId).getDocument { storeDoc, storeError in
-                        if let storeError = storeError {
-                            print("   ❌ \(storeName): Error fetching store: \(storeError.localizedDescription)")
-                            return
-                        }
-
-                        guard let storeData = storeDoc?.data(),
-                              let latitude = storeData["latitude"] as? Double,
-                              let longitude = storeData["longitude"] as? Double else {
-                            print("   ⚠️ \(storeName): Store has no coordinates")
-                            return
-                        }
-
-                        // Update user_store with coordinates
-                        self.db.collection("user_stores").document(userStoreId).updateData([
-                            "latitude": latitude,
-                            "longitude": longitude
-                        ]) { updateError in
-                            if let updateError = updateError {
-                                print("   ❌ \(storeName): Update failed: \(updateError.localizedDescription)")
-                            } else {
-                                print("   ✅ \(storeName): Updated with coordinates (\(latitude), \(longitude))")
-                                updatedCount += 1
-                            }
-                        }
-                    }
-                }
-
-                // Summary after a delay
-                DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                    print("🎉 Migration complete: \(updatedCount) updated, \(skippedCount) skipped")
-                }
-            }
     }
 
     /// Toggle notifications for a specific user store
