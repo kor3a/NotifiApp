@@ -415,14 +415,86 @@ class StoresViewModel: ObservableObject {
     private func deleteViewOnlyUserStore(userStoreItem: UserStoreItem) {
         print("StoresViewModel: Deleting view-only user_store: \(userStoreItem.id)")
 
+        // Get current user's name to remove from owner's reminders sharedWith
+        let currentUserName = sessionManager.currentUser?.name
+
         // Only delete the user_store document, don't touch owner's reminders
-        db.collection("user_stores").document(userStoreItem.id).delete { error in
+        db.collection("user_stores").document(userStoreItem.id).delete { [weak self] error in
             if let error = error {
                 print("StoresViewModel: Error removing view-only store: \(error.localizedDescription)")
             } else {
                 print("StoresViewModel: View-only store removed successfully (unshared from user)")
+
+                // Update owner's reminders to remove current user from sharedWith
+                if let currentUserName = currentUserName,
+                   let sourceUserStoreId = userStoreItem.sourceUserStoreId {
+                    self?.updateOwnerRemindersAfterRecipientLeaves(
+                        ownerUserStoreId: sourceUserStoreId,
+                        recipientName: currentUserName
+                    )
+                }
             }
         }
+    }
+
+    private func updateOwnerRemindersAfterRecipientLeaves(ownerUserStoreId: String, recipientName: String) {
+        print("StoresViewModel: Updating owner's reminders after \(recipientName) left the shared store")
+
+        // Find all reminders for the owner's store that have the recipient in sharedWith
+        db.collection("reminders")
+            .whereField("userStoreId", isEqualTo: ownerUserStoreId)
+            .whereField("isShared", isEqualTo: true)
+            .getDocuments { [weak self] snapshot, error in
+                guard let self = self else { return }
+
+                if let error = error {
+                    print("StoresViewModel: Error fetching owner's reminders to update: \(error.localizedDescription)")
+                    return
+                }
+
+                guard let documents = snapshot?.documents, !documents.isEmpty else {
+                    print("StoresViewModel: No shared reminders to update for owner")
+                    return
+                }
+
+                let batch = self.db.batch()
+                var updatedCount = 0
+
+                for doc in documents {
+                    guard var sharedWith = doc.data()["sharedWith"] as? [String] else {
+                        continue
+                    }
+
+                    // Remove the recipient from sharedWith
+                    if sharedWith.contains(recipientName) {
+                        sharedWith.removeAll { $0 == recipientName }
+                        updatedCount += 1
+
+                        if sharedWith.isEmpty {
+                            // No more users shared with, remove shared status
+                            batch.updateData([
+                                "isShared": false,
+                                "sharedWith": FieldValue.delete()
+                            ], forDocument: doc.reference)
+                        } else {
+                            // Update with remaining shared users
+                            batch.updateData([
+                                "sharedWith": sharedWith
+                            ], forDocument: doc.reference)
+                        }
+                    }
+                }
+
+                if updatedCount > 0 {
+                    batch.commit { error in
+                        if let error = error {
+                            print("StoresViewModel: Error updating owner's reminders: \(error.localizedDescription)")
+                        } else {
+                            print("StoresViewModel: Updated \(updatedCount) owner reminders after recipient left")
+                        }
+                    }
+                }
+            }
     }
 
     private func deleteSharedStoreGroup(sharedGroupId: String) {
