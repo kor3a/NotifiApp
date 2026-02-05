@@ -80,6 +80,41 @@ struct ShareStoreView: View {
                         )
                     }
 
+                    // Show who shared the store with the current user (if applicable)
+                    if let sharedByName = userStoreItem.sharedFromName {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Shared By")
+                                .font(.headline)
+
+                            HStack {
+                                Image(systemName: "person.fill.badge.plus")
+                                    .foregroundStyle(.blue)
+                                    .frame(width: 24)
+
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(sharedByName)
+                                        .font(.subheadline)
+                                        .bold()
+
+                                    Text(userStoreItem.permission == .edit ? "Can Edit" : "View Only")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+
+                                Spacer()
+                            }
+                            .padding()
+                            .background(
+                                RoundedRectangle(cornerRadius: 10)
+                                    .fill(Color.blue.opacity(0.1))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 10)
+                                            .stroke(Color.blue.opacity(0.3), lineWidth: 1)
+                                    )
+                            )
+                        }
+                    }
+
                     // Shared Users List
                     if !sharedUsers.isEmpty {
                         VStack(alignment: .leading, spacing: 8) {
