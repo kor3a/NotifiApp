@@ -10,6 +10,7 @@ import FirebaseFirestore
 
 struct SharedUser: Identifiable {
     let id: String // user_store document ID
+    let userId: String // The user's ID for messaging
     let userEmail: String
     let permission: StorePermission
     let sharedAt: TimeInterval?
@@ -524,6 +525,7 @@ struct ShareStoreView: View {
 
                     return SharedUser(
                         id: doc.documentID,
+                        userId: userId,
                         userEmail: userEmail,
                         permission: permission,
                         sharedAt: sharedAt
@@ -544,11 +546,61 @@ struct ShareStoreView: View {
                 // Remove from local array
                 self.sharedUsers.removeAll { $0.id == sharedUser.id }
 
-                // For View Only users, also delete their reminders if they exist
-                // (though they shouldn't exist if we implemented it correctly)
+                // Send a message notifying the user that the store is no longer shared
+                self.sendUnshareMessage(to: sharedUser)
+
                 if sharedUser.permission == .view {
-                    // No reminders to delete for view-only
                     print("ShareStoreView: Removed view-only access for \(sharedUser.userEmail)")
+                } else {
+                    print("ShareStoreView: Removed edit access for \(sharedUser.userEmail)")
+                }
+            }
+        }
+    }
+
+    private func sendUnshareMessage(to sharedUser: SharedUser) {
+        guard let currentUserId = viewModel.sessionManager.currentUser?.userId,
+              let currentUserName = viewModel.sessionManager.currentUser?.name else {
+            print("ShareStoreView: Cannot send unshare message - no current user data")
+            return
+        }
+
+        // Look up the recipient's name from the users collection
+        db.collection("users").document(sharedUser.userId).getDocument { snapshot, error in
+            if let error = error {
+                print("ShareStoreView: Error looking up user for unshare message: \(error.localizedDescription)")
+                return
+            }
+
+            let recipientName = snapshot?.data()?["name"] as? String ?? sharedUser.userEmail
+
+            // Find or create conversation and send message
+            self.messagingService.findOrCreateConversation(
+                currentUserId: currentUserId,
+                currentUserName: currentUserName,
+                otherUserId: sharedUser.userId,
+                otherUserName: recipientName
+            ) { result in
+                switch result {
+                case .success(let conversation):
+                    let messageContent = "I've stopped sharing \(self.userStoreItem.store.name) with you."
+
+                    self.messagingService.sendMessage(
+                        conversationId: conversation.id,
+                        senderId: currentUserId,
+                        senderName: currentUserName,
+                        content: messageContent,
+                        linkedStore: nil
+                    ) { messageResult in
+                        switch messageResult {
+                        case .success:
+                            print("ShareStoreView: Sent unshare notification message to \(recipientName)")
+                        case .failure(let error):
+                            print("ShareStoreView: Failed to send unshare message: \(error.localizedDescription)")
+                        }
+                    }
+                case .failure(let error):
+                    print("ShareStoreView: Failed to find/create conversation for unshare message: \(error.localizedDescription)")
                 }
             }
         }
