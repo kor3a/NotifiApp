@@ -64,11 +64,15 @@ service cloud.firestore {
       // Also allow deletion of shared stores where:
       // 1. The shared group no longer exists (cleanup)
       // 2. The current user is the original sharer (allows owner to remove access)
+      //    - Check sharedFromEmail field (for new shares)
+      //    - Or look up sharer's email via sharedFrom userId (for existing shares)
       allow delete: if request.auth != null &&
                        (resource.data.userEmail == request.auth.token.email ||
                         (resource.data.sharedStoreGroupId != null &&
                          !exists(/databases/$(database)/documents/shared_store_groups/$(resource.data.sharedStoreGroupId))) ||
-                        resource.data.sharedFromEmail == request.auth.token.email);
+                        resource.data.sharedFromEmail == request.auth.token.email ||
+                        (resource.data.sharedFrom != null &&
+                         get(/databases/$(database)/documents/users/$(resource.data.sharedFrom)).data.email == request.auth.token.email));
     }
 
     // Shared Store Groups collection
