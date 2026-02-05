@@ -358,14 +358,15 @@ class StoresViewModel: ObservableObject {
         // instead of fetching the document again (which could fail and leave orphaned reminders)
         let permission = userStoreItem.permission
         let sharedGroupId = userStoreItem.sharedStoreGroupId
+        let isRecipient = userStoreItem.sharedFromName != nil // If sharedFromName is set, user is a recipient
 
-        // Check if this is a shared store with Can Edit permission
+        // Check if this is a shared store with Can Edit permission and a shared group
         if permission == .edit, let sharedGroupId = sharedGroupId {
             // Delete all user_stores and reminders in the shared group
             self.deleteSharedStoreGroup(sharedGroupId: sharedGroupId)
-        } else if permission == .view {
-            // View Only - just delete this user's user_store, don't touch owner's reminders
-            self.deleteViewOnlyUserStore(userStoreItem: userStoreItem)
+        } else if isRecipient {
+            // Recipient (view or edit without shared group) - delete user_store and update owner's reminders
+            self.deleteRecipientUserStore(userStoreItem: userStoreItem)
         } else {
             // Owner without sharing - delete user_store and its reminders
             self.deleteSingleUserStore(userStoreItem: userStoreItem)
@@ -412,8 +413,8 @@ class StoresViewModel: ObservableObject {
             }
     }
 
-    private func deleteViewOnlyUserStore(userStoreItem: UserStoreItem) {
-        print("StoresViewModel: Deleting view-only user_store: \(userStoreItem.id)")
+    private func deleteRecipientUserStore(userStoreItem: UserStoreItem) {
+        print("StoresViewModel: Deleting recipient's shared user_store: \(userStoreItem.id)")
 
         // Get current user's name to remove from owner's reminders sharedWith
         let currentUserName = sessionManager.currentUser?.name
@@ -421,11 +422,12 @@ class StoresViewModel: ObservableObject {
         // Only delete the user_store document, don't touch owner's reminders
         db.collection("user_stores").document(userStoreItem.id).delete { [weak self] error in
             if let error = error {
-                print("StoresViewModel: Error removing view-only store: \(error.localizedDescription)")
+                print("StoresViewModel: Error removing shared store: \(error.localizedDescription)")
             } else {
-                print("StoresViewModel: View-only store removed successfully (unshared from user)")
+                print("StoresViewModel: Shared store removed successfully (recipient left)")
 
                 // Update owner's reminders to remove current user from sharedWith
+                // Use sourceUserStoreId if available, otherwise try to find owner's reminders by other means
                 if let currentUserName = currentUserName,
                    let sourceUserStoreId = userStoreItem.sourceUserStoreId {
                     self?.updateOwnerRemindersAfterRecipientLeaves(
