@@ -107,6 +107,8 @@ struct HomeView: View {
             storesViewModel.fetchUserStores()
             // Fetch unread message count for badge
             messagesViewModel.fetchUnreadCount()
+            // Fetch pending friend request count for badge
+            friendsViewModel.fetchPendingRequestCount()
 
             // Start listening for friend requests and incoming messages if user is already logged in
             if let userId = sessionManager.currentUser?.userId {
@@ -118,6 +120,7 @@ struct HomeView: View {
             // Fetch unread message count whenever user data becomes available
             if let userId = newUser?.userId {
                 messagesViewModel.fetchUnreadCount()
+                friendsViewModel.fetchPendingRequestCount()
 
                 // Start listening for friend requests
                 friendRequestService.listenForIncomingRequests(userId: userId)
