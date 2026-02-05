@@ -10,6 +10,7 @@ import FirebaseFirestore
 
 struct SharedUser: Identifiable {
     let id: String // user_store document ID
+    let userId: String // The user's ID for messaging
     let userEmail: String
     let permission: StorePermission
     let sharedAt: TimeInterval?
@@ -79,6 +80,41 @@ struct ShareStoreView: View {
                         )
                     }
 
+                    // Show who shared the store with the current user (if applicable)
+                    if let sharedByName = userStoreItem.sharedFromName {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Shared By")
+                                .font(.headline)
+
+                            HStack {
+                                Image(systemName: "person.fill.badge.plus")
+                                    .foregroundStyle(.blue)
+                                    .frame(width: 24)
+
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(sharedByName)
+                                        .font(.subheadline)
+                                        .bold()
+
+                                    Text(userStoreItem.permission == .edit ? "Can Edit" : "View Only")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+
+                                Spacer()
+                            }
+                            .padding()
+                            .background(
+                                RoundedRectangle(cornerRadius: 10)
+                                    .fill(Color.blue.opacity(0.1))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 10)
+                                            .stroke(Color.blue.opacity(0.3), lineWidth: 1)
+                                    )
+                            )
+                        }
+                    }
+
                     // Shared Users List
                     if !sharedUsers.isEmpty {
                         VStack(alignment: .leading, spacing: 8) {
@@ -125,9 +161,11 @@ struct ShareStoreView: View {
                         }
                     }
 
-                    Divider()
+                    // Only show sharing UI if user is the owner (not a recipient)
+                    if userStoreItem.sharedFromName == nil {
+                        Divider()
 
-                    // Friends Section
+                        // Friends Section
                     if !friendsViewModel.friends.isEmpty {
                         VStack(alignment: .leading, spacing: 12) {
                             Text("Share with Friends")
@@ -320,6 +358,7 @@ struct ShareStoreView: View {
                         .fill(recipientEmail.isEmpty || isSharing ? Color.gray : Color.blue)
                 )
                 .foregroundColor(.white)
+                    } // End of owner-only sharing UI
                 }
                 .padding()
             }
@@ -524,6 +563,7 @@ struct ShareStoreView: View {
 
                     return SharedUser(
                         id: doc.documentID,
+                        userId: userId,
                         userEmail: userEmail,
                         permission: permission,
                         sharedAt: sharedAt
@@ -534,24 +574,151 @@ struct ShareStoreView: View {
     }
 
     private func unshareWithUser(_ sharedUser: SharedUser) {
-        // Delete the shared user's user_store document
-        db.collection("user_stores").document(sharedUser.id).delete { error in
-            if let error = error {
-                self.alertTitle = "Error"
-                self.alertMessage = "Failed to remove access: \(error.localizedDescription)"
-                self.showAlert = true
-            } else {
-                // Remove from local array
-                self.sharedUsers.removeAll { $0.id == sharedUser.id }
+        // First, look up the recipient's name for updating reminders
+        db.collection("users").document(sharedUser.userId).getDocument { [self] snapshot, error in
+            let recipientName = snapshot?.data()?["name"] as? String ?? sharedUser.userEmail
 
-                // For View Only users, also delete their reminders if they exist
-                // (though they shouldn't exist if we implemented it correctly)
-                if sharedUser.permission == .view {
-                    // No reminders to delete for view-only
-                    print("ShareStoreView: Removed view-only access for \(sharedUser.userEmail)")
+            // Delete the shared user's user_store document
+            db.collection("user_stores").document(sharedUser.id).delete { error in
+                if let error = error {
+                    self.alertTitle = "Error"
+                    self.alertMessage = "Failed to remove access: \(error.localizedDescription)"
+                    self.showAlert = true
+                } else {
+                    // Remove from local array
+                    self.sharedUsers.removeAll { $0.id == sharedUser.id }
+
+                    // Update reminders to remove the recipient from sharedWith
+                    self.updateRemindersAfterUnshare(recipientName: recipientName)
+
+                    // Send a message notifying the user that the store is no longer shared
+                    self.sendUnshareMessage(to: sharedUser, recipientName: recipientName)
+
+                    if sharedUser.permission == .view {
+                        print("ShareStoreView: Removed view-only access for \(sharedUser.userEmail)")
+                    } else {
+                        print("ShareStoreView: Removed edit access for \(sharedUser.userEmail)")
+                    }
                 }
             }
         }
+    }
+
+    private func updateRemindersAfterUnshare(recipientName: String) {
+        // Get the userStoreId to find reminders (could be the direct ID or a sharedStoreGroupId)
+        let reminderStoreId = userStoreItem.sharedStoreGroupId ?? userStoreItem.id
+
+        // Find all shared reminders for this store
+        db.collection("reminders")
+            .whereField("userStoreId", isEqualTo: reminderStoreId)
+            .whereField("isShared", isEqualTo: true)
+            .getDocuments { snapshot, error in
+                if let error = error {
+                    print("ShareStoreView: Error fetching reminders to update: \(error.localizedDescription)")
+                    return
+                }
+
+                guard let documents = snapshot?.documents, !documents.isEmpty else {
+                    print("ShareStoreView: No shared reminders to update")
+                    return
+                }
+
+                let batch = self.db.batch()
+                var updatedCount = 0
+
+                for doc in documents {
+                    let data = doc.data()
+                    var sharedWith = data["sharedWith"] as? [String] ?? []
+                    let sharedFrom = data["sharedFrom"] as? String
+
+                    var needsUpdate = false
+                    var clearSharedStatus = false
+
+                    // Case 1: Reminder created by owner, shared with recipient
+                    // Remove the recipient from sharedWith
+                    if sharedWith.contains(recipientName) {
+                        sharedWith.removeAll { $0 == recipientName }
+                        needsUpdate = true
+
+                        if sharedWith.isEmpty {
+                            clearSharedStatus = true
+                        }
+                    }
+
+                    // Case 2: Reminder created by recipient (sharedFrom = recipient's name)
+                    // Clear the shared status entirely since the creator is being removed
+                    if sharedFrom == recipientName {
+                        clearSharedStatus = true
+                        needsUpdate = true
+                    }
+
+                    if needsUpdate {
+                        updatedCount += 1
+
+                        if clearSharedStatus {
+                            // No more sharing, remove shared status completely
+                            batch.updateData([
+                                "isShared": false,
+                                "sharedWith": FieldValue.delete(),
+                                "sharedFrom": FieldValue.delete()
+                            ], forDocument: doc.reference)
+                        } else {
+                            // Update with remaining shared users
+                            batch.updateData([
+                                "sharedWith": sharedWith
+                            ], forDocument: doc.reference)
+                        }
+                    }
+                }
+
+                if updatedCount > 0 {
+                    batch.commit { error in
+                        if let error = error {
+                            print("ShareStoreView: Error updating reminders after unshare: \(error.localizedDescription)")
+                        } else {
+                            print("ShareStoreView: Updated \(updatedCount) reminders after unsharing with \(recipientName)")
+                        }
+                    }
+                }
+            }
+    }
+
+    private func sendUnshareMessage(to sharedUser: SharedUser, recipientName: String) {
+        guard let currentUserId = viewModel.sessionManager.currentUser?.userId,
+              let currentUserName = viewModel.sessionManager.currentUser?.name else {
+            print("ShareStoreView: Cannot send unshare message - no current user data")
+            return
+        }
+
+        // Find or create conversation and send message
+        self.messagingService.findOrCreateConversation(
+                currentUserId: currentUserId,
+                currentUserName: currentUserName,
+                otherUserId: sharedUser.userId,
+                otherUserName: recipientName
+            ) { result in
+                switch result {
+                case .success(let conversation):
+                    let messageContent = "I've stopped sharing \(self.userStoreItem.store.name) with you."
+
+                    self.messagingService.sendMessage(
+                        conversationId: conversation.id,
+                        senderId: currentUserId,
+                        senderName: currentUserName,
+                        content: messageContent,
+                        linkedStore: nil
+                    ) { messageResult in
+                        switch messageResult {
+                        case .success:
+                            print("ShareStoreView: Sent unshare notification message to \(recipientName)")
+                        case .failure(let error):
+                            print("ShareStoreView: Failed to send unshare message: \(error.localizedDescription)")
+                        }
+                    }
+                case .failure(let error):
+                    print("ShareStoreView: Failed to find/create conversation for unshare message: \(error.localizedDescription)")
+                }
+            }
     }
 }
 

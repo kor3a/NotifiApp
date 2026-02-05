@@ -358,14 +358,15 @@ class StoresViewModel: ObservableObject {
         // instead of fetching the document again (which could fail and leave orphaned reminders)
         let permission = userStoreItem.permission
         let sharedGroupId = userStoreItem.sharedStoreGroupId
+        let isRecipient = userStoreItem.sharedFromName != nil // If sharedFromName is set, user is a recipient
 
-        // Check if this is a shared store with Can Edit permission
+        // Check if this is a shared store with Can Edit permission and a shared group
         if permission == .edit, let sharedGroupId = sharedGroupId {
             // Delete all user_stores and reminders in the shared group
             self.deleteSharedStoreGroup(sharedGroupId: sharedGroupId)
-        } else if permission == .view {
-            // View Only - just delete this user's user_store, don't touch owner's reminders
-            self.deleteViewOnlyUserStore(userStoreItem: userStoreItem)
+        } else if isRecipient {
+            // Recipient (view or edit without shared group) - delete user_store and update owner's reminders
+            self.deleteRecipientUserStore(userStoreItem: userStoreItem)
         } else {
             // Owner without sharing - delete user_store and its reminders
             self.deleteSingleUserStore(userStoreItem: userStoreItem)
@@ -412,17 +413,110 @@ class StoresViewModel: ObservableObject {
             }
     }
 
-    private func deleteViewOnlyUserStore(userStoreItem: UserStoreItem) {
-        print("StoresViewModel: Deleting view-only user_store: \(userStoreItem.id)")
+    private func deleteRecipientUserStore(userStoreItem: UserStoreItem) {
+        print("StoresViewModel: Deleting recipient's shared user_store: \(userStoreItem.id)")
+
+        // Get current user's name to remove from owner's reminders sharedWith
+        let currentUserName = sessionManager.currentUser?.name
 
         // Only delete the user_store document, don't touch owner's reminders
-        db.collection("user_stores").document(userStoreItem.id).delete { error in
+        db.collection("user_stores").document(userStoreItem.id).delete { [weak self] error in
             if let error = error {
-                print("StoresViewModel: Error removing view-only store: \(error.localizedDescription)")
+                print("StoresViewModel: Error removing shared store: \(error.localizedDescription)")
             } else {
-                print("StoresViewModel: View-only store removed successfully (unshared from user)")
+                print("StoresViewModel: Shared store removed successfully (recipient left)")
+
+                // Update owner's reminders to remove current user from sharedWith
+                // Use sourceUserStoreId if available, otherwise try to find owner's reminders by other means
+                if let currentUserName = currentUserName,
+                   let sourceUserStoreId = userStoreItem.sourceUserStoreId {
+                    self?.updateOwnerRemindersAfterRecipientLeaves(
+                        ownerUserStoreId: sourceUserStoreId,
+                        recipientName: currentUserName
+                    )
+                }
             }
         }
+    }
+
+    private func updateOwnerRemindersAfterRecipientLeaves(ownerUserStoreId: String, recipientName: String) {
+        print("StoresViewModel: Updating reminders after \(recipientName) left the shared store")
+
+        // Find all shared reminders for the owner's store
+        db.collection("reminders")
+            .whereField("userStoreId", isEqualTo: ownerUserStoreId)
+            .whereField("isShared", isEqualTo: true)
+            .getDocuments { [weak self] snapshot, error in
+                guard let self = self else { return }
+
+                if let error = error {
+                    print("StoresViewModel: Error fetching reminders to update: \(error.localizedDescription)")
+                    return
+                }
+
+                guard let documents = snapshot?.documents, !documents.isEmpty else {
+                    print("StoresViewModel: No shared reminders to update")
+                    return
+                }
+
+                let batch = self.db.batch()
+                var updatedCount = 0
+
+                for doc in documents {
+                    let data = doc.data()
+                    var sharedWith = data["sharedWith"] as? [String] ?? []
+                    let sharedFrom = data["sharedFrom"] as? String
+
+                    var needsUpdate = false
+                    var clearSharedStatus = false
+
+                    // Case 1: Reminder created by owner, shared with recipient
+                    // Remove the recipient from sharedWith
+                    if sharedWith.contains(recipientName) {
+                        sharedWith.removeAll { $0 == recipientName }
+                        needsUpdate = true
+
+                        if sharedWith.isEmpty {
+                            clearSharedStatus = true
+                        }
+                    }
+
+                    // Case 2: Reminder created by recipient (sharedFrom = recipient's name)
+                    // Clear the shared status entirely since the creator left
+                    if sharedFrom == recipientName {
+                        clearSharedStatus = true
+                        needsUpdate = true
+                    }
+
+                    if needsUpdate {
+                        updatedCount += 1
+
+                        if clearSharedStatus {
+                            // No more sharing, remove shared status completely
+                            batch.updateData([
+                                "isShared": false,
+                                "sharedWith": FieldValue.delete(),
+                                "sharedFrom": FieldValue.delete()
+                            ], forDocument: doc.reference)
+                        } else {
+                            // Update with remaining shared users
+                            batch.updateData([
+                                "sharedWith": sharedWith
+                            ], forDocument: doc.reference)
+                        }
+                    }
+                }
+
+                if updatedCount > 0 {
+                    batch.commit { error in
+                        if let error = error {
+                            print("StoresViewModel: Error updating reminders: \(error.localizedDescription)")
+                        } else {
+                            print("StoresViewModel: Updated \(updatedCount) reminders after recipient left")
+                        }
+                    }
+                }
+            }
     }
 
     private func deleteSharedStoreGroup(sharedGroupId: String) {

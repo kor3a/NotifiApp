@@ -50,6 +50,7 @@ struct LinkedStore: Codable, Equatable {
     let storeId: String
     let senderUserId: String
     let senderUserStoreId: String? // Sender's user_store ID for linking
+    let senderEmail: String? // Sender's email for Firestore rule validation
     var status: SharedReminderStatus?
     let permission: String // "edit" or "view"
 
@@ -61,12 +62,13 @@ struct LinkedStore: Codable, Equatable {
     // List of reminder titles being shared with the store
     let reminderTitles: [String]?
 
-    init(storeName: String, storeAddress: String?, storeId: String, senderUserId: String, senderUserStoreId: String? = nil, status: SharedReminderStatus? = .pending, permission: String = "edit", storeLatitude: Double? = nil, storeLongitude: Double? = nil, storeImageURL: String? = nil, reminderTitles: [String]? = nil) {
+    init(storeName: String, storeAddress: String?, storeId: String, senderUserId: String, senderUserStoreId: String? = nil, senderEmail: String? = nil, status: SharedReminderStatus? = .pending, permission: String = "edit", storeLatitude: Double? = nil, storeLongitude: Double? = nil, storeImageURL: String? = nil, reminderTitles: [String]? = nil) {
         self.storeName = storeName
         self.storeAddress = storeAddress
         self.storeId = storeId
         self.senderUserId = senderUserId
         self.senderUserStoreId = senderUserStoreId
+        self.senderEmail = senderEmail
         self.status = status
         self.permission = permission
         self.storeLatitude = storeLatitude
