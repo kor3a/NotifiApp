@@ -161,9 +161,11 @@ struct ShareStoreView: View {
                         }
                     }
 
-                    Divider()
+                    // Only show sharing UI if user is the owner (not a recipient)
+                    if userStoreItem.sharedFromName == nil {
+                        Divider()
 
-                    // Friends Section
+                        // Friends Section
                     if !friendsViewModel.friends.isEmpty {
                         VStack(alignment: .leading, spacing: 12) {
                             Text("Share with Friends")
@@ -356,6 +358,7 @@ struct ShareStoreView: View {
                         .fill(recipientEmail.isEmpty || isSharing ? Color.gray : Color.blue)
                 )
                 .foregroundColor(.white)
+                    } // End of owner-only sharing UI
                 }
                 .padding()
             }
