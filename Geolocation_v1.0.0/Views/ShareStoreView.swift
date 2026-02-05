@@ -608,7 +608,7 @@ struct ShareStoreView: View {
         // Get the userStoreId to find reminders (could be the direct ID or a sharedStoreGroupId)
         let reminderStoreId = userStoreItem.sharedStoreGroupId ?? userStoreItem.id
 
-        // Find all reminders for this store that have the recipient in sharedWith
+        // Find all shared reminders for this store
         db.collection("reminders")
             .whereField("userStoreId", isEqualTo: reminderStoreId)
             .whereField("isShared", isEqualTo: true)
@@ -627,20 +627,40 @@ struct ShareStoreView: View {
                 var updatedCount = 0
 
                 for doc in documents {
-                    guard var sharedWith = doc.data()["sharedWith"] as? [String] else {
-                        continue
-                    }
+                    let data = doc.data()
+                    var sharedWith = data["sharedWith"] as? [String] ?? []
+                    let sharedFrom = data["sharedFrom"] as? String
 
+                    var needsUpdate = false
+                    var clearSharedStatus = false
+
+                    // Case 1: Reminder created by owner, shared with recipient
                     // Remove the recipient from sharedWith
                     if sharedWith.contains(recipientName) {
                         sharedWith.removeAll { $0 == recipientName }
-                        updatedCount += 1
+                        needsUpdate = true
 
                         if sharedWith.isEmpty {
-                            // No more users shared with, remove shared status
+                            clearSharedStatus = true
+                        }
+                    }
+
+                    // Case 2: Reminder created by recipient (sharedFrom = recipient's name)
+                    // Clear the shared status entirely since the creator is being removed
+                    if sharedFrom == recipientName {
+                        clearSharedStatus = true
+                        needsUpdate = true
+                    }
+
+                    if needsUpdate {
+                        updatedCount += 1
+
+                        if clearSharedStatus {
+                            // No more sharing, remove shared status completely
                             batch.updateData([
                                 "isShared": false,
-                                "sharedWith": FieldValue.delete()
+                                "sharedWith": FieldValue.delete(),
+                                "sharedFrom": FieldValue.delete()
                             ], forDocument: doc.reference)
                         } else {
                             // Update with remaining shared users

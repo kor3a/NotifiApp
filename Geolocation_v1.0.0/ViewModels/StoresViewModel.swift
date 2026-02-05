@@ -440,9 +440,9 @@ class StoresViewModel: ObservableObject {
     }
 
     private func updateOwnerRemindersAfterRecipientLeaves(ownerUserStoreId: String, recipientName: String) {
-        print("StoresViewModel: Updating owner's reminders after \(recipientName) left the shared store")
+        print("StoresViewModel: Updating reminders after \(recipientName) left the shared store")
 
-        // Find all reminders for the owner's store that have the recipient in sharedWith
+        // Find all shared reminders for the owner's store
         db.collection("reminders")
             .whereField("userStoreId", isEqualTo: ownerUserStoreId)
             .whereField("isShared", isEqualTo: true)
@@ -450,12 +450,12 @@ class StoresViewModel: ObservableObject {
                 guard let self = self else { return }
 
                 if let error = error {
-                    print("StoresViewModel: Error fetching owner's reminders to update: \(error.localizedDescription)")
+                    print("StoresViewModel: Error fetching reminders to update: \(error.localizedDescription)")
                     return
                 }
 
                 guard let documents = snapshot?.documents, !documents.isEmpty else {
-                    print("StoresViewModel: No shared reminders to update for owner")
+                    print("StoresViewModel: No shared reminders to update")
                     return
                 }
 
@@ -463,20 +463,40 @@ class StoresViewModel: ObservableObject {
                 var updatedCount = 0
 
                 for doc in documents {
-                    guard var sharedWith = doc.data()["sharedWith"] as? [String] else {
-                        continue
-                    }
+                    let data = doc.data()
+                    var sharedWith = data["sharedWith"] as? [String] ?? []
+                    let sharedFrom = data["sharedFrom"] as? String
 
+                    var needsUpdate = false
+                    var clearSharedStatus = false
+
+                    // Case 1: Reminder created by owner, shared with recipient
                     // Remove the recipient from sharedWith
                     if sharedWith.contains(recipientName) {
                         sharedWith.removeAll { $0 == recipientName }
-                        updatedCount += 1
+                        needsUpdate = true
 
                         if sharedWith.isEmpty {
-                            // No more users shared with, remove shared status
+                            clearSharedStatus = true
+                        }
+                    }
+
+                    // Case 2: Reminder created by recipient (sharedFrom = recipient's name)
+                    // Clear the shared status entirely since the creator left
+                    if sharedFrom == recipientName {
+                        clearSharedStatus = true
+                        needsUpdate = true
+                    }
+
+                    if needsUpdate {
+                        updatedCount += 1
+
+                        if clearSharedStatus {
+                            // No more sharing, remove shared status completely
                             batch.updateData([
                                 "isShared": false,
-                                "sharedWith": FieldValue.delete()
+                                "sharedWith": FieldValue.delete(),
+                                "sharedFrom": FieldValue.delete()
                             ], forDocument: doc.reference)
                         } else {
                             // Update with remaining shared users
@@ -490,9 +510,9 @@ class StoresViewModel: ObservableObject {
                 if updatedCount > 0 {
                     batch.commit { error in
                         if let error = error {
-                            print("StoresViewModel: Error updating owner's reminders: \(error.localizedDescription)")
+                            print("StoresViewModel: Error updating reminders: \(error.localizedDescription)")
                         } else {
-                            print("StoresViewModel: Updated \(updatedCount) owner reminders after recipient left")
+                            print("StoresViewModel: Updated \(updatedCount) reminders after recipient left")
                         }
                     }
                 }
