@@ -20,6 +20,11 @@ struct FriendsView: View {
     @State private var showingCancelAlert = false
     @Environment(\.colorScheme) var colorScheme
 
+    private let gridColumns = [
+        GridItem(.flexible(), spacing: 12),
+        GridItem(.flexible(), spacing: 12)
+    ]
+
     var body: some View {
         ZStack {
             Color.backgroundGradient(for: colorScheme)
@@ -104,97 +109,141 @@ struct FriendsView: View {
         }
     }
 
+    // MARK: - Main Content
+
     private var mainContent: some View {
-        List {
-            // Pending Friend Requests Section
-            if !viewModel.pendingRequests.isEmpty {
-                Section {
+        ScrollView {
+            VStack(spacing: 24) {
+                // Pending Friend Requests - Horizontal scroll
+                if !viewModel.pendingRequests.isEmpty {
+                    pendingRequestsSection
+                }
+
+                // Sent Requests - Horizontal chips
+                if !viewModel.sentRequests.isEmpty {
+                    sentRequestsSection
+                }
+
+                // Friends Grid
+                if !viewModel.friends.isEmpty {
+                    friendsGridSection
+                }
+
+                // Empty State
+                if viewModel.friends.isEmpty && viewModel.pendingRequests.isEmpty && viewModel.sentRequests.isEmpty {
+                    emptyState
+                        .padding(.top, 60)
+                }
+            }
+            .padding(.top, 8)
+            .padding(.bottom, 20)
+        }
+    }
+
+    // MARK: - Pending Requests Section
+
+    private var pendingRequestsSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("Friend Requests")
+                    .font(.headline)
+                    .foregroundStyle(.primary)
+
+                Text("\(viewModel.pendingRequests.count)")
+                    .font(.caption.bold())
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 2)
+                    .background(Color.appAccent)
+                    .clipShape(Capsule())
+
+                Spacer()
+            }
+            .padding(.horizontal)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 12) {
                     ForEach(viewModel.pendingRequests) { friendship in
-                        PendingRequestRow(
+                        PendingRequestCard(
                             friendship: friendship,
+                            colorScheme: colorScheme,
                             onAccept: { viewModel.acceptRequest(friendship) },
                             onReject: { viewModel.rejectRequest(friendship) }
                         )
-                        .listRowBackground(cardBackground)
-                    }
-                } header: {
-                    HStack {
-                        Text("Friend Requests")
-                        Spacer()
-                        Text("\(viewModel.pendingRequests.count)")
-                            .font(.caption)
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 2)
-                            .background(Color.appAccent)
-                            .clipShape(Capsule())
                     }
                 }
-                .listRowSeparator(.hidden)
+                .padding(.horizontal)
             }
+        }
+    }
 
-            // Friends List Section
-            if !viewModel.friends.isEmpty {
-                Section("Friends") {
-                    ForEach(viewModel.friends) { friendship in
-                        FriendRow(
-                            friendship: friendship,
-                            currentUserId: sessionManager.currentUser?.userId ?? "",
-                            onMessage: { startConversation(with: friendship) },
-                            onRemove: {
-                                friendshipToRemove = friendship
-                                showingRemoveAlert = true
-                            }
-                        )
-                        .listRowBackground(cardBackground)
-                    }
+    // MARK: - Friends Grid Section
+
+    private var friendsGridSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("Friends")
+                    .font(.headline)
+                    .foregroundStyle(.primary)
+
+                Text("\(viewModel.friends.count)")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+
+                Spacer()
+            }
+            .padding(.horizontal)
+
+            LazyVGrid(columns: gridColumns, spacing: 12) {
+                ForEach(viewModel.friends) { friendship in
+                    FriendCard(
+                        friendship: friendship,
+                        currentUserId: sessionManager.currentUser?.userId ?? "",
+                        colorScheme: colorScheme,
+                        onMessage: { startConversation(with: friendship) },
+                        onRemove: {
+                            friendshipToRemove = friendship
+                            showingRemoveAlert = true
+                        }
+                    )
                 }
-                .listRowSeparator(.hidden)
             }
+            .padding(.horizontal)
+        }
+    }
 
-            // Sent Requests Section
-            if !viewModel.sentRequests.isEmpty {
-                Section("Sent Requests") {
+    // MARK: - Sent Requests Section
+
+    private var sentRequestsSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("Sent Requests")
+                    .font(.headline)
+                    .foregroundStyle(.primary)
+                Spacer()
+            }
+            .padding(.horizontal)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 10) {
                     ForEach(viewModel.sentRequests) { friendship in
-                        SentRequestRow(
+                        SentRequestChip(
                             friendship: friendship,
                             currentUserId: sessionManager.currentUser?.userId ?? "",
+                            colorScheme: colorScheme,
                             onCancel: {
                                 friendshipToCancel = friendship
                                 showingCancelAlert = true
                             }
                         )
-                        .listRowBackground(cardBackground)
                     }
                 }
-                .listRowSeparator(.hidden)
-            }
-
-            // Empty State
-            if viewModel.friends.isEmpty && viewModel.pendingRequests.isEmpty && viewModel.sentRequests.isEmpty {
-                Section {
-                    emptyState
-                        .listRowBackground(Color.clear)
-                }
+                .padding(.horizontal)
             }
         }
-        .listStyle(.plain)
-        .scrollContentBackground(.hidden)
     }
 
-    private var cardBackground: some View {
-        RoundedRectangle(cornerRadius: 16)
-            .fill(.ultraThinMaterial)
-            .overlay(
-                RoundedRectangle(cornerRadius: 16)
-                    .stroke(
-                        Color.cardBorder(for: colorScheme),
-                        lineWidth: 1.5
-                    )
-            )
-            .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.3 : 0.1), radius: 8, x: 0, y: 4)
-            .padding(.vertical, 4)
-    }
+    // MARK: - Empty State
 
     private var emptyState: some View {
         VStack(spacing: 20) {
@@ -222,6 +271,8 @@ struct FriendsView: View {
         .frame(maxWidth: .infinity)
     }
 
+    // MARK: - Actions
+
     private func startConversation(with friendship: Friendship) {
         guard let userId = sessionManager.currentUser?.userId,
               let userName = sessionManager.currentUser?.name else { return }
@@ -236,178 +287,239 @@ struct FriendsView: View {
     }
 }
 
-// MARK: - Friend Row
+// MARK: - Friend Card (Grid Cell)
 
-struct FriendRow: View {
+struct FriendCard: View {
     let friendship: Friendship
     let currentUserId: String
+    let colorScheme: ColorScheme
     let onMessage: () -> Void
     let onRemove: () -> Void
 
-    var body: some View {
-        HStack(spacing: 12) {
-            // Avatar
-            Circle()
-                .fill(Color.appAccent.opacity(0.2))
-                .frame(width: 50, height: 50)
-                .overlay(
-                    Text(avatarInitial)
-                        .font(.headline)
-                        .foregroundColor(.appAccent)
-                )
+    private var friendName: String {
+        friendship.friendName(currentUserId: currentUserId)
+    }
 
-            VStack(alignment: .leading, spacing: 4) {
-                Text(friendship.friendName(currentUserId: currentUserId))
-                    .font(.headline)
-                    .lineLimit(1)
-
-                Text(friendship.friendEmail(currentUserId: currentUserId))
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .lineLimit(1)
-            }
-
-            Spacer()
-
-            // Message Button
-            Button(action: onMessage) {
-                Image(systemName: "message.fill")
-                    .foregroundColor(.appAccent)
-                    .frame(width: 36, height: 36)
-                    .background(Color.appAccent.opacity(0.1))
-                    .clipShape(Circle())
-            }
-            .buttonStyle(.plain)
-        }
-        .padding(.vertical, 8)
-        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-            Button(role: .destructive) {
-                onRemove()
-            } label: {
-                Image(systemName: "person.badge.minus")
-            }
-        }
+    private var friendEmail: String {
+        friendship.friendEmail(currentUserId: currentUserId)
     }
 
     private var avatarInitial: String {
-        String(friendship.friendName(currentUserId: currentUserId).prefix(1)).uppercased()
+        String(friendName.prefix(1)).uppercased()
     }
-}
 
-// MARK: - Pending Request Row
-
-struct PendingRequestRow: View {
-    let friendship: Friendship
-    let onAccept: () -> Void
-    let onReject: () -> Void
+    private var avatarColor: Color {
+        let colors: [Color] = [.blue, .purple, .pink, .orange, .teal, .indigo, .mint, .cyan]
+        let index = abs(friendName.hashValue) % colors.count
+        return colors[index]
+    }
 
     var body: some View {
-        HStack(spacing: 12) {
+        VStack(spacing: 12) {
             // Avatar
             Circle()
-                .fill(Color.appWarning.opacity(0.2))
-                .frame(width: 50, height: 50)
-                .overlay(
-                    Text(String(friendship.requesterName.prefix(1)).uppercased())
-                        .font(.headline)
-                        .foregroundColor(.appWarning)
+                .fill(
+                    LinearGradient(
+                        colors: [avatarColor.opacity(0.7), avatarColor],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
                 )
+                .frame(width: 64, height: 64)
+                .overlay(
+                    Text(avatarInitial)
+                        .font(.title2.bold())
+                        .foregroundColor(.white)
+                )
+                .shadow(color: avatarColor.opacity(0.3), radius: 6, x: 0, y: 3)
 
-            VStack(alignment: .leading, spacing: 4) {
-                Text(friendship.requesterName)
-                    .font(.headline)
+            // Name & Email
+            VStack(spacing: 2) {
+                Text(friendName)
+                    .font(.subheadline.weight(.semibold))
                     .lineLimit(1)
 
-                Text(friendship.requesterEmail)
-                    .font(.caption)
+                Text(friendEmail)
+                    .font(.caption2)
                     .foregroundColor(.secondary)
                     .lineLimit(1)
-
-                Text("Wants to be your friend")
-                    .font(.caption)
-                    .foregroundColor(.appWarning)
             }
 
-            Spacer()
-
-            // Accept/Reject Buttons
+            // Action Buttons
             HStack(spacing: 8) {
-                Button(action: onReject) {
-                    Image(systemName: "xmark")
+                Button(action: onMessage) {
+                    Image(systemName: "message.fill")
+                        .font(.caption)
+                        .foregroundColor(.white)
+                        .frame(width: 32, height: 32)
+                        .background(Color.appAccent)
+                        .clipShape(Circle())
+                }
+                .buttonStyle(.plain)
+
+                Button(action: onRemove) {
+                    Image(systemName: "person.badge.minus")
+                        .font(.caption)
                         .foregroundColor(.appError)
                         .frame(width: 32, height: 32)
                         .background(Color.appError.opacity(0.1))
                         .clipShape(Circle())
                 }
                 .buttonStyle(.plain)
+            }
+        }
+        .padding(.vertical, 16)
+        .padding(.horizontal, 8)
+        .frame(maxWidth: .infinity)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(.ultraThinMaterial)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(
+                            Color.cardBorder(for: colorScheme),
+                            lineWidth: 1.5
+                        )
+                )
+                .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.3 : 0.08), radius: 8, x: 0, y: 4)
+        )
+    }
+}
+
+// MARK: - Pending Request Card
+
+struct PendingRequestCard: View {
+    let friendship: Friendship
+    let colorScheme: ColorScheme
+    let onAccept: () -> Void
+    let onReject: () -> Void
+
+    var body: some View {
+        VStack(spacing: 12) {
+            // Avatar
+            Circle()
+                .fill(
+                    LinearGradient(
+                        colors: [Color.appWarning.opacity(0.6), Color.appWarning],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .frame(width: 52, height: 52)
+                .overlay(
+                    Text(String(friendship.requesterName.prefix(1)).uppercased())
+                        .font(.title3.bold())
+                        .foregroundColor(.white)
+                )
+
+            VStack(spacing: 2) {
+                Text(friendship.requesterName)
+                    .font(.subheadline.weight(.semibold))
+                    .lineLimit(1)
+
+                Text("wants to be friends")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+            }
+
+            // Accept / Reject
+            HStack(spacing: 8) {
+                Button(action: onReject) {
+                    Image(systemName: "xmark")
+                        .font(.caption.bold())
+                        .foregroundColor(.white)
+                        .frame(width: 32, height: 32)
+                        .background(Color.appError.opacity(0.85))
+                        .clipShape(Circle())
+                }
+                .buttonStyle(.plain)
 
                 Button(action: onAccept) {
                     Image(systemName: "checkmark")
-                        .foregroundColor(.appSuccess)
+                        .font(.caption.bold())
+                        .foregroundColor(.white)
                         .frame(width: 32, height: 32)
-                        .background(Color.appSuccess.opacity(0.1))
+                        .background(Color.appSuccess)
                         .clipShape(Circle())
                 }
                 .buttonStyle(.plain)
             }
         }
-        .padding(.vertical, 8)
+        .padding(.vertical, 14)
+        .padding(.horizontal, 16)
+        .frame(width: 150)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(.ultraThinMaterial)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(
+                            Color.appWarning.opacity(0.3),
+                            lineWidth: 1.5
+                        )
+                )
+                .shadow(color: Color.appWarning.opacity(0.15), radius: 8, x: 0, y: 4)
+        )
     }
 }
 
-// MARK: - Sent Request Row
+// MARK: - Sent Request Chip
 
-struct SentRequestRow: View {
+struct SentRequestChip: View {
     let friendship: Friendship
     let currentUserId: String
+    let colorScheme: ColorScheme
     let onCancel: () -> Void
 
     var body: some View {
-        HStack(spacing: 12) {
-            // Avatar
+        HStack(spacing: 8) {
             Circle()
                 .fill(Color.secondary.opacity(0.2))
-                .frame(width: 50, height: 50)
+                .frame(width: 32, height: 32)
                 .overlay(
                     Text(String(friendship.receiverName.prefix(1)).uppercased())
-                        .font(.headline)
+                        .font(.caption.bold())
                         .foregroundColor(.secondary)
                 )
 
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 1) {
                 Text(friendship.receiverName)
-                    .font(.headline)
+                    .font(.caption.weight(.medium))
                     .lineLimit(1)
 
-                Text(friendship.receiverEmail)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .lineLimit(1)
-
-                HStack(spacing: 4) {
+                HStack(spacing: 2) {
                     Image(systemName: "clock")
+                        .font(.system(size: 8))
+                    Text("Pending")
                         .font(.caption2)
-                    Text("Request pending")
-                        .font(.caption)
                 }
                 .foregroundColor(.secondary)
             }
 
-            Spacer()
-
-            // Cancel button
             Button(action: onCancel) {
-                Text("Cancel")
-                    .font(.caption)
+                Image(systemName: "xmark")
+                    .font(.caption2.bold())
                     .foregroundColor(.appError)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
+                    .frame(width: 24, height: 24)
                     .background(Color.appError.opacity(0.1))
-                    .clipShape(Capsule())
+                    .clipShape(Circle())
             }
             .buttonStyle(.plain)
         }
         .padding(.vertical, 8)
+        .padding(.leading, 8)
+        .padding(.trailing, 10)
+        .background(
+            Capsule()
+                .fill(.ultraThinMaterial)
+                .overlay(
+                    Capsule()
+                        .stroke(
+                            Color.cardBorder(for: colorScheme),
+                            lineWidth: 1
+                        )
+                )
+        )
     }
 }
 
