@@ -65,6 +65,14 @@ class StoresViewModel: ObservableObject {
 
                 print("StoresViewModel: Found \(documents.count) user stores")
 
+                // Preserve existing reminder counts so they aren't reset to 0
+                // when the snapshot fires (e.g. after adding a new store)
+                var existingReminderCounts: [String: Int] = [:]
+                for item in self.userStoreItems {
+                    let key = item.sourceUserStoreId ?? item.sharedStoreGroupId ?? item.id
+                    existingReminderCounts[key] = item.store.reminderCount
+                }
+
                 // Parse user store data (without reminder counts initially)
                 var tempUserStoreItems: [UserStoreItem] = []
                 var reminderStoreIds: Set<String> = []
@@ -95,7 +103,7 @@ class StoresViewModel: ObservableObject {
                     let store = Store(
                         id: storeId,
                         name: storeName,
-                        reminderCount: 0, // Will be updated by reminder listener
+                        reminderCount: existingReminderCounts[reminderStoreId] ?? 0,
                         sortOrder: sortOrder,
                         imageURL: imageURL
                     )
