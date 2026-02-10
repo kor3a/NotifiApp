@@ -12,9 +12,11 @@ class LoginViewModel: ObservableObject {
     @Published var email: String = ""
     @Published var password: String = ""
     @Published var errorMessage: String = ""
-    
+    @Published var showEmailNotVerified: Bool = false
+    @Published var isResendingVerification: Bool = false
+
     init() {}
-    
+
     func login() {
         guard validate() else {
             return
@@ -22,6 +24,7 @@ class LoginViewModel: ObservableObject {
 
         // Clear previous error messages
         errorMessage = ""
+        showEmailNotVerified = false
 
         Auth.auth().signIn(withEmail: email, password: password) { [weak self] result, error in
             guard let self = self else { return }
@@ -31,9 +34,67 @@ class LoginViewModel: ObservableObject {
                 DispatchQueue.main.async {
                     self.errorMessage = self.parseAuthError(error)
                 }
-            } else {
-                // Fetch user data immediately after successful login
-                UserSessionManager.shared.fetchUser()
+                return
+            }
+
+            // Check if email is verified
+            guard let firebaseUser = Auth.auth().currentUser else { return }
+
+            if !firebaseUser.isEmailVerified {
+                // Sign out the unverified user
+                try? Auth.auth().signOut()
+                DispatchQueue.main.async {
+                    self.showEmailNotVerified = true
+                    self.errorMessage = "Please verify your email before logging in. Check your inbox for a verification link."
+                }
+                return
+            }
+
+            // Email is verified - fetch user data
+            UserSessionManager.shared.fetchUser()
+        }
+    }
+
+    func resendVerificationEmail() {
+        guard validate() else { return }
+
+        isResendingVerification = true
+        errorMessage = ""
+
+        // Sign in temporarily to resend
+        Auth.auth().signIn(withEmail: email, password: password) { [weak self] result, error in
+            guard let self = self else { return }
+
+            if let error = error {
+                DispatchQueue.main.async {
+                    self.isResendingVerification = false
+                    self.errorMessage = self.parseAuthError(error)
+                }
+                return
+            }
+
+            guard let user = Auth.auth().currentUser else {
+                DispatchQueue.main.async {
+                    self.isResendingVerification = false
+                    self.errorMessage = "Unable to resend verification email."
+                }
+                return
+            }
+
+            user.sendEmailVerification { [weak self] error in
+                // Sign out regardless
+                try? Auth.auth().signOut()
+
+                guard let self = self else { return }
+                DispatchQueue.main.async {
+                    self.isResendingVerification = false
+                    if let error = error {
+                        self.errorMessage = "Failed to resend: \(error.localizedDescription)"
+                    } else {
+                        self.errorMessage = "Verification email sent! Please check your inbox."
+                        self.showEmailNotVerified = false
+                    }
+                }
             }
         }
     }

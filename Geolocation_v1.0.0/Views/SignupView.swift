@@ -14,8 +14,98 @@ struct SignupView: View {
     @State private var alertMsg = ""
     @State private var showAlert = false
     @Environment(\.colorScheme) var colorScheme
+    @Environment(\.dismiss) var dismiss
 
     var body: some View {
+        if viewModel.signupComplete {
+            emailConfirmationView
+        } else {
+            signupFormView
+        }
+    }
+
+    // MARK: - Email Confirmation View
+    private var emailConfirmationView: some View {
+        VStack(spacing: 24) {
+            Spacer()
+
+            Image(systemName: "envelope.badge.shield.half.filled")
+                .font(.system(size: 60))
+                .foregroundStyle(
+                    LinearGradient(
+                        colors: [.blue, .purple],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+
+            Text("Verify Your Email")
+                .font(.system(size: 28, weight: .bold, design: .rounded))
+                .foregroundStyle(
+                    LinearGradient(
+                        colors: [.blue, .purple],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+
+            Text("We've sent a confirmation email to:")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+
+            Text(viewModel.email.lowercased())
+                .font(.subheadline)
+                .fontWeight(.semibold)
+
+            Text("Please check your inbox and tap the verification link to complete your sign up. Then come back and log in.")
+                .font(.footnote)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 32)
+
+            Button(action: {
+                dismiss()
+            }) {
+                Text("Back to Login")
+                    .font(.headline)
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [.blue, .purple],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 50)
+                    .background(
+                        RoundedRectangle(cornerRadius: 10)
+                            .fill(.ultraThinMaterial)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 10)
+                                    .stroke(
+                                        LinearGradient(
+                                            colors: [.blue, .purple],
+                                            startPoint: .leading,
+                                            endPoint: .trailing
+                                        ),
+                                        lineWidth: 1.5
+                                    )
+                            )
+                    )
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 8)
+
+            Spacer()
+        }
+        .background(
+            Color.backgroundGradient(for: colorScheme)
+                .ignoresSafeArea()
+        )
+    }
+
+    // MARK: - Signup Form View
+    private var signupFormView: some View {
         ScrollView {
             VStack(spacing: 24) {
                 Spacer()

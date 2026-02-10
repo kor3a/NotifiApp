@@ -10,13 +10,14 @@ import FirebaseAuth
 import FirebaseFirestore
 
 class SignupViewModel: ObservableObject {
-   
+
     @Published var userId: String = ""
     @Published var email: String = ""
     @Published var name: String = ""
     @Published var password: String = ""
     @Published var confirmPassword: String = ""
     @Published var errorMessage: String = ""
+    @Published var signupComplete: Bool = false
     
     private let db = Firestore.firestore()
     
@@ -112,18 +113,42 @@ class SignupViewModel: ObservableObject {
                     }
                 } else {
                     print("SignupViewModel: User '\(normalizedUserId)' created successfully in Firestore")
-                    print("SignupViewModel: Signup complete! User can now log in.")
 
-                    // Directly populate UserSessionManager with the new user data.
-                    // This fixes a race condition where the auth state change listener
-                    // triggers fetchUser() before the Firestore document exists.
-                    DispatchQueue.main.async {
-                        UserSessionManager.shared.currentUser = newUser
-                        UserSessionManager.shared.errorMessage = ""
-                        UserSessionManager.shared.isLoading = false
-                    }
+                    // Send verification email before signing out
+                    self.sendVerificationEmail()
                 }
             }
+    }
+
+    /// Send email verification and sign the user out so they must verify before logging in
+    private func sendVerificationEmail() {
+        guard let user = Auth.auth().currentUser else {
+            self.errorMessage = "Failed to send verification email."
+            return
+        }
+
+        user.sendEmailVerification { [weak self] error in
+            guard let self = self else { return }
+
+            if let error = error {
+                print("SignupViewModel: Error sending verification email: \(error.localizedDescription)")
+                // Still proceed - the account was created, they can resend from login
+            } else {
+                print("SignupViewModel: Verification email sent successfully")
+            }
+
+            // Sign the user out so they can't use the app until email is verified
+            do {
+                try Auth.auth().signOut()
+                print("SignupViewModel: User signed out after signup, awaiting email verification")
+            } catch {
+                print("SignupViewModel: Error signing out after signup: \(error.localizedDescription)")
+            }
+
+            DispatchQueue.main.async {
+                self.signupComplete = true
+            }
+        }
     }
 
     /// Delete Firebase Auth user (called when signup fails after auth creation)
