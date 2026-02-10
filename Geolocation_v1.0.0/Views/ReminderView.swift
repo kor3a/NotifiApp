@@ -10,8 +10,9 @@ import SwiftUI
 struct ReminderView: View {
     let userStoreItem: UserStoreItem
     @StateObject private var viewModel = ReminderViewModel()
-    @State private var showingAddReminder = false
-    @State private var reminderTitle: String = ""
+    @State private var isAddingNewReminder = false
+    @State private var newReminderText = ""
+    @FocusState private var isNewReminderFocused: Bool
     @AppStorage("autoDeleteReminders") private var autoDeleteEnabled = false
     @State private var fadingReminderIds: Set<String> = []
     @State private var reminderToShare: Reminder?
@@ -23,7 +24,7 @@ struct ReminderView: View {
         ZStack {
             if viewModel.isLoading {
                 ProgressView("Loading reminders...")
-            } else if viewModel.reminders.isEmpty {
+            } else if viewModel.reminders.isEmpty && !isAddingNewReminder {
                 VStack(spacing: 20) {
                     Image(systemName: "list.bullet.clipboard")
                         .resizable()
@@ -39,7 +40,7 @@ struct ReminderView: View {
 
                     if userStoreItem.permission != .view {
                         Button {
-                            showingAddReminder = true
+                            isAddingNewReminder = true
                         } label: {
                             Label("Add Reminder", systemImage: "plus")
                         }
@@ -53,74 +54,139 @@ struct ReminderView: View {
                 }
                 .padding()
             } else {
-                List {
-                    ForEach(viewModel.reminders) { reminder in
-                        ReminderItemView(item: reminder)
-                            .contentShape(Rectangle())
-                            .listRowBackground(
-                                RoundedRectangle(cornerRadius: 16)
-                                    .fill(.ultraThinMaterial)
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 16)
-                                            .stroke(
-                                                Color.cardBorder(for: colorScheme),
-                                                lineWidth: 1.5
-                                            )
-                                    )
-                                    .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.3 : 0.1), radius: 8, x: 0, y: 4)
-                                    .shadow(color: Color.white.opacity(colorScheme == .dark ? 0.05 : 0.5), radius: 2, x: 0, y: -2)
-                                    .padding(.vertical, 4)
-                            )
-                            .listRowSeparator(.hidden)
-                            .opacity(fadingReminderIds.contains(reminder.id) ? 0 : 1)
-                            .scaleEffect(fadingReminderIds.contains(reminder.id) ? 0.8 : 1.0)
-                            .animation(.easeOut(duration: 0.5), value: fadingReminderIds)
-                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                                // Delete button (rightmost)
-                                if userStoreItem.permission != .view {
-                                    Button(role: .destructive) {
-                                        // If shared, show confirmation dialog
-                                        if reminder.isShared == true && reminder.sharedReminderId != nil {
-                                            reminderToDelete = reminder
-                                        } else {
-                                            viewModel.deleteReminder(reminder)
+                ScrollViewReader { proxy in
+                    List {
+                        ForEach(viewModel.reminders) { reminder in
+                            ReminderItemView(item: reminder)
+                                .contentShape(Rectangle())
+                                .listRowBackground(
+                                    RoundedRectangle(cornerRadius: 16)
+                                        .fill(.ultraThinMaterial)
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 16)
+                                                .stroke(
+                                                    Color.cardBorder(for: colorScheme),
+                                                    lineWidth: 1.5
+                                                )
+                                        )
+                                        .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.3 : 0.1), radius: 8, x: 0, y: 4)
+                                        .shadow(color: Color.white.opacity(colorScheme == .dark ? 0.05 : 0.5), radius: 2, x: 0, y: -2)
+                                        .padding(.vertical, 4)
+                                )
+                                .listRowSeparator(.hidden)
+                                .opacity(fadingReminderIds.contains(reminder.id) ? 0 : 1)
+                                .scaleEffect(fadingReminderIds.contains(reminder.id) ? 0.8 : 1.0)
+                                .animation(.easeOut(duration: 0.5), value: fadingReminderIds)
+                                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                    // Delete button (rightmost)
+                                    if userStoreItem.permission != .view {
+                                        Button(role: .destructive) {
+                                            // If shared, show confirmation dialog
+                                            if reminder.isShared == true && reminder.sharedReminderId != nil {
+                                                reminderToDelete = reminder
+                                            } else {
+                                                viewModel.deleteReminder(reminder)
+                                            }
+                                        } label: {
+                                            Image(systemName: "trash")
                                         }
-                                    } label: {
-                                        Image(systemName: "trash")
                                     }
-                                }
 
-                                // Share button
-                                Button {
-                                    reminderToShare = reminder
-                                } label: {
-                                    Image(systemName: "square.and.arrow.up")
-                                }
-                                .tint(.blue)
-
-                                // Info button (only if reminder is shared)
-                                if reminder.isShared == true {
+                                    // Share button
                                     Button {
-                                        showingSharedInfo = reminder
+                                        reminderToShare = reminder
                                     } label: {
-                                        Image(systemName: "person.2.fill")
+                                        Image(systemName: "square.and.arrow.up")
                                     }
-                                    .tint(.appAccent)
+                                    .tint(.blue)
+
+                                    // Info button (only if reminder is shared)
+                                    if reminder.isShared == true {
+                                        Button {
+                                            showingSharedInfo = reminder
+                                        } label: {
+                                            Image(systemName: "person.2.fill")
+                                        }
+                                        .tint(.appAccent)
+                                    }
                                 }
-                            }
-                            .onTapGesture {
-                                if userStoreItem.permission != .view {
-                                    handleReminderTap(reminder)
+                                .onTapGesture {
+                                    if userStoreItem.permission != .view {
+                                        handleReminderTap(reminder)
+                                    }
                                 }
+                        }
+
+                        // Inline add reminder row
+                        if userStoreItem.permission != .view {
+                            if isAddingNewReminder {
+                                HStack {
+                                    Image(systemName: "square")
+                                        .foregroundStyle(.gray.opacity(0.4))
+                                    TextField("What do you need?", text: $newReminderText)
+                                        .font(.headline)
+                                        .focused($isNewReminderFocused)
+                                        .onSubmit {
+                                            submitNewReminder()
+                                        }
+                                        .textInputAutocapitalization(.sentences)
+                                }
+                                .listRowBackground(
+                                    RoundedRectangle(cornerRadius: 16)
+                                        .fill(.ultraThinMaterial)
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 16)
+                                                .stroke(
+                                                    Color.cardBorder(for: colorScheme),
+                                                    lineWidth: 1.5
+                                                )
+                                        )
+                                        .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.3 : 0.1), radius: 8, x: 0, y: 4)
+                                        .shadow(color: Color.white.opacity(colorScheme == .dark ? 0.05 : 0.5), radius: 2, x: 0, y: -2)
+                                        .padding(.vertical, 4)
+                                )
+                                .listRowSeparator(.hidden)
+                                .id("inlineAddRow")
+                            } else {
+                                Button {
+                                    isAddingNewReminder = true
+                                } label: {
+                                    HStack {
+                                        Image(systemName: "plus")
+                                            .foregroundStyle(.gray)
+                                        Text("Add item")
+                                            .font(.headline)
+                                            .foregroundStyle(.gray)
+                                        Spacer()
+                                    }
+                                }
+                                .listRowBackground(
+                                    RoundedRectangle(cornerRadius: 16)
+                                        .fill(.ultraThinMaterial.opacity(0.5))
+                                        .padding(.vertical, 4)
+                                )
+                                .listRowSeparator(.hidden)
+                                .id("inlineAddRow")
                             }
+                        }
+                    }
+                    .listStyle(.plain)
+                    .scrollContentBackground(.hidden)
+                    .background(
+                        Color.backgroundGradient(for: colorScheme)
+                            .ignoresSafeArea()
+                    )
+                    .onChange(of: isAddingNewReminder) { _, newValue in
+                        if newValue {
+                            withAnimation {
+                                proxy.scrollTo("inlineAddRow", anchor: .bottom)
+                            }
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                                isNewReminderFocused = true
+                            }
+                        }
                     }
                 }
-                .listStyle(.plain)
-                .scrollContentBackground(.hidden)
-                .background(
-                    Color.backgroundGradient(for: colorScheme)
-                        .ignoresSafeArea()
-                )
             }
         }
         .navigationTitle(userStoreItem.store.name)
@@ -139,7 +205,7 @@ struct ReminderView: View {
             ToolbarItem(placement: .navigationBarTrailing) {
                 if userStoreItem.permission != .view {
                     Button(action: {
-                        showingAddReminder = true
+                        isAddingNewReminder = true
                     }) {
                         Image(systemName: "plus")
                             .frame(width: 22, height: 22)
@@ -152,22 +218,6 @@ struct ReminderView: View {
                 }
             }
         }
-        .alert("Add a New Item", isPresented: $showingAddReminder) {
-            TextField("What do you need?", text: $reminderTitle)
-                .textInputAutocapitalization(.sentences)
-
-            Button("Add") {
-                addReminder()
-            }
-            .disabled(reminderTitle.trimmingCharacters(in: .whitespaces).isEmpty)
-            
-
-            Button("Cancel", role: .cancel) {
-                reminderTitle = ""
-            }
-        } message: {
-            Text("Enter the item name you wish to add.")
-        }
         .onAppear {
             viewModel.fetchReminders(for: userStoreItem.reminderStoreId, sharedFromName: userStoreItem.sharedFromName)
         }
@@ -175,6 +225,14 @@ struct ReminderView: View {
             // When auto-delete is turned ON, clean up already-done reminders
             if newValue && !oldValue {
                 deleteCompletedReminders()
+            }
+        }
+        .onChange(of: isNewReminderFocused) { _, focused in
+            if !focused && isAddingNewReminder {
+                let title = newReminderText.trimmingCharacters(in: .whitespaces)
+                if title.isEmpty {
+                    isAddingNewReminder = false
+                }
             }
         }
         .sheet(item: $reminderToShare) { reminder in
@@ -242,14 +300,15 @@ struct ReminderView: View {
         }
     }
 
-    private func addReminder() {
-        let title = reminderTitle.trimmingCharacters(in: .whitespaces)
-        guard !title.isEmpty else { return }
+    private func submitNewReminder() {
+        let title = newReminderText.trimmingCharacters(in: .whitespaces)
+        if title.isEmpty {
+            // Nothing entered - stop adding
+            isAddingNewReminder = false
+            newReminderText = ""
+            return
+        }
 
-        // Pass sharedWith and sharedFromName so new reminders are auto-marked as shared
-        // - sharedWith is set for the owner (who shared the store with others)
-        // - sharedFromName is set for the recipient (who received the shared store)
-        // - currentUserName tracks who actually added this reminder in a shared store
         viewModel.addReminder(
             userStoreId: userStoreItem.reminderStoreId,
             title: title,
@@ -257,7 +316,12 @@ struct ReminderView: View {
             sharedFromName: userStoreItem.sharedFromName,
             currentUserName: UserSessionManager.shared.currentUser?.name
         )
-        reminderTitle = ""
+
+        // Clear text and keep focus for next reminder
+        newReminderText = ""
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            isNewReminderFocused = true
+        }
     }
 
     private func handleReminderTap(_ reminder: Reminder) {
