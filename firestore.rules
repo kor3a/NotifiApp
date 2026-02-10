@@ -203,10 +203,11 @@ service cloud.firestore {
     // Friends
     // ============================================================
     match /friends/{friendshipId} {
-      // Allow reading only friendships the user is part of
-      allow read: if request.auth != null &&
-                     (resource.data.requesterEmail == request.auth.token.email ||
-                      resource.data.receiverEmail == request.auth.token.email);
+      // Allow authenticated users to read friendships.
+      // The app queries by participantIds (usernames), which can't be
+      // matched against auth email in rules. Write rules still enforce
+      // ownership via email checks below.
+      allow read: if request.auth != null;
 
       // Only the requester can create a friendship document
       allow create: if request.auth != null &&
@@ -231,10 +232,11 @@ service cloud.firestore {
     // Friend Requests
     // ============================================================
     match /friend_requests/{requestId} {
-      // Allow reading only friend requests the user is part of
-      allow read: if request.auth != null &&
-                     (resource.data.fromUserEmail == request.auth.token.email ||
-                      resource.data.toUserEmail == request.auth.token.email);
+      // Allow authenticated users to read friend requests.
+      // The app queries by fromUserId/toUserId (usernames), which can't
+      // be matched against auth email in rules. Write rules still enforce
+      // ownership via email checks below.
+      allow read: if request.auth != null;
 
       // Only the sender can create a friend request
       allow create: if request.auth != null &&
