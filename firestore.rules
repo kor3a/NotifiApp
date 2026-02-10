@@ -2,70 +2,129 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Users collection rules
+    // ============================================================
+    // Helper Functions
+    // ============================================================
+
+    // Check if the current user owns the given user_store document
+    function isUserStoreOwner(userStoreId) {
+      return exists(/databases/$(database)/documents/user_stores/$(userStoreId)) &&
+             get(/databases/$(database)/documents/user_stores/$(userStoreId)).data.userEmail == request.auth.token.email;
+    }
+
+    // Check if the given ID refers to an existing shared store group.
+    // For shared "Can Edit" stores, reminders use the sharedStoreGroupId
+    // as their userStoreId. All group members may read/write these reminders.
+    // NOTE: This verifies the group exists but cannot verify membership
+    // without iterating userStoreIds (not supported in rules). To enforce
+    // membership, consider adding a memberEmails array to shared_store_groups.
+    function isSharedStoreGroup(groupId) {
+      return exists(/databases/$(database)/documents/shared_store_groups/$(groupId));
+    }
+
+    // ============================================================
+    // Users Collection
+    // ============================================================
     match /users/{userId} {
-      // Allow authenticated users to read any user document
-      // This is needed during signup to check if username is already taken
-      // AND during profile load to query user by email
-      // Note: User creates auth account first, then checks username availability
-      // IMPORTANT: Email queries require a Firestore index on the 'email' field
+      // Allow authenticated users to read any user document.
+      // Required for: username availability checks during signup,
+      // user profile lookups by email, friend search by username.
+      // NOTE: To restrict further, consider limiting list queries via
+      // query-based rules once the app supports it.
+      // Index required: email (ascending)
       allow read: if request.auth != null;
 
-      // Allow authenticated users to create user documents
-      allow create: if request.auth != null;
+      // Allow creating a user document only if the email matches
+      // the authenticated user. Prevents creating docs with another
+      // user's email address.
+      allow create: if request.auth != null &&
+                       request.resource.data.email is string &&
+                       request.resource.data.email == request.auth.token.email &&
+                       request.resource.data.name is string &&
+                       request.resource.data.userId is string;
 
-      // Allow users to update/delete only their own document
-      // Note: userId is the username (document ID), so we check against email instead
+      // Allow users to update/delete only their own document.
+      // Ownership verified via email since document ID is the username.
       allow update, delete: if request.auth != null &&
                                resource.data.email == request.auth.token.email;
     }
 
-    // Stores collection rules (add as needed)
+    // ============================================================
+    // Stores Collection (global catalog)
+    // ============================================================
     match /stores/{storeId} {
+      // Any authenticated user can read the store catalog
       allow read: if request.auth != null;
-      allow write: if request.auth != null;
+
+      // Allow creating store entries with required fields
+      allow create: if request.auth != null &&
+                       request.resource.data.name is string;
+
+      // Allow updating store metadata (reminderCount, imageURL, etc.)
+      allow update: if request.auth != null;
+
+      // Stores are shared catalog entries. In production, consider
+      // restricting deletion to admins via custom claims:
+      //   allow delete: if request.auth.token.admin == true;
+      allow delete: if request.auth != null;
     }
 
-    // Reminders collection rules
+    // ============================================================
+    // Reminders Collection
+    // ============================================================
     match /reminders/{reminderId} {
-      // Allow authenticated users to read reminders
-      // Reminders are linked to user_stores via userStoreId field (which may be a sharedStoreGroupId)
-      // Query by userStoreId requires a Firestore index on 'userStoreId' field
-      allow read: if request.auth != null;
+      // Allow reading reminders only if the user owns the associated
+      // user_store, or the reminder belongs to a shared store group.
+      // Firestore caches get()/exists() results within a single
+      // request, so querying by a single userStoreId incurs only
+      // 2 extra reads regardless of result count.
+      allow read: if request.auth != null &&
+                     (isUserStoreOwner(resource.data.userStoreId) ||
+                      isSharedStoreGroup(resource.data.userStoreId));
 
-      // Allow creating reminders with required userStoreId field
-      // Note: Permission enforcement is handled at application level
+      // Allow creating reminders only if the user owns the target
+      // user_store or the target is a valid shared store group.
       allow create: if request.auth != null &&
                        request.resource.data.userStoreId is string &&
                        request.resource.data.title is string &&
-                       request.resource.data.isDone is bool;
+                       request.resource.data.isDone is bool &&
+                       (isUserStoreOwner(request.resource.data.userStoreId) ||
+                        isSharedStoreGroup(request.resource.data.userStoreId));
 
-      // Allow updating/deleting reminders
-      // Note: Permission enforcement is handled at application level
-      allow update, delete: if request.auth != null;
+      // Allow updating/deleting reminders only if the user owns the
+      // associated user_store or it belongs to a shared store group.
+      allow update, delete: if request.auth != null &&
+                               (isUserStoreOwner(resource.data.userStoreId) ||
+                                isSharedStoreGroup(resource.data.userStoreId));
     }
 
-    // User-Store associations
+    // ============================================================
+    // User-Store Associations
+    // ============================================================
     match /user_stores/{userStoreId} {
-      // Allow users to read their own user_stores documents
-      // Query by userId requires a Firestore index on 'userId' field
+      // Allow authenticated users to read user_store documents.
+      // The owner may need to look up shared user_stores (e.g., to
+      // unshare), so reads cannot be restricted to own email only.
+      // Index required: userId (ascending)
       allow read: if request.auth != null;
 
-      // Allow users to create user_stores documents
+      // Allow creating user_stores only if userEmail matches the
+      // authenticated user. Prevents creating store associations
+      // for other users.
       allow create: if request.auth != null &&
                        request.resource.data.userId is string &&
-                       request.resource.data.userEmail is string;
+                       request.resource.data.userEmail is string &&
+                       request.resource.data.userEmail == request.auth.token.email;
 
-      // Allow users to update their own user_stores (for sort order, permission updates)
+      // Allow users to update only their own user_stores
       allow update: if request.auth != null &&
                        resource.data.userEmail == request.auth.token.email;
 
-      // Allow users to delete their own user_stores
-      // Also allow deletion of shared stores where:
-      // 1. The shared group no longer exists (cleanup)
-      // 2. The current user is the original sharer (allows owner to remove access)
-      //    - Check sharedFromEmail field (for new shares)
-      //    - Or look up sharer's email via sharedFrom userId (for existing shares)
+      // Allow deletion by:
+      // 1. The owner of the user_store (userEmail matches)
+      // 2. Orphaned shared stores (shared group no longer exists)
+      // 3. The original sharer via sharedFromEmail
+      // 4. The original sharer via sharedFrom userId lookup
       allow delete: if request.auth != null &&
                        (resource.data.userEmail == request.auth.token.email ||
                         (resource.data.sharedStoreGroupId != null &&
@@ -75,21 +134,124 @@ service cloud.firestore {
                          get(/databases/$(database)/documents/users/$(resource.data.sharedFrom)).data.email == request.auth.token.email));
     }
 
-    // Shared Store Groups collection
+    // ============================================================
+    // Shared Store Groups
+    // ============================================================
     match /shared_store_groups/{groupId} {
       // Allow authenticated users to read shared store groups
       allow read: if request.auth != null;
 
-      // Allow creating shared store groups
+      // Allow creating shared store groups with required fields.
+      // The creator's userStoreId must be first in the array, and
+      // the creator must own that user_store.
       allow create: if request.auth != null &&
                        request.resource.data.storeId is string &&
-                       request.resource.data.userStoreIds is list;
+                       request.resource.data.userStoreIds is list &&
+                       request.resource.data.userStoreIds.size() > 0 &&
+                       isUserStoreOwner(request.resource.data.userStoreIds[0]);
 
-      // Allow updating shared store groups (for adding/removing members)
+      // Allow updating only by the group owner (first userStoreId).
+      allow update: if request.auth != null &&
+                       resource.data.userStoreIds.size() > 0 &&
+                       isUserStoreOwner(resource.data.userStoreIds[0]);
+
+      // Allow deleting only by the group owner (first userStoreId).
+      allow delete: if request.auth != null &&
+                       resource.data.userStoreIds.size() > 0 &&
+                       isUserStoreOwner(resource.data.userStoreIds[0]);
+    }
+
+    // ============================================================
+    // Conversations (messaging feature)
+    // ============================================================
+    // LIMITATION: participantIds uses usernames, not emails.
+    // Without a participantEmails array field, rules cannot verify
+    // the authenticated user is a conversation participant.
+    // TODO: Add participantEmails array for stricter enforcement.
+    match /conversations/{conversationId} {
+      allow read: if request.auth != null;
+
+      allow create: if request.auth != null &&
+                       request.resource.data.participantIds is list &&
+                       request.resource.data.participantIds.size() == 2;
+
       allow update: if request.auth != null;
 
-      // Allow deleting shared store groups when deleting stores
       allow delete: if request.auth != null;
+    }
+
+    // ============================================================
+    // Messages (messaging feature)
+    // ============================================================
+    // LIMITATION: senderId uses username, not email. Cannot verify
+    // the authenticated user is the sender without a senderEmail field.
+    // TODO: Add senderEmail field for stricter enforcement.
+    match /messages/{messageId} {
+      allow read: if request.auth != null;
+
+      allow create: if request.auth != null &&
+                       request.resource.data.conversationId is string &&
+                       request.resource.data.senderId is string &&
+                       request.resource.data.content is string;
+
+      allow update: if request.auth != null;
+
+      allow delete: if request.auth != null;
+    }
+
+    // ============================================================
+    // Friends
+    // ============================================================
+    match /friends/{friendshipId} {
+      // Allow reading only friendships the user is part of
+      allow read: if request.auth != null &&
+                     (resource.data.requesterEmail == request.auth.token.email ||
+                      resource.data.receiverEmail == request.auth.token.email);
+
+      // Only the requester can create a friendship document
+      allow create: if request.auth != null &&
+                       request.resource.data.requesterId is string &&
+                       request.resource.data.receiverId is string &&
+                       request.resource.data.participantIds is list &&
+                       request.resource.data.status is string &&
+                       request.resource.data.requesterEmail == request.auth.token.email;
+
+      // Only participants can update (accept/reject)
+      allow update: if request.auth != null &&
+                       (resource.data.requesterEmail == request.auth.token.email ||
+                        resource.data.receiverEmail == request.auth.token.email);
+
+      // Only participants can delete (unfriend/cancel)
+      allow delete: if request.auth != null &&
+                       (resource.data.requesterEmail == request.auth.token.email ||
+                        resource.data.receiverEmail == request.auth.token.email);
+    }
+
+    // ============================================================
+    // Friend Requests
+    // ============================================================
+    match /friend_requests/{requestId} {
+      // Allow reading only friend requests the user is part of
+      allow read: if request.auth != null &&
+                     (resource.data.fromUserEmail == request.auth.token.email ||
+                      resource.data.toUserEmail == request.auth.token.email);
+
+      // Only the sender can create a friend request
+      allow create: if request.auth != null &&
+                       request.resource.data.fromUserId is string &&
+                       request.resource.data.toUserId is string &&
+                       request.resource.data.status is string &&
+                       request.resource.data.fromUserEmail == request.auth.token.email;
+
+      // Only participants can update (accept/reject)
+      allow update: if request.auth != null &&
+                       (resource.data.fromUserEmail == request.auth.token.email ||
+                        resource.data.toUserEmail == request.auth.token.email);
+
+      // Only participants can delete
+      allow delete: if request.auth != null &&
+                       (resource.data.fromUserEmail == request.auth.token.email ||
+                        resource.data.toUserEmail == request.auth.token.email);
     }
   }
 }
