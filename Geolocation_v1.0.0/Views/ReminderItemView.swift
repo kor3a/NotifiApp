@@ -9,6 +9,7 @@ import SwiftUI
 
 struct ReminderItemView: View {
     let item: Reminder
+    var onPhotoTap: ((String) -> Void)?
     @StateObject private var viewModel = ReminderItemViewModel()
 
     // Get current user's name to determine if they created the reminder
@@ -67,6 +68,9 @@ struct ReminderItemView: View {
                                 @unknown default:
                                     EmptyView()
                                 }
+                            }
+                            .onTapGesture {
+                                onPhotoTap?(urlString)
                             }
                         }
                     }

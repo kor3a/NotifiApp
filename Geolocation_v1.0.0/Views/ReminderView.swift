@@ -20,6 +20,9 @@ struct ReminderView: View {
     @State private var showingSharedInfo: Reminder?
     @State private var reminderForPhoto: Reminder?
     @State private var selectedImage: UIImage?
+    @State private var enlargedPhotoURL: String?
+    @State private var enlargedPhotoReminder: Reminder?
+    @State private var showDeletePhotoConfirm = false
     @Environment(\.colorScheme) var colorScheme
 
     var body: some View {
@@ -59,7 +62,10 @@ struct ReminderView: View {
                 ScrollViewReader { proxy in
                     List {
                         ForEach(viewModel.reminders) { reminder in
-                            ReminderItemView(item: reminder)
+                            ReminderItemView(item: reminder) { photoURL in
+                                    enlargedPhotoURL = photoURL
+                                    enlargedPhotoReminder = reminder
+                                }
                                 .contentShape(Rectangle())
                                 .listRowBackground(
                                     RoundedRectangle(cornerRadius: 16)
@@ -197,6 +203,89 @@ struct ReminderView: View {
                             }
                         }
                     }
+                }
+            }
+
+            // Fullscreen photo viewer overlay
+            if let photoURL = enlargedPhotoURL {
+                Color.black.opacity(0.85)
+                    .ignoresSafeArea()
+                    .onTapGesture {
+                        withAnimation {
+                            enlargedPhotoURL = nil
+                            enlargedPhotoReminder = nil
+                        }
+                    }
+
+                VStack(spacing: 24) {
+                    Spacer()
+
+                    AsyncImage(url: URL(string: photoURL)) { phase in
+                        switch phase {
+                        case .success(let image):
+                            image
+                                .resizable()
+                                .scaledToFit()
+                                .cornerRadius(12)
+                                .padding(.horizontal, 20)
+                        case .failure:
+                            Image(systemName: "photo")
+                                .font(.system(size: 60))
+                                .foregroundColor(.gray)
+                        case .empty:
+                            ProgressView()
+                                .tint(.white)
+                        @unknown default:
+                            EmptyView()
+                        }
+                    }
+
+                    Spacer()
+
+                    HStack(spacing: 40) {
+                        Button {
+                            showDeletePhotoConfirm = true
+                        } label: {
+                            VStack(spacing: 6) {
+                                Image(systemName: "trash.fill")
+                                    .font(.title2)
+                                Text("Delete")
+                                    .font(.caption)
+                            }
+                            .foregroundColor(.red)
+                        }
+
+                        Button {
+                            withAnimation {
+                                enlargedPhotoURL = nil
+                                enlargedPhotoReminder = nil
+                            }
+                        } label: {
+                            VStack(spacing: 6) {
+                                Image(systemName: "xmark.circle.fill")
+                                    .font(.title2)
+                                Text("Close")
+                                    .font(.caption)
+                            }
+                            .foregroundColor(.white)
+                        }
+                    }
+                    .padding(.bottom, 40)
+                }
+                .transition(.opacity)
+                .alert("Delete Photo", isPresented: $showDeletePhotoConfirm) {
+                    Button("Delete", role: .destructive) {
+                        if let reminder = enlargedPhotoReminder, let url = enlargedPhotoURL {
+                            viewModel.deletePhoto(for: reminder, photoURL: url)
+                        }
+                        withAnimation {
+                            enlargedPhotoURL = nil
+                            enlargedPhotoReminder = nil
+                        }
+                    }
+                    Button("Cancel", role: .cancel) {}
+                } message: {
+                    Text("Are you sure you want to delete this photo?")
                 }
             }
         }

@@ -279,6 +279,33 @@ class ReminderViewModel: ObservableObject {
         }
     }
 
+    /// Delete a photo from a reminder by removing it from Storage and Firestore
+    func deletePhoto(for reminder: Reminder, photoURL: String) {
+        // Remove from Firebase Storage
+        let storageRef = Storage.storage().reference(forURL: photoURL)
+        storageRef.delete { error in
+            if let error = error {
+                print("ReminderViewModel: Error deleting photo from storage: \(error.localizedDescription)")
+            } else {
+                print("ReminderViewModel: Photo deleted from storage")
+            }
+        }
+
+        // Remove URL from the Firestore array
+        var currentURLs = reminder.photoURLs ?? []
+        currentURLs.removeAll { $0 == photoURL }
+
+        db.collection("reminders").document(reminder.id).updateData([
+            "photoURLs": currentURLs
+        ]) { error in
+            if let error = error {
+                print("ReminderViewModel: Error updating photoURLs: \(error.localizedDescription)")
+            } else {
+                print("ReminderViewModel: Photo URL removed from reminder")
+            }
+        }
+    }
+
     /// Upload a photo for a reminder and append its URL to the reminder's photoURLs array
     func uploadPhoto(for reminder: Reminder, image: UIImage) {
         guard let imageData = image.jpegData(compressionQuality: 0.7) else {
