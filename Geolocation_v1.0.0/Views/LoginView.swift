@@ -29,9 +29,15 @@ struct LoginView: View {
                     Spacer()
                         .frame(height: 40)
 
-                    Text("Login")
-                        .font(.largeTitle)
-                        .fontWeight(.bold)
+                    Text("Allim")
+                        .font(.system(size: 40, weight: .bold, design: .rounded))
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: [.blue, .purple],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
                         .padding(.bottom, 8)
 
                     if !viewModel.errorMessage.isEmpty {

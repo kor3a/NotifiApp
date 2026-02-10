@@ -21,9 +21,15 @@ struct SignupView: View {
                 Spacer()
                     .frame(height: 40)
 
-                Text("Sign Up")
-                    .font(.largeTitle)
-                    .fontWeight(.bold)
+                Text("Allim")
+                    .font(.system(size: 40, weight: .bold, design: .rounded))
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [.blue, .purple],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
                     .padding(.bottom, 8)
 
                 if !viewModel.errorMessage.isEmpty {
