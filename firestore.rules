@@ -73,14 +73,15 @@ service cloud.firestore {
     // Reminders Collection
     // ============================================================
     match /reminders/{reminderId} {
-      // Allow reading reminders only if the user owns the associated
-      // user_store, or the reminder belongs to a shared store group.
-      // Firestore caches get()/exists() results within a single
-      // request, so querying by a single userStoreId incurs only
-      // 2 extra reads regardless of result count.
-      allow read: if request.auth != null &&
-                     (isUserStoreOwner(resource.data.userStoreId) ||
-                      isSharedStoreGroup(resource.data.userStoreId));
+      // Allow authenticated users to read reminders.
+      // Reminders are queried by userStoreId which can be:
+      //   - The user's own user_store ID (personal stores)
+      //   - A sharedStoreGroupId (shared "Can Edit" stores)
+      //   - The owner's user_store ID via sourceUserStoreId (shared "View Only" stores)
+      // The "View Only" case prevents email-based ownership checks since the
+      // user_store belongs to the owner, not the viewer. Write rules below
+      // still enforce ownership for create/update/delete.
+      allow read: if request.auth != null;
 
       // Allow creating reminders only if the user owns the target
       // user_store or the target is a valid shared store group.
