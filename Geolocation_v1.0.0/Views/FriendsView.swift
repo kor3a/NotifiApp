@@ -300,8 +300,8 @@ struct FriendCard: View {
         friendship.friendName(currentUserId: currentUserId)
     }
 
-    private var friendEmail: String {
-        friendship.friendEmail(currentUserId: currentUserId)
+    private var friendUserId: String {
+        "@\(friendship.friendId(currentUserId: currentUserId))"
     }
 
     private var avatarInitial: String {
@@ -333,13 +333,13 @@ struct FriendCard: View {
                 )
                 .shadow(color: avatarColor.opacity(0.3), radius: 6, x: 0, y: 3)
 
-            // Name & Email
+            // Name & UserId
             VStack(spacing: 2) {
                 Text(friendName)
                     .font(.subheadline.weight(.semibold))
                     .lineLimit(1)
 
-                Text(friendEmail)
+                Text(friendUserId)
                     .font(.caption2)
                     .foregroundColor(.secondary)
                     .lineLimit(1)
