@@ -11,9 +11,12 @@ import CoreLocation
 class GooglePlacesService {
     static let shared = GooglePlacesService()
 
-    // IMPORTANT: Replace with your actual Google Places API key
-    // Get your API key from: https://console.cloud.google.com/apis/credentials
-    private let apiKey = "AIzaSyCEd71bzy36JdYwAvrQ7LELqHarijNJ7ds"
+    private let apiKey: String = {
+        guard let key = Bundle.main.infoDictionary?["GOOGLE_PLACES_API_KEY"] as? String, !key.isEmpty else {
+            fatalError("GOOGLE_PLACES_API_KEY not set. Add your key to Secrets.xcconfig (see Secrets.xcconfig.template).")
+        }
+        return key
+    }()
 
     private let baseURL = "https://maps.googleapis.com/maps/api/place"
 
