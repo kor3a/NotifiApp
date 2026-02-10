@@ -8,6 +8,8 @@
 import Foundation
 import FirebaseFirestore
 import FirebaseAuth
+import FirebaseStorage
+import UIKit
 
 class ReminderViewModel: ObservableObject {
     private let db = Firestore.firestore()
@@ -71,6 +73,8 @@ class ReminderViewModel: ObservableObject {
                             sharedFrom = sharedFromName
                         }
 
+                        let photoURLs = data["photoURLs"] as? [String]
+
                         return Reminder(
                             id: doc.documentID,
                             userStoreId: userStoreId,
@@ -81,7 +85,8 @@ class ReminderViewModel: ObservableObject {
                             sharedFrom: sharedFrom,
                             sharedAt: sharedAt,
                             sharedReminderId: sharedReminderId,
-                            sharedWith: sharedWith
+                            sharedWith: sharedWith,
+                            photoURLs: photoURLs
                         )
                     }
 
@@ -269,6 +274,80 @@ class ReminderViewModel: ObservableObject {
                     print("ReminderViewModel: Error deleting reminder: \(error.localizedDescription)")
                 } else {
                     print("ReminderViewModel: Reminder deleted successfully")
+                }
+            }
+        }
+    }
+
+    /// Delete a photo from a reminder by removing it from Storage and Firestore
+    func deletePhoto(for reminder: Reminder, photoURL: String) {
+        // Remove from Firebase Storage
+        let storageRef = Storage.storage().reference(forURL: photoURL)
+        storageRef.delete { error in
+            if let error = error {
+                print("ReminderViewModel: Error deleting photo from storage: \(error.localizedDescription)")
+            } else {
+                print("ReminderViewModel: Photo deleted from storage")
+            }
+        }
+
+        // Remove URL from the Firestore array
+        var currentURLs = reminder.photoURLs ?? []
+        currentURLs.removeAll { $0 == photoURL }
+
+        db.collection("reminders").document(reminder.id).updateData([
+            "photoURLs": currentURLs
+        ]) { error in
+            if let error = error {
+                print("ReminderViewModel: Error updating photoURLs: \(error.localizedDescription)")
+            } else {
+                print("ReminderViewModel: Photo URL removed from reminder")
+            }
+        }
+    }
+
+    /// Upload a photo for a reminder and append its URL to the reminder's photoURLs array
+    func uploadPhoto(for reminder: Reminder, image: UIImage) {
+        guard let imageData = image.jpegData(compressionQuality: 0.7) else {
+            print("ReminderViewModel: Failed to convert image to JPEG data")
+            return
+        }
+
+        let photoId = UUID().uuidString
+        let storageRef = Storage.storage().reference()
+        let photoRef = storageRef.child("reminder_photos/\(reminder.id)/\(photoId).jpg")
+
+        let metadata = StorageMetadata()
+        metadata.contentType = "image/jpeg"
+
+        photoRef.putData(imageData, metadata: metadata) { [weak self] _, error in
+            guard let self = self else { return }
+
+            if let error = error {
+                print("ReminderViewModel: Error uploading photo: \(error.localizedDescription)")
+                return
+            }
+
+            photoRef.downloadURL { url, error in
+                if let error = error {
+                    print("ReminderViewModel: Error getting download URL: \(error.localizedDescription)")
+                    return
+                }
+
+                guard let downloadURL = url?.absoluteString else { return }
+
+                // Append the new photo URL to the existing array
+                var currentURLs = reminder.photoURLs ?? []
+                currentURLs.append(downloadURL)
+
+                self.db.collection("reminders").document(reminder.id).updateData([
+                    "photoURLs": currentURLs
+                ]) { error in
+                    if let error = error {
+                        print("ReminderViewModel: Error saving photo URL: \(error.localizedDescription)")
+                    } else {
+                        print("ReminderViewModel: Photo uploaded and URL saved successfully")
+                    }
                 }
             }
         }
