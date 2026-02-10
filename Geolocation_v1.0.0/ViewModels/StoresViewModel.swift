@@ -627,22 +627,6 @@ class StoresViewModel: ObservableObject {
         }
     }
 
-    /// Toggle notifications for a specific user store
-    func toggleNotifications(for userStoreItem: UserStoreItem) {
-        let newValue = !userStoreItem.notificationsEnabled
-        print("StoresViewModel: Toggling notifications for store '\(userStoreItem.store.name)' to \(newValue)")
-
-        db.collection("user_stores").document(userStoreItem.id).updateData([
-            "notificationsEnabled": newValue
-        ]) { error in
-            if let error = error {
-                print("StoresViewModel: Error toggling notifications: \(error.localizedDescription)")
-            } else {
-                print("StoresViewModel: Notifications toggled successfully to \(newValue)")
-            }
-        }
-    }
-
     deinit {
         // Clean up listeners when ViewModel is destroyed
         storesListener?.remove()
