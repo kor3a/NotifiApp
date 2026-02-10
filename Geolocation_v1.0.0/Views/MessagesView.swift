@@ -131,6 +131,13 @@ struct ConversationRow: View {
                         .font(.headline)
                         .lineLimit(1)
 
+                    if let otherId = conversation.otherParticipantId(currentUserId: currentUserId) {
+                        Text("@\(otherId)")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .lineLimit(1)
+                    }
+
                     Spacer()
 
                     if let timestamp = conversation.lastMessageAt {
