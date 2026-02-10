@@ -18,6 +18,8 @@ struct ReminderView: View {
     @State private var reminderToShare: Reminder?
     @State private var reminderToDelete: Reminder?
     @State private var showingSharedInfo: Reminder?
+    @State private var reminderForPhoto: Reminder?
+    @State private var selectedImage: UIImage?
     @Environment(\.colorScheme) var colorScheme
 
     var body: some View {
@@ -108,6 +110,15 @@ struct ReminderView: View {
                                             Image(systemName: "person.2.fill")
                                         }
                                         .tint(.appAccent)
+                                    }
+                                }
+                                .contextMenu {
+                                    if userStoreItem.permission != .view {
+                                        Button {
+                                            reminderForPhoto = reminder
+                                        } label: {
+                                            Label("Add Photos", systemImage: "photo.on.rectangle.angled")
+                                        }
                                     }
                                 }
                                 .onTapGesture {
@@ -237,6 +248,11 @@ struct ReminderView: View {
         }
         .sheet(item: $reminderToShare) { reminder in
             ShareReminderView(reminder: reminder, store: userStoreItem.store)
+        }
+        .sheet(item: $reminderForPhoto) { reminder in
+            ImagePicker(selectedImage: $selectedImage) { image in
+                viewModel.uploadPhoto(for: reminder, image: image)
+            }
         }
         .alert("Delete Shared Reminder", isPresented: .init(
             get: { reminderToDelete != nil },

@@ -17,22 +17,60 @@ struct ReminderItemView: View {
     }
 
     var body: some View {
-        HStack {
-            Image(systemName: item.isDone ? "checkmark.square" : "square")
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Image(systemName: item.isDone ? "checkmark.square" : "square")
 
-            Text(item.title)
-                .font(.headline)
-                .bold()
+                Text(item.title)
+                    .font(.headline)
+                    .bold()
 
-            Spacer()
+                Spacer()
 
-            // Show "Shared" badge if the reminder is shared
-            if item.isShared == true {
-                SharedBadge(
-                    sharedFrom: item.sharedFrom,
-                    sharedWith: item.sharedWith,
-                    currentUserName: currentUserName
-                )
+                // Show "Shared" badge if the reminder is shared
+                if item.isShared == true {
+                    SharedBadge(
+                        sharedFrom: item.sharedFrom,
+                        sharedWith: item.sharedWith,
+                        currentUserName: currentUserName
+                    )
+                }
+            }
+
+            // Photo thumbnails row
+            if let photoURLs = item.photoURLs, !photoURLs.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(photoURLs, id: \.self) { urlString in
+                            AsyncImage(url: URL(string: urlString)) { phase in
+                                switch phase {
+                                case .success(let image):
+                                    image
+                                        .resizable()
+                                        .scaledToFill()
+                                        .frame(width: 60, height: 60)
+                                        .clipped()
+                                        .cornerRadius(8)
+                                case .failure:
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .fill(Color.gray.opacity(0.3))
+                                        .frame(width: 60, height: 60)
+                                        .overlay(
+                                            Image(systemName: "photo")
+                                                .foregroundColor(.gray)
+                                        )
+                                case .empty:
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .fill(Color.gray.opacity(0.2))
+                                        .frame(width: 60, height: 60)
+                                        .overlay(ProgressView())
+                                @unknown default:
+                                    EmptyView()
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
     }

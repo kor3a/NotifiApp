@@ -23,6 +23,9 @@ struct Reminder: Codable, Identifiable {
     var sharedReminderId: String? // Unique ID linking all instances of the same shared reminder
     var sharedWith: [String]? // Array of user names this reminder is shared with (for sender)
 
+    // Photo attachments
+    var photoURLs: [String]? // Array of Firebase Storage download URLs for attached photos
+
     enum CodingKeys: String, CodingKey {
         case id
         case userStoreId
@@ -34,5 +37,6 @@ struct Reminder: Codable, Identifiable {
         case sharedAt
         case sharedReminderId
         case sharedWith
+        case photoURLs
     }
 }
