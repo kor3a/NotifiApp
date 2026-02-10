@@ -29,9 +29,15 @@ struct LoginView: View {
                     Spacer()
                         .frame(height: 40)
 
-                    Text("Login")
-                        .font(.largeTitle)
-                        .fontWeight(.bold)
+                    Text("Allim")
+                        .font(.system(size: 40, weight: .bold, design: .rounded))
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: [.blue, .purple],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
                         .padding(.bottom, 8)
 
                     if !viewModel.errorMessage.isEmpty {
@@ -73,8 +79,32 @@ struct LoginView: View {
                         viewModel.login()
                     }) {
                         Text("Login")
+                            .font(.headline)
+                            .foregroundStyle(
+                                LinearGradient(
+                                    colors: [.blue, .purple],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                            )
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 50)
+                            .background(
+                                RoundedRectangle(cornerRadius: 10)
+                                    .fill(.ultraThinMaterial)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 10)
+                                            .stroke(
+                                                LinearGradient(
+                                                    colors: [.blue, .purple],
+                                                    startPoint: .leading,
+                                                    endPoint: .trailing
+                                                ),
+                                                lineWidth: 1.5
+                                            )
+                                    )
+                            )
                     }
-                    .buttonStyle(PrimaryButtonStyle(color: .green))
                     .padding(.horizontal, 20)
                     .padding(.top, 8)
 
