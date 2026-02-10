@@ -67,8 +67,21 @@ struct ConversationView: View {
             inputBar
         }
         .background(Color.backgroundGradient(for: colorScheme))
-        .navigationTitle(conversation.otherParticipantName(currentUserId: currentUserId))
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                VStack(spacing: 1) {
+                    Text(conversation.otherParticipantName(currentUserId: currentUserId))
+                        .font(.headline)
+
+                    if let otherId = conversation.otherParticipantId(currentUserId: currentUserId) {
+                        Text("@\(otherId)")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+            }
+        }
         .onAppear {
             viewModel.fetchMessages(for: conversation.id)
             viewModel.markAsRead(conversationId: conversation.id)
