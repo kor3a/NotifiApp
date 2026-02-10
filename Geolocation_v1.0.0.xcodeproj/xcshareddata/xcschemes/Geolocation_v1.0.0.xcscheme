@@ -16,8 +16,8 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "8278FDF32C5DD1C80017EB72"
-               BuildableName = "NearBuy.app"
-               BlueprintName = "NearBuy"
+               BuildableName = "Allim.app"
+               BlueprintName = "Allim"
                ReferencedContainer = "container:Geolocation_v1.0.0.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
@@ -45,8 +45,8 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "8278FDF32C5DD1C80017EB72"
-            BuildableName = "NearBuy.app"
-            BlueprintName = "NearBuy"
+            BuildableName = "Allim.app"
+            BlueprintName = "Allim"
             ReferencedContainer = "container:Geolocation_v1.0.0.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
@@ -69,8 +69,8 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "8278FDF32C5DD1C80017EB72"
-            BuildableName = "NearBuy.app"
-            BlueprintName = "NearBuy"
+            BuildableName = "Allim.app"
+            BlueprintName = "Allim"
             ReferencedContainer = "container:Geolocation_v1.0.0.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
