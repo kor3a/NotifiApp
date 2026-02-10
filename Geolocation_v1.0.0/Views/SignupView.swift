@@ -32,6 +32,42 @@ struct SignupView: View {
                     )
                     .padding(.bottom, 8)
 
+                if viewModel.signupComplete {
+                    VStack(spacing: 8) {
+                        Image(systemName: "envelope.badge.shield.half.filled")
+                            .font(.system(size: 36))
+                            .foregroundStyle(
+                                LinearGradient(
+                                    colors: [.blue, .purple],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                            )
+
+                        Text("A confirmation email has been sent to \(viewModel.email.lowercased()). Please click on the link to complete the sign up.")
+                            .font(.subheadline)
+                            .multilineTextAlignment(.center)
+                            .foregroundColor(.secondary)
+                    }
+                    .padding()
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(.ultraThinMaterial)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(
+                                        LinearGradient(
+                                            colors: [.blue, .purple],
+                                            startPoint: .leading,
+                                            endPoint: .trailing
+                                        ),
+                                        lineWidth: 1
+                                    )
+                            )
+                    )
+                    .padding(.horizontal, 20)
+                }
+
                 if !viewModel.errorMessage.isEmpty {
                     Text(viewModel.errorMessage)
                         .foregroundStyle(.red)

@@ -129,6 +129,19 @@ struct LoginView: View {
                     .padding(.top, 10)
                     */
 
+                    if viewModel.showEmailNotVerified {
+                        Button(action: {
+                            viewModel.resendVerificationEmail()
+                        }) {
+                            Text(viewModel.isResendingVerification ? "Sending..." : "Resend Verification Email")
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundColor(.blue)
+                                .underline()
+                        }
+                        .disabled(viewModel.isResendingVerification)
+                        .padding(.top, 4)
+                    }
+
                     Button(action: {
                         isSignup.toggle()
                     }) {

@@ -14,7 +14,8 @@ class MainViewModel: NSObject, ObservableObject {
     private var handler: AuthStateDidChangeListenerHandle?
     
     public var isSignedIn: Bool {
-        return Auth.auth().currentUser != nil
+        guard let user = Auth.auth().currentUser else { return false }
+        return user.isEmailVerified
     }
 
      override init() {
@@ -24,8 +25,8 @@ class MainViewModel: NSObject, ObservableObject {
             DispatchQueue.main.async {
                 self?.currentUserId = user?.uid ?? ""
 
-                // Fetch user data when signed in, clear when signed out
-                if user != nil {
+                // Only fetch user data for verified users; clear session otherwise
+                if let user = user, user.isEmailVerified {
                     UserSessionManager.shared.fetchUser()
                 } else {
                     UserSessionManager.shared.clearSession()
