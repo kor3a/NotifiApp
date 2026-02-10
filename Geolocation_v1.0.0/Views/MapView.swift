@@ -281,16 +281,20 @@ struct MapView: View {
                     .frame(width: 60, height: 50)
                 }
 
-                // Map tab
+                // Friends tab
                 Button(action: {
                     withAnimation(.spring(response: 0.3)) {
                         selectedTab = 2
+                        if isSearchExpanded {
+                            isSearchExpanded = false
+                            searchQuery = ""
+                        }
                     }
                 }) {
                     VStack(spacing: 4) {
-                        Image(systemName: "map")
+                        Image(systemName: "person.2")
                             .font(.system(size: 20))
-                        Text("Search")
+                        Text("Friends")
                             .font(.system(size: 11))
                     }
                     .foregroundColor(selectedTab == 2 ? .blue : .primary)
