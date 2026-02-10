@@ -113,6 +113,15 @@ class SignupViewModel: ObservableObject {
                 } else {
                     print("SignupViewModel: User '\(normalizedUserId)' created successfully in Firestore")
                     print("SignupViewModel: Signup complete! User can now log in.")
+
+                    // Directly populate UserSessionManager with the new user data.
+                    // This fixes a race condition where the auth state change listener
+                    // triggers fetchUser() before the Firestore document exists.
+                    DispatchQueue.main.async {
+                        UserSessionManager.shared.currentUser = newUser
+                        UserSessionManager.shared.errorMessage = ""
+                        UserSessionManager.shared.isLoading = false
+                    }
                 }
             }
     }
