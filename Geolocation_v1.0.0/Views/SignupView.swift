@@ -107,8 +107,32 @@ struct SignupView: View {
                     viewModel.register()
                 }) {
                     Text("Sign Up")
+                        .font(.headline)
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: [.blue, .purple],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 50)
+                        .background(
+                            RoundedRectangle(cornerRadius: 10)
+                                .fill(.ultraThinMaterial)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 10)
+                                        .stroke(
+                                            LinearGradient(
+                                                colors: [.blue, .purple],
+                                                startPoint: .leading,
+                                                endPoint: .trailing
+                                            ),
+                                            lineWidth: 1.5
+                                        )
+                                )
+                        )
                 }
-                .buttonStyle(PrimaryButtonStyle(color: .green))
                 .padding(.horizontal, 20)
                 .padding(.top, 8)
 
