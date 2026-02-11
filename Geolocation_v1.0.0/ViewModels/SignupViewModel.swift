@@ -88,8 +88,13 @@ class SignupViewModel: ObservableObject {
                     return
                 }
 
+                guard let document = document else {
+                    completion(.failure(NSError(domain: "SignupViewModel", code: 2, userInfo: [NSLocalizedDescriptionKey: "Failed to retrieve document"])))
+                    return
+                }
+
                 // If no documents are found, username is available
-                completion(.success(!document!.exists))
+                completion(.success(!document.exists))
             }
     }
     
