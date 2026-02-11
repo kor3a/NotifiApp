@@ -103,7 +103,7 @@ final class UserStoreItemTests: XCTestCase {
             sourceUserStoreId: nil,
             sharedFromName: nil,
             sharedWith: nil,
-            notificationsEnabled: false
+            notificationsEnabled: true
         )
         XCTAssertEqual(item1.hashValue, item2.hashValue)
     }
