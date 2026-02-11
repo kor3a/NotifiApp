@@ -109,7 +109,7 @@ final class ConversationTests: XCTestCase {
             id: "conv1",
             participantIds: ["user1", "user2"],
             participantNames: [:],
-            createdAt: 100,
+            createdAt: 0,
             unreadCount: [:]
         )
         let set: Set<Conversation> = [conv1, conv2, conv3]
