@@ -136,3 +136,34 @@ extension View {
         modifier(CardStyle())
     }
 }
+
+// MARK: - Profile Picture View
+
+/// A reusable profile picture view that shows an AsyncImage from a URL
+/// or falls back to a custom view (typically a letter avatar).
+struct ProfilePictureView<Fallback: View>: View {
+    let profilePictureURL: String?
+    let size: CGFloat
+    @ViewBuilder let fallback: () -> Fallback
+
+    var body: some View {
+        if let urlString = profilePictureURL,
+           let url = URL(string: urlString) {
+            AsyncImage(url: url) { phase in
+                switch phase {
+                case .success(let image):
+                    image
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: size, height: size)
+                        .clipShape(Circle())
+                default:
+                    fallback()
+                }
+            }
+            .frame(width: size, height: size)
+        } else {
+            fallback()
+        }
+    }
+}

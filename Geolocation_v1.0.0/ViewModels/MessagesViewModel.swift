@@ -23,6 +23,10 @@ class MessagesViewModel: ObservableObject {
     @Published var hasMoreMessages = false
     @Published var isLoadingMore = false
 
+    // Profile picture cache for conversation participants
+    @Published var participantProfilePictures: [String: String] = [:]
+    private var fetchedParticipantIds: Set<String> = []
+
     private let messagingService = MessagingService.shared
     private var newMessagesListener: ListenerRegistration?
     private var currentConversationId: String?
@@ -48,6 +52,7 @@ class MessagesViewModel: ObservableObject {
                 switch result {
                 case .success(let conversations):
                     self?.conversations = conversations
+                    self?.fetchParticipantProfilePictures(from: conversations)
                 case .failure(let error):
                     self?.errorMessage = error.localizedDescription
                     print("MessagesViewModel: Error fetching conversations: \(error)")
@@ -708,5 +713,52 @@ class MessagesViewModel: ObservableObject {
 
     func clearError() {
         errorMessage = nil
+    }
+
+    // MARK: - Profile Pictures
+
+    /// Get the profile picture URL for the other participant in a conversation
+    func profilePictureURL(for conversation: Conversation) -> String? {
+        guard let userId = currentUserId,
+              let otherId = conversation.otherParticipantId(currentUserId: userId) else { return nil }
+        return participantProfilePictures[otherId]
+    }
+
+    /// Fetch profile picture URLs for conversation participants not yet cached
+    private func fetchParticipantProfilePictures(from conversations: [Conversation]) {
+        guard let userId = currentUserId else { return }
+
+        // Collect participant IDs we haven't fetched yet
+        var needed: Set<String> = []
+        for conversation in conversations {
+            if let otherId = conversation.otherParticipantId(currentUserId: userId),
+               !fetchedParticipantIds.contains(otherId) {
+                needed.insert(otherId)
+            }
+        }
+
+        guard !needed.isEmpty else { return }
+
+        // Firestore 'in' queries limited to 30 items
+        let idsArray = Array(needed.prefix(30))
+
+        Firestore.firestore().collection("users")
+            .whereField(FieldPath.documentID(), in: idsArray)
+            .getDocuments { [weak self] snapshot, error in
+                guard let documents = snapshot?.documents else { return }
+
+                DispatchQueue.main.async {
+                    for doc in documents {
+                        self?.fetchedParticipantIds.insert(doc.documentID)
+                        if let url = doc.data()["profilePictureURL"] as? String {
+                            self?.participantProfilePictures[doc.documentID] = url
+                        }
+                    }
+                    // Mark IDs that were fetched but had no profile picture
+                    for id in idsArray {
+                        self?.fetchedParticipantIds.insert(id)
+                    }
+                }
+            }
     }
 }
