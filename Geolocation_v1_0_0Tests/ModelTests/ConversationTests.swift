@@ -8,6 +8,8 @@ import XCTest
 
 final class ConversationTests: XCTestCase {
 
+    private static let fixedTimestamp: TimeInterval = 1_000_000
+
     private func makeConversation(
         participantIds: [String] = ["user1", "user2"],
         participantNames: [String: String] = ["user1": "Alice", "user2": "Bob"],
@@ -17,9 +19,9 @@ final class ConversationTests: XCTestCase {
             id: "conv1",
             participantIds: participantIds,
             participantNames: participantNames,
-            createdAt: Date().timeIntervalSince1970,
+            createdAt: Self.fixedTimestamp,
             lastMessageContent: "Hello",
-            lastMessageAt: Date().timeIntervalSince1970,
+            lastMessageAt: Self.fixedTimestamp,
             lastMessageSenderId: "user1",
             unreadCount: unreadCount
         )
@@ -47,7 +49,7 @@ final class ConversationTests: XCTestCase {
             id: "conv1",
             participantIds: ["user1"],
             participantNames: ["user1": "Alice"],
-            createdAt: Date().timeIntervalSince1970,
+            createdAt: Self.fixedTimestamp,
             unreadCount: [:]
         )
         XCTAssertEqual(conversation.otherParticipantName(currentUserId: "user1"), "Unknown")
