@@ -97,8 +97,11 @@ final class NotificationLogEntryTests: XCTestCase {
         let formatter = ISO8601DateFormatter()
         json["timestamp"] = formatter.string(from: pastDate)
 
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+
         guard let modifiedData = try? JSONSerialization.data(withJSONObject: json),
-              let modifiedEntry = try? JSONDecoder().decode(NotificationLogEntry.self, from: modifiedData) else {
+              let modifiedEntry = try? decoder.decode(NotificationLogEntry.self, from: modifiedData) else {
             // Fallback: try direct date manipulation through Codable
             return entry
         }
