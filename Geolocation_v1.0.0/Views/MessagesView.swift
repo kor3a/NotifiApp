@@ -76,7 +76,8 @@ struct MessagesView: View {
                 )) {
                     ConversationRow(
                         conversation: conversation,
-                        currentUserId: sessionManager.currentUser?.userId ?? ""
+                        currentUserId: sessionManager.currentUser?.userId ?? "",
+                        profilePictureURL: viewModel.profilePictureURL(for: conversation)
                     )
                 }
                 .listRowBackground(
@@ -112,18 +113,21 @@ struct MessagesView: View {
 struct ConversationRow: View {
     let conversation: Conversation
     let currentUserId: String
+    let profilePictureURL: String?
 
     var body: some View {
         HStack(spacing: 12) {
             // Avatar
-            Circle()
-                .fill(Color.appAccent.opacity(0.2))
-                .frame(width: 50, height: 50)
-                .overlay(
-                    Text(avatarInitial)
-                        .font(.headline)
-                        .foregroundColor(.appAccent)
-                )
+            ProfilePictureView(profilePictureURL: profilePictureURL, size: 50) {
+                Circle()
+                    .fill(Color.appAccent.opacity(0.2))
+                    .frame(width: 50, height: 50)
+                    .overlay(
+                        Text(avatarInitial)
+                            .font(.headline)
+                            .foregroundColor(.appAccent)
+                    )
+            }
 
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
@@ -287,14 +291,16 @@ struct ContactRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            Circle()
-                .fill(Color.appAccent.opacity(0.2))
-                .frame(width: 40, height: 40)
-                .overlay(
-                    Text(String(contact.name.prefix(1)).uppercased())
-                        .font(.subheadline)
-                        .foregroundColor(.appAccent)
-                )
+            ProfilePictureView(profilePictureURL: contact.profilePictureURL, size: 40) {
+                Circle()
+                    .fill(Color.appAccent.opacity(0.2))
+                    .frame(width: 40, height: 40)
+                    .overlay(
+                        Text(String(contact.name.prefix(1)).uppercased())
+                            .font(.subheadline)
+                            .foregroundColor(.appAccent)
+                    )
+            }
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(contact.name)

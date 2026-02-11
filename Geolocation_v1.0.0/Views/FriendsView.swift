@@ -314,24 +314,30 @@ struct FriendCard: View {
         return colors[index]
     }
 
+    private var friendProfilePictureURL: String? {
+        friendship.friendProfilePictureURL(currentUserId: currentUserId)
+    }
+
     var body: some View {
         VStack(spacing: 12) {
             // Avatar
-            Circle()
-                .fill(
-                    LinearGradient(
-                        colors: [avatarColor.opacity(0.7), avatarColor],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
+            ProfilePictureView(profilePictureURL: friendProfilePictureURL, size: 64) {
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            colors: [avatarColor.opacity(0.7), avatarColor],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
                     )
-                )
-                .frame(width: 64, height: 64)
-                .overlay(
-                    Text(avatarInitial)
-                        .font(.title2.bold())
-                        .foregroundColor(.white)
-                )
-                .shadow(color: avatarColor.opacity(0.3), radius: 6, x: 0, y: 3)
+                    .frame(width: 64, height: 64)
+                    .overlay(
+                        Text(avatarInitial)
+                            .font(.title2.bold())
+                            .foregroundColor(.white)
+                    )
+            }
+            .shadow(color: avatarColor.opacity(0.3), radius: 6, x: 0, y: 3)
 
             // Name & UserId
             VStack(spacing: 2) {
@@ -397,20 +403,22 @@ struct PendingRequestCard: View {
     var body: some View {
         VStack(spacing: 12) {
             // Avatar
-            Circle()
-                .fill(
-                    LinearGradient(
-                        colors: [Color.appWarning.opacity(0.6), Color.appWarning],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
+            ProfilePictureView(profilePictureURL: friendship.requesterProfilePictureURL, size: 52) {
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            colors: [Color.appWarning.opacity(0.6), Color.appWarning],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
                     )
-                )
-                .frame(width: 52, height: 52)
-                .overlay(
-                    Text(String(friendship.requesterName.prefix(1)).uppercased())
-                        .font(.title3.bold())
-                        .foregroundColor(.white)
-                )
+                    .frame(width: 52, height: 52)
+                    .overlay(
+                        Text(String(friendship.requesterName.prefix(1)).uppercased())
+                            .font(.title3.bold())
+                            .foregroundColor(.white)
+                    )
+            }
 
             VStack(spacing: 2) {
                 Text(friendship.requesterName)
@@ -473,14 +481,16 @@ struct SentRequestChip: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            Circle()
-                .fill(Color.secondary.opacity(0.2))
-                .frame(width: 32, height: 32)
-                .overlay(
-                    Text(String(friendship.receiverName.prefix(1)).uppercased())
-                        .font(.caption.bold())
-                        .foregroundColor(.secondary)
-                )
+            ProfilePictureView(profilePictureURL: friendship.receiverProfilePictureURL, size: 32) {
+                Circle()
+                    .fill(Color.secondary.opacity(0.2))
+                    .frame(width: 32, height: 32)
+                    .overlay(
+                        Text(String(friendship.receiverName.prefix(1)).uppercased())
+                            .font(.caption.bold())
+                            .foregroundColor(.secondary)
+                    )
+            }
 
             VStack(alignment: .leading, spacing: 1) {
                 Text(friendship.receiverName)
@@ -617,14 +627,16 @@ struct SearchResultRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            Circle()
-                .fill(Color.appAccent.opacity(0.2))
-                .frame(width: 50, height: 50)
-                .overlay(
-                    Text(String(contact.name.prefix(1)).uppercased())
-                        .font(.headline)
-                        .foregroundColor(.appAccent)
-                )
+            ProfilePictureView(profilePictureURL: contact.profilePictureURL, size: 50) {
+                Circle()
+                    .fill(Color.appAccent.opacity(0.2))
+                    .frame(width: 50, height: 50)
+                    .overlay(
+                        Text(String(contact.name.prefix(1)).uppercased())
+                            .font(.headline)
+                            .foregroundColor(.appAccent)
+                    )
+            }
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(contact.name)
