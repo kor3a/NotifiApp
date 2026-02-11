@@ -4,7 +4,7 @@
 //
 
 import XCTest
-@testable import Geolocation_v1_0_0
+@testable import Allim
 
 final class LoginViewModelTests: XCTestCase {
 
