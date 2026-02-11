@@ -385,9 +385,12 @@ class StoresViewModel: ObservableObject {
         print("StoresViewModel: Deleting single user_store: \(userStoreItem.id)")
 
         // Delete the user_store document
-        db.collection("user_stores").document(userStoreItem.id).delete { error in
+        db.collection("user_stores").document(userStoreItem.id).delete { [weak self] error in
             if let error = error {
                 print("StoresViewModel: Error removing store: \(error.localizedDescription)")
+                DispatchQueue.main.async {
+                    self?.errorMessage = "Failed to delete store: \(error.localizedDescription)"
+                }
             } else {
                 print("StoresViewModel: Store removed successfully")
             }
@@ -396,9 +399,12 @@ class StoresViewModel: ObservableObject {
         // Delete all reminders for this user_store
         db.collection("reminders")
             .whereField("userStoreId", isEqualTo: userStoreItem.id)
-            .getDocuments { snapshot, error in
+            .getDocuments { [weak self] snapshot, error in
                 if let error = error {
                     print("StoresViewModel: Error fetching reminders: \(error.localizedDescription)")
+                    DispatchQueue.main.async {
+                        self?.errorMessage = "Failed to clean up reminders: \(error.localizedDescription)"
+                    }
                     return
                 }
 
@@ -406,14 +412,17 @@ class StoresViewModel: ObservableObject {
                     return
                 }
 
-                let batch = self.db.batch()
+                let batch = self?.db.batch()
                 for doc in documents {
-                    batch.deleteDocument(doc.reference)
+                    batch?.deleteDocument(doc.reference)
                 }
 
-                batch.commit { error in
+                batch?.commit { error in
                     if let error = error {
                         print("StoresViewModel: Error deleting reminders: \(error.localizedDescription)")
+                        DispatchQueue.main.async {
+                            self?.errorMessage = "Failed to delete reminders: \(error.localizedDescription)"
+                        }
                     } else {
                         print("StoresViewModel: Deleted \(documents.count) reminders")
                     }
@@ -431,6 +440,9 @@ class StoresViewModel: ObservableObject {
         db.collection("user_stores").document(userStoreItem.id).delete { [weak self] error in
             if let error = error {
                 print("StoresViewModel: Error removing shared store: \(error.localizedDescription)")
+                DispatchQueue.main.async {
+                    self?.errorMessage = "Failed to delete shared store: \(error.localizedDescription)"
+                }
             } else {
                 print("StoresViewModel: Shared store removed successfully (recipient left)")
 
@@ -459,6 +471,9 @@ class StoresViewModel: ObservableObject {
 
                 if let error = error {
                     print("StoresViewModel: Error fetching reminders to update: \(error.localizedDescription)")
+                    DispatchQueue.main.async {
+                        self.errorMessage = "Failed to update shared reminders: \(error.localizedDescription)"
+                    }
                     return
                 }
 
@@ -516,9 +531,12 @@ class StoresViewModel: ObservableObject {
                 }
 
                 if updatedCount > 0 {
-                    batch.commit { error in
+                    batch.commit { [weak self] error in
                         if let error = error {
                             print("StoresViewModel: Error updating reminders: \(error.localizedDescription)")
+                            DispatchQueue.main.async {
+                                self?.errorMessage = "Failed to update shared reminders: \(error.localizedDescription)"
+                            }
                         } else {
                             print("StoresViewModel: Updated \(updatedCount) reminders after recipient left")
                         }
@@ -538,6 +556,9 @@ class StoresViewModel: ObservableObject {
 
             if let error = error {
                 print("StoresViewModel: Error deleting shared group: \(error.localizedDescription)")
+                DispatchQueue.main.async {
+                    self.errorMessage = "Failed to delete shared store group: \(error.localizedDescription)"
+                }
                 return
             }
 
@@ -546,9 +567,12 @@ class StoresViewModel: ObservableObject {
             // Step 2: Find all user_stores in this shared group
             self.db.collection("user_stores")
                 .whereField("sharedStoreGroupId", isEqualTo: sharedGroupId)
-                .getDocuments { snapshot, error in
+                .getDocuments { [weak self] snapshot, error in
                     if let error = error {
                         print("StoresViewModel: Error fetching shared user_stores: \(error.localizedDescription)")
+                        DispatchQueue.main.async {
+                            self?.errorMessage = "Failed to delete shared stores: \(error.localizedDescription)"
+                        }
                         return
                     }
 
@@ -557,17 +581,20 @@ class StoresViewModel: ObservableObject {
                     }
 
                     // Step 3: Delete all reminders associated with the shared group
-                    self.db.collection("reminders")
+                    self?.db.collection("reminders")
                         .whereField("userStoreId", isEqualTo: sharedGroupId)
-                        .getDocuments { reminderSnapshot, reminderError in
+                        .getDocuments { [weak self] reminderSnapshot, reminderError in
                             if let reminderError = reminderError {
                                 print("StoresViewModel: Error fetching reminders: \(reminderError.localizedDescription)")
+                                DispatchQueue.main.async {
+                                    self?.errorMessage = "Failed to clean up shared reminders: \(reminderError.localizedDescription)"
+                                }
                                 return
                             }
 
                             // Step 4: Use batch to delete user_stores and reminders
                             // Now allowed because shared group no longer exists
-                            let batch = self.db.batch()
+                            guard let batch = self?.db.batch() else { return }
 
                             // Delete all user_stores
                             for doc in userStoreDocuments {
@@ -585,6 +612,9 @@ class StoresViewModel: ObservableObject {
                             batch.commit { error in
                                 if let error = error {
                                     print("StoresViewModel: Error deleting user_stores and reminders: \(error.localizedDescription)")
+                                    DispatchQueue.main.async {
+                                        self?.errorMessage = "Failed to delete shared stores and reminders: \(error.localizedDescription)"
+                                    }
                                 } else {
                                     print("StoresViewModel: Successfully deleted \(userStoreDocuments.count) user_stores and \(reminderSnapshot?.documents.count ?? 0) reminders")
                                 }

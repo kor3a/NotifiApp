@@ -251,10 +251,11 @@ class ReminderViewModel: ObservableObject {
                         batch.deleteDocument(doc.reference)
                     }
 
-                    batch.commit { error in
+                    batch.commit { [weak self] error in
                         DispatchQueue.main.async {
                             if let error = error {
                                 print("ReminderViewModel: Error syncing deletion: \(error.localizedDescription)")
+                                self?.errorMessage = "Failed to delete shared reminders: \(error.localizedDescription)"
                             } else {
                                 print("ReminderViewModel: Synced deletion across \(documents.count) linked reminders")
                             }
@@ -268,10 +269,11 @@ class ReminderViewModel: ObservableObject {
     }
 
     private func deleteSingleReminder(_ reminderId: String) {
-        db.collection("reminders").document(reminderId).delete { error in
+        db.collection("reminders").document(reminderId).delete { [weak self] error in
             DispatchQueue.main.async {
                 if let error = error {
                     print("ReminderViewModel: Error deleting reminder: \(error.localizedDescription)")
+                    self?.errorMessage = "Failed to delete reminder: \(error.localizedDescription)"
                 } else {
                     print("ReminderViewModel: Reminder deleted successfully")
                 }
@@ -283,9 +285,12 @@ class ReminderViewModel: ObservableObject {
     func deletePhoto(for reminder: Reminder, photoURL: String) {
         // Remove from Firebase Storage
         let storageRef = Storage.storage().reference(forURL: photoURL)
-        storageRef.delete { error in
+        storageRef.delete { [weak self] error in
             if let error = error {
                 print("ReminderViewModel: Error deleting photo from storage: \(error.localizedDescription)")
+                DispatchQueue.main.async {
+                    self?.errorMessage = "Failed to delete photo: \(error.localizedDescription)"
+                }
             } else {
                 print("ReminderViewModel: Photo deleted from storage")
             }
@@ -297,9 +302,12 @@ class ReminderViewModel: ObservableObject {
 
         db.collection("reminders").document(reminder.id).updateData([
             "photoURLs": currentURLs
-        ]) { error in
+        ]) { [weak self] error in
             if let error = error {
                 print("ReminderViewModel: Error updating photoURLs: \(error.localizedDescription)")
+                DispatchQueue.main.async {
+                    self?.errorMessage = "Failed to remove photo from reminder: \(error.localizedDescription)"
+                }
             } else {
                 print("ReminderViewModel: Photo URL removed from reminder")
             }
@@ -310,6 +318,9 @@ class ReminderViewModel: ObservableObject {
     func uploadPhoto(for reminder: Reminder, image: UIImage) {
         guard let imageData = image.jpegData(compressionQuality: 0.7) else {
             print("ReminderViewModel: Failed to convert image to JPEG data")
+            DispatchQueue.main.async {
+                self.errorMessage = "Failed to process image for upload"
+            }
             return
         }
 
@@ -325,12 +336,18 @@ class ReminderViewModel: ObservableObject {
 
             if let error = error {
                 print("ReminderViewModel: Error uploading photo: \(error.localizedDescription)")
+                DispatchQueue.main.async {
+                    self.errorMessage = "Failed to upload photo: \(error.localizedDescription)"
+                }
                 return
             }
 
-            photoRef.downloadURL { url, error in
+            photoRef.downloadURL { [weak self] url, error in
                 if let error = error {
                     print("ReminderViewModel: Error getting download URL: \(error.localizedDescription)")
+                    DispatchQueue.main.async {
+                        self?.errorMessage = "Failed to upload photo: \(error.localizedDescription)"
+                    }
                     return
                 }
 
@@ -340,11 +357,14 @@ class ReminderViewModel: ObservableObject {
                 var currentURLs = reminder.photoURLs ?? []
                 currentURLs.append(downloadURL)
 
-                self.db.collection("reminders").document(reminder.id).updateData([
+                self?.db.collection("reminders").document(reminder.id).updateData([
                     "photoURLs": currentURLs
                 ]) { error in
                     if let error = error {
                         print("ReminderViewModel: Error saving photo URL: \(error.localizedDescription)")
+                        DispatchQueue.main.async {
+                            self?.errorMessage = "Failed to save photo: \(error.localizedDescription)"
+                        }
                     } else {
                         print("ReminderViewModel: Photo uploaded and URL saved successfully")
                     }
