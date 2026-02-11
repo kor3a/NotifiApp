@@ -167,7 +167,7 @@ class SignupViewModel: ObservableObject {
         }
     }
     
-    private func validate () -> Bool {
+    func validate () -> Bool {
         errorMessage = ""
         
         guard !email.trimmingCharacters(in: .whitespaces).isEmpty,

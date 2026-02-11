@@ -62,6 +62,16 @@
 		DF66A9982E24C86100C15DA9 /* User_Store.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF66A9972E24C86100C15DA9 /* User_Store.swift */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXContainerItemProxy section */
+		0176B30C2F3CE658003B9C75 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 8278FDEC2C5DD1C80017EB72 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 8278FDF32C5DD1C80017EB72;
+			remoteInfo = Allim;
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXFileReference section */
 		010B28082EB6C2E9004E828B /* AddStoreView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddStoreView.swift; sourceTree = "<group>"; };
 		011CF5FD2ED638D6009A31A6 /* ForgotPasswordView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForgotPasswordView.swift; sourceTree = "<group>"; };
@@ -72,6 +82,7 @@
 		011CF60C2ED63A69009A31A6 /* NotifiApp.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = NotifiApp.icon; sourceTree = "<group>"; };
 		0138242C2EDCD05F0069F38C /* NotificationLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationLog.swift; sourceTree = "<group>"; };
 		0138242E2EDCD08C0069F38C /* NotificationLogView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationLogView.swift; sourceTree = "<group>"; };
+		0176B3082F3CE658003B9C75 /* Geolocation_v1_0_0Tests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = Geolocation_v1_0_0Tests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		01897B5A2EBA4AB00038A4D1 /* StoresViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoresViewModel.swift; sourceTree = "<group>"; };
 		018D77DF2ED7C43C00E767D6 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		01B408212F3BEC7F00EA1F25 /* Secrets.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Secrets.xcconfig; sourceTree = "<group>"; };
@@ -121,11 +132,19 @@
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		011CF6042ED638ED009A31A6 /* Theme */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Theme; sourceTree = "<group>"; };
+		0176B3092F3CE658003B9C75 /* Geolocation_v1_0_0Tests */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Geolocation_v1_0_0Tests; sourceTree = "<group>"; };
 		01B408202F3BEBF400EA1F25 /* Geolocation_v1.0.0 */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Geolocation_v1.0.0; sourceTree = "<group>"; };
 		01FB27582EC2A7490038E406 /* Services */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Services; sourceTree = "<group>"; };
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		0176B3052F3CE658003B9C75 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		8278FDF12C5DD1C80017EB72 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -143,6 +162,7 @@
 			isa = PBXGroup;
 			children = (
 				8278FDF62C5DD1C90017EB72 /* Geolocation_v1.0.0 */,
+				0176B3092F3CE658003B9C75 /* Geolocation_v1_0_0Tests */,
 				8278FDF52C5DD1C90017EB72 /* Products */,
 				01B408202F3BEBF400EA1F25 /* Geolocation_v1.0.0 */,
 				01B408212F3BEC7F00EA1F25 /* Secrets.xcconfig */,
@@ -153,6 +173,7 @@
 			isa = PBXGroup;
 			children = (
 				8278FDF42C5DD1C90017EB72 /* Allim.app */,
+				0176B3082F3CE658003B9C75 /* Geolocation_v1_0_0Tests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -269,6 +290,29 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		0176B3072F3CE658003B9C75 /* Geolocation_v1_0_0Tests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 0176B3102F3CE658003B9C75 /* Build configuration list for PBXNativeTarget "Geolocation_v1_0_0Tests" */;
+			buildPhases = (
+				0176B3042F3CE658003B9C75 /* Sources */,
+				0176B3052F3CE658003B9C75 /* Frameworks */,
+				0176B3062F3CE658003B9C75 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				0176B30D2F3CE658003B9C75 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				0176B3092F3CE658003B9C75 /* Geolocation_v1_0_0Tests */,
+			);
+			name = Geolocation_v1_0_0Tests;
+			packageProductDependencies = (
+			);
+			productName = Geolocation_v1_0_0Tests;
+			productReference = 0176B3082F3CE658003B9C75 /* Geolocation_v1_0_0Tests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 		8278FDF32C5DD1C80017EB72 /* Allim */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 8278FE022C5DD1CB0017EB72 /* Build configuration list for PBXNativeTarget "Allim" */;
@@ -302,9 +346,13 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
-				LastSwiftUpdateCheck = 1540;
+				LastSwiftUpdateCheck = 2620;
 				LastUpgradeCheck = 1540;
 				TargetAttributes = {
+					0176B3072F3CE658003B9C75 = {
+						CreatedOnToolsVersion = 26.2;
+						TestTargetID = 8278FDF32C5DD1C80017EB72;
+					};
 					8278FDF32C5DD1C80017EB72 = {
 						CreatedOnToolsVersion = 15.4;
 					};
@@ -327,11 +375,19 @@
 			projectRoot = "";
 			targets = (
 				8278FDF32C5DD1C80017EB72 /* Allim */,
+				0176B3072F3CE658003B9C75 /* Geolocation_v1_0_0Tests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		0176B3062F3CE658003B9C75 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		8278FDF22C5DD1C80017EB72 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -347,6 +403,13 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		0176B3042F3CE658003B9C75 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		8278FDF02C5DD1C80017EB72 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -401,7 +464,59 @@
 		};
 /* End PBXSourcesBuildPhase section */
 
+/* Begin PBXTargetDependency section */
+		0176B30D2F3CE658003B9C75 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 8278FDF32C5DD1C80017EB72 /* Allim */;
+			targetProxy = 0176B30C2F3CE658003B9C75 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
 /* Begin XCBuildConfiguration section */
+		0176B30E2F3CE658003B9C75 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = XT28W79782;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "allim.kor3aDev.Geolocation-v1-0-0Tests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Allim.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Allim";
+			};
+			name = Debug;
+		};
+		0176B30F2F3CE658003B9C75 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = XT28W79782;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "allim.kor3aDev.Geolocation-v1-0-0Tests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Allim.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Allim";
+			};
+			name = Release;
+		};
 		8278FE002C5DD1CB0017EB72 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -580,6 +695,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		0176B3102F3CE658003B9C75 /* Build configuration list for PBXNativeTarget "Geolocation_v1_0_0Tests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				0176B30E2F3CE658003B9C75 /* Debug */,
+				0176B30F2F3CE658003B9C75 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		8278FDEF2C5DD1C80017EB72 /* Build configuration list for PBXProject "Geolocation_v1.0.0" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
