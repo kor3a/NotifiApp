@@ -89,7 +89,9 @@ struct NotificationDebugView: View {
 
                     Button(action: {
                         notificationManager.removeAllPendingNotifications()
+                        #if DEBUG
                         print("🗑️ Cleared all pending notifications")
+                        #endif
                     }) {
                         HStack {
                             Image(systemName: "trash")
@@ -186,7 +188,9 @@ struct NotificationDebugView: View {
     // MARK: - Test Methods
 
     private func testPassive() {
+        #if DEBUG
         print("\n🧪 Testing PASSIVE notification")
+        #endif
         notificationManager.scheduleStoreProximityNotification(
             storeName: testStoreName,
             reminderCount: testReminderCount,
@@ -195,7 +199,9 @@ struct NotificationDebugView: View {
     }
 
     private func testTimeSensitive() {
+        #if DEBUG
         print("\n🧪 Testing TIME SENSITIVE notification")
+        #endif
         notificationManager.scheduleStoreProximityNotification(
             storeName: testStoreName,
             reminderCount: testReminderCount,
@@ -204,7 +210,9 @@ struct NotificationDebugView: View {
     }
 
     private func testCritical() {
+        #if DEBUG
         print("\n🧪 Testing CRITICAL notification")
+        #endif
         notificationManager.scheduleStoreProximityNotification(
             storeName: testStoreName,
             reminderCount: testReminderCount,

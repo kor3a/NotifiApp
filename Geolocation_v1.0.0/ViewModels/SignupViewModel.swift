@@ -74,7 +74,9 @@ class SignupViewModel: ObservableObject {
     /// Check if username is available
     private func checkUsernameAvailability(for userId: String, completion: @escaping (Result<Bool, Error>) -> Void) {
         guard !userId.isEmpty else {
+            #if DEBUG
             print("Username is empty after normalization")
+            #endif
             completion(.failure(NSError(domain: "SignupViewModel", code: 1, userInfo: [NSLocalizedDescriptionKey: "Username is empty"])))
             return
         }
@@ -83,7 +85,9 @@ class SignupViewModel: ObservableObject {
             .document(userId)
             .getDocument { (document, error) in
                 if let error = error {
+                    #if DEBUG
                     print("Error checking username: \(error.localizedDescription)")
+                    #endif
                     completion(.failure(error))
                     return
                 }
@@ -103,21 +107,27 @@ class SignupViewModel: ObservableObject {
         let newUser = User(userId: normalizedUserId, name: name, email: normalizedEmail, joined: Date().timeIntervalSince1970)
         let userData = newUser.asDict()
 
+        #if DEBUG
         print("SignupViewModel: Creating user document with ID: \(normalizedUserId)")
         print("SignupViewModel: User data to save: \(userData)")
+        #endif
 
         db.collection("users")
             .document(normalizedUserId)
             .setData(userData) { error in
                 if let error = error {
+                    #if DEBUG
                     print("SignupViewModel: Error saving user: \(error.localizedDescription)")
+                    #endif
                     self.errorMessage = "Error saving user: \(error.localizedDescription)"
                     // If we fail to create the Firestore document, we should delete the auth user
                     if let currentUser = Auth.auth().currentUser {
                         self.deleteAuthUser(user: currentUser)
                     }
                 } else {
+                    #if DEBUG
                     print("SignupViewModel: User '\(normalizedUserId)' created successfully in Firestore")
+                    #endif
 
                     // Send verification email before signing out
                     self.sendVerificationEmail()
@@ -136,18 +146,26 @@ class SignupViewModel: ObservableObject {
             guard let self = self else { return }
 
             if let error = error {
+                #if DEBUG
                 print("SignupViewModel: Error sending verification email: \(error.localizedDescription)")
+                #endif
                 // Still proceed - the account was created, they can resend from login
             } else {
+                #if DEBUG
                 print("SignupViewModel: Verification email sent successfully")
+                #endif
             }
 
             // Sign the user out so they can't use the app until email is verified
             do {
                 try Auth.auth().signOut()
+                #if DEBUG
                 print("SignupViewModel: User signed out after signup, awaiting email verification")
+                #endif
             } catch {
+                #if DEBUG
                 print("SignupViewModel: Error signing out after signup: \(error.localizedDescription)")
+                #endif
             }
 
             DispatchQueue.main.async {
@@ -160,9 +178,13 @@ class SignupViewModel: ObservableObject {
     private func deleteAuthUser(user: FirebaseAuth.User) {
         user.delete { error in
             if let error = error {
+                #if DEBUG
                 print("Error deleting auth user: \(error.localizedDescription)")
+                #endif
             } else {
+                #if DEBUG
                 print("Auth user deleted successfully after failed signup")
+                #endif
             }
         }
     }

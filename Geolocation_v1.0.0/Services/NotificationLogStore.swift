@@ -34,29 +34,39 @@ class NotificationLogStore: ObservableObject {
         }
 
         saveEntries()
+        #if DEBUG
         print("📝 NotificationLogStore: Added entry for \(storeName) with \(reminderCount) reminder(s)")
+        #endif
     }
 
     func clearAll() {
         entries.removeAll()
         saveEntries()
+        #if DEBUG
         print("🗑️ NotificationLogStore: Cleared all entries")
+        #endif
     }
 
     // MARK: - Private Methods
 
     private func loadEntries() {
         guard let data = UserDefaults.standard.data(forKey: userDefaultsKey) else {
+            #if DEBUG
             print("📖 NotificationLogStore: No saved entries found")
+            #endif
             return
         }
 
         do {
             let decoder = JSONDecoder()
             entries = try decoder.decode([NotificationLogEntry].self, from: data)
+            #if DEBUG
             print("📖 NotificationLogStore: Loaded \(entries.count) entries")
+            #endif
         } catch {
+            #if DEBUG
             print("❌ NotificationLogStore: Failed to decode entries: \(error)")
+            #endif
         }
     }
 
@@ -65,9 +75,13 @@ class NotificationLogStore: ObservableObject {
             let encoder = JSONEncoder()
             let data = try encoder.encode(entries)
             UserDefaults.standard.set(data, forKey: userDefaultsKey)
+            #if DEBUG
             print("💾 NotificationLogStore: Saved \(entries.count) entries")
+            #endif
         } catch {
+            #if DEBUG
             print("❌ NotificationLogStore: Failed to encode entries: \(error)")
+            #endif
         }
     }
 }

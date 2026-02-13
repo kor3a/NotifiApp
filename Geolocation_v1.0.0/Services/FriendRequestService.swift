@@ -182,7 +182,9 @@ class FriendRequestService: ObservableObject {
                 toUserProfilePictureURL: toUserProfilePictureURL
             )
 
+            #if DEBUG
             print("FriendRequestService: Created friend request from \(fromUser.name) to \(toUserName)")
+            #endif
             completion(.success(request))
         }
     }
@@ -197,7 +199,9 @@ class FriendRequestService: ObservableObject {
             if let error = error {
                 completion(.failure(error))
             } else {
+                #if DEBUG
                 print("FriendRequestService: Accepted friend request \(requestId)")
+                #endif
                 completion(.success(()))
             }
         }
@@ -211,7 +215,9 @@ class FriendRequestService: ObservableObject {
             if let error = error {
                 completion(.failure(error))
             } else {
+                #if DEBUG
                 print("FriendRequestService: Rejected friend request \(requestId)")
+                #endif
                 completion(.success(()))
             }
         }
@@ -272,12 +278,16 @@ class FriendRequestService: ObservableObject {
             // Delete the friend request document
             self.db.collection("friend_requests").document(docId).delete { error in
                 if let error = error {
+                    #if DEBUG
                     print("FriendRequestService: Error removing friend: \(error)")
+                    #endif
                     completion(.failure(error))
                 } else {
                     // Also remove from knownRequestIds so if they send a new request, we get notified
                     self.knownRequestIds.remove(docId)
+                    #if DEBUG
                     print("FriendRequestService: Successfully removed friend (deleted request \(docId))")
+                    #endif
                     completion(.success(()))
                 }
             }
@@ -288,12 +298,16 @@ class FriendRequestService: ObservableObject {
     func removeFriendRequest(requestId: String, completion: @escaping (Result<Void, Error>) -> Void) {
         db.collection("friend_requests").document(requestId).delete { [weak self] error in
             if let error = error {
+                #if DEBUG
                 print("FriendRequestService: Error removing friend request: \(error)")
+                #endif
                 completion(.failure(error))
             } else {
                 // Also remove from knownRequestIds
                 self?.knownRequestIds.remove(requestId)
+                #if DEBUG
                 print("FriendRequestService: Successfully removed friend request \(requestId)")
+                #endif
                 completion(.success(()))
             }
         }
@@ -307,7 +321,9 @@ class FriendRequestService: ObservableObject {
         // Remove existing listener
         incomingListener?.remove()
 
+        #if DEBUG
         print("FriendRequestService: Setting up listener for incoming friend requests (friends collection) for userId: \(userId)")
+        #endif
 
         // Listen to 'friends' collection for pending requests where user is the receiver
         incomingListener = db.collection("friends")
@@ -317,7 +333,9 @@ class FriendRequestService: ObservableObject {
                 guard let self = self else { return }
 
                 if let error = error {
+                    #if DEBUG
                     print("FriendRequestService: Error listening for incoming requests: \(error)")
+                    #endif
                     return
                 }
 
@@ -326,11 +344,15 @@ class FriendRequestService: ObservableObject {
                         self.incomingRequests = []
                         self.pendingRequestCount = 0
                     }
+                    #if DEBUG
                     print("FriendRequestService: No pending friend requests found")
+                    #endif
                     return
                 }
 
+                #if DEBUG
                 print("FriendRequestService: Received \(documents.count) pending friend request documents")
+                #endif
 
                 // Check for new requests to trigger notifications
                 for doc in documents {
@@ -342,7 +364,9 @@ class FriendRequestService: ObservableObject {
                         let data = doc.data()
                         let fromUserName = data["requesterName"] as? String ?? "Someone"
 
+                        #if DEBUG
                         print("FriendRequestService: NEW friend request detected from \(fromUserName), scheduling notification...")
+                        #endif
                         NotificationManager.shared.scheduleFriendRequestNotification(
                             fromUserName: fromUserName
                         )
@@ -382,7 +406,9 @@ class FriendRequestService: ObservableObject {
                     self.pendingRequestCount = requests.count
                 }
 
+                #if DEBUG
                 print("FriendRequestService: Found \(requests.count) pending incoming friend requests")
+                #endif
             }
     }
 
@@ -391,7 +417,9 @@ class FriendRequestService: ObservableObject {
         // Remove existing listener
         outgoingListener?.remove()
 
+        #if DEBUG
         print("FriendRequestService: Setting up listener for outgoing requests for userId: \(userId)")
+        #endif
 
         outgoingListener = db.collection("friend_requests")
             .whereField("fromUserId", isEqualTo: userId)
@@ -400,7 +428,9 @@ class FriendRequestService: ObservableObject {
                 guard let self = self else { return }
 
                 if let error = error {
+                    #if DEBUG
                     print("FriendRequestService: Error listening for outgoing requests: \(error)")
+                    #endif
                     return
                 }
 
@@ -415,7 +445,9 @@ class FriendRequestService: ObservableObject {
                     self.outgoingRequests = requests
                 }
 
+                #if DEBUG
                 print("FriendRequestService: Found \(requests.count) outgoing requests")
+                #endif
             }
     }
 

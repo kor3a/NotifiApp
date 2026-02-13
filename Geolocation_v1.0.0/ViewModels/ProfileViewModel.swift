@@ -42,7 +42,9 @@ class ProfileViewModel: ObservableObject {
                 try Auth.auth().signOut()
                 // MainViewModel's auth listener will handle clearing the session
             } catch {
+                #if DEBUG
                 print("Could not sign out: \(error.localizedDescription)")
+                #endif
             }
         }
     }
@@ -56,29 +58,37 @@ class ProfileViewModel: ObservableObject {
             return
         }
 
+        #if DEBUG
         print("=== IMAGE PROCESSING ===")
         print("Image size: \(image.size)")
         print("Image scale: \(image.scale)")
+        #endif
 
         guard let imageData = image.jpegData(compressionQuality: 0.8) else {
+            #if DEBUG
             print("Failed to convert image to JPEG data")
+            #endif
             DispatchQueue.main.async {
                 self.errorMessage = "Failed to process image"
             }
             return
         }
 
+        #if DEBUG
         print("JPEG data size: \(imageData.count) bytes")
         print("User ID: \(userId)")
+        #endif
 
         // Create Storage reference (uses bucket from GoogleService-Info.plist)
         let storageRef = Storage.storage().reference()
         let profilePicRef = storageRef.child("profile_pictures/\(userId).jpg")
 
+        #if DEBUG
         print("=== STORAGE CONFIGURATION ===")
         print("Storage bucket: \(profilePicRef.bucket)")
         print("Storage path: \(profilePicRef.fullPath)")
         print("================================")
+        #endif
 
         // Create metadata for the upload
         let metadata = StorageMetadata()
@@ -88,12 +98,15 @@ class ProfileViewModel: ObservableObject {
             self.isLoading = true
         }
 
+        #if DEBUG
         print("Starting upload...")
+        #endif
 
         profilePicRef.putData(imageData, metadata: metadata) { [weak self] uploadMetadata, error in
             guard let self = self else { return }
 
             if let error = error {
+                #if DEBUG
                 print("=== UPLOAD ERROR DETAILS ===")
                 print("Error domain: \((error as NSError).domain)")
                 print("Error code: \((error as NSError).code)")
@@ -102,6 +115,7 @@ class ProfileViewModel: ObservableObject {
                 print("Storage path: profile_pictures/\(userId).jpg")
                 print("Auth user: \(Auth.auth().currentUser?.uid ?? "nil")")
                 print("===========================")
+                #endif
                 DispatchQueue.main.async {
                     self.isLoading = false
                     self.errorMessage = "Failed to upload profile picture: \(error.localizedDescription)"
@@ -109,14 +123,18 @@ class ProfileViewModel: ObservableObject {
                 return
             }
 
+            #if DEBUG
             print("=== UPLOAD SUCCESS ===")
             print("Upload metadata: \(String(describing: uploadMetadata))")
             print("========================")
+            #endif
 
             // Get download URL
             profilePicRef.downloadURL { url, error in
                 if let error = error {
+                    #if DEBUG
                     print("Error getting download URL: \(error.localizedDescription)")
+                    #endif
                     DispatchQueue.main.async {
                         self.isLoading = false
                         self.errorMessage = "Failed to get image URL: \(error.localizedDescription)"

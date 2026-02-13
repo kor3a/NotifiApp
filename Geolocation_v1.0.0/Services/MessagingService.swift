@@ -178,7 +178,9 @@ class MessagingService: ObservableObject {
                 guard let self = self else { return }
 
                 if let error = error {
+                    #if DEBUG
                     print("MessagingService: Error fetching paginated messages: \(error)")
+                    #endif
                     completion(.failure(error))
                     return
                 }
@@ -218,7 +220,9 @@ class MessagingService: ObservableObject {
                 guard let self = self else { return }
 
                 if let error = error {
+                    #if DEBUG
                     print("MessagingService: Error loading older messages: \(error)")
+                    #endif
                     completion(.failure(error))
                     return
                 }
@@ -746,36 +750,50 @@ class MessagingService: ObservableObject {
 
     /// Get total unread message count for badge
     func getTotalUnreadCount(for userId: String, completion: @escaping (Int) -> Void) {
+        #if DEBUG
         print("📊 MessagingService.getTotalUnreadCount: Setting up listener for userId: \(userId)")
+        #endif
         db.collection("conversations")
             .whereField("participantIds", arrayContains: userId)
             .addSnapshotListener { snapshot, error in
                 if let error = error {
+                    #if DEBUG
                     print("❌ MessagingService.getTotalUnreadCount: Error: \(error.localizedDescription)")
+                    #endif
                     completion(0)
                     return
                 }
 
                 guard let documents = snapshot?.documents else {
+                    #if DEBUG
                     print("📊 MessagingService.getTotalUnreadCount: No documents found")
+                    #endif
                     completion(0)
                     return
                 }
 
+                #if DEBUG
                 print("📊 MessagingService.getTotalUnreadCount: Found \(documents.count) conversations")
+                #endif
                 var totalUnread = 0
                 for doc in documents {
                     let data = doc.data()
                     if let unreadCount = data["unreadCount"] as? [String: Int] {
                         let count = unreadCount[userId] ?? 0
+                        #if DEBUG
                         print("   - Conversation \(doc.documentID): unread count = \(count)")
+                        #endif
                         totalUnread += count
                     } else {
+                        #if DEBUG
                         print("   - Conversation \(doc.documentID): no unreadCount field")
+                        #endif
                     }
                 }
 
+                #if DEBUG
                 print("📊 MessagingService.getTotalUnreadCount: Total unread = \(totalUnread)")
+                #endif
                 completion(totalUnread)
             }
     }
@@ -821,9 +839,11 @@ class MessagingService: ObservableObject {
         senderName: String,
         completion: @escaping (Result<Void, Error>) -> Void
     ) {
+        #if DEBUG
         print("🟢 MessagingService.acceptSharedStore: Starting for store '\(linkedStore.storeName)'")
         print("🟢 MessagingService.acceptSharedStore: messageId=\(messageId), currentUserId=\(currentUserId)")
         print("🟢 MessagingService.acceptSharedStore: senderUserStoreId=\(senderUserStoreId ?? "nil"), permission=\(linkedStore.permission)")
+        #endif
 
         // Check if user already has this store
         db.collection("user_stores")
@@ -831,48 +851,66 @@ class MessagingService: ObservableObject {
             .whereField("storeId", isEqualTo: linkedStore.storeId)
             .getDocuments { [weak self] snapshot, error in
                 guard let self = self else {
+                    #if DEBUG
                     print("🟢 MessagingService.acceptSharedStore: ERROR - self is nil")
+                    #endif
                     return
                 }
 
                 if let error = error {
+                    #if DEBUG
                     print("🟢 MessagingService.acceptSharedStore: ERROR checking existing store - \(error)")
+                    #endif
                     completion(.failure(error))
                     return
                 }
 
+                #if DEBUG
                 print("🟢 MessagingService.acceptSharedStore: Existing stores check - found \(snapshot?.documents.count ?? 0) documents")
+                #endif
 
                 if snapshot?.documents.isEmpty == false {
                     // User already has this store, just update status
+                    #if DEBUG
                     print("🟢 MessagingService.acceptSharedStore: User already has store, marking as accepted")
+                    #endif
                     self.updateLinkedStoreStatus(messageId: messageId, status: .accepted, completion: completion)
                     return
                 }
 
+                #if DEBUG
                 print("🟢 MessagingService.acceptSharedStore: Getting store count for sortOrder...")
+                #endif
 
                 // Get user's current store count for sortOrder
                 self.db.collection("user_stores")
                     .whereField("userId", isEqualTo: currentUserId)
                     .getDocuments { [weak self] countSnapshot, countError in
                         guard let self = self else {
+                            #if DEBUG
                             print("🟢 MessagingService.acceptSharedStore: ERROR - self is nil in count callback")
+                            #endif
                             return
                         }
 
                         if let countError = countError {
+                            #if DEBUG
                             print("🟢 MessagingService.acceptSharedStore: ERROR getting count - \(countError)")
+                            #endif
                             completion(.failure(countError))
                             return
                         }
 
                         let sortOrder = countSnapshot?.documents.count ?? 0
+                        #if DEBUG
                         print("🟢 MessagingService.acceptSharedStore: sortOrder=\(sortOrder), permission=\(linkedStore.permission)")
+                        #endif
 
                         // Create the user_store based on permission
                         if linkedStore.permission == "edit" {
+                            #if DEBUG
                             print("🟢 MessagingService.acceptSharedStore: Creating with EDIT permission...")
+                            #endif
                             self.createSharedStoreWithEditPermission(
                                 linkedStore: linkedStore,
                                 currentUserId: currentUserId,
@@ -886,7 +924,9 @@ class MessagingService: ObservableObject {
                                 completion: completion
                             )
                         } else {
+                            #if DEBUG
                             print("🟢 MessagingService.acceptSharedStore: Creating with VIEW permission...")
+                            #endif
                             self.createSharedStoreWithViewPermission(
                                 linkedStore: linkedStore,
                                 currentUserId: currentUserId,
@@ -917,7 +957,9 @@ class MessagingService: ObservableObject {
         messageId: String,
         completion: @escaping (Result<Void, Error>) -> Void
     ) {
+        #if DEBUG
         print("🟡 createSharedStoreWithEditPermission: Starting...")
+        #endif
 
         // Create recipient's user_store document with edit permission
         // Note: We don't create SharedStoreGroup here because recipient can't modify sender's data
@@ -957,15 +999,21 @@ class MessagingService: ObservableObject {
             recipientUserStore["imageURL"] = imageURL
         }
 
+        #if DEBUG
         print("🟡 createSharedStoreWithEditPermission: Creating recipient's user_store...")
+        #endif
 
         db.collection("user_stores").addDocument(data: recipientUserStore) { [weak self] error in
             if let error = error {
+                #if DEBUG
                 print("🟡 createSharedStoreWithEditPermission: ERROR creating store - \(error)")
+                #endif
                 completion(.failure(error))
                 return
             }
+            #if DEBUG
             print("🟡 createSharedStoreWithEditPermission: SUCCESS - store created")
+            #endif
             self?.updateLinkedStoreStatus(messageId: messageId, status: .accepted, completion: completion)
         }
     }
@@ -1020,12 +1068,16 @@ class MessagingService: ObservableObject {
 
         db.collection("user_stores").addDocument(data: recipientUserStore) { [weak self] error in
             if let error = error {
+                #if DEBUG
                 print("MessagingService: Error creating view-only user_store: \(error.localizedDescription)")
+                #endif
                 completion(.failure(error))
                 return
             }
 
+            #if DEBUG
             print("MessagingService: Successfully created view-only shared store")
+            #endif
             self?.updateLinkedStoreStatus(messageId: messageId, status: .accepted, completion: completion)
         }
     }
@@ -1045,7 +1097,9 @@ class MessagingService: ObservableObject {
             return
         }
 
+        #if DEBUG
         print("MessagingService: Accepting shared reminder for store: \(linkedReminder.storeName)")
+        #endif
 
         // Generate a unique sharedReminderId to link the reminders
         let sharedReminderId = UUID().uuidString
@@ -1126,7 +1180,9 @@ class MessagingService: ObservableObject {
 
                 if snapshot?.documents.isEmpty == false {
                     // Reminder with same title already exists, just update status
+                    #if DEBUG
                     print("MessagingService: Reminder '\(reminderTitle)' already exists, marking as shared")
+                    #endif
                     self.updateLinkedReminderStatus(messageId: messageId, status: .accepted, completion: completion)
                     return
                 }
@@ -1175,7 +1231,9 @@ class MessagingService: ObservableObject {
     ) {
         guard let reminderId = originalReminderId else {
             // No original reminder ID, just update message status
+            #if DEBUG
             print("MessagingService: No original reminder ID, skipping sender update")
+            #endif
             self.updateLinkedReminderStatus(messageId: messageId, status: .accepted, completion: completion)
             return
         }
@@ -1185,7 +1243,9 @@ class MessagingService: ObservableObject {
             guard let self = self else { return }
 
             if let error = error {
+                #if DEBUG
                 print("MessagingService: Error fetching original reminder: \(error.localizedDescription)")
+                #endif
                 // Still mark as accepted even if we can't update sender
                 self.updateLinkedReminderStatus(messageId: messageId, status: .accepted, completion: completion)
                 return
@@ -1206,12 +1266,16 @@ class MessagingService: ObservableObject {
                 guard let self = self else { return }
 
                 if let error = error {
+                    #if DEBUG
                     print("MessagingService: Error updating sender reminder: \(error.localizedDescription)")
+                    #endif
                     self.updateLinkedReminderStatus(messageId: messageId, status: .accepted, completion: completion)
                     return
                 }
 
+                #if DEBUG
                 print("MessagingService: Updated sender reminder with sharedReminderId and sharedWith")
+                #endif
 
                 // Sync sharedWith to ALL linked reminders so everyone sees the complete list
                 self.syncSharedWithAcrossLinkedReminders(sharedReminderId: sharedReminderId, sharedWith: sharedWith) {
@@ -1236,7 +1300,9 @@ class MessagingService: ObservableObject {
                 }
 
                 if let error = error {
+                    #if DEBUG
                     print("MessagingService: Error finding linked reminders for sync: \(error.localizedDescription)")
+                    #endif
                     completion()
                     return
                 }
@@ -1253,11 +1319,13 @@ class MessagingService: ObservableObject {
                 }
 
                 batch.commit { error in
+                    #if DEBUG
                     if let error = error {
                         print("MessagingService: Error syncing sharedWith: \(error.localizedDescription)")
                     } else {
                         print("MessagingService: Synced sharedWith across \(documents.count) linked reminders")
                     }
+                    #endif
                     completion()
                 }
             }
@@ -1328,7 +1396,9 @@ class MessagingService: ObservableObject {
                         return
                     }
 
+                    #if DEBUG
                     print("MessagingService: Created user_store: \(userStoreId)")
+                    #endif
 
                     // Now create the reminder with sharedReminderId
                     // Include both sender and recipient in sharedWith so everyone sees who it's shared with
@@ -1352,7 +1422,9 @@ class MessagingService: ObservableObject {
                             return
                         }
 
+                        #if DEBUG
                         print("MessagingService: Created shared reminder with sharedReminderId")
+                        #endif
 
                         // Update the original sender's reminder to link them
                         self.updateSenderReminder(
@@ -1377,7 +1449,9 @@ class MessagingService: ObservableObject {
         // Record the time we start listening to avoid notifying for old messages
         listenerStartTime = Date().timeIntervalSince1970
 
+        #if DEBUG
         print("📬 MessagingService: Starting to listen for incoming messages for user: \(userId)")
+        #endif
 
         // First, get all conversations the user is part of
         db.collection("conversations")
@@ -1386,17 +1460,23 @@ class MessagingService: ObservableObject {
                 guard let self = self else { return }
 
                 if let error = error {
+                    #if DEBUG
                     print("📬 MessagingService: Error fetching conversations: \(error.localizedDescription)")
+                    #endif
                     return
                 }
 
                 guard let conversations = conversationsSnapshot?.documents else {
+                    #if DEBUG
                     print("📬 MessagingService: No conversations found")
+                    #endif
                     return
                 }
 
                 let conversationIds = conversations.map { $0.documentID }
+                #if DEBUG
                 print("📬 MessagingService: Monitoring \(conversationIds.count) conversations for new messages")
+                #endif
 
                 // Now listen for new messages in these conversations
                 self.setupMessageListener(conversationIds: conversationIds, currentUserId: userId)
@@ -1409,7 +1489,9 @@ class MessagingService: ObservableObject {
         incomingMessageListener?.remove()
 
         guard !conversationIds.isEmpty else {
+            #if DEBUG
             print("📬 MessagingService: No conversations to monitor")
+            #endif
             return
         }
 
@@ -1429,7 +1511,9 @@ class MessagingService: ObservableObject {
                 guard let self = self else { return }
 
                 if let error = error {
+                    #if DEBUG
                     print("📬 MessagingService: Error listening for messages: \(error.localizedDescription)")
+                    #endif
                     return
                 }
 
@@ -1473,7 +1557,9 @@ class MessagingService: ObservableObject {
                     }
 
                     // Schedule the notification
+                    #if DEBUG
                     print("📬 MessagingService: New message from \(senderName): \(notificationContent.prefix(50))...")
+                    #endif
                     NotificationManager.shared.scheduleNewMessageNotification(
                         fromUserName: senderName,
                         messageContent: notificationContent,
@@ -1488,6 +1574,8 @@ class MessagingService: ObservableObject {
         incomingMessageListener?.remove()
         incomingMessageListener = nil
         notifiedMessageIds.removeAll()
+        #if DEBUG
         print("📬 MessagingService: Stopped listening for incoming messages")
+        #endif
     }
 }

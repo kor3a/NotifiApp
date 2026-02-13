@@ -387,9 +387,13 @@ struct ReminderCard: View {
         viewModel.acceptSharedReminder(message: message) { success in
             isProcessing = false
             if success {
+                #if DEBUG
                 print("ReminderCard: Successfully accepted reminder")
+                #endif
             } else {
+                #if DEBUG
                 print("ReminderCard: Failed to accept reminder")
+                #endif
             }
         }
     }
@@ -399,9 +403,13 @@ struct ReminderCard: View {
         viewModel.rejectSharedReminder(message: message) { success in
             isProcessing = false
             if success {
+                #if DEBUG
                 print("ReminderCard: Successfully rejected reminder")
+                #endif
             } else {
+                #if DEBUG
                 print("ReminderCard: Failed to reject reminder")
+                #endif
             }
         }
     }
@@ -586,9 +594,13 @@ struct StoreCard: View {
         viewModel.acceptSharedStore(message: message) { success in
             isProcessing = false
             if success {
+                #if DEBUG
                 print("StoreCard: Successfully accepted store")
+                #endif
             } else {
+                #if DEBUG
                 print("StoreCard: Failed to accept store")
+                #endif
             }
         }
     }
@@ -598,9 +610,13 @@ struct StoreCard: View {
         viewModel.rejectSharedStore(message: message) { success in
             isProcessing = false
             if success {
+                #if DEBUG
                 print("StoreCard: Successfully rejected store")
+                #endif
             } else {
+                #if DEBUG
                 print("StoreCard: Failed to reject store")
+                #endif
             }
         }
     }

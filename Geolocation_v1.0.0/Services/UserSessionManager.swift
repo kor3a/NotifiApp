@@ -33,7 +33,9 @@ class UserSessionManager: ObservableObject {
             return
         }
 
+        #if DEBUG
         print("UserSessionManager: Fetching user with email: \(currentUserEmail)")
+        #endif
         isLoading = true
         let db = Firestore.firestore()
 
@@ -44,7 +46,9 @@ class UserSessionManager: ObservableObject {
                 guard let self = self else { return }
 
                 if let error = error {
+                    #if DEBUG
                     print("UserSessionManager: Error fetching user: \(error.localizedDescription)")
+                    #endif
                     DispatchQueue.main.async {
                         self.isLoading = false
                         self.errorMessage = "Error fetching user: \(error.localizedDescription)"
@@ -52,17 +56,23 @@ class UserSessionManager: ObservableObject {
                     return
                 }
 
+                #if DEBUG
                 print("UserSessionManager: Query returned \(snapshot?.documents.count ?? 0) documents")
+                #endif
 
                 guard let document = snapshot?.documents.first else {
+                    #if DEBUG
                     print("UserSessionManager: No documents found for email: \(currentUserEmail)")
+                    #endif
                     // Try to fetch all users to debug
                     self.debugFetchAllUsers(email: currentUserEmail)
                     return
                 }
 
                 let userData = document.data()
+                #if DEBUG
                 print("UserSessionManager: Found user data: \(userData)")
+                #endif
 
                 DispatchQueue.main.async {
                     self.isLoading = false
@@ -81,7 +91,9 @@ class UserSessionManager: ObservableObject {
         let db = Firestore.firestore()
         db.collection("users").getDocuments { [weak self] snapshot, error in
             if let error = error {
+                #if DEBUG
                 print("UserSessionManager: Error fetching all users for debug: \(error.localizedDescription)")
+                #endif
                 DispatchQueue.main.async {
                     self?.isLoading = false
                     self?.errorMessage = "User data not found. Please ensure your profile was created during signup."
@@ -89,10 +101,12 @@ class UserSessionManager: ObservableObject {
                 return
             }
 
+            #if DEBUG
             print("UserSessionManager: Total users in collection: \(snapshot?.documents.count ?? 0)")
             snapshot?.documents.forEach { doc in
                 print("UserSessionManager: User document ID: \(doc.documentID), data: \(doc.data())")
             }
+            #endif
 
             DispatchQueue.main.async {
                 self?.isLoading = false

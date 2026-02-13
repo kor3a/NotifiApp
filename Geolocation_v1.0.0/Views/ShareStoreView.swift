@@ -395,7 +395,9 @@ struct ShareStoreView: View {
     // MARK: - FUNCTIONS
 
     private func shareStore() {
+        #if DEBUG
         print("ShareStoreView: shareStore() called - NEW MESSAGE-BASED FLOW")
+        #endif
 
         // Validate email format
         guard isValidEmail(recipientEmail) else {
@@ -424,7 +426,9 @@ struct ShareStoreView: View {
         }
 
         isSharing = true
+        #if DEBUG
         print("ShareStoreView: Looking up user by email: \(cleanedEmail)")
+        #endif
 
         // First, find the recipient user by email
         messagingService.searchUserByEmail(cleanedEmail) { [self] result in
@@ -440,7 +444,9 @@ struct ShareStoreView: View {
                     return
                 }
 
+                #if DEBUG
                 print("ShareStoreView: Found contact: \(contact.name) (\(contact.id))")
+                #endif
 
                 // Check if recipient already has this store
                 self.db.collection("user_stores")
@@ -457,7 +463,9 @@ struct ShareStoreView: View {
                             return
                         }
 
+                        #if DEBUG
                         print("ShareStoreView: Recipient doesn't have store yet, sending share request via messaging...")
+                        #endif
 
                         // Send the store share request via messaging
                         let permissionString = self.selectedPermission == .edit ? "edit" : "view"
@@ -468,7 +476,9 @@ struct ShareStoreView: View {
                             currentUserName: currentUserName,
                             reminderTitles: self.reminderTitles
                         ) { success in
+                            #if DEBUG
                             print("ShareStoreView: messagesViewModel.shareStore completed with success=\(success)")
+                            #endif
                             DispatchQueue.main.async {
                                 self.isSharing = false
 
@@ -505,7 +515,9 @@ struct ShareStoreView: View {
             .whereField("isDone", isEqualTo: false)
             .getDocuments { snapshot, error in
                 if let error = error {
+                    #if DEBUG
                     print("ShareStoreView: Error fetching reminder titles: \(error.localizedDescription)")
+                    #endif
                     return
                 }
 
@@ -540,7 +552,9 @@ struct ShareStoreView: View {
                 self.isLoadingSharedUsers = false
 
                 if let error = error {
+                    #if DEBUG
                     print("ShareStoreView: Error fetching shared users: \(error.localizedDescription)")
+                    #endif
                     return
                 }
 
@@ -594,11 +608,13 @@ struct ShareStoreView: View {
                     // Send a message notifying the user that the store is no longer shared
                     self.sendUnshareMessage(to: sharedUser, recipientName: recipientName)
 
+                    #if DEBUG
                     if sharedUser.permission == .view {
                         print("ShareStoreView: Removed view-only access for \(sharedUser.userEmail)")
                     } else {
                         print("ShareStoreView: Removed edit access for \(sharedUser.userEmail)")
                     }
+                    #endif
                 }
             }
         }
@@ -614,12 +630,16 @@ struct ShareStoreView: View {
             .whereField("isShared", isEqualTo: true)
             .getDocuments { snapshot, error in
                 if let error = error {
+                    #if DEBUG
                     print("ShareStoreView: Error fetching reminders to update: \(error.localizedDescription)")
+                    #endif
                     return
                 }
 
                 guard let documents = snapshot?.documents, !documents.isEmpty else {
+                    #if DEBUG
                     print("ShareStoreView: No shared reminders to update")
+                    #endif
                     return
                 }
 
@@ -673,11 +693,13 @@ struct ShareStoreView: View {
 
                 if updatedCount > 0 {
                     batch.commit { error in
+                        #if DEBUG
                         if let error = error {
                             print("ShareStoreView: Error updating reminders after unshare: \(error.localizedDescription)")
                         } else {
                             print("ShareStoreView: Updated \(updatedCount) reminders after unsharing with \(recipientName)")
                         }
+                        #endif
                     }
                 }
             }
@@ -686,7 +708,9 @@ struct ShareStoreView: View {
     private func sendUnshareMessage(to sharedUser: SharedUser, recipientName: String) {
         guard let currentUserId = viewModel.sessionManager.currentUser?.userId,
               let currentUserName = viewModel.sessionManager.currentUser?.name else {
+            #if DEBUG
             print("ShareStoreView: Cannot send unshare message - no current user data")
+            #endif
             return
         }
 
@@ -710,13 +734,19 @@ struct ShareStoreView: View {
                     ) { messageResult in
                         switch messageResult {
                         case .success:
+                            #if DEBUG
                             print("ShareStoreView: Sent unshare notification message to \(recipientName)")
+                            #endif
                         case .failure(let error):
+                            #if DEBUG
                             print("ShareStoreView: Failed to send unshare message: \(error.localizedDescription)")
+                            #endif
                         }
                     }
                 case .failure(let error):
+                    #if DEBUG
                     print("ShareStoreView: Failed to find/create conversation for unshare message: \(error.localizedDescription)")
+                    #endif
                 }
             }
     }

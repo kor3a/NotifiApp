@@ -55,12 +55,16 @@ class LocationMonitoringManager: NSObject, ObservableObject {
         // Restore user ID from UserDefaults for background launches
         if let savedUserId = UserDefaults.standard.string(forKey: "LocationMonitoring.userId") {
             currentUserId = savedUserId
+            #if DEBUG
             print("🔄 LocationMonitoring: Restored user ID from UserDefaults: \(savedUserId)")
+            #endif
 
             // Auto-start monitoring if we have permission
             let status = locationManager.authorizationStatus
             if status == .authorizedAlways || status == .authorizedWhenInUse {
+                #if DEBUG
                 print("   ✅ Auto-starting monitoring (app may have been launched in background)")
+                #endif
                 startMonitoring(userId: savedUserId)
             }
         }
@@ -86,11 +90,17 @@ class LocationMonitoringManager: NSObject, ObservableObject {
         case .authorizedWhenInUse:
             locationManager.requestAlwaysAuthorization()
         case .authorizedAlways:
+            #if DEBUG
             print("Already have always authorization")
+            #endif
         case .restricted, .denied:
+            #if DEBUG
             print("Location permission denied or restricted")
+            #endif
         @unknown default:
+            #if DEBUG
             print("Unknown authorization status")
+            #endif
         }
     }
 
@@ -102,52 +112,68 @@ class LocationMonitoringManager: NSObject, ObservableObject {
 
     func setUserId(_ userId: String) {
         currentUserId = userId
+        #if DEBUG
         print("LocationMonitoring: Set user ID to \(userId)")
+        #endif
     }
 
     func startMonitoring(userId: String) {
         currentUserId = userId
 
+        #if DEBUG
         print("🔵 LocationMonitoring: startMonitoring called for userId: \(userId)")
+        #endif
 
         let permission = checkLocationPermission()
 
         // Accept both "When In Use" and "Always" permissions
         guard permission == .authorizedAlways || permission == .authorizedWhenInUse else {
+            #if DEBUG
             print("⚠️ LocationMonitoring: Cannot start monitoring without location permission")
             print("User ID saved - will auto-start when permission is granted")
+            #endif
             return
         }
 
         if permission == .authorizedWhenInUse {
+            #if DEBUG
             print("⚠️ LocationMonitoring: Running with 'When In Use' permission")
             print("   App will monitor location while in use and use significant location changes in background")
+            #endif
             locationManager.startMonitoringSignificantLocationChanges()
         } else if permission == .authorizedAlways {
+            #if DEBUG
             print("✅ LocationMonitoring: Running with 'Always' permission")
             print("   App will monitor location continuously, even in background")
+            #endif
             locationManager.allowsBackgroundLocationUpdates = true
         }
 
         isMonitoring = true
         loadUserStores(userId: userId)
         locationManager.startUpdatingLocation()
+        #if DEBUG
         print("✅ LocationMonitoring: Started location monitoring successfully")
         print("📱 LocationMonitoring: Desired accuracy: \(locationManager.desiredAccuracy)")
         print("📱 LocationMonitoring: Distance filter: \(locationManager.distanceFilter)m")
+        #endif
     }
 
     func stopMonitoring() {
         isMonitoring = false
         locationManager.stopUpdatingLocation()
         locationManager.stopMonitoringSignificantLocationChanges()
+        #if DEBUG
         print("Stopped location monitoring")
+        #endif
     }
 
     // MARK: - Data Loading
 
     private func loadUserStores(userId: String) {
+        #if DEBUG
         print("🔄 LocationMonitoring: Loading user stores for userId: \(userId)")
+        #endif
 
         db.collection("user_stores")
             .whereField("userId", isEqualTo: userId)
@@ -155,12 +181,16 @@ class LocationMonitoringManager: NSObject, ObservableObject {
                 guard let self = self else { return }
 
                 if let error = error {
+                    #if DEBUG
                     print("❌ LocationMonitoring: Error fetching user stores: \(error)")
+                    #endif
                     return
                 }
 
                 guard let documents = snapshot?.documents else {
+                    #if DEBUG
                     print("⚠️ LocationMonitoring: No user stores found")
+                    #endif
                     return
                 }
 
@@ -174,19 +204,27 @@ class LocationMonitoringManager: NSObject, ObservableObject {
 
                         // Only include stores with notifications enabled
                         guard userStore.notificationsEnabled else {
+                            #if DEBUG
                             print("   ⏸️ Skipping store '\(userStore.storeName)' - notifications disabled")
+                            #endif
                             return nil
                         }
 
+                        #if DEBUG
                         print("   ✓ Loaded store '\(userStore.storeName)' - notifications enabled")
+                        #endif
                         return userStore
                     } catch {
+                        #if DEBUG
                         print("❌ LocationMonitoring: Failed to decode store \(doc.documentID): \(error)")
+                        #endif
                         return nil
                     }
                 }
 
+                #if DEBUG
                 print("📦 LocationMonitoring: Loaded \(self.userStores.count) stores for monitoring")
+                #endif
 
                 // Load reminder counts for each store
                 self.loadReminderCounts()
@@ -196,7 +234,9 @@ class LocationMonitoringManager: NSObject, ObservableObject {
     private func loadReminderCounts() {
         for userStore in userStores {
             guard let userStoreId = userStore.id else {
+                #if DEBUG
                 print("⚠️ LocationMonitoring: Store '\(userStore.storeName)' has no ID, skipping")
+                #endif
                 continue
             }
 
@@ -210,13 +250,17 @@ class LocationMonitoringManager: NSObject, ObservableObject {
                     guard let self = self else { return }
 
                     if let error = error {
+                        #if DEBUG
                         print("Error fetching reminders: \(error)")
+                        #endif
                         return
                     }
 
                     let count = snapshot?.documents.count ?? 0
                     self.storeReminders[userStoreId] = count
+                    #if DEBUG
                     print("LocationMonitoring: Store '\(userStore.storeName)' has \(count) incomplete reminders")
+                    #endif
                 }
         }
     }
@@ -228,22 +272,30 @@ class LocationMonitoringManager: NSObject, ObservableObject {
         // Debounce: don't search too frequently
         if let lastSearch = lastSearchTime,
            Date().timeIntervalSince(lastSearch) < searchDebounceInterval {
+            #if DEBUG
             print("📍 LocationMonitoring: Skipping search (debounce)")
+            #endif
             return
         }
         lastSearchTime = Date()
 
+        #if DEBUG
         print("📍 LocationMonitoring: Searching for nearby stores at (\(userLocation.coordinate.latitude), \(userLocation.coordinate.longitude))")
+        #endif
 
         // Get unique store names that user is tracking
         let storeNames = Set(userStores.map { $0.storeName })
 
         guard !storeNames.isEmpty else {
+            #if DEBUG
             print("   ⚠️ No stores to search for")
+            #endif
             return
         }
 
+        #if DEBUG
         print("   🔍 Looking for: \(storeNames.joined(separator: ", "))")
+        #endif
 
         // Search for each store name
         for storeName in storeNames {
@@ -266,12 +318,16 @@ class LocationMonitoringManager: NSObject, ObservableObject {
             guard let self = self else { return }
 
             if let error = error {
+                #if DEBUG
                 print("   ❌ Search error for '\(name)': \(error.localizedDescription)")
+                #endif
                 return
             }
 
             guard let response = response else {
+                #if DEBUG
                 print("   ℹ️ No results for '\(name)'")
+                #endif
                 return
             }
 
@@ -293,7 +349,9 @@ class LocationMonitoringManager: NSObject, ObservableObject {
                 let distance = userLocation.distance(from: location)
 
                 if distance <= self.proximityThreshold {
+                    #if DEBUG
                     print("   ✅ Found '\(itemName)' within \(Int(distance))m!")
+                    #endif
                     self.handleNearbyStoreFound(storeName: name, distance: distance)
                     return // Only notify once per store name
                 }
@@ -303,12 +361,16 @@ class LocationMonitoringManager: NSObject, ObservableObject {
 
     /// Handle finding a nearby store that matches user's saved stores
     private func handleNearbyStoreFound(storeName: String, distance: CLLocationDistance) {
+        #if DEBUG
         print("      🔔 Handling proximity for: \(storeName)")
+        #endif
 
         // Find the user store for this name
         guard let userStore = userStores.first(where: { $0.storeName == storeName }),
               let userStoreId = userStore.id else {
+            #if DEBUG
             print("      ⚠️ Could not find user store for '\(storeName)'")
+            #endif
             return
         }
 
@@ -320,26 +382,38 @@ class LocationMonitoringManager: NSObject, ObservableObject {
             let timeSinceLastNotification = Date().timeIntervalSince(lastNotification)
             let minutesAgo = Int(timeSinceLastNotification / 60)
             if timeSinceLastNotification < notificationCooldown {
+                #if DEBUG
                 print("      ⏸️ In cooldown period (notified \(minutesAgo) minutes ago)")
+                #endif
                 return
             } else {
+                #if DEBUG
                 print("      ✓ Cooldown expired (last notified \(minutesAgo) minutes ago)")
+                #endif
             }
         } else {
+            #if DEBUG
             print("      ✓ No previous notifications")
+            #endif
         }
 
         // Get reminder count
         let reminderCount = storeReminders[userStoreId] ?? 0
+        #if DEBUG
         print("      📝 Reminder count: \(reminderCount)")
+        #endif
 
         // Only notify if there are incomplete reminders
         guard reminderCount > 0 else {
+            #if DEBUG
             print("      ❌ No incomplete reminders - skipping notification")
+            #endif
             return
         }
 
+        #if DEBUG
         print("      🚀 Sending notification!")
+        #endif
 
         // Send notification
         notificationManager.scheduleStoreProximityNotification(
@@ -350,8 +424,10 @@ class LocationMonitoringManager: NSObject, ObservableObject {
         // Update cooldown using normalized name
         recentlyNotifiedStores[normalizedName] = Date()
 
+        #if DEBUG
         let distanceInMeters = Int(distance)
         print("      ✅ NOTIFICATION SENT! Store: \(storeName), Distance: \(distanceInMeters)m, Reminders: \(reminderCount)")
+        #endif
     }
 
     // MARK: - Helper Methods
@@ -371,10 +447,12 @@ extension LocationMonitoringManager: CLLocationManagerDelegate {
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         guard let location = locations.last else { return }
 
+        #if DEBUG
         print("\n🌍 LocationMonitoring: Location update received")
         print("   Coordinates: (\(location.coordinate.latitude), \(location.coordinate.longitude))")
         print("   Accuracy: ±\(Int(location.horizontalAccuracy))m")
         print("   Timestamp: \(Date())")
+        #endif
 
         lastLocation = location
 
@@ -383,11 +461,14 @@ extension LocationMonitoringManager: CLLocationManagerDelegate {
     }
 
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
+        #if DEBUG
         print("❌ LocationMonitoring: Location manager error: \(error)")
+        #endif
     }
 
     func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
         let status = manager.authorizationStatus
+        #if DEBUG
         let statusStr: String
         switch status {
         case .notDetermined: statusStr = "Not Determined"
@@ -399,24 +480,35 @@ extension LocationMonitoringManager: CLLocationManagerDelegate {
         }
 
         print("🔐 LocationMonitoring: Authorization changed to: \(statusStr)")
+        #endif
 
         // Start monitoring with either "When In Use" or "Always" permission
         if (status == .authorizedAlways || status == .authorizedWhenInUse), let userId = currentUserId, !isMonitoring {
+            #if DEBUG
             print("   ✅ Starting monitoring automatically")
+            #endif
             startMonitoring(userId: userId)
         } else if (status == .authorizedAlways || status == .authorizedWhenInUse) && isMonitoring {
+            #if DEBUG
             print("   ✅ Resuming location updates")
+            #endif
             locationManager.startUpdatingLocation()
 
             if status == .authorizedWhenInUse {
                 locationManager.startMonitoringSignificantLocationChanges()
+                #if DEBUG
                 print("   📱 Re-enabled significant location changes")
+                #endif
             } else if status == .authorizedAlways {
                 locationManager.allowsBackgroundLocationUpdates = true
+                #if DEBUG
                 print("   📱 Enabled background location updates")
+                #endif
             }
         } else if status == .denied || status == .restricted {
+            #if DEBUG
             print("   ❌ Location permission denied or restricted")
+            #endif
         }
     }
 }
