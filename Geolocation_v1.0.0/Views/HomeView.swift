@@ -68,7 +68,9 @@ struct HomeView: View {
             }
             .badge(messagesViewModel.totalUnreadCount)
             .onChange(of: messagesViewModel.totalUnreadCount) { oldValue, newValue in
+                #if DEBUG
                 print("📱 HomeView: Badge count changed from \(oldValue) to \(newValue)")
+                #endif
             }
             .tag(1)
 
@@ -134,11 +136,15 @@ struct HomeView: View {
                 let locationStatus = locationMonitor.checkLocationPermission()
                 if locationStatus == .authorizedAlways || locationStatus == .authorizedWhenInUse {
                     locationMonitor.startMonitoring(userId: userId)
+                    #if DEBUG
                     print("HomeView: Started monitoring after user data loaded for: \(userId)")
+                    #endif
                 } else {
                     // Store userId for auto-start when permission is granted
                     locationMonitor.setUserId(userId)
+                    #if DEBUG
                     print("HomeView: User ID set, waiting for location permission")
+                    #endif
                 }
 
                 // Fetch stores now that user data is available
@@ -154,16 +160,20 @@ struct HomeView: View {
         guard !hasRequestedPermissions else { return }
         hasRequestedPermissions = true
 
+        #if DEBUG
         print("🚀 HomeView: Initializing location and notification permissions")
+        #endif
 
         // Request notification permission
         Task {
             let notificationGranted = await notificationManager.requestAuthorization()
+            #if DEBUG
             if notificationGranted {
                 print("✅ HomeView: Notification permission granted")
             } else {
                 print("⚠️ HomeView: Notification permission denied")
             }
+            #endif
 
             // Debug: Print detailed notification settings
             notificationManager.debugNotificationSettings()
@@ -171,26 +181,38 @@ struct HomeView: View {
 
         // Request location permission and start monitoring
         let locationStatus = locationMonitor.checkLocationPermission()
+        #if DEBUG
         print("📍 HomeView: Current location status: \(locationStatus.rawValue)")
+        #endif
 
         // Only request permission if not yet determined
         if locationStatus == .notDetermined {
+            #if DEBUG
             print("   Requesting location permission...")
+            #endif
             locationMonitor.requestLocationPermission()
         }
 
         // Start monitoring if we have permission and user is logged in
         if let userId = sessionManager.currentUser?.userId {
+            #if DEBUG
             print("👤 HomeView: User ID available: \(userId)")
+            #endif
             if locationStatus == .authorizedAlways || locationStatus == .authorizedWhenInUse {
                 locationMonitor.startMonitoring(userId: userId)
+                #if DEBUG
                 print("✅ HomeView: Started location monitoring")
+                #endif
             } else {
                 locationMonitor.setUserId(userId)
+                #if DEBUG
                 print("⏸️ HomeView: User ID saved, waiting for location permission")
+                #endif
             }
         } else {
+            #if DEBUG
             print("⏸️ HomeView: User ID not available yet, will start monitoring when user data loads")
+            #endif
         }
     }
 }

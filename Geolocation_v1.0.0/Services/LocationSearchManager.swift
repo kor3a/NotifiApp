@@ -72,7 +72,9 @@ class LocationSearchManager: NSObject, ObservableObject {
             }
 
             if let error = error {
+                #if DEBUG
                 print("LocationSearchManager: Search error: \(error.localizedDescription)")
+                #endif
                 DispatchQueue.main.async {
                     self.locationError = "Search failed: \(error.localizedDescription)"
                     self.searchResults = []
@@ -127,7 +129,9 @@ class LocationSearchManager: NSObject, ObservableObject {
 
             DispatchQueue.main.async {
                 self.searchResults = sortedStores
+                #if DEBUG
                 print("LocationSearchManager: Found \(sortedStores.count) unique store names")
+                #endif
             }
         }
     }
@@ -145,12 +149,16 @@ extension LocationSearchManager: CLLocationManagerDelegate {
         DispatchQueue.main.async {
             self.userLocation = location.coordinate
             self.isLocationAuthorized = true
+            #if DEBUG
             print("LocationSearchManager: Location updated: \(location.coordinate.latitude), \(location.coordinate.longitude)")
+            #endif
         }
     }
 
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
+        #if DEBUG
         print("LocationSearchManager: Location error: \(error.localizedDescription)")
+        #endif
         DispatchQueue.main.async {
             self.locationError = "Failed to get location: \(error.localizedDescription)"
         }

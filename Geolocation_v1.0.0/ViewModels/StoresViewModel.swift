@@ -26,14 +26,18 @@ class StoresViewModel: ObservableObject {
     /// Fetch only stores that the current user has added to their list
     func fetchUserStores() {
         guard let userId = sessionManager.currentUser?.userId else {
+            #if DEBUG
             print("StoresViewModel: No user data available in session, waiting...")
+            #endif
             // Don't show error immediately - user data might still be loading
             isLoading = false
             return
         }
 
         isLoading = true
+        #if DEBUG
         print("StoresViewModel: Fetching stores for userId: \(userId)")
+        #endif
         self.fetchUserStoresById(userId: userId)
     }
 
@@ -51,19 +55,25 @@ class StoresViewModel: ObservableObject {
                 self.isLoading = false
 
                 if let error = error {
+                    #if DEBUG
                     print("StoresViewModel: Error fetching user stores: \(error.localizedDescription)")
+                    #endif
                     self.errorMessage = "Error fetching stores: \(error.localizedDescription)"
                     return
                 }
 
                 guard let documents = snapshot?.documents else {
+                    #if DEBUG
                     print("StoresViewModel: No stores found for user")
+                    #endif
                     self.userStoreItems = []
                     self.removeAllReminderCountListeners()
                     return
                 }
 
+                #if DEBUG
                 print("StoresViewModel: Found \(documents.count) user stores")
+                #endif
 
                 // Preserve existing reminder counts so they aren't reset to 0
                 // when the snapshot fires (e.g. after adding a new store)
@@ -81,7 +91,9 @@ class StoresViewModel: ObservableObject {
                     let data = doc.data()
                     guard let storeId = data["storeId"] as? String,
                           let storeName = data["storeName"] as? String else {
+                        #if DEBUG
                         print("StoresViewModel: Missing fields in user_store document")
+                        #endif
                         continue
                     }
 
@@ -122,7 +134,9 @@ class StoresViewModel: ObservableObject {
 
                 // Skip updating if we're manually reordering
                 guard !self.isManuallyReordering else {
+                    #if DEBUG
                     print("StoresViewModel: Skipping listener update during manual reorder")
+                    #endif
                     return
                 }
 
@@ -136,7 +150,9 @@ class StoresViewModel: ObservableObject {
                 // Set up real-time listeners for reminder counts
                 self.setupReminderCountListeners(for: reminderStoreIds)
 
+                #if DEBUG
                 print("StoresViewModel: Loaded \(self.userStoreItems.count) stores, setting up reminder listeners")
+                #endif
             }
     }
 
@@ -164,7 +180,9 @@ class StoresViewModel: ObservableObject {
                     guard let self = self else { return }
 
                     if let error = error {
+                        #if DEBUG
                         print("StoresViewModel: Error listening to reminders for \(reminderStoreId): \(error)")
+                        #endif
                         return
                     }
 
@@ -207,7 +225,9 @@ class StoresViewModel: ObservableObject {
                 )
                 userStoreItems[index] = updatedItem
                 updated = true
+                #if DEBUG
                 print("StoresViewModel: Updated reminder count for '\(item.store.name)' to \(count)")
+                #endif
             }
         }
 
@@ -229,7 +249,9 @@ class StoresViewModel: ObservableObject {
     func fetchAllStores() {
         // Check if user is authenticated
         guard Auth.auth().currentUser != nil else {
+            #if DEBUG
             print("StoresViewModel: User not authenticated, cannot fetch stores")
+            #endif
             DispatchQueue.main.async {
                 self.isLoadingAllStores = false
                 self.errorMessage = "Please log in to view available stores."
@@ -237,7 +259,9 @@ class StoresViewModel: ObservableObject {
             return
         }
 
+        #if DEBUG
         print("StoresViewModel: Fetching all available stores")
+        #endif
 
         DispatchQueue.main.async {
             self.isLoadingAllStores = true
@@ -249,8 +273,10 @@ class StoresViewModel: ObservableObject {
 
             if let error = error {
                 let nsError = error as NSError
+                #if DEBUG
                 print("StoresViewModel: Error fetching all stores: \(error.localizedDescription)")
                 print("StoresViewModel: Error code: \(nsError.code), domain: \(nsError.domain)")
+                #endif
 
                 DispatchQueue.main.async {
                     self.isLoadingAllStores = false
@@ -267,7 +293,9 @@ class StoresViewModel: ObservableObject {
             }
 
             guard let documents = snapshot?.documents else {
+                #if DEBUG
                 print("StoresViewModel: No stores in database")
+                #endif
                 DispatchQueue.main.async {
                     self.isLoadingAllStores = false
                 }
@@ -293,7 +321,9 @@ class StoresViewModel: ObservableObject {
                 self.allStores = stores
                 self.isLoadingAllStores = false
                 self.errorMessage = "" // Clear error on success
+                #if DEBUG
                 print("StoresViewModel: Loaded \(self.allStores.count) available stores")
+                #endif
             }
         }
     }
@@ -309,7 +339,9 @@ class StoresViewModel: ObservableObject {
             return
         }
 
+        #if DEBUG
         print("StoresViewModel: Adding store '\(store.name)' to user")
+        #endif
 
         // Check if store is already added (by normalized store ID based on name)
         let normalizedStoreId = Store.normalizedId(from: store.name)
@@ -344,12 +376,16 @@ class StoresViewModel: ObservableObject {
 
                 self.db.collection("user_stores").addDocument(data: userStore) { error in
                     if let error = error {
+                        #if DEBUG
                         print("StoresViewModel: Error adding store: \(error.localizedDescription)")
+                        #endif
                         DispatchQueue.main.async {
                             self.errorMessage = "Error adding store: \(error.localizedDescription)"
                         }
                     } else {
+                        #if DEBUG
                         print("StoresViewModel: Store '\(store.name)' added successfully")
+                        #endif
                     }
                 }
             }
@@ -357,7 +393,9 @@ class StoresViewModel: ObservableObject {
 
     /// Remove a store from the current user's list
     func removeStoreFromUser(userStoreItem: UserStoreItem) {
+        #if DEBUG
         print("StoresViewModel: Removing user_store document: \(userStoreItem.id)")
+        #endif
 
         // Remove from local array immediately for smooth UI
         userStoreItems.removeAll { $0.id == userStoreItem.id }
@@ -382,17 +420,23 @@ class StoresViewModel: ObservableObject {
     }
 
     private func deleteSingleUserStore(userStoreItem: UserStoreItem) {
+        #if DEBUG
         print("StoresViewModel: Deleting single user_store: \(userStoreItem.id)")
+        #endif
 
         // Delete the user_store document
         db.collection("user_stores").document(userStoreItem.id).delete { [weak self] error in
             if let error = error {
+                #if DEBUG
                 print("StoresViewModel: Error removing store: \(error.localizedDescription)")
+                #endif
                 DispatchQueue.main.async {
                     self?.errorMessage = "Failed to delete store: \(error.localizedDescription)"
                 }
             } else {
+                #if DEBUG
                 print("StoresViewModel: Store removed successfully")
+                #endif
             }
         }
 
@@ -401,7 +445,9 @@ class StoresViewModel: ObservableObject {
             .whereField("userStoreId", isEqualTo: userStoreItem.id)
             .getDocuments { [weak self] snapshot, error in
                 if let error = error {
+                    #if DEBUG
                     print("StoresViewModel: Error fetching reminders: \(error.localizedDescription)")
+                    #endif
                     DispatchQueue.main.async {
                         self?.errorMessage = "Failed to clean up reminders: \(error.localizedDescription)"
                     }
@@ -419,19 +465,25 @@ class StoresViewModel: ObservableObject {
 
                 batch?.commit { error in
                     if let error = error {
+                        #if DEBUG
                         print("StoresViewModel: Error deleting reminders: \(error.localizedDescription)")
+                        #endif
                         DispatchQueue.main.async {
                             self?.errorMessage = "Failed to delete reminders: \(error.localizedDescription)"
                         }
                     } else {
+                        #if DEBUG
                         print("StoresViewModel: Deleted \(documents.count) reminders")
+                        #endif
                     }
                 }
             }
     }
 
     private func deleteRecipientUserStore(userStoreItem: UserStoreItem) {
+        #if DEBUG
         print("StoresViewModel: Deleting recipient's shared user_store: \(userStoreItem.id)")
+        #endif
 
         // Get current user's name to remove from owner's reminders sharedWith
         let currentUserName = sessionManager.currentUser?.name
@@ -439,12 +491,16 @@ class StoresViewModel: ObservableObject {
         // Only delete the user_store document, don't touch owner's reminders
         db.collection("user_stores").document(userStoreItem.id).delete { [weak self] error in
             if let error = error {
+                #if DEBUG
                 print("StoresViewModel: Error removing shared store: \(error.localizedDescription)")
+                #endif
                 DispatchQueue.main.async {
                     self?.errorMessage = "Failed to delete shared store: \(error.localizedDescription)"
                 }
             } else {
+                #if DEBUG
                 print("StoresViewModel: Shared store removed successfully (recipient left)")
+                #endif
 
                 // Update owner's reminders to remove current user from sharedWith
                 // Use sourceUserStoreId if available, otherwise try to find owner's reminders by other means
@@ -460,7 +516,9 @@ class StoresViewModel: ObservableObject {
     }
 
     private func updateOwnerRemindersAfterRecipientLeaves(ownerUserStoreId: String, recipientName: String) {
+        #if DEBUG
         print("StoresViewModel: Updating reminders after \(recipientName) left the shared store")
+        #endif
 
         // Find all shared reminders for the owner's store
         db.collection("reminders")
@@ -470,7 +528,9 @@ class StoresViewModel: ObservableObject {
                 guard let self = self else { return }
 
                 if let error = error {
+                    #if DEBUG
                     print("StoresViewModel: Error fetching reminders to update: \(error.localizedDescription)")
+                    #endif
                     DispatchQueue.main.async {
                         self.errorMessage = "Failed to update shared reminders: \(error.localizedDescription)"
                     }
@@ -478,7 +538,9 @@ class StoresViewModel: ObservableObject {
                 }
 
                 guard let documents = snapshot?.documents, !documents.isEmpty else {
+                    #if DEBUG
                     print("StoresViewModel: No shared reminders to update")
+                    #endif
                     return
                 }
 
@@ -533,12 +595,16 @@ class StoresViewModel: ObservableObject {
                 if updatedCount > 0 {
                     batch.commit { [weak self] error in
                         if let error = error {
+                            #if DEBUG
                             print("StoresViewModel: Error updating reminders: \(error.localizedDescription)")
+                            #endif
                             DispatchQueue.main.async {
                                 self?.errorMessage = "Failed to update shared reminders: \(error.localizedDescription)"
                             }
                         } else {
+                            #if DEBUG
                             print("StoresViewModel: Updated \(updatedCount) reminders after recipient left")
+                            #endif
                         }
                     }
                 }
@@ -546,7 +612,9 @@ class StoresViewModel: ObservableObject {
     }
 
     private func deleteSharedStoreGroup(sharedGroupId: String) {
+        #if DEBUG
         print("StoresViewModel: Deleting shared store group: \(sharedGroupId)")
+        #endif
 
         // Step 1: Delete the shared store group first
         // This allows the Firestore rules to permit deletion of user_stores
@@ -555,21 +623,27 @@ class StoresViewModel: ObservableObject {
             guard let self = self else { return }
 
             if let error = error {
+                #if DEBUG
                 print("StoresViewModel: Error deleting shared group: \(error.localizedDescription)")
+                #endif
                 DispatchQueue.main.async {
                     self.errorMessage = "Failed to delete shared store group: \(error.localizedDescription)"
                 }
                 return
             }
 
+            #if DEBUG
             print("StoresViewModel: Shared group deleted, now deleting user_stores and reminders")
+            #endif
 
             // Step 2: Find all user_stores in this shared group
             self.db.collection("user_stores")
                 .whereField("sharedStoreGroupId", isEqualTo: sharedGroupId)
                 .getDocuments { [weak self] snapshot, error in
                     if let error = error {
+                        #if DEBUG
                         print("StoresViewModel: Error fetching shared user_stores: \(error.localizedDescription)")
+                        #endif
                         DispatchQueue.main.async {
                             self?.errorMessage = "Failed to delete shared stores: \(error.localizedDescription)"
                         }
@@ -585,7 +659,9 @@ class StoresViewModel: ObservableObject {
                         .whereField("userStoreId", isEqualTo: sharedGroupId)
                         .getDocuments { [weak self] reminderSnapshot, reminderError in
                             if let reminderError = reminderError {
+                                #if DEBUG
                                 print("StoresViewModel: Error fetching reminders: \(reminderError.localizedDescription)")
+                                #endif
                                 DispatchQueue.main.async {
                                     self?.errorMessage = "Failed to clean up shared reminders: \(reminderError.localizedDescription)"
                                 }
@@ -611,12 +687,16 @@ class StoresViewModel: ObservableObject {
                             // Commit the batch
                             batch.commit { error in
                                 if let error = error {
+                                    #if DEBUG
                                     print("StoresViewModel: Error deleting user_stores and reminders: \(error.localizedDescription)")
+                                    #endif
                                     DispatchQueue.main.async {
                                         self?.errorMessage = "Failed to delete shared stores and reminders: \(error.localizedDescription)"
                                     }
                                 } else {
+                                    #if DEBUG
                                     print("StoresViewModel: Successfully deleted \(userStoreDocuments.count) user_stores and \(reminderSnapshot?.documents.count ?? 0) reminders")
+                                    #endif
                                 }
                             }
                         }
@@ -650,9 +730,13 @@ class StoresViewModel: ObservableObject {
             }
 
             if let error = error {
+                #if DEBUG
                 print("StoresViewModel: Error updating sort order: \(error.localizedDescription)")
+                #endif
             } else {
+                #if DEBUG
                 print("StoresViewModel: Sort order updated successfully")
+                #endif
             }
         }
     }

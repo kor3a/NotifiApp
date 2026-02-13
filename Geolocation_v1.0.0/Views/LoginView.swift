@@ -198,14 +198,20 @@ struct LoginView: View {
     /// Login with Firebase with Apple
     func loginWithFirebase(_ authorization: ASAuthorization) {
         if let userCredential = authorization.credential as? ASAuthorizationAppleIDCredential {
+            #if DEBUG
             print(userCredential.user)
-            
+            #endif
+
             if userCredential.authorizedScopes.contains(.fullName) {
+                #if DEBUG
                 print(userCredential.fullName?.givenName ?? "No given name")
+                #endif
             }
-            
+
             if userCredential.authorizedScopes.contains(.email) {
+                #if DEBUG
                 print(userCredential.email ?? "No email")
+                #endif
             }
             
         }

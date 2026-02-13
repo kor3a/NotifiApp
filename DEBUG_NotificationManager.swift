@@ -67,7 +67,9 @@ class NotificationManager: NSObject, ObservableObject {
 
         DispatchQueue.main.async {
             self.isCarPlayConnected = connected
+            #if DEBUG
             print("🚗 CarPlay Status: \(connected ? "CONNECTED" : "DISCONNECTED")")
+            #endif
         }
     }
 
@@ -83,7 +85,9 @@ class NotificationManager: NSObject, ObservableObject {
         )
 
         notificationCenter.setNotificationCategories([category])
+        #if DEBUG
         print("✅ Registered notification categories with CarPlay support")
+        #endif
 
         // OPTION 2: No categories (uncomment to test)
         // notificationCenter.setNotificationCategories([])
@@ -108,7 +112,9 @@ class NotificationManager: NSObject, ObservableObject {
 
             return granted
         } catch {
+            #if DEBUG
             print("Error requesting notification authorization: \(error)")
+            #endif
             return false
         }
     }
@@ -147,7 +153,9 @@ class NotificationManager: NSObject, ObservableObject {
 
         """
 
+        #if DEBUG
         print(info)
+        #endif
 
         await MainActor.run {
             self.debugInfo = info
@@ -179,10 +187,12 @@ class NotificationManager: NSObject, ObservableObject {
         DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
             self.notificationCenter.getPendingNotificationRequests { requests in
                 let pending = requests.filter { $0.identifier.contains(identifier) }
+                #if DEBUG
                 print("📋 Pending notifications for '\(identifier)': \(pending.count)")
                 for req in pending {
                     print("   - \(req.identifier)")
                 }
+                #endif
             }
         }
 
@@ -190,12 +200,14 @@ class NotificationManager: NSObject, ObservableObject {
         DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
             self.notificationCenter.getDeliveredNotifications { notifications in
                 let delivered = notifications.filter { $0.request.identifier.contains(identifier) }
+                #if DEBUG
                 print("📬 Delivered notifications for '\(identifier)': \(delivered.count)")
                 for notif in delivered {
                     print("   - \(notif.request.identifier)")
                     print("     Title: \(notif.request.content.title)")
                     print("     Body: \(notif.request.content.body)")
                 }
+                #endif
             }
         }
     }
@@ -214,18 +226,24 @@ class NotificationManager: NSObject, ObservableObject {
         reminderCount: Int,
         mode: InterruptionMode = .critical  // Change this to test different modes
     ) {
+        #if DEBUG
         print("🔔 NotificationManager: Attempting to schedule notification for \(storeName)")
         print("   Mode: \(mode.rawValue)")
+        #endif
 
         notificationCenter.getNotificationSettings { settings in
+            #if DEBUG
             print("   Notification authorization: \(settings.authorizationStatus.rawValue)")
             print("   Alert setting: \(settings.alertSetting.rawValue)")
             print("   Sound setting: \(settings.soundSetting.rawValue)")
             print("   CarPlay setting: \(settings.carPlaySetting.rawValue)")
             print("   Critical setting: \(settings.criticalAlertSetting.rawValue)")
+            #endif
 
             guard settings.authorizationStatus == .authorized else {
+                #if DEBUG
                 print("   ❌ Notifications not authorized!")
+                #endif
                 return
             }
 
@@ -276,10 +294,14 @@ class NotificationManager: NSObject, ObservableObject {
 
             self.notificationCenter.add(request) { error in
                 if let error = error {
+                    #if DEBUG
                     print("   ❌ Error scheduling notification: \(error)")
+                    #endif
                 } else {
+                    #if DEBUG
                     print("   ✅ Successfully scheduled notification for \(storeName)")
                     print("   📱 Identifier: \(identifier)")
+                    #endif
 
                     // Log the notification
                     self.logStore.addEntry(storeName: storeName, reminderCount: reminderCount)
@@ -315,6 +337,7 @@ class NotificationManager: NSObject, ObservableObject {
 
     func getAllPendingNotificationsDebug() {
         notificationCenter.getPendingNotificationRequests { requests in
+            #if DEBUG
             print("\n📋 === ALL PENDING NOTIFICATIONS ===")
             print("Total count: \(requests.count)")
             for req in requests {
@@ -326,11 +349,13 @@ class NotificationManager: NSObject, ObservableObject {
                 }
             }
             print("=====================================\n")
+            #endif
         }
     }
 
     func getAllDeliveredNotificationsDebug() {
         notificationCenter.getDeliveredNotifications { notifications in
+            #if DEBUG
             print("\n📬 === ALL DELIVERED NOTIFICATIONS ===")
             print("Total count: \(notifications.count)")
             for notif in notifications {
@@ -340,6 +365,7 @@ class NotificationManager: NSObject, ObservableObject {
                 print("Date: \(notif.date)")
             }
             print("======================================\n")
+            #endif
         }
     }
 }
@@ -350,9 +376,11 @@ extension NotificationManager: UNUserNotificationCenterDelegate {
     func userNotificationCenter(_ center: UNUserNotificationCenter,
                               willPresent notification: UNNotification,
                               withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
+        #if DEBUG
         print("🔔 willPresent called for: \(notification.request.identifier)")
         print("   Title: \(notification.request.content.title)")
         print("   CarPlay connected: \(isCarPlayConnected)")
+        #endif
 
         // Show notification even when app is in foreground
         completionHandler([.banner, .list, .sound, .badge])
@@ -361,8 +389,10 @@ extension NotificationManager: UNUserNotificationCenterDelegate {
     func userNotificationCenter(_ center: UNUserNotificationCenter,
                               didReceive response: UNNotificationResponse,
                               withCompletionHandler completionHandler: @escaping () -> Void) {
+        #if DEBUG
         print("👆 User tapped notification: \(response.notification.request.identifier)")
         print("   Action: \(response.actionIdentifier)")
+        #endif
         completionHandler()
     }
 }

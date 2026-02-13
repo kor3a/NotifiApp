@@ -55,7 +55,9 @@ class MessagesViewModel: ObservableObject {
                     self?.fetchParticipantProfilePictures(from: conversations)
                 case .failure(let error):
                     self?.errorMessage = error.localizedDescription
+                    #if DEBUG
                     print("MessagesViewModel: Error fetching conversations: \(error)")
+                    #endif
                 }
             }
         }
@@ -63,16 +65,24 @@ class MessagesViewModel: ObservableObject {
 
     func fetchUnreadCount() {
         guard let userId = currentUserId else {
+            #if DEBUG
             print("⚠️ MessagesViewModel.fetchUnreadCount: No userId available")
+            #endif
             return
         }
 
+        #if DEBUG
         print("📊 MessagesViewModel.fetchUnreadCount: Starting for userId: \(userId)")
+        #endif
         messagingService.getTotalUnreadCount(for: userId) { [weak self] count in
             DispatchQueue.main.async {
+                #if DEBUG
                 print("📊 MessagesViewModel.fetchUnreadCount: Received count: \(count)")
+                #endif
                 self?.totalUnreadCount = count
+                #if DEBUG
                 print("📊 MessagesViewModel.totalUnreadCount updated to: \(self?.totalUnreadCount ?? -1)")
+                #endif
             }
         }
     }
@@ -84,10 +94,14 @@ class MessagesViewModel: ObservableObject {
                 switch result {
                 case .success:
                     // Conversation will be removed automatically via snapshot listener
+                    #if DEBUG
                     print("MessagesViewModel: Successfully deleted conversation")
+                    #endif
                 case .failure(let error):
                     self?.errorMessage = error.localizedDescription
+                    #if DEBUG
                     print("MessagesViewModel: Error deleting conversation: \(error)")
+                    #endif
                 }
             }
         }
@@ -137,7 +151,9 @@ class MessagesViewModel: ObservableObject {
 
                 case .failure(let error):
                     self.errorMessage = error.localizedDescription
+                    #if DEBUG
                     print("MessagesViewModel: Error fetching messages: \(error)")
+                    #endif
                 }
             }
         }
@@ -174,7 +190,9 @@ class MessagesViewModel: ObservableObject {
 
                 case .failure(let error):
                     self.errorMessage = error.localizedDescription
+                    #if DEBUG
                     print("MessagesViewModel: Error loading more messages: \(error)")
+                    #endif
                 }
             }
         }
@@ -193,10 +211,14 @@ class MessagesViewModel: ObservableObject {
                 switch result {
                 case .success:
                     // Message will be removed automatically via snapshot listener
+                    #if DEBUG
                     print("MessagesViewModel: Successfully deleted message")
+                    #endif
                 case .failure(let error):
                     self?.errorMessage = error.localizedDescription
+                    #if DEBUG
                     print("MessagesViewModel: Error deleting message: \(error)")
+                    #endif
                 }
             }
         }
@@ -223,7 +245,9 @@ class MessagesViewModel: ObservableObject {
                     break // Message will appear via snapshot listener
                 case .failure(let error):
                     self?.errorMessage = error.localizedDescription
+                    #if DEBUG
                     print("MessagesViewModel: Error sending message: \(error)")
+                    #endif
                 }
             }
         }
@@ -246,7 +270,9 @@ class MessagesViewModel: ObservableObject {
                     self?.recentContacts = contacts
                 case .failure(let error):
                     self?.errorMessage = error.localizedDescription
+                    #if DEBUG
                     print("MessagesViewModel: Error fetching contacts: \(error)")
+                    #endif
                 }
             }
         }
@@ -267,7 +293,9 @@ class MessagesViewModel: ObservableObject {
                     self?.searchedContact = contact
                 case .failure(let error):
                     self?.errorMessage = error.localizedDescription
+                    #if DEBUG
                     print("MessagesViewModel: Error searching contact: \(error)")
+                    #endif
                 }
             }
         }
@@ -296,7 +324,9 @@ class MessagesViewModel: ObservableObject {
                 case .success(let conversation):
                     completion(conversation)
                 case .failure(let error):
+                    #if DEBUG
                     print("MessagesViewModel: Error creating conversation: \(error)")
+                    #endif
                     completion(nil)
                 }
             }
@@ -355,14 +385,18 @@ class MessagesViewModel: ObservableObject {
                         case .success:
                             completion(true)
                         case .failure(let error):
+                            #if DEBUG
                             print("MessagesViewModel: Error sending reminder: \(error)")
+                            #endif
                             completion(false)
                         }
                     }
                 }
 
             case .failure(let error):
+                #if DEBUG
                 print("MessagesViewModel: Error creating conversation for reminder: \(error)")
+                #endif
                 DispatchQueue.main.async {
                     completion(false)
                 }
@@ -395,10 +429,14 @@ class MessagesViewModel: ObservableObject {
             DispatchQueue.main.async {
                 switch result {
                 case .success:
+                    #if DEBUG
                     print("MessagesViewModel: Successfully accepted shared reminder")
+                    #endif
                     completion(true)
                 case .failure(let error):
+                    #if DEBUG
                     print("MessagesViewModel: Error accepting shared reminder: \(error)")
+                    #endif
                     completion(false)
                 }
             }
@@ -416,10 +454,14 @@ class MessagesViewModel: ObservableObject {
             DispatchQueue.main.async {
                 switch result {
                 case .success:
+                    #if DEBUG
                     print("MessagesViewModel: Successfully rejected shared reminder")
+                    #endif
                     completion(true)
                 case .failure(let error):
+                    #if DEBUG
                     print("MessagesViewModel: Error rejecting shared reminder: \(error)")
+                    #endif
                     completion(false)
                 }
             }
@@ -436,10 +478,14 @@ class MessagesViewModel: ObservableObject {
         reminderTitles: [String]?,
         completion: @escaping (Bool) -> Void
     ) {
+        #if DEBUG
         print("📤 MessagesViewModel.shareStore: Starting - store=\(userStoreItem.store.name), to=\(contact.name), permission=\(permission)")
+        #endif
 
         guard let userId = currentUserId else {
+            #if DEBUG
             print("📤 MessagesViewModel.shareStore: ERROR - No currentUserId")
+            #endif
             completion(false)
             return
         }
@@ -447,7 +493,9 @@ class MessagesViewModel: ObservableObject {
         // Get current user's email for Firestore rule validation when removing access
         let currentUserEmail = UserSessionManager.shared.currentUser?.email
 
+        #if DEBUG
         print("📤 MessagesViewModel.shareStore: Finding or creating conversation...")
+        #endif
 
         // First, find or create conversation
         messagingService.findOrCreateConversation(
@@ -458,7 +506,9 @@ class MessagesViewModel: ObservableObject {
         ) { [weak self] result in
             switch result {
             case .success(let conversation):
+                #if DEBUG
                 print("📤 MessagesViewModel.shareStore: Got conversation \(conversation.id), creating LinkedStore...")
+                #endif
 
                 // Create LinkedStore with all necessary info (no address/coordinates - name-based)
                 let linkedStore = LinkedStore(
@@ -480,7 +530,9 @@ class MessagesViewModel: ObservableObject {
                 let reminderCountText = reminderTitles?.count ?? 0
                 let messageContent = "I'd like to share \(userStoreItem.store.name) with you (\(permissionText)). It has \(reminderCountText) reminder(s)."
 
+                #if DEBUG
                 print("📤 MessagesViewModel.shareStore: Sending message with linkedStore...")
+                #endif
 
                 self?.messagingService.sendMessage(
                     conversationId: conversation.id,
@@ -491,7 +543,9 @@ class MessagesViewModel: ObservableObject {
                 ) { [weak self] messageResult in
                     switch messageResult {
                     case .success(let message):
+                        #if DEBUG
                         print("📤 MessagesViewModel.shareStore: SUCCESS - Message sent with id=\(message.id)")
+                        #endif
 
                         // Mark all reminders in this store as shared and update owner's user_store
                         self?.markRemindersAsShared(
@@ -511,7 +565,9 @@ class MessagesViewModel: ObservableObject {
                         }
 
                     case .failure(let error):
+                        #if DEBUG
                         print("📤 MessagesViewModel.shareStore: ERROR sending message: \(error)")
+                        #endif
                         DispatchQueue.main.async {
                             completion(false)
                         }
@@ -519,7 +575,9 @@ class MessagesViewModel: ObservableObject {
                 }
 
             case .failure(let error):
+                #if DEBUG
                 print("📤 MessagesViewModel.shareStore: ERROR creating conversation: \(error)")
+                #endif
                 DispatchQueue.main.async {
                     completion(false)
                 }
@@ -539,25 +597,33 @@ class MessagesViewModel: ObservableObject {
         // Determine which ID to use for fetching reminders
         let reminderStoreId = userStoreItem.sourceUserStoreId ?? userStoreItem.sharedStoreGroupId ?? userStoreItem.id
 
+        #if DEBUG
         print("📤 markRemindersAsShared: Marking reminders as shared for storeId=\(reminderStoreId)")
+        #endif
 
         db.collection("reminders")
             .whereField("userStoreId", isEqualTo: reminderStoreId)
             .whereField("isDone", isEqualTo: false)
             .getDocuments { snapshot, error in
                 if let error = error {
+                    #if DEBUG
                     print("📤 markRemindersAsShared: ERROR fetching reminders - \(error)")
+                    #endif
                     completion()
                     return
                 }
 
                 guard let documents = snapshot?.documents, !documents.isEmpty else {
+                    #if DEBUG
                     print("📤 markRemindersAsShared: No reminders to mark")
+                    #endif
                     completion()
                     return
                 }
 
+                #if DEBUG
                 print("📤 markRemindersAsShared: Found \(documents.count) reminders to mark as shared")
+                #endif
 
                 let batch = db.batch()
 
@@ -580,11 +646,13 @@ class MessagesViewModel: ObservableObject {
                 }
 
                 batch.commit { error in
+                    #if DEBUG
                     if let error = error {
                         print("📤 markRemindersAsShared: ERROR committing batch - \(error)")
                     } else {
                         print("📤 markRemindersAsShared: SUCCESS - \(documents.count) reminders marked as shared")
                     }
+                    #endif
                     completion()
                 }
             }
@@ -598,17 +666,23 @@ class MessagesViewModel: ObservableObject {
     ) {
         let db = Firestore.firestore()
 
+        #if DEBUG
         print("📤 updateOwnerStoreSharedWith: Updating user_store \(userStoreId) with sharedWith")
+        #endif
 
         db.collection("user_stores").document(userStoreId).getDocument { snapshot, error in
             if let error = error {
+                #if DEBUG
                 print("📤 updateOwnerStoreSharedWith: ERROR fetching user_store - \(error)")
+                #endif
                 completion()
                 return
             }
 
             guard let data = snapshot?.data() else {
+                #if DEBUG
                 print("📤 updateOwnerStoreSharedWith: No data found")
+                #endif
                 completion()
                 return
             }
@@ -624,11 +698,13 @@ class MessagesViewModel: ObservableObject {
                 "sharedWith": sharedWith,
                 "isSharedStore": true
             ]) { error in
+                #if DEBUG
                 if let error = error {
                     print("📤 updateOwnerStoreSharedWith: ERROR updating - \(error)")
                 } else {
                     print("📤 updateOwnerStoreSharedWith: SUCCESS - sharedWith=\(sharedWith)")
                 }
+                #endif
                 completion()
             }
         }
@@ -640,27 +716,37 @@ class MessagesViewModel: ObservableObject {
         message: Message,
         completion: @escaping (Bool) -> Void
     ) {
+        #if DEBUG
         print("🔵 MessagesViewModel.acceptSharedStore: Starting for message \(message.id)")
+        #endif
 
         guard let userId = currentUserId else {
+            #if DEBUG
             print("🔵 MessagesViewModel.acceptSharedStore: ERROR - No currentUserId")
+            #endif
             completion(false)
             return
         }
 
         guard let userEmail = UserSessionManager.shared.currentUser?.email else {
+            #if DEBUG
             print("🔵 MessagesViewModel.acceptSharedStore: ERROR - No userEmail")
+            #endif
             completion(false)
             return
         }
 
         guard let linkedStore = message.linkedStore else {
+            #if DEBUG
             print("🔵 MessagesViewModel.acceptSharedStore: ERROR - No linkedStore in message")
+            #endif
             completion(false)
             return
         }
 
+        #if DEBUG
         print("🔵 MessagesViewModel.acceptSharedStore: linkedStore=\(linkedStore.storeName), senderUserStoreId=\(linkedStore.senderUserStoreId ?? "nil")")
+        #endif
 
         messagingService.acceptSharedStore(
             messageId: message.id,
@@ -674,10 +760,14 @@ class MessagesViewModel: ObservableObject {
             DispatchQueue.main.async {
                 switch result {
                 case .success:
+                    #if DEBUG
                     print("🔵 MessagesViewModel.acceptSharedStore: SUCCESS")
+                    #endif
                     completion(true)
                 case .failure(let error):
+                    #if DEBUG
                     print("🔵 MessagesViewModel.acceptSharedStore: FAILURE - \(error)")
+                    #endif
                     completion(false)
                 }
             }
@@ -695,10 +785,14 @@ class MessagesViewModel: ObservableObject {
             DispatchQueue.main.async {
                 switch result {
                 case .success:
+                    #if DEBUG
                     print("MessagesViewModel: Successfully rejected shared store")
+                    #endif
                     completion(true)
                 case .failure(let error):
+                    #if DEBUG
                     print("MessagesViewModel: Error rejecting shared store: \(error)")
+                    #endif
                     completion(false)
                 }
             }

@@ -17,7 +17,9 @@ struct Geolocation_v1_0_0App: App {
         // Initialize LocationMonitoringManager so it's ready to handle background location events
         // This ensures the app can respond to geofence events even when launched in the background
         _ = LocationMonitoringManager.shared
+        #if DEBUG
         print("🚀 App: LocationMonitoringManager initialized for background location support")
+        #endif
     }
 
     var body: some Scene {

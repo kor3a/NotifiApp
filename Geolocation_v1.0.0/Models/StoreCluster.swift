@@ -179,7 +179,9 @@ class StoreClusterManager {
                 )
             }
         } catch {
+            #if DEBUG
             print("StoreClusterManager: Error searching for \(userStoreItem.store.name): \(error)")
+            #endif
             return []
         }
     }

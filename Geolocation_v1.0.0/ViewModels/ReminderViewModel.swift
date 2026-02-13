@@ -23,7 +23,9 @@ class ReminderViewModel: ObservableObject {
     ///   - sharedFromName: If this is a shared store, the name of the user who shared it (to populate sharedFrom on reminders)
     func fetchReminders(for userStoreId: String, sharedFromName: String? = nil) {
         isLoading = true
+        #if DEBUG
         print("ReminderViewModel: Fetching reminders for userStoreId: \(userStoreId), sharedFromName: \(sharedFromName ?? "nil")")
+        #endif
 
         db.collection("reminders")
             .whereField("userStoreId", isEqualTo: userStoreId)
@@ -34,29 +36,39 @@ class ReminderViewModel: ObservableObject {
                     self.isLoading = false
 
                     if let error = error {
+                        #if DEBUG
                         print("ReminderViewModel: Error fetching reminders: \(error.localizedDescription)")
                         print("ReminderViewModel: Full error: \(error)")
+                        #endif
                         self.errorMessage = "Error fetching reminders: \(error.localizedDescription)"
                         return
                     }
 
                     guard let documents = snapshot?.documents else {
+                        #if DEBUG
                         print("ReminderViewModel: No reminders found (nil documents)")
+                        #endif
                         self.reminders = []
                         return
                     }
 
+                    #if DEBUG
                     print("ReminderViewModel: Found \(documents.count) reminder documents")
+                    #endif
 
                     let fetchedReminders = documents.compactMap { doc -> Reminder? in
                         let data = doc.data()
+                        #if DEBUG
                         print("ReminderViewModel: Processing document \(doc.documentID): \(data)")
+                        #endif
 
                         guard let userStoreId = data["userStoreId"] as? String,
                               let title = data["title"] as? String,
                               let isDone = data["isDone"] as? Bool,
                               let createdAt = data["createdAt"] as? TimeInterval else {
+                            #if DEBUG
                             print("ReminderViewModel: Missing fields in reminder document \(doc.documentID)")
+                            #endif
                             return nil
                         }
 
@@ -93,7 +105,9 @@ class ReminderViewModel: ObservableObject {
                     // Sort by createdAt in memory (oldest first)
                     self.reminders = fetchedReminders.sorted { $0.createdAt < $1.createdAt }
 
+                    #if DEBUG
                     print("ReminderViewModel: Successfully loaded \(self.reminders.count) reminders")
+                    #endif
                 }
             }
     }
@@ -113,7 +127,9 @@ class ReminderViewModel: ObservableObject {
             return
         }
 
+        #if DEBUG
         print("ReminderViewModel: Adding reminder '\(title)' for userStoreId: \(userStoreId), sharedWith: \(sharedWith ?? []), sharedFromName: \(sharedFromName ?? "nil"), currentUserName: \(currentUserName ?? "nil")")
+        #endif
 
         var reminderData: [String: Any] = [
             "userStoreId": userStoreId,
@@ -146,10 +162,14 @@ class ReminderViewModel: ObservableObject {
         db.collection("reminders").addDocument(data: reminderData) { [weak self] error in
             DispatchQueue.main.async {
                 if let error = error {
+                    #if DEBUG
                     print("ReminderViewModel: Error adding reminder: \(error.localizedDescription)")
+                    #endif
                     self?.errorMessage = "Error adding reminder: \(error.localizedDescription)"
                 } else {
+                    #if DEBUG
                     print("ReminderViewModel: Reminder added successfully (isShared: \(isSharedStore))")
+                    #endif
                 }
             }
         }
@@ -157,13 +177,17 @@ class ReminderViewModel: ObservableObject {
 
     /// Toggle reminder isDone status - syncs across all linked shared reminders
     func toggleReminder(_ reminder: Reminder) {
+        #if DEBUG
         print("ReminderViewModel: Toggling reminder '\(reminder.title)'")
+        #endif
 
         let newIsDone = !reminder.isDone
 
         // If this reminder has a sharedReminderId, sync toggle across all linked reminders
         if let sharedReminderId = reminder.sharedReminderId {
+            #if DEBUG
             print("ReminderViewModel: Syncing toggle across shared reminders with sharedReminderId: \(sharedReminderId)")
+            #endif
 
             db.collection("reminders")
                 .whereField("sharedReminderId", isEqualTo: sharedReminderId)
@@ -171,7 +195,9 @@ class ReminderViewModel: ObservableObject {
                     guard let self = self else { return }
 
                     if let error = error {
+                        #if DEBUG
                         print("ReminderViewModel: Error finding linked reminders: \(error.localizedDescription)")
+                        #endif
                         // Fall back to updating just this reminder
                         self.updateSingleReminder(reminder.id, isDone: newIsDone)
                         return
@@ -192,9 +218,13 @@ class ReminderViewModel: ObservableObject {
                     batch.commit { error in
                         DispatchQueue.main.async {
                             if let error = error {
+                                #if DEBUG
                                 print("ReminderViewModel: Error syncing toggle: \(error.localizedDescription)")
+                                #endif
                             } else {
+                                #if DEBUG
                                 print("ReminderViewModel: Synced toggle across \(documents.count) linked reminders")
+                                #endif
                             }
                         }
                     }
@@ -211,9 +241,13 @@ class ReminderViewModel: ObservableObject {
         ]) { error in
             DispatchQueue.main.async {
                 if let error = error {
+                    #if DEBUG
                     print("ReminderViewModel: Error toggling reminder: \(error.localizedDescription)")
+                    #endif
                 } else {
+                    #if DEBUG
                     print("ReminderViewModel: Reminder toggled successfully")
+                    #endif
                 }
             }
         }
@@ -221,11 +255,15 @@ class ReminderViewModel: ObservableObject {
 
     /// Delete a reminder - syncs deletion across all linked shared reminders
     func deleteReminder(_ reminder: Reminder) {
+        #if DEBUG
         print("ReminderViewModel: Deleting reminder '\(reminder.title)'")
+        #endif
 
         // If this reminder has a sharedReminderId, delete all linked reminders
         if let sharedReminderId = reminder.sharedReminderId {
+            #if DEBUG
             print("ReminderViewModel: Syncing deletion across shared reminders with sharedReminderId: \(sharedReminderId)")
+            #endif
 
             db.collection("reminders")
                 .whereField("sharedReminderId", isEqualTo: sharedReminderId)
@@ -233,7 +271,9 @@ class ReminderViewModel: ObservableObject {
                     guard let self = self else { return }
 
                     if let error = error {
+                        #if DEBUG
                         print("ReminderViewModel: Error finding linked reminders: \(error.localizedDescription)")
+                        #endif
                         // Fall back to deleting just this reminder
                         self.deleteSingleReminder(reminder.id)
                         return
@@ -254,10 +294,14 @@ class ReminderViewModel: ObservableObject {
                     batch.commit { [weak self] error in
                         DispatchQueue.main.async {
                             if let error = error {
+                                #if DEBUG
                                 print("ReminderViewModel: Error syncing deletion: \(error.localizedDescription)")
+                                #endif
                                 self?.errorMessage = "Failed to delete shared reminders: \(error.localizedDescription)"
                             } else {
+                                #if DEBUG
                                 print("ReminderViewModel: Synced deletion across \(documents.count) linked reminders")
+                                #endif
                             }
                         }
                     }
@@ -272,10 +316,14 @@ class ReminderViewModel: ObservableObject {
         db.collection("reminders").document(reminderId).delete { [weak self] error in
             DispatchQueue.main.async {
                 if let error = error {
+                    #if DEBUG
                     print("ReminderViewModel: Error deleting reminder: \(error.localizedDescription)")
+                    #endif
                     self?.errorMessage = "Failed to delete reminder: \(error.localizedDescription)"
                 } else {
+                    #if DEBUG
                     print("ReminderViewModel: Reminder deleted successfully")
+                    #endif
                 }
             }
         }
@@ -287,12 +335,16 @@ class ReminderViewModel: ObservableObject {
         let storageRef = Storage.storage().reference(forURL: photoURL)
         storageRef.delete { [weak self] error in
             if let error = error {
+                #if DEBUG
                 print("ReminderViewModel: Error deleting photo from storage: \(error.localizedDescription)")
+                #endif
                 DispatchQueue.main.async {
                     self?.errorMessage = "Failed to delete photo: \(error.localizedDescription)"
                 }
             } else {
+                #if DEBUG
                 print("ReminderViewModel: Photo deleted from storage")
+                #endif
             }
         }
 
@@ -304,12 +356,16 @@ class ReminderViewModel: ObservableObject {
             "photoURLs": currentURLs
         ]) { [weak self] error in
             if let error = error {
+                #if DEBUG
                 print("ReminderViewModel: Error updating photoURLs: \(error.localizedDescription)")
+                #endif
                 DispatchQueue.main.async {
                     self?.errorMessage = "Failed to remove photo from reminder: \(error.localizedDescription)"
                 }
             } else {
+                #if DEBUG
                 print("ReminderViewModel: Photo URL removed from reminder")
+                #endif
             }
         }
     }
@@ -317,7 +373,9 @@ class ReminderViewModel: ObservableObject {
     /// Upload a photo for a reminder and append its URL to the reminder's photoURLs array
     func uploadPhoto(for reminder: Reminder, image: UIImage) {
         guard let imageData = image.jpegData(compressionQuality: 0.7) else {
+            #if DEBUG
             print("ReminderViewModel: Failed to convert image to JPEG data")
+            #endif
             DispatchQueue.main.async {
                 self.errorMessage = "Failed to process image for upload"
             }
@@ -335,7 +393,9 @@ class ReminderViewModel: ObservableObject {
             guard let self = self else { return }
 
             if let error = error {
+                #if DEBUG
                 print("ReminderViewModel: Error uploading photo: \(error.localizedDescription)")
+                #endif
                 DispatchQueue.main.async {
                     self.errorMessage = "Failed to upload photo: \(error.localizedDescription)"
                 }
@@ -344,7 +404,9 @@ class ReminderViewModel: ObservableObject {
 
             photoRef.downloadURL { [weak self] url, error in
                 if let error = error {
+                    #if DEBUG
                     print("ReminderViewModel: Error getting download URL: \(error.localizedDescription)")
+                    #endif
                     DispatchQueue.main.async {
                         self?.errorMessage = "Failed to upload photo: \(error.localizedDescription)"
                     }
@@ -361,12 +423,16 @@ class ReminderViewModel: ObservableObject {
                     "photoURLs": currentURLs
                 ]) { error in
                     if let error = error {
+                        #if DEBUG
                         print("ReminderViewModel: Error saving photo URL: \(error.localizedDescription)")
+                        #endif
                         DispatchQueue.main.async {
                             self?.errorMessage = "Failed to save photo: \(error.localizedDescription)"
                         }
                     } else {
+                        #if DEBUG
                         print("ReminderViewModel: Photo uploaded and URL saved successfully")
+                        #endif
                     }
                 }
             }

@@ -50,7 +50,9 @@ class FriendsViewModel: ObservableObject {
                     self.processFriendships(friendships, currentUserId: userId)
                 case .failure(let error):
                     self.errorMessage = error.localizedDescription
+                    #if DEBUG
                     print("FriendsViewModel: Error fetching friendships: \(error)")
+                    #endif
                 }
             }
         }
@@ -211,21 +213,29 @@ class FriendsViewModel: ObservableObject {
 
     func removeFriend(_ friendship: Friendship) {
         guard let userId = currentUserId else {
+            #if DEBUG
             print("FriendsViewModel: Cannot remove friend - no current user ID")
+            #endif
             return
         }
         let friendName = friendship.friendName(currentUserId: userId)
 
+        #if DEBUG
         print("FriendsViewModel: Removing friend '\(friendName)' with friendship ID: \(friendship.id)")
+        #endif
 
         friendsService.removeFriend(friendshipId: friendship.id) { [weak self] result in
             DispatchQueue.main.async {
                 switch result {
                 case .success:
+                    #if DEBUG
                     print("FriendsViewModel: Successfully removed friend '\(friendName)'")
+                    #endif
                     self?.successMessage = "\(friendName) removed from friends"
                 case .failure(let error):
+                    #if DEBUG
                     print("FriendsViewModel: Failed to remove friend '\(friendName)': \(error.localizedDescription)")
+                    #endif
                     self?.errorMessage = error.localizedDescription
                 }
             }

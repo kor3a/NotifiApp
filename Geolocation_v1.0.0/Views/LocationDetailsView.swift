@@ -32,22 +32,30 @@ struct LocationDetailsView: View {
     /// Fetch store photo from Google Places API
     private func fetchStorePhoto() {
         guard let selectedItem = mapSelection else {
+            #if DEBUG
             print("⚠️ LocationDetailsView: No map selection available")
+            #endif
             return
         }
 
         let storeName = selectedItem.placemark.name ?? ""
         let coordinate = selectedItem.placemark.coordinate
 
+        #if DEBUG
         print("🏪 LocationDetailsView: fetchStorePhoto called for '\(storeName)'")
+        #endif
 
         guard !storeName.isEmpty else {
+            #if DEBUG
             print("⚠️ LocationDetailsView: Store name is empty, skipping photo fetch")
+            #endif
             return
         }
 
         isLoadingPhoto = true
+        #if DEBUG
         print("⏳ LocationDetailsView: Starting photo load...")
+        #endif
 
         Task {
             do {
@@ -58,20 +66,28 @@ struct LocationDetailsView: View {
 
                 await MainActor.run {
                     if let url = photoURL {
+                        #if DEBUG
                         print("✅ LocationDetailsView: Photo URL received: \(url.prefix(50))...")
+                        #endif
                         self.placePhotoURL = photoURL
                     } else {
+                        #if DEBUG
                         print("⚠️ LocationDetailsView: No photo URL returned")
+                        #endif
                         self.placePhotoURL = nil
                     }
                     self.isLoadingPhoto = false
+                    #if DEBUG
                     print("✅ LocationDetailsView: Photo loading completed")
+                    #endif
                 }
             } catch {
+                #if DEBUG
                 print("❌ LocationDetailsView: Error fetching place photo: \(error)")
                 if let googleError = error as? GooglePlacesError {
                     print("❌ LocationDetailsView: Google Places Error: \(googleError.localizedDescription)")
                 }
+                #endif
                 await MainActor.run {
                     self.isLoadingPhoto = false
                 }
@@ -189,7 +205,9 @@ struct LocationDetailsView: View {
         .task(id: mapSelection) {
             // Fetch photo when view appears or mapSelection changes
             if mapSelection != nil {
+                #if DEBUG
                 print("📍 LocationDetailsView: View appeared with selection, fetching photo via .task")
+                #endif
                 placePhotoURL = nil
                 fetchStorePhoto()
             }

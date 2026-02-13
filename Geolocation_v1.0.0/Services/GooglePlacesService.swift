@@ -24,60 +24,82 @@ class GooglePlacesService {
 
     /// Find a place by name and location coordinates
     func findPlace(name: String, coordinate: CLLocationCoordinate2D) async throws -> PlaceDetails? {
+        #if DEBUG
         print("🔍 GooglePlaces: Searching for '\(name)' at \(coordinate.latitude), \(coordinate.longitude)")
+        #endif
 
         // Use Nearby Search to find the place with a larger radius
         let urlString = "\(baseURL)/nearbysearch/json?location=\(coordinate.latitude),\(coordinate.longitude)&radius=100&keyword=\(name.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")&key=\(apiKey)"
 
+        #if DEBUG
         print("🌐 GooglePlaces: Request URL: \(urlString.replacingOccurrences(of: apiKey, with: "***API_KEY***"))")
+        #endif
 
         guard let url = URL(string: urlString) else {
+            #if DEBUG
             print("❌ GooglePlaces: Invalid URL")
+            #endif
             throw GooglePlacesError.invalidURL
         }
 
         let (data, response) = try await URLSession.shared.data(from: url)
 
         guard let httpResponse = response as? HTTPURLResponse else {
+            #if DEBUG
             print("❌ GooglePlaces: Invalid HTTP response")
+            #endif
             throw GooglePlacesError.networkError
         }
 
+        #if DEBUG
         print("📡 GooglePlaces: HTTP Status Code: \(httpResponse.statusCode)")
+        #endif
 
         guard httpResponse.statusCode == 200 else {
+            #if DEBUG
             if let errorString = String(data: data, encoding: .utf8) {
                 print("❌ GooglePlaces: API Error Response: \(errorString)")
             }
+            #endif
             throw GooglePlacesError.networkError
         }
 
+        #if DEBUG
         // Print raw response for debugging
         if let jsonString = String(data: data, encoding: .utf8) {
             print("📦 GooglePlaces: Raw Response: \(jsonString)")
         }
+        #endif
 
         let searchResponse = try JSONDecoder().decode(PlaceSearchResponse.self, from: data)
 
+        #if DEBUG
         print("✅ GooglePlaces: API Status: \(searchResponse.status)")
         print("📊 GooglePlaces: Found \(searchResponse.results.count) results")
+        #endif
 
         guard let firstResult = searchResponse.results.first else {
+            #if DEBUG
             print("⚠️ GooglePlaces: No results found for '\(name)'")
+            #endif
             return nil
         }
 
+        #if DEBUG
         print("🏪 GooglePlaces: First result: \(firstResult.name)")
         print("📸 GooglePlaces: Photos available: \(firstResult.photos?.count ?? 0)")
+        #endif
 
         // Select the best storefront photo based on scoring
         let photoReference = selectBestStorefrontPhoto(from: firstResult.photos)
 
+        #if DEBUG
         if let photoRef = photoReference {
             print("✅ GooglePlaces: Best storefront photo selected: \(photoRef.prefix(20))...")
         } else {
             print("⚠️ GooglePlaces: No photos available for this place")
         }
+        #endif
 
         return PlaceDetails(
             placeId: firstResult.placeId,
@@ -92,6 +114,7 @@ class GooglePlacesService {
             return nil
         }
 
+        #if DEBUG
         print("🔍 GooglePlaces: Analyzing \(photos.count) photos for best storefront match...")
 
         // Log photo details for debugging
@@ -101,14 +124,17 @@ class GooglePlacesService {
             let orientation = photo.isLandscape ? "landscape" : "portrait"
             print("   📷 Photo \(index + 1): \(photo.width)x\(photo.height) (\(String(format: "%.2f", ratio)):1, \(orientation), score: \(score))")
         }
+        #endif
 
         // Sort photos by storefront score (highest first)
         let sortedPhotos = photos.sorted { $0.storefrontScore > $1.storefrontScore }
 
         // Get the best photo
         if let bestPhoto = sortedPhotos.first {
+            #if DEBUG
             let ratio = bestPhoto.aspectRatio
             print("🏆 GooglePlaces: Selected photo with best score: \(bestPhoto.width)x\(bestPhoto.height) (\(String(format: "%.2f", ratio)):1, score: \(bestPhoto.storefrontScore))")
+            #endif
             return bestPhoto.photoReference
         }
 
@@ -118,26 +144,36 @@ class GooglePlacesService {
     /// Get the photo URL for a place
     func getPhotoURL(photoReference: String, maxWidth: Int = 400) -> String {
         let photoURL = "\(baseURL)/photo?maxwidth=\(maxWidth)&photo_reference=\(photoReference)&key=\(apiKey)"
+        #if DEBUG
         print("🖼️ GooglePlaces: Generated photo URL: \(photoURL.replacingOccurrences(of: apiKey, with: "***API_KEY***"))")
+        #endif
         return photoURL
     }
 
     /// Fetch place details and photo URL in one call
     func fetchPlacePhoto(name: String, coordinate: CLLocationCoordinate2D) async throws -> String? {
+        #if DEBUG
         print("🚀 GooglePlaces: Starting photo fetch for '\(name)'")
+        #endif
 
         guard let placeDetails = try await findPlace(name: name, coordinate: coordinate) else {
+            #if DEBUG
             print("⚠️ GooglePlaces: No place details found")
+            #endif
             return nil
         }
 
         guard let photoReference = placeDetails.photoReference else {
+            #if DEBUG
             print("⚠️ GooglePlaces: Place found but no photo reference available")
+            #endif
             return nil
         }
 
         let photoURL = getPhotoURL(photoReference: photoReference)
+        #if DEBUG
         print("✅ GooglePlaces: Photo URL ready to use")
+        #endif
         return photoURL
     }
 }

@@ -51,7 +51,9 @@ class NotificationManager: NSObject, ObservableObject {
         )
 
         notificationCenter.setNotificationCategories([storeProximityCategory, friendRequestCategory, newMessageCategory])
+        #if DEBUG
         print("✅ Registered notification categories with CarPlay and announcement support")
+        #endif
     }
 
     // MARK: - Permission Management
@@ -64,10 +66,14 @@ class NotificationManager: NSObject, ObservableObject {
             await MainActor.run {
                 isAuthorized = granted
             }
+            #if DEBUG
             print("📱 Notification authorization granted: \(granted)")
+            #endif
             return granted
         } catch {
+            #if DEBUG
             print("Error requesting notification authorization: \(error)")
+            #endif
             return false
         }
     }
@@ -84,6 +90,7 @@ class NotificationManager: NSObject, ObservableObject {
 
     func debugNotificationSettings() {
         notificationCenter.getNotificationSettings { settings in
+            #if DEBUG
             print("=== NOTIFICATION SETTINGS DEBUG ===")
             print("Authorization: \(settings.authorizationStatus.rawValue)")
             print("Alert: \(settings.alertSetting.rawValue)")
@@ -94,22 +101,29 @@ class NotificationManager: NSObject, ObservableObject {
             print("TimeSensitive: \(settings.timeSensitiveSetting.rawValue)")
             print("Announcement: \(settings.announcementSetting.rawValue)")
             print("==================================")
+            #endif
         }
     }
 
     // MARK: - Notification Scheduling
 
     func scheduleStoreProximityNotification(storeName: String, reminderCount: Int) {
+        #if DEBUG
         print("🔔 NotificationManager: Attempting to schedule notification for \(storeName)")
+        #endif
 
         // First check if we have permission
         notificationCenter.getNotificationSettings { settings in
+            #if DEBUG
             print("   Notification authorization: \(settings.authorizationStatus.rawValue)")
             print("   Alert setting: \(settings.alertSetting.rawValue)")
             print("   Sound setting: \(settings.soundSetting.rawValue)")
+            #endif
 
             guard settings.authorizationStatus == .authorized else {
+                #if DEBUG
                 print("   ❌ Notifications not authorized!")
+                #endif
                 return
             }
 
@@ -137,9 +151,13 @@ class NotificationManager: NSObject, ObservableObject {
 
             self.notificationCenter.add(request) { error in
                 if let error = error {
+                    #if DEBUG
                     print("   ❌ Error scheduling notification: \(error)")
+                    #endif
                 } else {
+                    #if DEBUG
                     print("   ✅ Successfully scheduled notification for \(storeName)")
+                    #endif
                     // Log the notification event
                     self.logStore.addEntry(storeName: storeName, reminderCount: reminderCount)
                 }
@@ -148,14 +166,20 @@ class NotificationManager: NSObject, ObservableObject {
     }
 
     func scheduleFriendRequestNotification(fromUserName: String) {
+        #if DEBUG
         print("🔔 NotificationManager: Attempting to schedule friend request notification from \(fromUserName)")
+        #endif
 
         // First check if we have permission
         notificationCenter.getNotificationSettings { settings in
+            #if DEBUG
             print("   Notification authorization: \(settings.authorizationStatus.rawValue)")
+            #endif
 
             guard settings.authorizationStatus == .authorized else {
+                #if DEBUG
                 print("   ❌ Notifications not authorized!")
+                #endif
                 return
             }
 
@@ -177,23 +201,33 @@ class NotificationManager: NSObject, ObservableObject {
 
             self.notificationCenter.add(request) { error in
                 if let error = error {
+                    #if DEBUG
                     print("   ❌ Error scheduling friend request notification: \(error)")
+                    #endif
                 } else {
+                    #if DEBUG
                     print("   ✅ Successfully scheduled friend request notification from \(fromUserName)")
+                    #endif
                 }
             }
         }
     }
 
     func scheduleNewMessageNotification(fromUserName: String, messageContent: String, conversationId: String) {
+        #if DEBUG
         print("🔔 NotificationManager: Attempting to schedule new message notification from \(fromUserName)")
+        #endif
 
         // First check if we have permission
         notificationCenter.getNotificationSettings { settings in
+            #if DEBUG
             print("   Notification authorization: \(settings.authorizationStatus.rawValue)")
+            #endif
 
             guard settings.authorizationStatus == .authorized else {
+                #if DEBUG
                 print("   ❌ Notifications not authorized!")
+                #endif
                 return
             }
 
@@ -224,9 +258,13 @@ class NotificationManager: NSObject, ObservableObject {
 
             self.notificationCenter.add(request) { error in
                 if let error = error {
+                    #if DEBUG
                     print("   ❌ Error scheduling new message notification: \(error)")
+                    #endif
                 } else {
+                    #if DEBUG
                     print("   ✅ Successfully scheduled new message notification from \(fromUserName)")
+                    #endif
                 }
             }
         }
@@ -270,7 +308,9 @@ extension NotificationManager: UNUserNotificationCenterDelegate {
                               didReceive response: UNNotificationResponse,
                               withCompletionHandler completionHandler: @escaping () -> Void) {
         // Handle notification tap - could navigate to store's reminders
+        #if DEBUG
         print("User tapped notification: \(response.notification.request.identifier)")
+        #endif
         completionHandler()
     }
 }
