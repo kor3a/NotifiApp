@@ -24,7 +24,17 @@ struct ReminderView: View {
     @State private var enlargedPhotoReminder: Reminder?
     @State private var showDeletePhotoConfirm = false
     @State private var editingReminderId: String?
+    @State private var isReorderMode = false
     @Environment(\.colorScheme) var colorScheme
+
+    private var editMode: Binding<EditMode> {
+        Binding(
+            get: { isReorderMode ? .active : .inactive },
+            set: { newValue in
+                isReorderMode = (newValue == .active)
+            }
+        )
+    }
 
     var body: some View {
         ZStack {
@@ -66,6 +76,7 @@ struct ReminderView: View {
                             ReminderItemView(
                                 item: reminder,
                                 isEditing: editingReminderId == reminder.id,
+                                isReorderMode: isReorderMode,
                                 onPhotoTap: { photoURL in
                                     enlargedPhotoURL = photoURL
                                     enlargedPhotoReminder = reminder
@@ -81,7 +92,14 @@ struct ReminderView: View {
                                         viewModel.updateReminderTitle(reminder, newTitle: newTitle)
                                     }
                                     editingReminderId = nil
-                                }
+                                },
+                                onReorderTap: userStoreItem.permission != .view ? {
+                                    withAnimation {
+                                        isReorderMode = true
+                                        isAddingNewReminder = false
+                                        editingReminderId = nil
+                                    }
+                                } : nil
                             )
                                 .contentShape(Rectangle())
                                 .listRowBackground(
@@ -145,9 +163,13 @@ struct ReminderView: View {
                                     }
                                 }
                         }
+                        .onMove(perform: isReorderMode ? { source, destination in
+                            viewModel.moveReminder(from: source, to: destination)
+                        } : nil)
+                        .deleteDisabled(true)
 
-                        // Inline add reminder row
-                        if userStoreItem.permission != .view {
+                        // Inline add reminder row (hidden during reorder mode)
+                        if userStoreItem.permission != .view && !isReorderMode {
                             if isAddingNewReminder {
                                 HStack {
                                     Image(systemName: "square")
@@ -201,6 +223,7 @@ struct ReminderView: View {
                     }
                     .listStyle(.plain)
                     .scrollContentBackground(.hidden)
+                    .environment(\.editMode, editMode)
                     .background(
                         Color.backgroundGradient(for: colorScheme)
                             .ignoresSafeArea()
@@ -315,7 +338,13 @@ struct ReminderView: View {
             }
 
             ToolbarItem(placement: .navigationBarTrailing) {
-                if userStoreItem.permission != .view {
+                if isReorderMode {
+                    Button("Done") {
+                        withAnimation {
+                            isReorderMode = false
+                        }
+                    }
+                } else if userStoreItem.permission != .view {
                     Button(action: {
                         isAddingNewReminder = true
                     }) {

@@ -10,10 +10,12 @@ import SwiftUI
 struct ReminderItemView: View {
     let item: Reminder
     let isEditing: Bool
+    var isReorderMode: Bool = false
     var onPhotoTap: ((String) -> Void)?
     var onCheckboxTap: (() -> Void)?
     var onTextTap: (() -> Void)?
     var onTitleCommit: ((String) -> Void)?
+    var onReorderTap: (() -> Void)?
     @StateObject private var viewModel = ReminderItemViewModel()
     @State private var editText: String = ""
     @FocusState private var isTextFieldFocused: Bool
@@ -71,6 +73,18 @@ struct ReminderItemView: View {
                         sharedWith: item.sharedWith,
                         currentUserName: currentUserName
                     )
+                }
+
+                // Three vertical dots drag handle for reordering
+                if !isReorderMode, onReorderTap != nil {
+                    Image(systemName: "ellipsis")
+                        .rotationEffect(.degrees(90))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 30, height: 30)
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            onReorderTap?()
+                        }
                 }
             }
 
