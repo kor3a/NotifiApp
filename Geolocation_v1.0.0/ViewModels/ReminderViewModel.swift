@@ -16,6 +16,8 @@ class ReminderViewModel: ObservableObject {
     @Published var reminders: [Reminder] = []
     @Published var isLoading: Bool = false
     @Published var errorMessage: String = ""
+    /// Flag to prevent snapshot listener from overwriting local state during a reorder operation
+    private var isReordering = false
 
     /// Fetch reminders for a specific user_store document
     /// - Parameters:
@@ -86,6 +88,7 @@ class ReminderViewModel: ObservableObject {
                         }
 
                         let photoURLs = data["photoURLs"] as? [String]
+                        let sortOrder = data["sortOrder"] as? Int
 
                         return Reminder(
                             id: doc.documentID,
@@ -98,12 +101,23 @@ class ReminderViewModel: ObservableObject {
                             sharedAt: sharedAt,
                             sharedReminderId: sharedReminderId,
                             sharedWith: sharedWith,
-                            photoURLs: photoURLs
+                            photoURLs: photoURLs,
+                            sortOrder: sortOrder
                         )
                     }
 
-                    // Sort by createdAt in memory (oldest first)
-                    self.reminders = fetchedReminders.sorted { $0.createdAt < $1.createdAt }
+                    // Skip snapshot update while a reorder operation is in progress
+                    if self.isReordering { return }
+
+                    // Sort by sortOrder first (if available), then by createdAt
+                    self.reminders = fetchedReminders.sorted { a, b in
+                        let orderA = a.sortOrder ?? Int.max
+                        let orderB = b.sortOrder ?? Int.max
+                        if orderA != orderB {
+                            return orderA < orderB
+                        }
+                        return a.createdAt < b.createdAt
+                    }
 
                     #if DEBUG
                     print("ReminderViewModel: Successfully loaded \(self.reminders.count) reminders")
@@ -131,11 +145,15 @@ class ReminderViewModel: ObservableObject {
         print("ReminderViewModel: Adding reminder '\(title)' for userStoreId: \(userStoreId), sharedWith: \(sharedWith ?? []), sharedFromName: \(sharedFromName ?? "nil"), currentUserName: \(currentUserName ?? "nil")")
         #endif
 
+        // Place new reminder at the end of the current list
+        let nextSortOrder = (self.reminders.compactMap { $0.sortOrder }.max() ?? -1) + 1
+
         var reminderData: [String: Any] = [
             "userStoreId": userStoreId,
             "title": title,
             "isDone": false,
-            "createdAt": Date().timeIntervalSince1970
+            "createdAt": Date().timeIntervalSince1970,
+            "sortOrder": nextSortOrder
         ]
 
         // Check if this is a shared store (either owner or recipient perspective)
@@ -169,6 +187,36 @@ class ReminderViewModel: ObservableObject {
                 } else {
                     #if DEBUG
                     print("ReminderViewModel: Reminder added successfully (isShared: \(isSharedStore))")
+                    #endif
+                }
+            }
+        }
+    }
+
+    /// Move a reminder from one position to another and persist the new sort order
+    func moveReminder(from source: IndexSet, to destination: Int) {
+        isReordering = true
+        reminders.move(fromOffsets: source, toOffset: destination)
+
+        // Assign new sort orders based on current positions
+        let batch = db.batch()
+        for (index, reminder) in reminders.enumerated() {
+            reminders[index].sortOrder = index
+            let ref = db.collection("reminders").document(reminder.id)
+            batch.updateData(["sortOrder": index], forDocument: ref)
+        }
+
+        batch.commit { [weak self] error in
+            DispatchQueue.main.async {
+                self?.isReordering = false
+                if let error = error {
+                    #if DEBUG
+                    print("ReminderViewModel: Error updating sort orders: \(error.localizedDescription)")
+                    #endif
+                    self?.errorMessage = "Failed to update sort order: \(error.localizedDescription)"
+                } else {
+                    #if DEBUG
+                    print("ReminderViewModel: Sort orders updated successfully")
                     #endif
                 }
             }

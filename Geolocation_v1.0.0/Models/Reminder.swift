@@ -26,6 +26,9 @@ struct Reminder: Codable, Identifiable {
     // Photo attachments
     var photoURLs: [String]? // Array of Firebase Storage download URLs for attached photos
 
+    // Custom sort order for manual reordering
+    var sortOrder: Int?
+
     enum CodingKeys: String, CodingKey {
         case id
         case userStoreId
@@ -38,5 +41,6 @@ struct Reminder: Codable, Identifiable {
         case sharedReminderId
         case sharedWith
         case photoURLs
+        case sortOrder
     }
 }
