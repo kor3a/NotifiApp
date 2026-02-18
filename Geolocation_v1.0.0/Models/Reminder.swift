@@ -10,7 +10,7 @@ import Foundation
 struct Reminder: Codable, Identifiable {
     var id: String // Firestore document ID
     let userStoreId: String // References user_stores document ID
-    let title: String
+    var title: String
     var isDone: Bool
     let createdAt: TimeInterval
 

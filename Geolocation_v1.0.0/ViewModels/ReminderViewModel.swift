@@ -235,6 +235,76 @@ class ReminderViewModel: ObservableObject {
         }
     }
 
+    /// Update reminder title - syncs across all linked shared reminders
+    func updateReminderTitle(_ reminder: Reminder, newTitle: String) {
+        let trimmedTitle = newTitle.trimmingCharacters(in: .whitespaces)
+        guard !trimmedTitle.isEmpty, trimmedTitle != reminder.title else { return }
+
+        #if DEBUG
+        print("ReminderViewModel: Updating title for reminder '\(reminder.title)' to '\(trimmedTitle)'")
+        #endif
+
+        if let sharedReminderId = reminder.sharedReminderId {
+            db.collection("reminders")
+                .whereField("sharedReminderId", isEqualTo: sharedReminderId)
+                .getDocuments { [weak self] snapshot, error in
+                    guard let self = self else { return }
+
+                    if let error = error {
+                        #if DEBUG
+                        print("ReminderViewModel: Error finding linked reminders for title update: \(error.localizedDescription)")
+                        #endif
+                        self.updateSingleReminderTitle(reminder.id, title: trimmedTitle)
+                        return
+                    }
+
+                    guard let documents = snapshot?.documents, !documents.isEmpty else {
+                        self.updateSingleReminderTitle(reminder.id, title: trimmedTitle)
+                        return
+                    }
+
+                    let batch = self.db.batch()
+                    for doc in documents {
+                        batch.updateData(["title": trimmedTitle], forDocument: doc.reference)
+                    }
+
+                    batch.commit { error in
+                        DispatchQueue.main.async {
+                            if let error = error {
+                                #if DEBUG
+                                print("ReminderViewModel: Error syncing title update: \(error.localizedDescription)")
+                                #endif
+                            } else {
+                                #if DEBUG
+                                print("ReminderViewModel: Synced title update across \(documents.count) linked reminders")
+                                #endif
+                            }
+                        }
+                    }
+                }
+        } else {
+            updateSingleReminderTitle(reminder.id, title: trimmedTitle)
+        }
+    }
+
+    private func updateSingleReminderTitle(_ reminderId: String, title: String) {
+        db.collection("reminders").document(reminderId).updateData([
+            "title": title
+        ]) { error in
+            DispatchQueue.main.async {
+                if let error = error {
+                    #if DEBUG
+                    print("ReminderViewModel: Error updating reminder title: \(error.localizedDescription)")
+                    #endif
+                } else {
+                    #if DEBUG
+                    print("ReminderViewModel: Reminder title updated successfully")
+                    #endif
+                }
+            }
+        }
+    }
+
     private func updateSingleReminder(_ reminderId: String, isDone: Bool) {
         db.collection("reminders").document(reminderId).updateData([
             "isDone": isDone
