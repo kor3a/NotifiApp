@@ -9,8 +9,14 @@ import SwiftUI
 
 struct ReminderItemView: View {
     let item: Reminder
+    let isEditing: Bool
     var onPhotoTap: ((String) -> Void)?
+    var onCheckboxTap: (() -> Void)?
+    var onTextTap: (() -> Void)?
+    var onTitleCommit: ((String) -> Void)?
     @StateObject private var viewModel = ReminderItemViewModel()
+    @State private var editText: String = ""
+    @FocusState private var isTextFieldFocused: Bool
 
     // Get current user's name to determine if they created the reminder
     private var currentUserName: String? {
@@ -21,10 +27,40 @@ struct ReminderItemView: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Image(systemName: item.isDone ? "checkmark.square" : "square")
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        onCheckboxTap?()
+                    }
 
-                Text(item.title)
-                    .font(.headline)
-                    .bold()
+                if isEditing {
+                    TextField("Reminder", text: $editText)
+                        .font(.headline)
+                        .bold()
+                        .focused($isTextFieldFocused)
+                        .onSubmit {
+                            commitEdit()
+                        }
+                        .textInputAutocapitalization(.sentences)
+                        .onAppear {
+                            editText = item.title
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                isTextFieldFocused = true
+                            }
+                        }
+                        .onChange(of: isTextFieldFocused) { _, focused in
+                            if !focused && isEditing {
+                                commitEdit()
+                            }
+                        }
+                } else {
+                    Text(item.title)
+                        .font(.headline)
+                        .bold()
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            onTextTap?()
+                        }
+                }
 
                 Spacer()
 
@@ -76,6 +112,16 @@ struct ReminderItemView: View {
                     }
                 }
             }
+        }
+    }
+
+    private func commitEdit() {
+        let trimmed = editText.trimmingCharacters(in: .whitespaces)
+        if !trimmed.isEmpty {
+            onTitleCommit?(trimmed)
+        } else {
+            // Empty text - revert to original
+            onTitleCommit?(item.title)
         }
     }
 }

@@ -23,6 +23,7 @@ struct ReminderView: View {
     @State private var enlargedPhotoURL: String?
     @State private var enlargedPhotoReminder: Reminder?
     @State private var showDeletePhotoConfirm = false
+    @State private var editingReminderId: String?
     @Environment(\.colorScheme) var colorScheme
 
     var body: some View {
@@ -62,10 +63,26 @@ struct ReminderView: View {
                 ScrollViewReader { proxy in
                     List {
                         ForEach(viewModel.reminders) { reminder in
-                            ReminderItemView(item: reminder) { photoURL in
+                            ReminderItemView(
+                                item: reminder,
+                                isEditing: editingReminderId == reminder.id,
+                                onPhotoTap: { photoURL in
                                     enlargedPhotoURL = photoURL
                                     enlargedPhotoReminder = reminder
+                                },
+                                onCheckboxTap: userStoreItem.permission != .view ? {
+                                    handleReminderTap(reminder)
+                                } : nil,
+                                onTextTap: userStoreItem.permission != .view ? {
+                                    editingReminderId = reminder.id
+                                } : nil,
+                                onTitleCommit: { newTitle in
+                                    if newTitle != reminder.title {
+                                        viewModel.updateReminderTitle(reminder, newTitle: newTitle)
+                                    }
+                                    editingReminderId = nil
                                 }
+                            )
                                 .contentShape(Rectangle())
                                 .listRowBackground(
                                     RoundedRectangle(cornerRadius: 16)
@@ -125,11 +142,6 @@ struct ReminderView: View {
                                         } label: {
                                             Label("Add Photos", systemImage: "photo.on.rectangle.angled")
                                         }
-                                    }
-                                }
-                                .onTapGesture {
-                                    if userStoreItem.permission != .view {
-                                        handleReminderTap(reminder)
                                     }
                                 }
                         }
