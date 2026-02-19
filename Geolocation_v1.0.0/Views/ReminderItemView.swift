@@ -13,9 +13,12 @@ struct ReminderItemView: View {
     var isReorderMode: Bool = false
     var onPhotoTap: ((String) -> Void)?
     var onCheckboxTap: (() -> Void)?
+    var onCheckboxLongPress: (() -> Void)?
     var onTextTap: (() -> Void)?
     var onTitleCommit: ((String) -> Void)?
     var onReorderTap: (() -> Void)?
+    var onAddPhoto: (() -> Void)?
+    var onAddQuantity: (() -> Void)?
     @StateObject private var viewModel = ReminderItemViewModel()
     @State private var editText: String = ""
     @FocusState private var isTextFieldFocused: Bool
@@ -28,7 +31,8 @@ struct ReminderItemView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Image(systemName: item.isDone ? "checkmark.square" : "square")
+                Image(systemName: item.isOutOfStock == true ? "xmark.square" : (item.isDone ? "checkmark.square" : "square"))
+                    .foregroundStyle(item.isOutOfStock == true ? .red : .primary)
                     .contentShape(Rectangle())
                     .onTapGesture {
                         onCheckboxTap?()
@@ -132,6 +136,32 @@ struct ReminderItemView: View {
                             }
                         }
                     }
+                }
+            }
+        }
+        .contextMenu {
+            if let onCheckboxLongPress = onCheckboxLongPress {
+                Button {
+                    onCheckboxLongPress()
+                } label: {
+                    Label(
+                        item.isOutOfStock == true ? "Mark Available" : "Out of Stock",
+                        systemImage: item.isOutOfStock == true ? "checkmark.circle" : "xmark.circle"
+                    )
+                }
+            }
+            if let onAddPhoto = onAddPhoto {
+                Button {
+                    onAddPhoto()
+                } label: {
+                    Label("Add Photos", systemImage: "photo.on.rectangle.angled")
+                }
+            }
+            if let onAddQuantity = onAddQuantity {
+                Button {
+                    onAddQuantity()
+                } label: {
+                    Label("Add Quantity", systemImage: "number")
                 }
             }
         }

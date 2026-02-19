@@ -224,6 +224,9 @@ struct ReminderView: View {
             onCheckboxTap: userStoreItem.permission != .view ? {
                 handleReminderTap(reminder)
             } : nil,
+            onCheckboxLongPress: userStoreItem.permission != .view ? {
+                viewModel.toggleOutOfStock(reminder)
+            } : nil,
             onTextTap: userStoreItem.permission != .view ? {
                 editingReminderId = reminder.id
             } : nil,
@@ -239,6 +242,13 @@ struct ReminderView: View {
                     isAddingNewReminder = false
                     editingReminderId = nil
                 }
+            } : nil,
+            onAddPhoto: userStoreItem.permission != .view ? {
+                reminderForPhoto = reminder
+            } : nil,
+            onAddQuantity: userStoreItem.permission != .view ? {
+                quantityText = reminder.quantity.map(String.init) ?? ""
+                reminderForQuantity = reminder
             } : nil
         )
         .contentShape(Rectangle())
@@ -274,21 +284,6 @@ struct ReminderView: View {
                     Image(systemName: "person.2.fill")
                 }
                 .tint(.appAccent)
-            }
-        }
-        .contextMenu {
-            if userStoreItem.permission != .view {
-                Button {
-                    reminderForPhoto = reminder
-                } label: {
-                    Label("Add Photos", systemImage: "photo.on.rectangle.angled")
-                }
-                Button {
-                    quantityText = reminder.quantity.map(String.init) ?? ""
-                    reminderForQuantity = reminder
-                } label: {
-                    Label("Add Quantity", systemImage: "number")
-                }
             }
         }
     }
