@@ -101,4 +101,59 @@ final class ReminderTests: XCTestCase {
         reminder.isDone = true
         XCTAssertTrue(reminder.isDone)
     }
+
+    // MARK: - Duplicate detection (ReminderViewModel.isDuplicateReminder)
+
+    func testIsDuplicate_exactMatch_returnsTrue() {
+        let vm = ReminderViewModel()
+        vm.reminders = [
+            Reminder(id: "r1", userStoreId: "us1", title: "Buy milk", isDone: false, createdAt: 0)
+        ]
+        XCTAssertTrue(vm.isDuplicateReminder(title: "Buy milk"))
+    }
+
+    func testIsDuplicate_caseInsensitive_returnsTrue() {
+        let vm = ReminderViewModel()
+        vm.reminders = [
+            Reminder(id: "r1", userStoreId: "us1", title: "Buy Milk", isDone: false, createdAt: 0)
+        ]
+        XCTAssertTrue(vm.isDuplicateReminder(title: "buy milk"))
+        XCTAssertTrue(vm.isDuplicateReminder(title: "BUY MILK"))
+        XCTAssertTrue(vm.isDuplicateReminder(title: "Buy milk"))
+    }
+
+    func testIsDuplicate_leadingTrailingWhitespace_returnsTrue() {
+        let vm = ReminderViewModel()
+        vm.reminders = [
+            Reminder(id: "r1", userStoreId: "us1", title: "Buy milk", isDone: false, createdAt: 0)
+        ]
+        XCTAssertTrue(vm.isDuplicateReminder(title: "  Buy milk  "))
+        XCTAssertTrue(vm.isDuplicateReminder(title: "\nBuy milk\n"))
+    }
+
+    func testIsDuplicate_differentTitle_returnsFalse() {
+        let vm = ReminderViewModel()
+        vm.reminders = [
+            Reminder(id: "r1", userStoreId: "us1", title: "Buy milk", isDone: false, createdAt: 0)
+        ]
+        XCTAssertFalse(vm.isDuplicateReminder(title: "Buy eggs"))
+    }
+
+    func testIsDuplicate_emptyList_returnsFalse() {
+        let vm = ReminderViewModel()
+        vm.reminders = []
+        XCTAssertFalse(vm.isDuplicateReminder(title: "Buy milk"))
+    }
+
+    func testIsDuplicate_multipleReminders_detectsCorrectly() {
+        let vm = ReminderViewModel()
+        vm.reminders = [
+            Reminder(id: "r1", userStoreId: "us1", title: "Buy milk", isDone: false, createdAt: 0),
+            Reminder(id: "r2", userStoreId: "us1", title: "Buy eggs", isDone: false, createdAt: 1),
+            Reminder(id: "r3", userStoreId: "us1", title: "Buy bread", isDone: true, createdAt: 2)
+        ]
+        XCTAssertTrue(vm.isDuplicateReminder(title: "buy EGGS"))
+        XCTAssertTrue(vm.isDuplicateReminder(title: "BUY BREAD"))
+        XCTAssertFalse(vm.isDuplicateReminder(title: "Buy cheese"))
+    }
 }
