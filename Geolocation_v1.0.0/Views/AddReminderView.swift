@@ -13,7 +13,8 @@ struct AddReminderView: View {
     @ObservedObject var viewModel: ReminderViewModel
     
     @State private var reminderTitle: String = ""
-    
+    @State private var showDuplicateAlert = false
+
     var body: some View {
         NavigationStack {
             Form {
@@ -42,13 +43,23 @@ struct AddReminderView: View {
                     }
                 }
             }
+            .alert("Duplicate Reminder", isPresented: $showDuplicateAlert) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text("'\(reminderTitle.trimmingCharacters(in: .whitespaces))' already exists in this store.")
+            }
         }
     }
     
     private func addReminder() {
         let title = reminderTitle.trimmingCharacters(in: .whitespaces)
         guard !title.isEmpty else { return }
-        
+
+        if viewModel.isDuplicateReminder(title: title) {
+            showDuplicateAlert = true
+            return
+        }
+
         viewModel.addReminder(userStoreId: userStoreId, title: title)
         dismiss()
     }

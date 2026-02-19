@@ -25,6 +25,8 @@ struct ReminderView: View {
     @State private var showDeletePhotoConfirm = false
     @State private var editingReminderId: String?
     @State private var isReorderMode = false
+    @State private var showDuplicateAlert = false
+    @State private var duplicateTitle = ""
     @Environment(\.colorScheme) var colorScheme
 
     private var editMode: Binding<EditMode> {
@@ -444,6 +446,13 @@ struct ReminderView: View {
                 }
             }
         }
+        .alert("Duplicate Reminder", isPresented: $showDuplicateAlert) {
+            Button("OK", role: .cancel) {
+                newReminderText = ""
+            }
+        } message: {
+            Text("'\(duplicateTitle)' already exists in this store.")
+        }
     }
 
     private func submitNewReminder() {
@@ -452,6 +461,12 @@ struct ReminderView: View {
             // Nothing entered - stop adding
             isAddingNewReminder = false
             newReminderText = ""
+            return
+        }
+
+        if viewModel.isDuplicateReminder(title: title) {
+            duplicateTitle = title
+            showDuplicateAlert = true
             return
         }
 

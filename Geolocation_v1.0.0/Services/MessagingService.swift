@@ -1166,10 +1166,9 @@ class MessagingService: ObservableObject {
         messageId: String,
         completion: @escaping (Result<Void, Error>) -> Void
     ) {
-        // Check if this reminder already exists (by title)
+        // Check if this reminder already exists (case-insensitive title match)
         db.collection("reminders")
             .whereField("userStoreId", isEqualTo: userStoreId)
-            .whereField("title", isEqualTo: reminderTitle)
             .getDocuments { [weak self] snapshot, error in
                 guard let self = self else { return }
 
@@ -1178,10 +1177,16 @@ class MessagingService: ObservableObject {
                     return
                 }
 
-                if snapshot?.documents.isEmpty == false {
+                let normalizedTitle = reminderTitle.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+                let hasDuplicate = snapshot?.documents.contains { doc in
+                    guard let title = doc.data()["title"] as? String else { return false }
+                    return title.lowercased().trimmingCharacters(in: .whitespacesAndNewlines) == normalizedTitle
+                } ?? false
+
+                if hasDuplicate {
                     // Reminder with same title already exists, just update status
                     #if DEBUG
-                    print("MessagingService: Reminder '\(reminderTitle)' already exists, marking as shared")
+                    print("MessagingService: Reminder '\(reminderTitle)' already exists (case-insensitive), marking as shared")
                     #endif
                     self.updateLinkedReminderStatus(messageId: messageId, status: .accepted, completion: completion)
                     return

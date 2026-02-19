@@ -126,6 +126,12 @@ class ReminderViewModel: ObservableObject {
             }
     }
 
+    /// Check whether a reminder with the given title already exists (case-insensitive) in the current store
+    func isDuplicateReminder(title: String) -> Bool {
+        let normalized = title.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+        return reminders.contains { $0.title.lowercased().trimmingCharacters(in: .whitespacesAndNewlines) == normalized }
+    }
+
     /// Add a new reminder
     /// - Parameters:
     ///   - userStoreId: The user_store ID to add the reminder to
@@ -137,6 +143,17 @@ class ReminderViewModel: ObservableObject {
         guard !title.isEmpty else {
             DispatchQueue.main.async {
                 self.errorMessage = "Reminder title cannot be empty"
+            }
+            return
+        }
+
+        // Prevent case-insensitive duplicates within the same store
+        if isDuplicateReminder(title: title) {
+            #if DEBUG
+            print("ReminderViewModel: Duplicate reminder '\(title)' — skipping add")
+            #endif
+            DispatchQueue.main.async {
+                self.errorMessage = "'\(title)' already exists in this store"
             }
             return
         }
