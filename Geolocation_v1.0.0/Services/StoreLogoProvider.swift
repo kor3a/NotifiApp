@@ -31,10 +31,28 @@ class StoreLogoProvider: ObservableObject {
         fetchStoreLogos()
     }
 
-    /// Look up a logo URL for a store name
+    /// Look up a logo URL for a store name.
+    /// First tries an exact match on the normalized ID, then checks if the
+    /// normalized name starts with any known store key (e.g., "walmart-supercenter" matches "walmart").
     func logoURL(for storeName: String) -> String? {
         let normalizedId = Store.normalizedId(from: storeName)
-        return storeLogos[normalizedId]
+
+        // Exact match
+        if let url = storeLogos[normalizedId] {
+            return url
+        }
+
+        // Prefix match: find the longest key that the normalized name starts with.
+        // E.g., "walmart-supercenter" starts with "walmart"
+        var bestMatch: (key: String, url: String)?
+        for (key, url) in storeLogos {
+            if normalizedId.hasPrefix(key) {
+                if bestMatch == nil || key.count > bestMatch!.key.count {
+                    bestMatch = (key, url)
+                }
+            }
+        }
+        return bestMatch?.url
     }
 
     /// Fetch logo mappings from Firestore and merge with built-in defaults
@@ -87,8 +105,11 @@ class StoreLogoProvider: ObservableObject {
     static let builtInLogos: [String: String] = [
         // Grocery
         "walmart": "https://logo.clearbit.com/walmart.com",
+        "walmart-supercenter": "https://logo.clearbit.com/walmart.com",
+        "walmart-neighborhood-market": "https://logo.clearbit.com/walmart.com",
         "target": "https://logo.clearbit.com/target.com",
         "costco": "https://logo.clearbit.com/costco.com",
+        "costco-wholesale": "https://logo.clearbit.com/costco.com",
         "kroger": "https://logo.clearbit.com/kroger.com",
         "whole-foods": "https://logo.clearbit.com/wholefoodsmarket.com",
         "whole-foods-market": "https://logo.clearbit.com/wholefoodsmarket.com",
@@ -187,10 +208,55 @@ class StoreLogoProvider: ObservableObject {
         "amazon-fresh": "https://logo.clearbit.com/amazon.com",
         "amazon": "https://logo.clearbit.com/amazon.com",
 
-        // Wholesale / Asian grocery
+        // Coffee / Food
+        "starbucks": "https://logo.clearbit.com/starbucks.com",
+        "starbucks-coffee": "https://logo.clearbit.com/starbucks.com",
+        "dunkin": "https://logo.clearbit.com/dunkindonuts.com",
+        "dunkin-donuts": "https://logo.clearbit.com/dunkindonuts.com",
+        "panera-bread": "https://logo.clearbit.com/panerabread.com",
+        "panera": "https://logo.clearbit.com/panerabread.com",
+        "chipotle": "https://logo.clearbit.com/chipotle.com",
+        "chick-fil-a": "https://logo.clearbit.com/chick-fil-a.com",
+        "mcdonalds": "https://logo.clearbit.com/mcdonalds.com",
+
+        // Regional Grocery
+        "vons": "https://logo.clearbit.com/vons.com",
+        "ralphs": "https://logo.clearbit.com/ralphs.com",
+        "albertsons": "https://logo.clearbit.com/albertsons.com",
+        "pavilions": "https://logo.clearbit.com/pavilions.com",
+        "smart-and-final": "https://logo.clearbit.com/smartandfinal.com",
+        "food-4-less": "https://logo.clearbit.com/food4less.com",
+        "stater-bros": "https://logo.clearbit.com/staterbros.com",
+        "winco": "https://logo.clearbit.com/wincofoods.com",
+        "piggly-wiggly": "https://logo.clearbit.com/pigglywiggly.com",
+        "harris-teeter": "https://logo.clearbit.com/harristeeter.com",
+        "winn-dixie": "https://logo.clearbit.com/winndixie.com",
+        "bi-lo": "https://logo.clearbit.com/bilo.com",
+        "shoprite": "https://logo.clearbit.com/shoprite.com",
+        "hannaford": "https://logo.clearbit.com/hannaford.com",
+        "market-basket": "https://logo.clearbit.com/marketbasket.com",
+        "giant-eagle": "https://logo.clearbit.com/gianteagle.com",
+        "hy-vee": "https://logo.clearbit.com/hy-vee.com",
+        "fred-meyer": "https://logo.clearbit.com/fredmeyer.com",
+
+        // Wholesale / Asian Grocery
         "hmart": "https://logo.clearbit.com/hmart.com",
         "h-mart": "https://logo.clearbit.com/hmart.com",
         "99-ranch-market": "https://logo.clearbit.com/99ranch.com",
         "mitsuwa": "https://logo.clearbit.com/mitsuwa.com",
+
+        // Membership / Bulk
+        "amazon-go": "https://logo.clearbit.com/amazon.com",
+
+        // Beauty
+        "ulta": "https://logo.clearbit.com/ulta.com",
+        "ulta-beauty": "https://logo.clearbit.com/ulta.com",
+        "sephora": "https://logo.clearbit.com/sephora.com",
+        "bath-and-body-works": "https://logo.clearbit.com/bathandbodyworks.com",
+
+        // Convenience
+        "wawa": "https://logo.clearbit.com/wawa.com",
+        "sheetz": "https://logo.clearbit.com/sheetz.com",
+        "circle-k": "https://logo.clearbit.com/circlek.com",
     ]
 }
