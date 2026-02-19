@@ -203,12 +203,16 @@ struct StoresView: View {
             // Try to fetch immediately if user data is available
             if sessionManager.currentUser != nil {
                 self.viewModel.fetchUserStores()
+                logoProvider.fetchStoreLogos()
             }
         }
         .onChange(of: sessionManager.currentUser) { oldValue, newValue in
-            // Fetch stores when user data becomes available
-            if newValue != nil && viewModel.userStoreItems.isEmpty {
-                self.viewModel.fetchUserStores()
+            // Fetch stores and logos when user data becomes available
+            if newValue != nil {
+                if viewModel.userStoreItems.isEmpty {
+                    self.viewModel.fetchUserStores()
+                }
+                logoProvider.fetchStoreLogos()
             }
         }
     }//:BODY

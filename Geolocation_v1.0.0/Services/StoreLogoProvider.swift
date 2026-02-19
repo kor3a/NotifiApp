@@ -33,6 +33,7 @@ class StoreLogoProvider: ObservableObject {
     private let storage = Storage.storage().reference()
     @Published private(set) var storeLogos: [String: String] = [:] // normalizedId -> logoURL
     private var hasFetched = false
+    private var isFetching = false
 
     private init() {
         fetchStoreLogos()
@@ -64,15 +65,19 @@ class StoreLogoProvider: ObservableObject {
 
     /// Fetch logo mappings from Firestore
     func fetchStoreLogos() {
-        guard !hasFetched else { return }
+        guard !hasFetched, !isFetching else { return }
+        isFetching = true
 
         db.collection("stores_logos").getDocuments { [weak self] snapshot, error in
             guard let self = self else { return }
+
+            self.isFetching = false
 
             if let error = error {
                 #if DEBUG
                 print("StoreLogoProvider: Error fetching logos: \(error.localizedDescription)")
                 #endif
+                // Don't set hasFetched so it can be retried
                 return
             }
 
@@ -80,7 +85,7 @@ class StoreLogoProvider: ObservableObject {
                 #if DEBUG
                 print("StoreLogoProvider: No store logos in Firestore yet")
                 #endif
-                self.hasFetched = true
+                // Don't set hasFetched when empty so it retries on next appear
                 return
             }
 
@@ -97,6 +102,9 @@ class StoreLogoProvider: ObservableObject {
                 self.hasFetched = true
                 #if DEBUG
                 print("StoreLogoProvider: Loaded \(logos.count) store logos from Firestore")
+                for (id, url) in logos {
+                    print("  - \(id): \(url.prefix(80))...")
+                }
                 #endif
             }
         }
