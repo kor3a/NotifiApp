@@ -29,6 +29,9 @@ struct Reminder: Codable, Identifiable {
     // Custom sort order for manual reordering
     var sortOrder: Int?
 
+    // Quantity for this reminder item
+    var quantity: Int?
+
     enum CodingKeys: String, CodingKey {
         case id
         case userStoreId
@@ -42,5 +45,6 @@ struct Reminder: Codable, Identifiable {
         case sharedWith
         case photoURLs
         case sortOrder
+        case quantity
     }
 }

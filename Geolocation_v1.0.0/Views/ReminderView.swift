@@ -27,6 +27,8 @@ struct ReminderView: View {
     @State private var isReorderMode = false
     @State private var showDuplicateAlert = false
     @State private var duplicateTitle = ""
+    @State private var reminderForQuantity: Reminder?
+    @State private var quantityText = ""
     @Environment(\.colorScheme) var colorScheme
 
     private var editMode: Binding<EditMode> {
@@ -110,6 +112,34 @@ struct ReminderView: View {
             }
         } message: {
             Text("'\(duplicateTitle)' already exists in this store.")
+        }
+        .alert("Add Quantity", isPresented: .init(
+            get: { reminderForQuantity != nil },
+            set: { if !$0 { reminderForQuantity = nil } }
+        )) {
+            TextField("Quantity", text: $quantityText)
+                .keyboardType(.numberPad)
+            Button("Save") {
+                if let reminder = reminderForQuantity {
+                    let qty = Int(quantityText)
+                    viewModel.updateReminderQuantity(reminder, newQuantity: qty)
+                }
+                reminderForQuantity = nil
+                quantityText = ""
+            }
+            Button("Remove", role: .destructive) {
+                if let reminder = reminderForQuantity {
+                    viewModel.updateReminderQuantity(reminder, newQuantity: nil)
+                }
+                reminderForQuantity = nil
+                quantityText = ""
+            }
+            Button("Cancel", role: .cancel) {
+                reminderForQuantity = nil
+                quantityText = ""
+            }
+        } message: {
+            Text("Enter quantity for this reminder item.")
         }
     }
 
@@ -252,6 +282,12 @@ struct ReminderView: View {
                     reminderForPhoto = reminder
                 } label: {
                     Label("Add Photos", systemImage: "photo.on.rectangle.angled")
+                }
+                Button {
+                    quantityText = reminder.quantity.map(String.init) ?? ""
+                    reminderForQuantity = reminder
+                } label: {
+                    Label("Add Quantity", systemImage: "number")
                 }
             }
         }
