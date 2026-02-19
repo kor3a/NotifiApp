@@ -66,6 +66,14 @@ struct ReminderItemView: View {
 
                 Spacer()
 
+                // Show quantity badge if quantity is set
+                if let quantity = item.quantity, quantity > 0 {
+                    Text("Qty: \(quantity)")
+                        .font(.caption)
+                        .fontWeight(.medium)
+                        .foregroundColor(.secondary)
+                }
+
                 // Show "Shared" badge if the reminder is shared
                 if item.isShared == true {
                     SharedBadge(

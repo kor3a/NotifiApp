@@ -89,6 +89,7 @@ class ReminderViewModel: ObservableObject {
 
                         let photoURLs = data["photoURLs"] as? [String]
                         let sortOrder = data["sortOrder"] as? Int
+                        let quantity = data["quantity"] as? Int
 
                         return Reminder(
                             id: doc.documentID,
@@ -102,7 +103,8 @@ class ReminderViewModel: ObservableObject {
                             sharedReminderId: sharedReminderId,
                             sharedWith: sharedWith,
                             photoURLs: photoURLs,
-                            sortOrder: sortOrder
+                            sortOrder: sortOrder,
+                            quantity: quantity
                         )
                     }
 
@@ -349,6 +351,76 @@ class ReminderViewModel: ObservableObject {
                 }
         } else {
             updateSingleReminderTitle(reminder.id, title: trimmedTitle)
+        }
+    }
+
+    /// Update reminder quantity - syncs across all linked shared reminders
+    /// Pass nil to remove the quantity
+    func updateReminderQuantity(_ reminder: Reminder, newQuantity: Int?) {
+        #if DEBUG
+        print("ReminderViewModel: Updating quantity for reminder '\(reminder.title)' to \(newQuantity.map(String.init) ?? "nil")")
+        #endif
+
+        let fieldValue: Any = newQuantity ?? FieldValue.delete()
+
+        if let sharedReminderId = reminder.sharedReminderId {
+            db.collection("reminders")
+                .whereField("sharedReminderId", isEqualTo: sharedReminderId)
+                .getDocuments { [weak self] snapshot, error in
+                    guard let self = self else { return }
+
+                    if let error = error {
+                        #if DEBUG
+                        print("ReminderViewModel: Error finding linked reminders for quantity update: \(error.localizedDescription)")
+                        #endif
+                        self.updateSingleReminderQuantity(reminder.id, quantity: fieldValue)
+                        return
+                    }
+
+                    guard let documents = snapshot?.documents, !documents.isEmpty else {
+                        self.updateSingleReminderQuantity(reminder.id, quantity: fieldValue)
+                        return
+                    }
+
+                    let batch = self.db.batch()
+                    for doc in documents {
+                        batch.updateData(["quantity": fieldValue], forDocument: doc.reference)
+                    }
+
+                    batch.commit { error in
+                        DispatchQueue.main.async {
+                            if let error = error {
+                                #if DEBUG
+                                print("ReminderViewModel: Error syncing quantity update: \(error.localizedDescription)")
+                                #endif
+                            } else {
+                                #if DEBUG
+                                print("ReminderViewModel: Synced quantity update across \(documents.count) linked reminders")
+                                #endif
+                            }
+                        }
+                    }
+                }
+        } else {
+            updateSingleReminderQuantity(reminder.id, quantity: fieldValue)
+        }
+    }
+
+    private func updateSingleReminderQuantity(_ reminderId: String, quantity: Any) {
+        db.collection("reminders").document(reminderId).updateData([
+            "quantity": quantity
+        ]) { error in
+            DispatchQueue.main.async {
+                if let error = error {
+                    #if DEBUG
+                    print("ReminderViewModel: Error updating reminder quantity: \(error.localizedDescription)")
+                    #endif
+                } else {
+                    #if DEBUG
+                    print("ReminderViewModel: Reminder quantity updated successfully")
+                    #endif
+                }
+            }
         }
     }
 
