@@ -13,6 +13,7 @@ struct StoresView: View {
     @StateObject private var viewModel = StoresViewModel()
     @StateObject private var messagesViewModel = MessagesViewModel()
     @ObservedObject private var sessionManager = UserSessionManager.shared
+    @ObservedObject private var logoProvider = StoreLogoProvider.shared
     @State private var showingAddStore = false
     @State private var isMenuExpanded = false
     @State private var selectedStoreToShare: UserStoreItem?
@@ -42,12 +43,12 @@ struct StoresView: View {
                             ZStack {
                                 if editMode == .inactive {
                                     NavigationLink(destination: ReminderView(userStoreItem: userStoreItem)) {
-                                        StoreItemView(store: userStoreItem.store)
+                                        StoreItemView(store: userStoreItem.store, logoURL: logoProvider.logoURL(for: userStoreItem.store.name))
                                             .contentShape(Rectangle())
                                     }
                                     .buttonStyle(.plain)
                                 } else {
-                                    StoreItemView(store: userStoreItem.store)
+                                    StoreItemView(store: userStoreItem.store, logoURL: logoProvider.logoURL(for: userStoreItem.store.name))
                                 }
                             }
                             .listRowBackground(

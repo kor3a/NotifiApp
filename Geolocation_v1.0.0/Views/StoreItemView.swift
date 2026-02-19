@@ -9,29 +9,13 @@ import SwiftUI
 
 struct StoreItemView: View {
     let store: Store
+    var logoURL: String? = nil
 
     var body: some View {
         HStack(spacing: 16) {
-            // Store icon with glass effect
-            ZStack {
-                Circle()
-                    .fill(.ultraThinMaterial)
-                    .frame(width: 50, height: 50)
-                    .overlay(
-                        Circle()
-                            .stroke(Color.white.opacity(0.3), lineWidth: 1)
-                    )
+            // Store logo or default icon
+            storeLogoView
 
-                Image(systemName: "storefront")
-                    .font(.system(size: 22))
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [.blue, .purple],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-            }
             Text(store.name)
                 .font(.headline)
                 .foregroundColor(.primary)
@@ -55,12 +39,54 @@ struct StoreItemView: View {
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
     }
+
+    @ViewBuilder
+    private var storeLogoView: some View {
+        if let logoURL = logoURL, let url = URL(string: logoURL) {
+            AsyncImage(url: url) { phase in
+                switch phase {
+                case .success(let image):
+                    image
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 50, height: 50)
+                        .clipShape(Circle())
+                default:
+                    defaultStoreIcon
+                }
+            }
+            .frame(width: 50, height: 50)
+        } else {
+            defaultStoreIcon
+        }
+    }
+
+    private var defaultStoreIcon: some View {
+        ZStack {
+            Circle()
+                .fill(.ultraThinMaterial)
+                .frame(width: 50, height: 50)
+                .overlay(
+                    Circle()
+                        .stroke(Color.white.opacity(0.3), lineWidth: 1)
+                )
+
+            Image(systemName: "storefront")
+                .font(.system(size: 22))
+                .foregroundStyle(
+                    LinearGradient(
+                        colors: [.blue, .purple],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+        }
+    }
 }
 
 #Preview {
     VStack {
-        StoreItemView(store: Store(name: "Example Store", reminderCount: 3))
-        StoreItemView(store: Store(name: "Another Store", reminderCount: 0))
+        StoreItemView(store: Store(name: "Walmart", reminderCount: 3), logoURL: "https://logo.clearbit.com/walmart.com")
+        StoreItemView(store: Store(name: "My Local Shop", reminderCount: 0))
     }
 }
-

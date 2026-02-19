@@ -10,6 +10,7 @@ import SwiftUI
 struct AddStoreView: View {
     @Environment(\.dismiss) var dismiss
     @ObservedObject var viewModel: StoresViewModel
+    @ObservedObject private var logoProvider = StoreLogoProvider.shared
     @StateObject private var locationSearchManager = LocationSearchManager()
     @State private var searchText = ""
     
@@ -94,7 +95,10 @@ struct AddStoreView: View {
                                 viewModel.addStoreToUser(store: store)
                                 dismiss()
                             }) {
-                                HStack {
+                                HStack(spacing: 12) {
+                                    // Store logo or default icon
+                                    searchResultLogo(for: searchResult.name)
+
                                     VStack(alignment: .leading, spacing: 5) {
                                         Text(searchResult.name)
                                             .font(.headline)
@@ -165,6 +169,44 @@ struct AddStoreView: View {
             .onAppear {
                 locationSearchManager.requestLocation()
             }
+        }
+    }
+
+    @ViewBuilder
+    private func searchResultLogo(for storeName: String) -> some View {
+        if let logoURL = logoProvider.logoURL(for: storeName), let url = URL(string: logoURL) {
+            AsyncImage(url: url) { phase in
+                switch phase {
+                case .success(let image):
+                    image
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 36, height: 36)
+                        .clipShape(Circle())
+                default:
+                    defaultSearchIcon
+                }
+            }
+            .frame(width: 36, height: 36)
+        } else {
+            defaultSearchIcon
+        }
+    }
+
+    private var defaultSearchIcon: some View {
+        ZStack {
+            Circle()
+                .fill(.ultraThinMaterial)
+                .frame(width: 36, height: 36)
+            Image(systemName: "storefront")
+                .font(.system(size: 16))
+                .foregroundStyle(
+                    LinearGradient(
+                        colors: [.blue, .purple],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
         }
     }
 }
