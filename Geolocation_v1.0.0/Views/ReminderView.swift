@@ -43,329 +43,21 @@ struct ReminderView: View {
             if viewModel.isLoading {
                 ProgressView("Loading reminders...")
             } else if viewModel.reminders.isEmpty && !isAddingNewReminder {
-                VStack(spacing: 20) {
-                    Image(systemName: "list.bullet.clipboard")
-                        .resizable()
-                        .frame(width: 60, height: 60)
-                        .foregroundStyle(.gray)
-
-                    Text("No Reminders")
-                        .font(.title2)
-                        .bold()
-
-                    Text("Add reminders for this store")
-                        .foregroundStyle(.gray)
-
-                    if userStoreItem.permission != .view {
-                        Button {
-                            isAddingNewReminder = true
-                        } label: {
-                            Label("Add Reminder", systemImage: "plus")
-                        }
-                        .buttonStyle(PrimaryButtonStyle())
-                        .padding(.horizontal)
-                    } else {
-                        Text("View only - cannot add reminders")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                .padding()
+                emptyStateView
             } else {
-                ScrollViewReader { proxy in
-                    List {
-                        ForEach(viewModel.reminders) { reminder in
-                            ReminderItemView(
-                                item: reminder,
-                                isEditing: editingReminderId == reminder.id,
-                                isReorderMode: isReorderMode,
-                                onPhotoTap: { photoURL in
-                                    enlargedPhotoURL = photoURL
-                                    enlargedPhotoReminder = reminder
-                                },
-                                onCheckboxTap: userStoreItem.permission != .view ? {
-                                    handleReminderTap(reminder)
-                                } : nil,
-                                onTextTap: userStoreItem.permission != .view ? {
-                                    editingReminderId = reminder.id
-                                } : nil,
-                                onTitleCommit: { newTitle in
-                                    if newTitle != reminder.title {
-                                        viewModel.updateReminderTitle(reminder, newTitle: newTitle)
-                                    }
-                                    editingReminderId = nil
-                                },
-                                onReorderTap: userStoreItem.permission != .view ? {
-                                    withAnimation {
-                                        isReorderMode = true
-                                        isAddingNewReminder = false
-                                        editingReminderId = nil
-                                    }
-                                } : nil
-                            )
-                                .contentShape(Rectangle())
-                                .listRowBackground(
-                                    RoundedRectangle(cornerRadius: 16)
-                                        .fill(.ultraThinMaterial)
-                                        .overlay(
-                                            RoundedRectangle(cornerRadius: 16)
-                                                .stroke(
-                                                    Color.cardBorder(for: colorScheme),
-                                                    lineWidth: 1.5
-                                                )
-                                        )
-                                        .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.3 : 0.1), radius: 8, x: 0, y: 4)
-                                        .shadow(color: Color.white.opacity(colorScheme == .dark ? 0.05 : 0.5), radius: 2, x: 0, y: -2)
-                                        .padding(.vertical, 4)
-                                )
-                                .listRowSeparator(.hidden)
-                                .opacity(fadingReminderIds.contains(reminder.id) ? 0 : 1)
-                                .scaleEffect(fadingReminderIds.contains(reminder.id) ? 0.8 : 1.0)
-                                .animation(.easeOut(duration: 0.5), value: fadingReminderIds)
-                                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                                    // Delete button (rightmost)
-                                    if userStoreItem.permission != .view {
-                                        Button(role: .destructive) {
-                                            // If shared, show confirmation dialog
-                                            if reminder.isShared == true && reminder.sharedReminderId != nil {
-                                                reminderToDelete = reminder
-                                            } else {
-                                                viewModel.deleteReminder(reminder)
-                                            }
-                                        } label: {
-                                            Image(systemName: "trash")
-                                        }
-                                    }
-
-                                    // Share button
-                                    Button {
-                                        reminderToShare = reminder
-                                    } label: {
-                                        Image(systemName: "square.and.arrow.up")
-                                    }
-                                    .tint(.blue)
-
-                                    // Info button (only if reminder is shared)
-                                    if reminder.isShared == true {
-                                        Button {
-                                            showingSharedInfo = reminder
-                                        } label: {
-                                            Image(systemName: "person.2.fill")
-                                        }
-                                        .tint(.appAccent)
-                                    }
-                                }
-                                .contextMenu {
-                                    if userStoreItem.permission != .view {
-                                        Button {
-                                            reminderForPhoto = reminder
-                                        } label: {
-                                            Label("Add Photos", systemImage: "photo.on.rectangle.angled")
-                                        }
-                                    }
-                                }
-                        }
-                        .onMove(perform: isReorderMode ? { source, destination in
-                            viewModel.moveReminder(from: source, to: destination)
-                        } : nil)
-                        .deleteDisabled(true)
-
-                        // Inline add reminder row (hidden during reorder mode)
-                        if userStoreItem.permission != .view && !isReorderMode {
-                            if isAddingNewReminder {
-                                HStack {
-                                    Image(systemName: "square")
-                                        .foregroundStyle(.gray.opacity(0.4))
-                                    TextField("What do you need?", text: $newReminderText)
-                                        .font(.headline)
-                                        .focused($isNewReminderFocused)
-                                        .onSubmit {
-                                            submitNewReminder()
-                                        }
-                                        .textInputAutocapitalization(.sentences)
-                                }
-                                .listRowBackground(
-                                    RoundedRectangle(cornerRadius: 16)
-                                        .fill(.ultraThinMaterial)
-                                        .overlay(
-                                            RoundedRectangle(cornerRadius: 16)
-                                                .stroke(
-                                                    Color.cardBorder(for: colorScheme),
-                                                    lineWidth: 1.5
-                                                )
-                                        )
-                                        .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.3 : 0.1), radius: 8, x: 0, y: 4)
-                                        .shadow(color: Color.white.opacity(colorScheme == .dark ? 0.05 : 0.5), radius: 2, x: 0, y: -2)
-                                        .padding(.vertical, 4)
-                                )
-                                .listRowSeparator(.hidden)
-                                .id("inlineAddRow")
-                            } else {
-                                Button {
-                                    isAddingNewReminder = true
-                                } label: {
-                                    HStack {
-                                        Image(systemName: "plus")
-                                            .foregroundStyle(.gray)
-                                        Text("Add item")
-                                            .font(.headline)
-                                            .foregroundStyle(.gray)
-                                        Spacer()
-                                    }
-                                }
-                                .listRowBackground(
-                                    RoundedRectangle(cornerRadius: 16)
-                                        .fill(.ultraThinMaterial.opacity(0.5))
-                                        .padding(.vertical, 4)
-                                )
-                                .listRowSeparator(.hidden)
-                                .id("inlineAddRow")
-                            }
-                        }
-                    }
-                    .listStyle(.plain)
-                    .scrollContentBackground(.hidden)
-                    .environment(\.editMode, editMode)
-                    .background(
-                        Color.backgroundGradient(for: colorScheme)
-                            .ignoresSafeArea()
-                    )
-                    .onChange(of: isAddingNewReminder) { _, newValue in
-                        if newValue {
-                            withAnimation {
-                                proxy.scrollTo("inlineAddRow", anchor: .bottom)
-                            }
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                                isNewReminderFocused = true
-                            }
-                        }
-                    }
-                }
+                reminderListView
             }
 
-            // Fullscreen photo viewer overlay
-            if let photoURL = enlargedPhotoURL {
-                Color.black.opacity(0.85)
-                    .ignoresSafeArea()
-                    .onTapGesture {
-                        withAnimation {
-                            enlargedPhotoURL = nil
-                            enlargedPhotoReminder = nil
-                        }
-                    }
-
-                VStack(spacing: 24) {
-                    Spacer()
-
-                    AsyncImage(url: URL(string: photoURL)) { phase in
-                        switch phase {
-                        case .success(let image):
-                            image
-                                .resizable()
-                                .scaledToFit()
-                                .cornerRadius(12)
-                                .padding(.horizontal, 20)
-                        case .failure:
-                            Image(systemName: "photo")
-                                .font(.system(size: 60))
-                                .foregroundColor(.gray)
-                        case .empty:
-                            ProgressView()
-                                .tint(.white)
-                        @unknown default:
-                            EmptyView()
-                        }
-                    }
-
-                    Spacer()
-
-                    HStack(spacing: 40) {
-                        Button {
-                            showDeletePhotoConfirm = true
-                        } label: {
-                            VStack(spacing: 6) {
-                                Image(systemName: "trash.fill")
-                                    .font(.title2)
-                                Text("Delete")
-                                    .font(.caption)
-                            }
-                            .foregroundColor(.red)
-                        }
-
-                        Button {
-                            withAnimation {
-                                enlargedPhotoURL = nil
-                                enlargedPhotoReminder = nil
-                            }
-                        } label: {
-                            VStack(spacing: 6) {
-                                Image(systemName: "xmark.circle.fill")
-                                    .font(.title2)
-                                Text("Close")
-                                    .font(.caption)
-                            }
-                            .foregroundColor(.white)
-                        }
-                    }
-                    .padding(.bottom, 40)
-                }
-                .transition(.opacity)
-                .alert("Delete Photo", isPresented: $showDeletePhotoConfirm) {
-                    Button("Delete", role: .destructive) {
-                        if let reminder = enlargedPhotoReminder, let url = enlargedPhotoURL {
-                            viewModel.deletePhoto(for: reminder, photoURL: url)
-                        }
-                        withAnimation {
-                            enlargedPhotoURL = nil
-                            enlargedPhotoReminder = nil
-                        }
-                    }
-                    Button("Cancel", role: .cancel) {}
-                } message: {
-                    Text("Are you sure you want to delete this photo?")
-                }
+            if enlargedPhotoURL != nil {
+                photoOverlayView
             }
         }
         .navigationTitle(userStoreItem.store.name)
-        .toolbar {
-            ToolbarItem(placement: .navigationBarLeading) {
-                if userStoreItem.permission != .view {
-                    Toggle(isOn: $autoDeleteEnabled) {
-                        Label("Auto-delete", systemImage: autoDeleteEnabled ? "trash.fill" : "trash")
-                    }
-                    .toggleStyle(.button)
-                    .labelStyle(.iconOnly)
-                    .tint(autoDeleteEnabled ? .red : .gray)
-                }
-            }
-
-            ToolbarItem(placement: .navigationBarTrailing) {
-                if isReorderMode {
-                    Button("Done") {
-                        withAnimation {
-                            isReorderMode = false
-                        }
-                    }
-                } else if userStoreItem.permission != .view {
-                    Button(action: {
-                        isAddingNewReminder = true
-                    }) {
-                        Image(systemName: "plus")
-                            .frame(width: 22, height: 22)
-                    }
-                    .frame(width: 44, height: 44)
-                } else {
-                    Image(systemName: "eye.fill")
-                        .foregroundStyle(.secondary)
-                        .frame(width: 22, height: 22)
-                }
-            }
-        }
+        .toolbar { toolbarContent }
         .onAppear {
             viewModel.fetchReminders(for: userStoreItem.reminderStoreId, sharedFromName: userStoreItem.sharedFromName)
         }
         .onChange(of: autoDeleteEnabled) { oldValue, newValue in
-            // When auto-delete is turned ON, clean up already-done reminders
             if newValue && !oldValue {
                 deleteCompletedReminders()
             }
@@ -400,15 +92,7 @@ struct ReminderView: View {
                 reminderToDelete = nil
             }
         } message: {
-            if let reminder = reminderToDelete {
-                if let sharedWith = reminder.sharedWith, !sharedWith.isEmpty {
-                    Text("This reminder is shared with \(sharedWith.joined(separator: ", ")). Deleting it will remove it for everyone.")
-                } else if let sharedFrom = reminder.sharedFrom {
-                    Text("This reminder was shared by \(sharedFrom). Deleting it will remove it for everyone.")
-                } else {
-                    Text("This reminder is shared. Deleting it will remove it for everyone.")
-                }
-            }
+            deleteSharedReminderMessage
         }
         .alert("Shared Reminder", isPresented: .init(
             get: { showingSharedInfo != nil },
@@ -418,33 +102,7 @@ struct ReminderView: View {
                 showingSharedInfo = nil
             }
         } message: {
-            if let reminder = showingSharedInfo {
-                let currentUserName = UserSessionManager.shared.currentUser?.name
-                let isCurrentUserTheSharer = reminder.sharedFrom != nil &&
-                    !reminder.sharedFrom!.isEmpty &&
-                    reminder.sharedFrom == currentUserName
-
-                if isCurrentUserTheSharer {
-                    // Current user created/shared this reminder
-                    if let sharedWith = reminder.sharedWith, !sharedWith.isEmpty {
-                        Text("You shared this reminder with:\n\(sharedWith.joined(separator: "\n"))\n\nChanges sync automatically.")
-                    } else {
-                        Text("You shared this reminder.\n\nChanges sync automatically.")
-                    }
-                } else if let sharedFrom = reminder.sharedFrom, !sharedFrom.isEmpty {
-                    // Someone else shared this reminder with the user
-                    if let sharedWith = reminder.sharedWith, !sharedWith.isEmpty {
-                        Text("Shared by: \(sharedFrom)\nAlso shared with: \(sharedWith.filter { $0 != sharedFrom }.joined(separator: ", "))\n\nChanges sync automatically.")
-                    } else {
-                        Text("Shared by: \(sharedFrom)\n\nChanges sync automatically.")
-                    }
-                } else if let sharedWith = reminder.sharedWith, !sharedWith.isEmpty {
-                    // No sharedFrom means user is the original owner/sender
-                    Text("You shared this reminder with:\n\(sharedWith.joined(separator: "\n"))\n\nChanges sync automatically.")
-                } else {
-                    Text("This reminder is synced across users.")
-                }
-            }
+            sharedReminderInfoMessage
         }
         .alert("Duplicate Reminder", isPresented: $showDuplicateAlert) {
             Button("OK", role: .cancel) {
@@ -452,6 +110,367 @@ struct ReminderView: View {
             }
         } message: {
             Text("'\(duplicateTitle)' already exists in this store.")
+        }
+    }
+
+    // MARK: - Extracted Sub-Views
+
+    private var emptyStateView: some View {
+        VStack(spacing: 20) {
+            Image(systemName: "list.bullet.clipboard")
+                .resizable()
+                .frame(width: 60, height: 60)
+                .foregroundStyle(.gray)
+
+            Text("No Reminders")
+                .font(.title2)
+                .bold()
+
+            Text("Add reminders for this store")
+                .foregroundStyle(.gray)
+
+            if userStoreItem.permission != .view {
+                Button {
+                    isAddingNewReminder = true
+                } label: {
+                    Label("Add Reminder", systemImage: "plus")
+                }
+                .buttonStyle(PrimaryButtonStyle())
+                .padding(.horizontal)
+            } else {
+                Text("View only - cannot add reminders")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding()
+    }
+
+    private var reminderListView: some View {
+        ScrollViewReader { proxy in
+            List {
+                ForEach(viewModel.reminders) { reminder in
+                    reminderRow(for: reminder)
+                }
+                .onMove(perform: isReorderMode ? { source, destination in
+                    viewModel.moveReminder(from: source, to: destination)
+                } : nil)
+                .deleteDisabled(true)
+
+                // Inline add reminder row (hidden during reorder mode)
+                if userStoreItem.permission != .view && !isReorderMode {
+                    inlineAddSection
+                }
+            }
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            .environment(\.editMode, editMode)
+            .background(
+                Color.backgroundGradient(for: colorScheme)
+                    .ignoresSafeArea()
+            )
+            .onChange(of: isAddingNewReminder) { _, newValue in
+                if newValue {
+                    withAnimation {
+                        proxy.scrollTo("inlineAddRow", anchor: .bottom)
+                    }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        isNewReminderFocused = true
+                    }
+                }
+            }
+        }
+    }
+
+    private func reminderRow(for reminder: Reminder) -> some View {
+        ReminderItemView(
+            item: reminder,
+            isEditing: editingReminderId == reminder.id,
+            isReorderMode: isReorderMode,
+            onPhotoTap: { photoURL in
+                enlargedPhotoURL = photoURL
+                enlargedPhotoReminder = reminder
+            },
+            onCheckboxTap: userStoreItem.permission != .view ? {
+                handleReminderTap(reminder)
+            } : nil,
+            onTextTap: userStoreItem.permission != .view ? {
+                editingReminderId = reminder.id
+            } : nil,
+            onTitleCommit: { newTitle in
+                if newTitle != reminder.title {
+                    viewModel.updateReminderTitle(reminder, newTitle: newTitle)
+                }
+                editingReminderId = nil
+            },
+            onReorderTap: userStoreItem.permission != .view ? {
+                withAnimation {
+                    isReorderMode = true
+                    isAddingNewReminder = false
+                    editingReminderId = nil
+                }
+            } : nil
+        )
+        .contentShape(Rectangle())
+        .listRowBackground(cardRowBackground)
+        .listRowSeparator(.hidden)
+        .opacity(fadingReminderIds.contains(reminder.id) ? 0 : 1)
+        .scaleEffect(fadingReminderIds.contains(reminder.id) ? 0.8 : 1.0)
+        .animation(.easeOut(duration: 0.5), value: fadingReminderIds)
+        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+            if userStoreItem.permission != .view {
+                Button(role: .destructive) {
+                    if reminder.isShared == true && reminder.sharedReminderId != nil {
+                        reminderToDelete = reminder
+                    } else {
+                        viewModel.deleteReminder(reminder)
+                    }
+                } label: {
+                    Image(systemName: "trash")
+                }
+            }
+
+            Button {
+                reminderToShare = reminder
+            } label: {
+                Image(systemName: "square.and.arrow.up")
+            }
+            .tint(.blue)
+
+            if reminder.isShared == true {
+                Button {
+                    showingSharedInfo = reminder
+                } label: {
+                    Image(systemName: "person.2.fill")
+                }
+                .tint(.appAccent)
+            }
+        }
+        .contextMenu {
+            if userStoreItem.permission != .view {
+                Button {
+                    reminderForPhoto = reminder
+                } label: {
+                    Label("Add Photos", systemImage: "photo.on.rectangle.angled")
+                }
+            }
+        }
+    }
+
+    private var cardRowBackground: some View {
+        RoundedRectangle(cornerRadius: 16)
+            .fill(.ultraThinMaterial)
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(
+                        Color.cardBorder(for: colorScheme),
+                        lineWidth: 1.5
+                    )
+            )
+            .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.3 : 0.1), radius: 8, x: 0, y: 4)
+            .shadow(color: Color.white.opacity(colorScheme == .dark ? 0.05 : 0.5), radius: 2, x: 0, y: -2)
+            .padding(.vertical, 4)
+    }
+
+    @ViewBuilder
+    private var inlineAddSection: some View {
+        if isAddingNewReminder {
+            HStack {
+                Image(systemName: "square")
+                    .foregroundStyle(.gray.opacity(0.4))
+                TextField("What do you need?", text: $newReminderText)
+                    .font(.headline)
+                    .focused($isNewReminderFocused)
+                    .onSubmit {
+                        submitNewReminder()
+                    }
+                    .textInputAutocapitalization(.sentences)
+            }
+            .listRowBackground(cardRowBackground)
+            .listRowSeparator(.hidden)
+            .id("inlineAddRow")
+        } else {
+            Button {
+                isAddingNewReminder = true
+            } label: {
+                HStack {
+                    Image(systemName: "plus")
+                        .foregroundStyle(.gray)
+                    Text("Add item")
+                        .font(.headline)
+                        .foregroundStyle(.gray)
+                    Spacer()
+                }
+            }
+            .listRowBackground(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(.ultraThinMaterial.opacity(0.5))
+                    .padding(.vertical, 4)
+            )
+            .listRowSeparator(.hidden)
+            .id("inlineAddRow")
+        }
+    }
+
+    @ViewBuilder
+    private var photoOverlayView: some View {
+        if let photoURL = enlargedPhotoURL {
+            Color.black.opacity(0.85)
+                .ignoresSafeArea()
+                .onTapGesture {
+                    withAnimation {
+                        enlargedPhotoURL = nil
+                        enlargedPhotoReminder = nil
+                    }
+                }
+
+            VStack(spacing: 24) {
+                Spacer()
+
+                AsyncImage(url: URL(string: photoURL)) { phase in
+                    switch phase {
+                    case .success(let image):
+                        image
+                            .resizable()
+                            .scaledToFit()
+                            .cornerRadius(12)
+                            .padding(.horizontal, 20)
+                    case .failure:
+                        Image(systemName: "photo")
+                            .font(.system(size: 60))
+                            .foregroundColor(.gray)
+                    case .empty:
+                        ProgressView()
+                            .tint(.white)
+                    @unknown default:
+                        EmptyView()
+                    }
+                }
+
+                Spacer()
+
+                HStack(spacing: 40) {
+                    Button {
+                        showDeletePhotoConfirm = true
+                    } label: {
+                        VStack(spacing: 6) {
+                            Image(systemName: "trash.fill")
+                                .font(.title2)
+                            Text("Delete")
+                                .font(.caption)
+                        }
+                        .foregroundColor(.red)
+                    }
+
+                    Button {
+                        withAnimation {
+                            enlargedPhotoURL = nil
+                            enlargedPhotoReminder = nil
+                        }
+                    } label: {
+                        VStack(spacing: 6) {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.title2)
+                            Text("Close")
+                                .font(.caption)
+                        }
+                        .foregroundColor(.white)
+                    }
+                }
+                .padding(.bottom, 40)
+            }
+            .transition(.opacity)
+            .alert("Delete Photo", isPresented: $showDeletePhotoConfirm) {
+                Button("Delete", role: .destructive) {
+                    if let reminder = enlargedPhotoReminder, let url = enlargedPhotoURL {
+                        viewModel.deletePhoto(for: reminder, photoURL: url)
+                    }
+                    withAnimation {
+                        enlargedPhotoURL = nil
+                        enlargedPhotoReminder = nil
+                    }
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("Are you sure you want to delete this photo?")
+            }
+        }
+    }
+
+    @ToolbarContentBuilder
+    private var toolbarContent: some ToolbarContent {
+        ToolbarItem(placement: .navigationBarLeading) {
+            if userStoreItem.permission != .view {
+                Toggle(isOn: $autoDeleteEnabled) {
+                    Label("Auto-delete", systemImage: autoDeleteEnabled ? "trash.fill" : "trash")
+                }
+                .toggleStyle(.button)
+                .labelStyle(.iconOnly)
+                .tint(autoDeleteEnabled ? .red : .gray)
+            }
+        }
+
+        ToolbarItem(placement: .navigationBarTrailing) {
+            if isReorderMode {
+                Button("Done") {
+                    withAnimation {
+                        isReorderMode = false
+                    }
+                }
+            } else if userStoreItem.permission != .view {
+                Button(action: {
+                    isAddingNewReminder = true
+                }) {
+                    Image(systemName: "plus")
+                        .frame(width: 22, height: 22)
+                }
+                .frame(width: 44, height: 44)
+            } else {
+                Image(systemName: "eye.fill")
+                    .foregroundStyle(.secondary)
+                    .frame(width: 22, height: 22)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var deleteSharedReminderMessage: some View {
+        if let reminder = reminderToDelete {
+            if let sharedWith = reminder.sharedWith, !sharedWith.isEmpty {
+                Text("This reminder is shared with \(sharedWith.joined(separator: ", ")). Deleting it will remove it for everyone.")
+            } else if let sharedFrom = reminder.sharedFrom {
+                Text("This reminder was shared by \(sharedFrom). Deleting it will remove it for everyone.")
+            } else {
+                Text("This reminder is shared. Deleting it will remove it for everyone.")
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var sharedReminderInfoMessage: some View {
+        if let reminder = showingSharedInfo {
+            let currentUserName = UserSessionManager.shared.currentUser?.name
+            let isCurrentUserTheSharer = reminder.sharedFrom != nil &&
+                !reminder.sharedFrom!.isEmpty &&
+                reminder.sharedFrom == currentUserName
+
+            if isCurrentUserTheSharer {
+                if let sharedWith = reminder.sharedWith, !sharedWith.isEmpty {
+                    Text("You shared this reminder with:\n\(sharedWith.joined(separator: "\n"))\n\nChanges sync automatically.")
+                } else {
+                    Text("You shared this reminder.\n\nChanges sync automatically.")
+                }
+            } else if let sharedFrom = reminder.sharedFrom, !sharedFrom.isEmpty {
+                if let sharedWith = reminder.sharedWith, !sharedWith.isEmpty {
+                    Text("Shared by: \(sharedFrom)\nAlso shared with: \(sharedWith.filter { $0 != sharedFrom }.joined(separator: ", "))\n\nChanges sync automatically.")
+                } else {
+                    Text("Shared by: \(sharedFrom)\n\nChanges sync automatically.")
+                }
+            } else if let sharedWith = reminder.sharedWith, !sharedWith.isEmpty {
+                Text("You shared this reminder with:\n\(sharedWith.joined(separator: "\n"))\n\nChanges sync automatically.")
+            } else {
+                Text("This reminder is synced across users.")
+            }
         }
     }
 
