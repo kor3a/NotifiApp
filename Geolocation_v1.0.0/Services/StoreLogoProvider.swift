@@ -13,8 +13,8 @@ import UIKit
 /// Provides store logo URLs by matching normalized store names against a Firestore database.
 ///
 /// ## How it works
-/// 1. Logos are stored in Firebase Storage under `store_logos/{normalizedId}.jpg`
-/// 2. Download URLs are cached in Firestore `store_logos` collection
+/// 1. Logos are stored in Firebase Storage under `stores_logos/{normalizedId}.jpg`
+/// 2. Download URLs are cached in Firestore `stores_logos` collection
 /// 3. The app fetches from Firestore on launch and caches in memory
 /// 4. When a store name matches a known logo, the logo is displayed
 ///
@@ -23,7 +23,7 @@ import UIKit
 /// This uploads the image to Firebase Storage and saves the URL to Firestore.
 ///
 /// ## Firestore document structure
-///   Collection: `store_logos`
+///   Collection: `stores_logos`
 ///   Document ID: normalized store name (e.g., "walmart", "trader-joes")
 ///   Fields: { "logoURL": "https://firebasestorage.googleapis.com/..." }
 class StoreLogoProvider: ObservableObject {
@@ -66,7 +66,7 @@ class StoreLogoProvider: ObservableObject {
     func fetchStoreLogos() {
         guard !hasFetched else { return }
 
-        db.collection("store_logos").getDocuments { [weak self] snapshot, error in
+        db.collection("stores_logos").getDocuments { [weak self] snapshot, error in
             guard let self = self else { return }
 
             if let error = error {
@@ -118,7 +118,7 @@ class StoreLogoProvider: ObservableObject {
             return
         }
 
-        let logoRef = storage.child("store_logos/\(normalizedId).jpg")
+        let logoRef = storage.child("stores_logos/\(normalizedId).jpg")
         let metadata = StorageMetadata()
         metadata.contentType = "image/jpeg"
 
@@ -145,7 +145,7 @@ class StoreLogoProvider: ObservableObject {
                 }
 
                 // Save to Firestore
-                self.db.collection("store_logos").document(normalizedId).setData([
+                self.db.collection("stores_logos").document(normalizedId).setData([
                     "logoURL": downloadURL
                 ]) { error in
                     if let error = error {
@@ -171,7 +171,7 @@ class StoreLogoProvider: ObservableObject {
     func deleteStoreLogo(storeName: String, completion: @escaping (Result<Void, Error>) -> Void) {
         let normalizedId = Store.normalizedId(from: storeName)
 
-        let logoRef = storage.child("store_logos/\(normalizedId).jpg")
+        let logoRef = storage.child("stores_logos/\(normalizedId).jpg")
         logoRef.delete { [weak self] error in
             // Continue even if Storage delete fails (file might not exist)
             if let error = error {
@@ -180,7 +180,7 @@ class StoreLogoProvider: ObservableObject {
                 #endif
             }
 
-            self?.db.collection("store_logos").document(normalizedId).delete { error in
+            self?.db.collection("stores_logos").document(normalizedId).delete { error in
                 if let error = error {
                     completion(.failure(error))
                     return
