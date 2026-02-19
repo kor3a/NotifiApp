@@ -7,27 +7,34 @@
 
 import Foundation
 import FirebaseFirestore
+import FirebaseStorage
+import UIKit
 
-/// Provides store logo URLs by matching normalized store names against a database.
+/// Provides store logo URLs by matching normalized store names against a Firestore database.
 ///
-/// Logo sources (in priority order):
-/// 1. Firestore `store_logos` collection (admin-managed)
-/// 2. Built-in defaults for common stores
+/// ## How it works
+/// 1. Logos are stored in Firebase Storage under `store_logos/{normalizedId}.jpg`
+/// 2. Download URLs are cached in Firestore `store_logos` collection
+/// 3. The app fetches from Firestore on launch and caches in memory
+/// 4. When a store name matches a known logo, the logo is displayed
 ///
-/// Firestore document structure:
+/// ## Adding logos
+/// Call `uploadStoreLogo(storeName:image:)` to upload a logo for a store.
+/// This uploads the image to Firebase Storage and saves the URL to Firestore.
+///
+/// ## Firestore document structure
 ///   Collection: `store_logos`
 ///   Document ID: normalized store name (e.g., "walmart", "trader-joes")
-///   Fields: { "logoURL": "https://..." }
+///   Fields: { "logoURL": "https://firebasestorage.googleapis.com/..." }
 class StoreLogoProvider: ObservableObject {
     static let shared = StoreLogoProvider()
 
     private let db = Firestore.firestore()
+    private let storage = Storage.storage().reference()
     @Published private(set) var storeLogos: [String: String] = [:] // normalizedId -> logoURL
     private var hasFetched = false
 
     private init() {
-        // Start with built-in defaults
-        storeLogos = Self.builtInLogos
         fetchStoreLogos()
     }
 
@@ -55,7 +62,7 @@ class StoreLogoProvider: ObservableObject {
         return bestMatch?.url
     }
 
-    /// Fetch logo mappings from Firestore and merge with built-in defaults
+    /// Fetch logo mappings from Firestore
     func fetchStoreLogos() {
         guard !hasFetched else { return }
 
@@ -66,197 +73,161 @@ class StoreLogoProvider: ObservableObject {
                 #if DEBUG
                 print("StoreLogoProvider: Error fetching logos: \(error.localizedDescription)")
                 #endif
-                // Built-in defaults are still available
                 return
             }
 
             guard let documents = snapshot?.documents, !documents.isEmpty else {
                 #if DEBUG
-                print("StoreLogoProvider: No store logos in Firestore, using built-in defaults")
+                print("StoreLogoProvider: No store logos in Firestore yet")
                 #endif
                 self.hasFetched = true
                 return
             }
 
-            var merged = Self.builtInLogos
+            var logos: [String: String] = [:]
             for doc in documents {
                 let data = doc.data()
                 if let logoURL = data["logoURL"] as? String {
-                    // Firestore entries override built-in defaults
-                    merged[doc.documentID] = logoURL
+                    logos[doc.documentID] = logoURL
                 }
             }
 
             DispatchQueue.main.async {
-                self.storeLogos = merged
+                self.storeLogos = logos
                 self.hasFetched = true
                 #if DEBUG
-                print("StoreLogoProvider: Loaded \(documents.count) logos from Firestore, \(merged.count) total")
+                print("StoreLogoProvider: Loaded \(logos.count) store logos from Firestore")
                 #endif
             }
         }
     }
 
-    // MARK: - Built-in Store Logos
+    // MARK: - Upload Store Logo
 
-    /// Default logo URLs for common US retail stores.
-    /// These use the Clearbit Logo API (https://logo.clearbit.com).
-    /// Admins can override any of these by adding entries to the Firestore `store_logos` collection.
-    static let builtInLogos: [String: String] = [
-        // Grocery
-        "walmart": "https://logo.clearbit.com/walmart.com",
-        "walmart-supercenter": "https://logo.clearbit.com/walmart.com",
-        "walmart-neighborhood-market": "https://logo.clearbit.com/walmart.com",
-        "target": "https://logo.clearbit.com/target.com",
-        "costco": "https://logo.clearbit.com/costco.com",
-        "costco-wholesale": "https://logo.clearbit.com/costco.com",
-        "kroger": "https://logo.clearbit.com/kroger.com",
-        "whole-foods": "https://logo.clearbit.com/wholefoodsmarket.com",
-        "whole-foods-market": "https://logo.clearbit.com/wholefoodsmarket.com",
-        "trader-joes": "https://logo.clearbit.com/traderjoes.com",
-        "aldi": "https://logo.clearbit.com/aldi.us",
-        "publix": "https://logo.clearbit.com/publix.com",
-        "safeway": "https://logo.clearbit.com/safeway.com",
-        "h-e-b": "https://logo.clearbit.com/heb.com",
-        "heb": "https://logo.clearbit.com/heb.com",
-        "meijer": "https://logo.clearbit.com/meijer.com",
-        "winco-foods": "https://logo.clearbit.com/wincofoods.com",
-        "food-lion": "https://logo.clearbit.com/foodlion.com",
-        "stop-and-shop": "https://logo.clearbit.com/stopandshop.com",
-        "giant": "https://logo.clearbit.com/giantfood.com",
-        "wegmans": "https://logo.clearbit.com/wegmans.com",
-        "sprouts": "https://logo.clearbit.com/sprouts.com",
-        "sprouts-farmers-market": "https://logo.clearbit.com/sprouts.com",
+    /// Upload a logo image for a store to Firebase Storage and save the URL to Firestore.
+    ///
+    /// - Parameters:
+    ///   - storeName: The store name (will be normalized for the ID)
+    ///   - image: The logo image to upload
+    ///   - completion: Called with the download URL on success, or an error
+    func uploadStoreLogo(storeName: String, image: UIImage, completion: @escaping (Result<String, Error>) -> Void) {
+        let normalizedId = Store.normalizedId(from: storeName)
 
-        // Warehouse / Club
-        "sams-club": "https://logo.clearbit.com/samsclub.com",
-        "bjs": "https://logo.clearbit.com/bjs.com",
-        "bjs-wholesale-club": "https://logo.clearbit.com/bjs.com",
+        guard let imageData = image.jpegData(compressionQuality: 0.8) else {
+            completion(.failure(StoreLogoError.imageConversionFailed))
+            return
+        }
 
-        // Pharmacy / Convenience
-        "walgreens": "https://logo.clearbit.com/walgreens.com",
-        "cvs": "https://logo.clearbit.com/cvs.com",
-        "cvs-pharmacy": "https://logo.clearbit.com/cvs.com",
-        "rite-aid": "https://logo.clearbit.com/riteaid.com",
-        "7-eleven": "https://logo.clearbit.com/7-eleven.com",
+        let logoRef = storage.child("store_logos/\(normalizedId).jpg")
+        let metadata = StorageMetadata()
+        metadata.contentType = "image/jpeg"
 
-        // Home Improvement
-        "home-depot": "https://logo.clearbit.com/homedepot.com",
-        "the-home-depot": "https://logo.clearbit.com/homedepot.com",
-        "lowes": "https://logo.clearbit.com/lowes.com",
-        "menards": "https://logo.clearbit.com/menards.com",
-        "ace-hardware": "https://logo.clearbit.com/acehardware.com",
+        logoRef.putData(imageData, metadata: metadata) { [weak self] _, error in
+            guard let self = self else { return }
 
-        // Dollar / Discount
-        "dollar-general": "https://logo.clearbit.com/dollargeneral.com",
-        "dollar-tree": "https://logo.clearbit.com/dollartree.com",
-        "five-below": "https://logo.clearbit.com/fivebelow.com",
+            if let error = error {
+                #if DEBUG
+                print("StoreLogoProvider: Upload error: \(error.localizedDescription)")
+                #endif
+                completion(.failure(error))
+                return
+            }
 
-        // Department / General
-        "macys": "https://logo.clearbit.com/macys.com",
-        "nordstrom": "https://logo.clearbit.com/nordstrom.com",
-        "kohls": "https://logo.clearbit.com/kohls.com",
-        "jcpenney": "https://logo.clearbit.com/jcpenney.com",
-        "marshalls": "https://logo.clearbit.com/marshalls.com",
-        "tj-maxx": "https://logo.clearbit.com/tjmaxx.com",
-        "ross": "https://logo.clearbit.com/rossstores.com",
-        "burlington": "https://logo.clearbit.com/burlington.com",
+            logoRef.downloadURL { url, error in
+                if let error = error {
+                    completion(.failure(error))
+                    return
+                }
 
-        // Electronics / Tech
-        "best-buy": "https://logo.clearbit.com/bestbuy.com",
-        "apple": "https://logo.clearbit.com/apple.com",
-        "apple-store": "https://logo.clearbit.com/apple.com",
-        "microcenter": "https://logo.clearbit.com/microcenter.com",
+                guard let downloadURL = url?.absoluteString else {
+                    completion(.failure(StoreLogoError.downloadURLFailed))
+                    return
+                }
 
-        // Pet
-        "petco": "https://logo.clearbit.com/petco.com",
-        "petsmart": "https://logo.clearbit.com/petsmart.com",
+                // Save to Firestore
+                self.db.collection("store_logos").document(normalizedId).setData([
+                    "logoURL": downloadURL
+                ]) { error in
+                    if let error = error {
+                        completion(.failure(error))
+                        return
+                    }
 
-        // Sporting / Outdoor
-        "dicks-sporting-goods": "https://logo.clearbit.com/dickssportinggoods.com",
-        "rei": "https://logo.clearbit.com/rei.com",
-        "academy-sports": "https://logo.clearbit.com/academy.com",
+                    // Update local cache
+                    DispatchQueue.main.async {
+                        self.storeLogos[normalizedId] = downloadURL
+                    }
 
-        // Office
-        "staples": "https://logo.clearbit.com/staples.com",
-        "office-depot": "https://logo.clearbit.com/officedepot.com",
+                    #if DEBUG
+                    print("StoreLogoProvider: Uploaded logo for '\(storeName)' (id: \(normalizedId))")
+                    #endif
+                    completion(.success(downloadURL))
+                }
+            }
+        }
+    }
 
-        // Auto
-        "autozone": "https://logo.clearbit.com/autozone.com",
-        "oreilly-auto-parts": "https://logo.clearbit.com/oreillyauto.com",
+    /// Delete a store logo from Firebase Storage and Firestore.
+    func deleteStoreLogo(storeName: String, completion: @escaping (Result<Void, Error>) -> Void) {
+        let normalizedId = Store.normalizedId(from: storeName)
 
-        // Craft / Hobby
-        "michaels": "https://logo.clearbit.com/michaels.com",
-        "hobby-lobby": "https://logo.clearbit.com/hobbylobby.com",
-        "joann": "https://logo.clearbit.com/joann.com",
+        let logoRef = storage.child("store_logos/\(normalizedId).jpg")
+        logoRef.delete { [weak self] error in
+            // Continue even if Storage delete fails (file might not exist)
+            if let error = error {
+                #if DEBUG
+                print("StoreLogoProvider: Storage delete warning: \(error.localizedDescription)")
+                #endif
+            }
 
-        // Furniture / Home
-        "ikea": "https://logo.clearbit.com/ikea.com",
-        "bed-bath-and-beyond": "https://logo.clearbit.com/bedbathandbeyond.com",
-        "pier-1": "https://logo.clearbit.com/pier1.com",
+            self?.db.collection("store_logos").document(normalizedId).delete { error in
+                if let error = error {
+                    completion(.failure(error))
+                    return
+                }
 
-        // Clothing
-        "old-navy": "https://logo.clearbit.com/oldnavy.com",
-        "gap": "https://logo.clearbit.com/gap.com",
-        "handom": "https://logo.clearbit.com/hm.com",
-        "handm": "https://logo.clearbit.com/hm.com",
-        "zara": "https://logo.clearbit.com/zara.com",
-        "uniqlo": "https://logo.clearbit.com/uniqlo.com",
-        "nike": "https://logo.clearbit.com/nike.com",
+                DispatchQueue.main.async {
+                    self?.storeLogos.removeValue(forKey: normalizedId)
+                }
+                completion(.success(()))
+            }
+        }
+    }
 
-        // Big Box
-        "amazon-fresh": "https://logo.clearbit.com/amazon.com",
-        "amazon": "https://logo.clearbit.com/amazon.com",
+    /// Force refresh logos from Firestore
+    func refreshLogos() {
+        hasFetched = false
+        fetchStoreLogos()
+    }
 
-        // Coffee / Food
-        "starbucks": "https://logo.clearbit.com/starbucks.com",
-        "starbucks-coffee": "https://logo.clearbit.com/starbucks.com",
-        "dunkin": "https://logo.clearbit.com/dunkindonuts.com",
-        "dunkin-donuts": "https://logo.clearbit.com/dunkindonuts.com",
-        "panera-bread": "https://logo.clearbit.com/panerabread.com",
-        "panera": "https://logo.clearbit.com/panerabread.com",
-        "chipotle": "https://logo.clearbit.com/chipotle.com",
-        "chick-fil-a": "https://logo.clearbit.com/chick-fil-a.com",
-        "mcdonalds": "https://logo.clearbit.com/mcdonalds.com",
+    enum StoreLogoError: LocalizedError {
+        case imageConversionFailed
+        case downloadURLFailed
 
-        // Regional Grocery
-        "vons": "https://logo.clearbit.com/vons.com",
-        "ralphs": "https://logo.clearbit.com/ralphs.com",
-        "albertsons": "https://logo.clearbit.com/albertsons.com",
-        "pavilions": "https://logo.clearbit.com/pavilions.com",
-        "smart-and-final": "https://logo.clearbit.com/smartandfinal.com",
-        "food-4-less": "https://logo.clearbit.com/food4less.com",
-        "stater-bros": "https://logo.clearbit.com/staterbros.com",
-        "winco": "https://logo.clearbit.com/wincofoods.com",
-        "piggly-wiggly": "https://logo.clearbit.com/pigglywiggly.com",
-        "harris-teeter": "https://logo.clearbit.com/harristeeter.com",
-        "winn-dixie": "https://logo.clearbit.com/winndixie.com",
-        "bi-lo": "https://logo.clearbit.com/bilo.com",
-        "shoprite": "https://logo.clearbit.com/shoprite.com",
-        "hannaford": "https://logo.clearbit.com/hannaford.com",
-        "market-basket": "https://logo.clearbit.com/marketbasket.com",
-        "giant-eagle": "https://logo.clearbit.com/gianteagle.com",
-        "hy-vee": "https://logo.clearbit.com/hy-vee.com",
-        "fred-meyer": "https://logo.clearbit.com/fredmeyer.com",
+        var errorDescription: String? {
+            switch self {
+            case .imageConversionFailed:
+                return "Failed to convert image to JPEG data"
+            case .downloadURLFailed:
+                return "Failed to get download URL from Firebase Storage"
+            }
+        }
+    }
 
-        // Wholesale / Asian Grocery
-        "hmart": "https://logo.clearbit.com/hmart.com",
-        "h-mart": "https://logo.clearbit.com/hmart.com",
-        "99-ranch-market": "https://logo.clearbit.com/99ranch.com",
-        "mitsuwa": "https://logo.clearbit.com/mitsuwa.com",
+    // MARK: - Known Store Names
 
-        // Membership / Bulk
-        "amazon-go": "https://logo.clearbit.com/amazon.com",
-
-        // Beauty
-        "ulta": "https://logo.clearbit.com/ulta.com",
-        "ulta-beauty": "https://logo.clearbit.com/ulta.com",
-        "sephora": "https://logo.clearbit.com/sephora.com",
-        "bath-and-body-works": "https://logo.clearbit.com/bathandbodyworks.com",
-
-        // Convenience
-        "wawa": "https://logo.clearbit.com/wawa.com",
-        "sheetz": "https://logo.clearbit.com/sheetz.com",
-        "circle-k": "https://logo.clearbit.com/circlek.com",
+    /// List of common US store normalized IDs for reference.
+    /// Use this to know which stores could benefit from having logos uploaded.
+    static let commonStoreIds: [String] = [
+        "walmart", "target", "costco", "kroger", "whole-foods", "trader-joes",
+        "aldi", "publix", "safeway", "h-e-b", "meijer", "vons", "ralphs",
+        "albertsons", "sams-club", "bjs", "walgreens", "cvs", "rite-aid",
+        "home-depot", "lowes", "dollar-general", "dollar-tree", "five-below",
+        "macys", "nordstrom", "kohls", "marshalls", "tj-maxx", "ross",
+        "best-buy", "apple", "petco", "petsmart", "staples", "ikea",
+        "starbucks", "dunkin", "amazon", "hmart", "99-ranch-market",
+        "ulta", "sephora", "nike", "old-navy", "gap", "zara", "uniqlo",
+        "michaels", "hobby-lobby", "autozone", "rei", "ace-hardware",
+        "7-eleven", "wawa", "sheetz", "circle-k",
     ]
 }
