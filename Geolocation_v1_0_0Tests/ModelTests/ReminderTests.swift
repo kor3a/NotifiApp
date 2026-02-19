@@ -32,6 +32,7 @@ final class ReminderTests: XCTestCase {
         XCTAssertNil(decoded.sharedReminderId)
         XCTAssertNil(decoded.sharedWith)
         XCTAssertNil(decoded.photoURLs)
+        XCTAssertNil(decoded.isOutOfStock)
     }
 
     func testCodable_roundTrip_sharedReminder() throws {
@@ -100,6 +101,53 @@ final class ReminderTests: XCTestCase {
         XCTAssertFalse(reminder.isDone)
         reminder.isDone = true
         XCTAssertTrue(reminder.isDone)
+    }
+
+    // MARK: - isOutOfStock
+
+    func testCodable_roundTrip_outOfStock() throws {
+        let reminder = Reminder(
+            id: "rem_oos",
+            userStoreId: "us1",
+            title: "Buy avocados",
+            isDone: false,
+            createdAt: 1700000000.0,
+            isOutOfStock: true
+        )
+        let data = try JSONEncoder().encode(reminder)
+        let decoded = try JSONDecoder().decode(Reminder.self, from: data)
+
+        XCTAssertEqual(decoded.isOutOfStock, true)
+        XCTAssertEqual(decoded.isDone, false)
+    }
+
+    func testCodable_roundTrip_outOfStockNil() throws {
+        let reminder = Reminder(
+            id: "rem_oos2",
+            userStoreId: "us1",
+            title: "Buy bananas",
+            isDone: false,
+            createdAt: 1700000000.0
+        )
+        let data = try JSONEncoder().encode(reminder)
+        let decoded = try JSONDecoder().decode(Reminder.self, from: data)
+
+        XCTAssertNil(decoded.isOutOfStock)
+    }
+
+    func testIsOutOfStock_canBeToggled() {
+        var reminder = Reminder(
+            id: "rem1",
+            userStoreId: "us1",
+            title: "Test",
+            isDone: false,
+            createdAt: 0
+        )
+        XCTAssertNil(reminder.isOutOfStock)
+        reminder.isOutOfStock = true
+        XCTAssertEqual(reminder.isOutOfStock, true)
+        reminder.isOutOfStock = false
+        XCTAssertEqual(reminder.isOutOfStock, false)
     }
 
     // MARK: - Duplicate detection (ReminderViewModel.isDuplicateReminder)

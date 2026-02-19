@@ -224,6 +224,9 @@ struct ReminderView: View {
             onCheckboxTap: userStoreItem.permission != .view ? {
                 handleReminderTap(reminder)
             } : nil,
+            onCheckboxLongPress: userStoreItem.permission != .view ? {
+                viewModel.toggleOutOfStock(reminder)
+            } : nil,
             onTextTap: userStoreItem.permission != .view ? {
                 editingReminderId = reminder.id
             } : nil,

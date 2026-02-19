@@ -32,6 +32,9 @@ struct Reminder: Codable, Identifiable {
     // Quantity for this reminder item
     var quantity: Int?
 
+    // Out of stock / unavailable flag (set via long-press on checkbox)
+    var isOutOfStock: Bool?
+
     enum CodingKeys: String, CodingKey {
         case id
         case userStoreId
@@ -46,5 +49,6 @@ struct Reminder: Codable, Identifiable {
         case photoURLs
         case sortOrder
         case quantity
+        case isOutOfStock
     }
 }

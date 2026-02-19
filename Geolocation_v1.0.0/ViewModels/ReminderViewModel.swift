@@ -90,6 +90,7 @@ class ReminderViewModel: ObservableObject {
                         let photoURLs = data["photoURLs"] as? [String]
                         let sortOrder = data["sortOrder"] as? Int
                         let quantity = data["quantity"] as? Int
+                        let isOutOfStock = data["isOutOfStock"] as? Bool
 
                         return Reminder(
                             id: doc.documentID,
@@ -104,7 +105,8 @@ class ReminderViewModel: ObservableObject {
                             sharedWith: sharedWith,
                             photoURLs: photoURLs,
                             sortOrder: sortOrder,
-                            quantity: quantity
+                            quantity: quantity,
+                            isOutOfStock: isOutOfStock
                         )
                     }
 
@@ -243,12 +245,19 @@ class ReminderViewModel: ObservableObject {
     }
 
     /// Toggle reminder isDone status - syncs across all linked shared reminders
+    /// Also clears isOutOfStock when toggling isDone on
     func toggleReminder(_ reminder: Reminder) {
         #if DEBUG
         print("ReminderViewModel: Toggling reminder '\(reminder.title)'")
         #endif
 
         let newIsDone = !reminder.isDone
+        var updateFields: [String: Any] = ["isDone": newIsDone]
+
+        // Clear out-of-stock when marking as done via normal tap
+        if newIsDone && reminder.isOutOfStock == true {
+            updateFields["isOutOfStock"] = false
+        }
 
         // If this reminder has a sharedReminderId, sync toggle across all linked reminders
         if let sharedReminderId = reminder.sharedReminderId {
@@ -266,20 +275,20 @@ class ReminderViewModel: ObservableObject {
                         print("ReminderViewModel: Error finding linked reminders: \(error.localizedDescription)")
                         #endif
                         // Fall back to updating just this reminder
-                        self.updateSingleReminder(reminder.id, isDone: newIsDone)
+                        self.updateSingleReminderFields(reminder.id, fields: updateFields)
                         return
                     }
 
                     guard let documents = snapshot?.documents, !documents.isEmpty else {
                         // No linked reminders found, update just this one
-                        self.updateSingleReminder(reminder.id, isDone: newIsDone)
+                        self.updateSingleReminderFields(reminder.id, fields: updateFields)
                         return
                     }
 
                     // Batch update all linked reminders
                     let batch = self.db.batch()
                     for doc in documents {
-                        batch.updateData(["isDone": newIsDone], forDocument: doc.reference)
+                        batch.updateData(updateFields, forDocument: doc.reference)
                     }
 
                     batch.commit { error in
@@ -298,7 +307,85 @@ class ReminderViewModel: ObservableObject {
                 }
         } else {
             // No sharing, just update this reminder
-            updateSingleReminder(reminder.id, isDone: newIsDone)
+            updateSingleReminderFields(reminder.id, fields: updateFields)
+        }
+    }
+
+    /// Toggle reminder out-of-stock status - syncs across all linked shared reminders
+    /// When marking as out of stock, also clears isDone. When clearing out of stock, leaves isDone as false.
+    func toggleOutOfStock(_ reminder: Reminder) {
+        #if DEBUG
+        print("ReminderViewModel: Toggling out-of-stock for reminder '\(reminder.title)'")
+        #endif
+
+        let newOutOfStock = !(reminder.isOutOfStock ?? false)
+        var updateFields: [String: Any] = ["isOutOfStock": newOutOfStock]
+
+        // When marking as out of stock, ensure isDone is false
+        if newOutOfStock {
+            updateFields["isDone"] = false
+        }
+
+        if let sharedReminderId = reminder.sharedReminderId {
+            #if DEBUG
+            print("ReminderViewModel: Syncing out-of-stock toggle across shared reminders with sharedReminderId: \(sharedReminderId)")
+            #endif
+
+            db.collection("reminders")
+                .whereField("sharedReminderId", isEqualTo: sharedReminderId)
+                .getDocuments { [weak self] snapshot, error in
+                    guard let self = self else { return }
+
+                    if let error = error {
+                        #if DEBUG
+                        print("ReminderViewModel: Error finding linked reminders for out-of-stock toggle: \(error.localizedDescription)")
+                        #endif
+                        self.updateSingleReminderOutOfStock(reminder.id, fields: updateFields)
+                        return
+                    }
+
+                    guard let documents = snapshot?.documents, !documents.isEmpty else {
+                        self.updateSingleReminderOutOfStock(reminder.id, fields: updateFields)
+                        return
+                    }
+
+                    let batch = self.db.batch()
+                    for doc in documents {
+                        batch.updateData(updateFields, forDocument: doc.reference)
+                    }
+
+                    batch.commit { error in
+                        DispatchQueue.main.async {
+                            if let error = error {
+                                #if DEBUG
+                                print("ReminderViewModel: Error syncing out-of-stock toggle: \(error.localizedDescription)")
+                                #endif
+                            } else {
+                                #if DEBUG
+                                print("ReminderViewModel: Synced out-of-stock toggle across \(documents.count) linked reminders")
+                                #endif
+                            }
+                        }
+                    }
+                }
+        } else {
+            updateSingleReminderOutOfStock(reminder.id, fields: updateFields)
+        }
+    }
+
+    private func updateSingleReminderOutOfStock(_ reminderId: String, fields: [String: Any]) {
+        db.collection("reminders").document(reminderId).updateData(fields) { error in
+            DispatchQueue.main.async {
+                if let error = error {
+                    #if DEBUG
+                    print("ReminderViewModel: Error toggling out-of-stock: \(error.localizedDescription)")
+                    #endif
+                } else {
+                    #if DEBUG
+                    print("ReminderViewModel: Reminder out-of-stock toggled successfully")
+                    #endif
+                }
+            }
         }
     }
 
@@ -454,6 +541,22 @@ class ReminderViewModel: ObservableObject {
                 } else {
                     #if DEBUG
                     print("ReminderViewModel: Reminder toggled successfully")
+                    #endif
+                }
+            }
+        }
+    }
+
+    private func updateSingleReminderFields(_ reminderId: String, fields: [String: Any]) {
+        db.collection("reminders").document(reminderId).updateData(fields) { error in
+            DispatchQueue.main.async {
+                if let error = error {
+                    #if DEBUG
+                    print("ReminderViewModel: Error updating reminder fields: \(error.localizedDescription)")
+                    #endif
+                } else {
+                    #if DEBUG
+                    print("ReminderViewModel: Reminder fields updated successfully")
                     #endif
                 }
             }

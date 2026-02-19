@@ -13,6 +13,7 @@ struct ReminderItemView: View {
     var isReorderMode: Bool = false
     var onPhotoTap: ((String) -> Void)?
     var onCheckboxTap: (() -> Void)?
+    var onCheckboxLongPress: (() -> Void)?
     var onTextTap: (() -> Void)?
     var onTitleCommit: ((String) -> Void)?
     var onReorderTap: (() -> Void)?
@@ -28,10 +29,14 @@ struct ReminderItemView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Image(systemName: item.isDone ? "checkmark.square" : "square")
+                Image(systemName: item.isOutOfStock == true ? "xmark.square" : (item.isDone ? "checkmark.square" : "square"))
+                    .foregroundStyle(item.isOutOfStock == true ? .red : .primary)
                     .contentShape(Rectangle())
                     .onTapGesture {
                         onCheckboxTap?()
+                    }
+                    .onLongPressGesture(minimumDuration: 0.5) {
+                        onCheckboxLongPress?()
                     }
 
                 if isEditing {
