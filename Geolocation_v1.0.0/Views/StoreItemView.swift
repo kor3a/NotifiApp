@@ -46,17 +46,32 @@ struct StoreItemView: View {
             AsyncImage(url: url) { phase in
                 switch phase {
                 case .success(let image):
+                    #if DEBUG
+                    let _ = print("StoreItemView: Successfully loaded logo for '\(store.name)'")
+                    #endif
                     image
                         .resizable()
                         .scaledToFill()
                         .frame(width: 50, height: 50)
                         .clipShape(Circle())
-                default:
+                case .failure(let error):
+                    #if DEBUG
+                    let _ = print("StoreItemView: Failed to load logo for '\(store.name)': \(error.localizedDescription)")
+                    let _ = print("StoreItemView: URL was: \(logoURL)")
+                    #endif
+                    defaultStoreIcon
+                case .empty:
+                    ProgressView()
+                        .frame(width: 50, height: 50)
+                @unknown default:
                     defaultStoreIcon
                 }
             }
             .frame(width: 50, height: 50)
         } else {
+            #if DEBUG
+            let _ = print("StoreItemView: No logo URL for '\(store.name)' (logoURL param: \(logoURL ?? "nil"))")
+            #endif
             defaultStoreIcon
         }
     }
