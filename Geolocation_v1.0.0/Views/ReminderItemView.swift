@@ -30,7 +30,7 @@ struct ReminderItemView: View {
 
     var body: some View {
         HStack(alignment: .top) {
-            // Checkbox - isolated from context menu so long press only triggers out-of-stock
+            // Checkbox with its own context menu for out-of-stock
             Image(systemName: item.isOutOfStock == true ? "xmark.square" : (item.isDone ? "checkmark.square" : "square"))
                 .foregroundStyle(item.isOutOfStock == true ? .red : .primary)
                 .padding(.top, 2)
@@ -38,8 +38,17 @@ struct ReminderItemView: View {
                 .onTapGesture {
                     onCheckboxTap?()
                 }
-                .onLongPressGesture(minimumDuration: 0.5) {
-                    onCheckboxLongPress?()
+                .contextMenu {
+                    if let onCheckboxLongPress = onCheckboxLongPress {
+                        Button {
+                            onCheckboxLongPress()
+                        } label: {
+                            Label(
+                                item.isOutOfStock == true ? "Mark Available" : "Out of Stock",
+                                systemImage: item.isOutOfStock == true ? "checkmark.circle" : "xmark.circle"
+                            )
+                        }
+                    }
                 }
 
             // Content area - context menu applies only here
