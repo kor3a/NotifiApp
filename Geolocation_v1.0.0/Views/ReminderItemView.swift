@@ -29,147 +29,139 @@ struct ReminderItemView: View {
     }
 
     var body: some View {
-        HStack(alignment: .top) {
-            // Checkbox with its own context menu for out-of-stock
-            Image(systemName: item.isOutOfStock == true ? "xmark.square" : (item.isDone ? "checkmark.square" : "square"))
-                .foregroundStyle(item.isOutOfStock == true ? .red : .primary)
-                .padding(.top, 2)
-                .contentShape(Rectangle())
-                .onTapGesture {
-                    onCheckboxTap?()
-                }
-                .contextMenu {
-                    if let onCheckboxLongPress = onCheckboxLongPress {
-                        Button {
-                            onCheckboxLongPress()
-                        } label: {
-                            Label(
-                                item.isOutOfStock == true ? "Mark Available" : "Out of Stock",
-                                systemImage: item.isOutOfStock == true ? "checkmark.circle" : "xmark.circle"
-                            )
-                        }
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Image(systemName: item.isOutOfStock == true ? "xmark.square" : (item.isDone ? "checkmark.square" : "square"))
+                    .foregroundStyle(item.isOutOfStock == true ? .red : .primary)
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        onCheckboxTap?()
                     }
-                }
 
-            // Content area - context menu applies only here
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    if isEditing {
-                        TextField("Reminder", text: $editText)
-                            .font(.headline)
-                            .bold()
-                            .focused($isTextFieldFocused)
-                            .onSubmit {
+                if isEditing {
+                    TextField("Reminder", text: $editText)
+                        .font(.headline)
+                        .bold()
+                        .focused($isTextFieldFocused)
+                        .onSubmit {
+                            commitEdit()
+                        }
+                        .textInputAutocapitalization(.sentences)
+                        .onAppear {
+                            editText = item.title
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                isTextFieldFocused = true
+                            }
+                        }
+                        .onChange(of: isTextFieldFocused) { _, focused in
+                            if !focused && isEditing {
                                 commitEdit()
                             }
-                            .textInputAutocapitalization(.sentences)
-                            .onAppear {
-                                editText = item.title
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                                    isTextFieldFocused = true
-                                }
-                            }
-                            .onChange(of: isTextFieldFocused) { _, focused in
-                                if !focused && isEditing {
-                                    commitEdit()
-                                }
-                            }
-                    } else {
-                        Text(item.title)
-                            .font(.headline)
-                            .bold()
-                            .contentShape(Rectangle())
-                            .onTapGesture {
-                                onTextTap?()
-                            }
-                    }
-
-                    Spacer()
-
-                    // Show quantity badge if quantity is set
-                    if let quantity = item.quantity, quantity > 0 {
-                        Text("Qty: \(quantity)")
-                            .font(.caption)
-                            .fontWeight(.medium)
-                            .foregroundColor(.secondary)
-                    }
-
-                    // Show "Shared" badge if the reminder is shared
-                    if item.isShared == true {
-                        SharedBadge(
-                            sharedFrom: item.sharedFrom,
-                            sharedWith: item.sharedWith,
-                            currentUserName: currentUserName
-                        )
-                    }
-
-                    // Three vertical dots drag handle for reordering
-                    if !isReorderMode, onReorderTap != nil {
-                        Image(systemName: "ellipsis")
-                            .rotationEffect(.degrees(90))
-                            .foregroundStyle(.secondary)
-                            .frame(width: 30, height: 30)
-                            .contentShape(Rectangle())
-                            .onTapGesture {
-                                onReorderTap?()
-                            }
-                    }
+                        }
+                } else {
+                    Text(item.title)
+                        .font(.headline)
+                        .bold()
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            onTextTap?()
+                        }
                 }
 
-                // Photo thumbnails row
-                if let photoURLs = item.photoURLs, !photoURLs.isEmpty {
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 8) {
-                            ForEach(photoURLs, id: \.self) { urlString in
-                                AsyncImage(url: URL(string: urlString)) { phase in
-                                    switch phase {
-                                    case .success(let image):
-                                        image
-                                            .resizable()
-                                            .scaledToFill()
-                                            .frame(width: 60, height: 60)
-                                            .clipped()
-                                            .cornerRadius(8)
-                                    case .failure:
-                                        RoundedRectangle(cornerRadius: 8)
-                                            .fill(Color.gray.opacity(0.3))
-                                            .frame(width: 60, height: 60)
-                                            .overlay(
-                                                Image(systemName: "photo")
-                                                    .foregroundColor(.gray)
-                                            )
-                                    case .empty:
-                                        RoundedRectangle(cornerRadius: 8)
-                                            .fill(Color.gray.opacity(0.2))
-                                            .frame(width: 60, height: 60)
-                                            .overlay(ProgressView())
-                                    @unknown default:
-                                        EmptyView()
-                                    }
+                Spacer()
+
+                // Show quantity badge if quantity is set
+                if let quantity = item.quantity, quantity > 0 {
+                    Text("Qty: \(quantity)")
+                        .font(.caption)
+                        .fontWeight(.medium)
+                        .foregroundColor(.secondary)
+                }
+
+                // Show "Shared" badge if the reminder is shared
+                if item.isShared == true {
+                    SharedBadge(
+                        sharedFrom: item.sharedFrom,
+                        sharedWith: item.sharedWith,
+                        currentUserName: currentUserName
+                    )
+                }
+
+                // Three vertical dots drag handle for reordering
+                if !isReorderMode, onReorderTap != nil {
+                    Image(systemName: "ellipsis")
+                        .rotationEffect(.degrees(90))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 30, height: 30)
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            onReorderTap?()
+                        }
+                }
+            }
+
+            // Photo thumbnails row
+            if let photoURLs = item.photoURLs, !photoURLs.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(photoURLs, id: \.self) { urlString in
+                            AsyncImage(url: URL(string: urlString)) { phase in
+                                switch phase {
+                                case .success(let image):
+                                    image
+                                        .resizable()
+                                        .scaledToFill()
+                                        .frame(width: 60, height: 60)
+                                        .clipped()
+                                        .cornerRadius(8)
+                                case .failure:
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .fill(Color.gray.opacity(0.3))
+                                        .frame(width: 60, height: 60)
+                                        .overlay(
+                                            Image(systemName: "photo")
+                                                .foregroundColor(.gray)
+                                        )
+                                case .empty:
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .fill(Color.gray.opacity(0.2))
+                                        .frame(width: 60, height: 60)
+                                        .overlay(ProgressView())
+                                @unknown default:
+                                    EmptyView()
                                 }
-                                .onTapGesture {
-                                    onPhotoTap?(urlString)
-                                }
+                            }
+                            .onTapGesture {
+                                onPhotoTap?(urlString)
                             }
                         }
                     }
                 }
             }
-            .contentShape(Rectangle())
-            .contextMenu {
-                if let onAddPhoto = onAddPhoto {
-                    Button {
-                        onAddPhoto()
-                    } label: {
-                        Label("Add Photos", systemImage: "photo.on.rectangle.angled")
-                    }
+        }
+        .contextMenu {
+            if let onCheckboxLongPress = onCheckboxLongPress {
+                Button {
+                    onCheckboxLongPress()
+                } label: {
+                    Label(
+                        item.isOutOfStock == true ? "Mark Available" : "Out of Stock",
+                        systemImage: item.isOutOfStock == true ? "checkmark.circle" : "xmark.circle"
+                    )
                 }
-                if let onAddQuantity = onAddQuantity {
-                    Button {
-                        onAddQuantity()
-                    } label: {
-                        Label("Add Quantity", systemImage: "number")
-                    }
+            }
+            if let onAddPhoto = onAddPhoto {
+                Button {
+                    onAddPhoto()
+                } label: {
+                    Label("Add Photos", systemImage: "photo.on.rectangle.angled")
+                }
+            }
+            if let onAddQuantity = onAddQuantity {
+                Button {
+                    onAddQuantity()
+                } label: {
+                    Label("Add Quantity", systemImage: "number")
                 }
             }
         }
