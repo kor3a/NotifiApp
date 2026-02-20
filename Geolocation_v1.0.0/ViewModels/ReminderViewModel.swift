@@ -91,6 +91,7 @@ class ReminderViewModel: ObservableObject {
                         let sortOrder = data["sortOrder"] as? Int
                         let quantity = data["quantity"] as? Int
                         let isOutOfStock = data["isOutOfStock"] as? Bool
+                        let isFavorite = data["isFavorite"] as? Bool
 
                         return Reminder(
                             id: doc.documentID,
@@ -106,7 +107,8 @@ class ReminderViewModel: ObservableObject {
                             photoURLs: photoURLs,
                             sortOrder: sortOrder,
                             quantity: quantity,
-                            isOutOfStock: isOutOfStock
+                            isOutOfStock: isOutOfStock,
+                            isFavorite: isFavorite
                         )
                     }
 
@@ -134,6 +136,63 @@ class ReminderViewModel: ObservableObject {
     func isDuplicateReminder(title: String) -> Bool {
         let normalized = title.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
         return reminders.contains { $0.title.lowercased().trimmingCharacters(in: .whitespacesAndNewlines) == normalized }
+    }
+
+    /// Reminders marked as favorites
+    var favoriteReminders: [Reminder] {
+        reminders.filter { $0.isFavorite == true }
+    }
+
+    /// Toggle a reminder's favorite status - syncs across all linked shared reminders
+    func toggleFavorite(_ reminder: Reminder) {
+        #if DEBUG
+        print("ReminderViewModel: Toggling favorite for reminder '\(reminder.title)'")
+        #endif
+
+        let newIsFavorite = !(reminder.isFavorite ?? false)
+        let updateFields: [String: Any] = ["isFavorite": newIsFavorite]
+
+        if let sharedReminderId = reminder.sharedReminderId {
+            db.collection("reminders")
+                .whereField("sharedReminderId", isEqualTo: sharedReminderId)
+                .getDocuments { [weak self] snapshot, error in
+                    guard let self = self else { return }
+
+                    if let error = error {
+                        #if DEBUG
+                        print("ReminderViewModel: Error finding linked reminders for favorite toggle: \(error.localizedDescription)")
+                        #endif
+                        self.updateSingleReminderFields(reminder.id, fields: updateFields)
+                        return
+                    }
+
+                    guard let documents = snapshot?.documents, !documents.isEmpty else {
+                        self.updateSingleReminderFields(reminder.id, fields: updateFields)
+                        return
+                    }
+
+                    let batch = self.db.batch()
+                    for doc in documents {
+                        batch.updateData(updateFields, forDocument: doc.reference)
+                    }
+
+                    batch.commit { error in
+                        DispatchQueue.main.async {
+                            if let error = error {
+                                #if DEBUG
+                                print("ReminderViewModel: Error syncing favorite toggle: \(error.localizedDescription)")
+                                #endif
+                            } else {
+                                #if DEBUG
+                                print("ReminderViewModel: Synced favorite toggle across \(documents.count) linked reminders")
+                                #endif
+                            }
+                        }
+                    }
+                }
+        } else {
+            updateSingleReminderFields(reminder.id, fields: updateFields)
+        }
     }
 
     /// Add a new reminder

@@ -180,6 +180,14 @@ struct ReminderView: View {
     private var reminderListView: some View {
         ScrollViewReader { proxy in
             List {
+                // Favorite tags section
+                if !viewModel.favoriteReminders.isEmpty {
+                    favoriteTagsSection
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
+                        .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
+                }
+
                 ForEach(viewModel.reminders) { reminder in
                     reminderRow(for: reminder)
                 }
@@ -243,6 +251,9 @@ struct ReminderView: View {
                     isAddingNewReminder = false
                     editingReminderId = nil
                 }
+            } : nil,
+            onAddToFavorites: userStoreItem.permission != .view ? {
+                viewModel.toggleFavorite(reminder)
             } : nil,
             onAddPhoto: userStoreItem.permission != .view ? {
                 reminderForPhoto = reminder
@@ -312,6 +323,30 @@ struct ReminderView: View {
             .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.3 : 0.1), radius: 8, x: 0, y: 4)
             .shadow(color: Color.white.opacity(colorScheme == .dark ? 0.05 : 0.5), radius: 2, x: 0, y: -2)
             .padding(.vertical, 4)
+    }
+
+    // MARK: - Favorite Tags
+
+    private var favoriteTagsSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Favorites")
+                .font(.caption)
+                .fontWeight(.semibold)
+                .foregroundStyle(.secondary)
+                .textCase(.uppercase)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 10) {
+                    ForEach(viewModel.favoriteReminders) { reminder in
+                        FavoriteTagView(title: reminder.title)
+                            .onTapGesture {
+                                viewModel.toggleFavorite(reminder)
+                            }
+                    }
+                }
+            }
+        }
+        .padding(.vertical, 4)
     }
 
     @ViewBuilder
@@ -584,6 +619,30 @@ struct ReminderView: View {
                 }
             }
         }
+    }
+}
+
+// MARK: - Favorite Tag View
+
+struct FavoriteTagView: View {
+    let title: String
+
+    var body: some View {
+        Text(title)
+            .font(.caption)
+            .fontWeight(.medium)
+            .lineLimit(1)
+            .foregroundColor(.white)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 8)
+            .background(
+                Capsule()
+                    .fill(Color.appAccent)
+            )
+            .overlay(
+                Capsule()
+                    .stroke(Color.white.opacity(0.2), lineWidth: 1)
+            )
     }
 }
 
