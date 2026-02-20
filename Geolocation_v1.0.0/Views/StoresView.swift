@@ -12,9 +12,11 @@ struct StoresView: View {
 
     @StateObject private var viewModel = StoresViewModel()
     @StateObject private var messagesViewModel = MessagesViewModel()
+    @StateObject private var aiRecipeViewModel = AIRecipeViewModel()
     @ObservedObject private var sessionManager = UserSessionManager.shared
     @ObservedObject private var logoProvider = StoreLogoProvider.shared
     @State private var showingAddStore = false
+    @State private var showingAIRecipe = false
     @State private var isMenuExpanded = false
     @State private var selectedStoreToShare: UserStoreItem?
     @State private var editMode: EditMode = .inactive
@@ -141,7 +143,7 @@ struct StoresView: View {
                         ZStack {
                             // Expanded menu
                             if isMenuExpanded {
-                                VStack(spacing: 0) {
+                                VStack(spacing: 8) {
                                     Button(action: {
                                         withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
                                             isMenuExpanded = false
@@ -152,6 +154,28 @@ struct StoresView: View {
                                             Image(systemName: "cart.badge.plus")
                                                 .font(.system(size: 20))
                                             Text("Add Store")
+                                                .font(.headline)
+                                            Spacer()
+                                        }
+                                        .padding()
+                                        .frame(width: 200)
+                                        .background(
+                                            RoundedRectangle(cornerRadius: 16)
+                                                .fill(.ultraThinMaterial)
+                                        )
+                                        .foregroundColor(.primary)
+                                    }
+
+                                    Button(action: {
+                                        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                                            isMenuExpanded = false
+                                        }
+                                        showingAIRecipe = true
+                                    }) {
+                                        HStack {
+                                            Image(systemName: "fork.knife.circle")
+                                                .font(.system(size: 20))
+                                            Text("AI Recipe")
                                                 .font(.headline)
                                             Spacer()
                                         }
@@ -195,6 +219,9 @@ struct StoresView: View {
         }//:NAVIGATIONSTACK
         .sheet(isPresented: $showingAddStore) {
             AddStoreView(viewModel: viewModel)
+        }
+        .sheet(isPresented: $showingAIRecipe) {
+            AIRecipeView(viewModel: aiRecipeViewModel, storesViewModel: viewModel)
         }
         .sheet(item: $selectedStoreToShare) { storeToShare in
             ShareStoreView(viewModel: viewModel, messagesViewModel: messagesViewModel, userStoreItem: storeToShare)

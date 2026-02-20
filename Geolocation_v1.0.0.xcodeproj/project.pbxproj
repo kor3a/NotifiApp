@@ -60,6 +60,19 @@
 		82D715C62C8D6B230000D1E3 /* MapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82D715C52C8D6B230000D1E3 /* MapView.swift */; };
 		82EC11832C64755300A6CD8C /* LocationDetailsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82EC11822C64755300A6CD8C /* LocationDetailsView.swift */; };
 		DF66A9982E24C86100C15DA9 /* User_Store.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF66A9972E24C86100C15DA9 /* User_Store.swift */; };
+		AA1234560001AABB00CC0004 /* OpenAIService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0001 /* OpenAIService.swift */; };
+		AA1234560001AABB00CC0005 /* AIRecipeViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0002 /* AIRecipeViewModel.swift */; };
+		AA1234560001AABB00CC0006 /* AIRecipeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0003 /* AIRecipeView.swift */; };
+		AA1234560001AABB00CC0020 /* FriendRequestService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0010 /* FriendRequestService.swift */; };
+		AA1234560001AABB00CC0021 /* FriendsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0011 /* FriendsService.swift */; };
+		AA1234560001AABB00CC0022 /* GooglePlacesService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0012 /* GooglePlacesService.swift */; };
+		AA1234560001AABB00CC0023 /* LocationMonitoringManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0013 /* LocationMonitoringManager.swift */; };
+		AA1234560001AABB00CC0024 /* LocationSearchManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0014 /* LocationSearchManager.swift */; };
+		AA1234560001AABB00CC0025 /* MessagingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0015 /* MessagingService.swift */; };
+		AA1234560001AABB00CC0026 /* NotificationLogStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0016 /* NotificationLogStore.swift */; };
+		AA1234560001AABB00CC0027 /* NotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0017 /* NotificationManager.swift */; };
+		AA1234560001AABB00CC0028 /* StoreLogoProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0018 /* StoreLogoProvider.swift */; };
+		AA1234560001AABB00CC0029 /* UserSessionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0019 /* UserSessionManager.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -128,13 +141,25 @@
 		82EC11822C64755300A6CD8C /* LocationDetailsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationDetailsView.swift; sourceTree = "<group>"; };
 		DF66A9972E24C86100C15DA9 /* User_Store.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = User_Store.swift; sourceTree = "<group>"; };
 		DF66A9992E24C86100C15DA9 /* Geolocation_v1.0.0.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Geolocation_v1.0.0.entitlements; sourceTree = "<group>"; };
+		AA1234560001AABB00CC0001 /* OpenAIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenAIService.swift; sourceTree = "<group>"; };
+		AA1234560001AABB00CC0002 /* AIRecipeViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIRecipeViewModel.swift; sourceTree = "<group>"; };
+		AA1234560001AABB00CC0003 /* AIRecipeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIRecipeView.swift; sourceTree = "<group>"; };
+		AA1234560001AABB00CC0010 /* FriendRequestService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FriendRequestService.swift; sourceTree = "<group>"; };
+		AA1234560001AABB00CC0011 /* FriendsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FriendsService.swift; sourceTree = "<group>"; };
+		AA1234560001AABB00CC0012 /* GooglePlacesService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GooglePlacesService.swift; sourceTree = "<group>"; };
+		AA1234560001AABB00CC0013 /* LocationMonitoringManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationMonitoringManager.swift; sourceTree = "<group>"; };
+		AA1234560001AABB00CC0014 /* LocationSearchManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationSearchManager.swift; sourceTree = "<group>"; };
+		AA1234560001AABB00CC0015 /* MessagingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessagingService.swift; sourceTree = "<group>"; };
+		AA1234560001AABB00CC0016 /* NotificationLogStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationLogStore.swift; sourceTree = "<group>"; };
+		AA1234560001AABB00CC0017 /* NotificationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationManager.swift; sourceTree = "<group>"; };
+		AA1234560001AABB00CC0018 /* StoreLogoProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoreLogoProvider.swift; sourceTree = "<group>"; };
+		AA1234560001AABB00CC0019 /* UserSessionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserSessionManager.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		011CF6042ED638ED009A31A6 /* Theme */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Theme; sourceTree = "<group>"; };
 		0176B3092F3CE658003B9C75 /* Geolocation_v1_0_0Tests */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Geolocation_v1_0_0Tests; sourceTree = "<group>"; };
 		01B408202F3BEBF400EA1F25 /* Geolocation_v1.0.0 */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Geolocation_v1.0.0; sourceTree = "<group>"; };
-		01FB27582EC2A7490038E406 /* Services */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Services; sourceTree = "<group>"; };
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -209,6 +234,7 @@
 		8278FE0E2C5DE5930017EB72 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				AA1234560001AABB00CC0003 /* AIRecipeView.swift */,
 				01B408342F3BECF900EA1F25 /* ShareReminderView.swift */,
 				01B408322F3BECF200EA1F25 /* MessagesView.swift */,
 				01B408302F3BECEC00EA1F25 /* FriendsView.swift */,
@@ -237,6 +263,7 @@
 		8278FE0F2C5DE5A00017EB72 /* ViewModels */ = {
 			isa = PBXGroup;
 			children = (
+				AA1234560001AABB00CC0002 /* AIRecipeViewModel.swift */,
 				01B408242F3BECB800EA1F25 /* FriendsViewModel.swift */,
 				01B408222F3BECB100EA1F25 /* MessagesViewModel.swift */,
 				011CF6062ED638F9009A31A6 /* ForgotPasswordViewModel.swift */,
@@ -287,6 +314,24 @@
 			path = Extensions;
 			sourceTree = "<group>";
 		};
+		01FB27582EC2A7490038E406 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				AA1234560001AABB00CC0010 /* FriendRequestService.swift */,
+				AA1234560001AABB00CC0011 /* FriendsService.swift */,
+				AA1234560001AABB00CC0012 /* GooglePlacesService.swift */,
+				AA1234560001AABB00CC0013 /* LocationMonitoringManager.swift */,
+				AA1234560001AABB00CC0014 /* LocationSearchManager.swift */,
+				AA1234560001AABB00CC0015 /* MessagingService.swift */,
+				AA1234560001AABB00CC0016 /* NotificationLogStore.swift */,
+				AA1234560001AABB00CC0017 /* NotificationManager.swift */,
+				AA1234560001AABB00CC0001 /* OpenAIService.swift */,
+				AA1234560001AABB00CC0018 /* StoreLogoProvider.swift */,
+				AA1234560001AABB00CC0019 /* UserSessionManager.swift */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -327,7 +372,6 @@
 			);
 			fileSystemSynchronizedGroups = (
 				011CF6042ED638ED009A31A6 /* Theme */,
-				01FB27582EC2A7490038E406 /* Services */,
 			);
 			name = Allim;
 			packageProductDependencies = (
@@ -459,6 +503,19 @@
 				011CF6022ED638E4009A31A6 /* SharedStoreGroup.swift in Sources */,
 				DF66A9982E24C86100C15DA9 /* User_Store.swift in Sources */,
 				82D289B52C61D52F009F357F /* MainViewModel.swift in Sources */,
+				AA1234560001AABB00CC0004 /* OpenAIService.swift in Sources */,
+				AA1234560001AABB00CC0005 /* AIRecipeViewModel.swift in Sources */,
+				AA1234560001AABB00CC0006 /* AIRecipeView.swift in Sources */,
+				AA1234560001AABB00CC0020 /* FriendRequestService.swift in Sources */,
+				AA1234560001AABB00CC0021 /* FriendsService.swift in Sources */,
+				AA1234560001AABB00CC0022 /* GooglePlacesService.swift in Sources */,
+				AA1234560001AABB00CC0023 /* LocationMonitoringManager.swift in Sources */,
+				AA1234560001AABB00CC0024 /* LocationSearchManager.swift in Sources */,
+				AA1234560001AABB00CC0025 /* MessagingService.swift in Sources */,
+				AA1234560001AABB00CC0026 /* NotificationLogStore.swift in Sources */,
+				AA1234560001AABB00CC0027 /* NotificationManager.swift in Sources */,
+				AA1234560001AABB00CC0028 /* StoreLogoProvider.swift in Sources */,
+				AA1234560001AABB00CC0029 /* UserSessionManager.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
