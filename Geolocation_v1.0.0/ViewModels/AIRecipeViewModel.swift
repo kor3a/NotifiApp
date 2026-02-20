@@ -170,4 +170,14 @@ class AIRecipeViewModel: ObservableObject {
         savedIngredientsCount = nil
         savedToStoreName = nil
     }
+
+    func startNewChat() {
+        messages = []
+        inputText = ""
+        isLoading = false
+        errorMessage = nil
+        isSavingIngredients = false
+        savedIngredientsCount = nil
+        savedToStoreName = nil
+    }
 }

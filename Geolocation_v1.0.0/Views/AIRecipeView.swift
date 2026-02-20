@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct AIRecipeView: View {
-    @StateObject private var viewModel = AIRecipeViewModel()
+    @ObservedObject var viewModel: AIRecipeViewModel
     @ObservedObject var storesViewModel: StoresViewModel
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) var colorScheme
@@ -127,6 +127,15 @@ struct AIRecipeView: View {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button("Close") {
                         dismiss()
+                    }
+                }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    if !viewModel.messages.isEmpty {
+                        Button {
+                            viewModel.startNewChat()
+                        } label: {
+                            Image(systemName: "square.and.pencil")
+                        }
                     }
                 }
             }
@@ -428,5 +437,5 @@ struct TypingIndicatorView: View {
 }
 
 #Preview {
-    AIRecipeView(storesViewModel: StoresViewModel())
+    AIRecipeView(viewModel: AIRecipeViewModel(), storesViewModel: StoresViewModel())
 }

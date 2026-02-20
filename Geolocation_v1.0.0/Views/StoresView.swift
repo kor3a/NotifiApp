@@ -12,6 +12,7 @@ struct StoresView: View {
 
     @StateObject private var viewModel = StoresViewModel()
     @StateObject private var messagesViewModel = MessagesViewModel()
+    @StateObject private var aiRecipeViewModel = AIRecipeViewModel()
     @ObservedObject private var sessionManager = UserSessionManager.shared
     @ObservedObject private var logoProvider = StoreLogoProvider.shared
     @State private var showingAddStore = false
@@ -220,7 +221,7 @@ struct StoresView: View {
             AddStoreView(viewModel: viewModel)
         }
         .sheet(isPresented: $showingAIRecipe) {
-            AIRecipeView(storesViewModel: viewModel)
+            AIRecipeView(viewModel: aiRecipeViewModel, storesViewModel: viewModel)
         }
         .sheet(item: $selectedStoreToShare) { storeToShare in
             ShareStoreView(viewModel: viewModel, messagesViewModel: messagesViewModel, userStoreItem: storeToShare)
