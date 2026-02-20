@@ -485,7 +485,7 @@ class StoresViewModel: ObservableObject {
         print("StoresViewModel: Deleting recipient's shared user_store: \(userStoreItem.id)")
         #endif
 
-        // Get current user's name to remove from owner's reminders sharedWith
+        // Get current user's name to remove from owner's reminders and user_store sharedWith
         let currentUserName = sessionManager.currentUser?.name
 
         // Only delete the user_store document, don't touch owner's reminders
@@ -502,11 +502,16 @@ class StoresViewModel: ObservableObject {
                 print("StoresViewModel: Shared store removed successfully (recipient left)")
                 #endif
 
-                // Update owner's reminders to remove current user from sharedWith
-                // Use sourceUserStoreId if available, otherwise try to find owner's reminders by other means
                 if let currentUserName = currentUserName,
                    let sourceUserStoreId = userStoreItem.sourceUserStoreId {
+                    // Update owner's reminders to remove current user from sharedWith
                     self?.updateOwnerRemindersAfterRecipientLeaves(
+                        ownerUserStoreId: sourceUserStoreId,
+                        recipientName: currentUserName
+                    )
+
+                    // Update owner's user_store to remove current user from sharedWith
+                    self?.updateOwnerUserStoreAfterRecipientLeaves(
                         ownerUserStoreId: sourceUserStoreId,
                         recipientName: currentUserName
                     )
@@ -609,6 +614,61 @@ class StoresViewModel: ObservableObject {
                     }
                 }
             }
+    }
+
+    private func updateOwnerUserStoreAfterRecipientLeaves(ownerUserStoreId: String, recipientName: String) {
+        #if DEBUG
+        print("StoresViewModel: Updating owner's user_store \(ownerUserStoreId) to remove \(recipientName) from sharedWith")
+        #endif
+
+        let ownerDocRef = db.collection("user_stores").document(ownerUserStoreId)
+        ownerDocRef.getDocument { [weak self] snapshot, error in
+            if let error = error {
+                #if DEBUG
+                print("StoresViewModel: Error fetching owner's user_store: \(error.localizedDescription)")
+                #endif
+                return
+            }
+
+            guard let data = snapshot?.data() else {
+                #if DEBUG
+                print("StoresViewModel: Owner's user_store not found")
+                #endif
+                return
+            }
+
+            var sharedWith = data["sharedWith"] as? [String] ?? []
+            sharedWith.removeAll { $0 == recipientName }
+
+            if sharedWith.isEmpty {
+                // No more shared users, clear sharing fields
+                ownerDocRef.updateData([
+                    "sharedWith": FieldValue.delete(),
+                    "isSharedStore": FieldValue.delete()
+                ]) { error in
+                    #if DEBUG
+                    if let error = error {
+                        print("StoresViewModel: Error clearing owner's sharedWith: \(error.localizedDescription)")
+                    } else {
+                        print("StoresViewModel: Cleared owner's sharedWith (no more recipients)")
+                    }
+                    #endif
+                }
+            } else {
+                // Update with remaining shared users
+                ownerDocRef.updateData([
+                    "sharedWith": sharedWith
+                ]) { error in
+                    #if DEBUG
+                    if let error = error {
+                        print("StoresViewModel: Error updating owner's sharedWith: \(error.localizedDescription)")
+                    } else {
+                        print("StoresViewModel: Updated owner's sharedWith to \(sharedWith)")
+                    }
+                    #endif
+                }
+            }
+        }
     }
 
     private func deleteSharedStoreGroup(sharedGroupId: String) {

@@ -823,6 +823,9 @@ struct ShareStoreView: View {
                     // Update reminders to remove the recipient from sharedWith
                     self.updateRemindersAfterUnshare(recipientName: recipientName)
 
+                    // Update owner's user_store to remove the recipient from sharedWith
+                    self.updateOwnerUserStoreAfterUnshare(recipientName: recipientName)
+
                     // Send a message notifying the user that the store is no longer shared
                     self.sendUnshareMessage(to: sharedUser, recipientName: recipientName)
 
@@ -921,6 +924,61 @@ struct ShareStoreView: View {
                     }
                 }
             }
+    }
+
+    private func updateOwnerUserStoreAfterUnshare(recipientName: String) {
+        let ownerUserStoreId = userStoreItem.id
+
+        #if DEBUG
+        print("ShareStoreView: Updating owner's user_store \(ownerUserStoreId) to remove \(recipientName) from sharedWith")
+        #endif
+
+        let ownerDocRef = db.collection("user_stores").document(ownerUserStoreId)
+        ownerDocRef.getDocument { snapshot, error in
+            if let error = error {
+                #if DEBUG
+                print("ShareStoreView: Error fetching owner's user_store: \(error.localizedDescription)")
+                #endif
+                return
+            }
+
+            guard let data = snapshot?.data() else {
+                #if DEBUG
+                print("ShareStoreView: Owner's user_store not found")
+                #endif
+                return
+            }
+
+            var sharedWith = data["sharedWith"] as? [String] ?? []
+            sharedWith.removeAll { $0 == recipientName }
+
+            if sharedWith.isEmpty {
+                ownerDocRef.updateData([
+                    "sharedWith": FieldValue.delete(),
+                    "isSharedStore": FieldValue.delete()
+                ]) { error in
+                    #if DEBUG
+                    if let error = error {
+                        print("ShareStoreView: Error clearing owner's sharedWith: \(error.localizedDescription)")
+                    } else {
+                        print("ShareStoreView: Cleared owner's sharedWith (no more recipients)")
+                    }
+                    #endif
+                }
+            } else {
+                ownerDocRef.updateData([
+                    "sharedWith": sharedWith
+                ]) { error in
+                    #if DEBUG
+                    if let error = error {
+                        print("ShareStoreView: Error updating owner's sharedWith: \(error.localizedDescription)")
+                    } else {
+                        print("ShareStoreView: Updated owner's sharedWith to \(sharedWith)")
+                    }
+                    #endif
+                }
+            }
+        }
     }
 
     private func sendUnshareMessage(to sharedUser: SharedUser, recipientName: String) {
