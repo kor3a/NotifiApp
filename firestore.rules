@@ -134,9 +134,13 @@ service cloud.firestore {
                        request.resource.data.userEmail is string &&
                        request.resource.data.userEmail == request.auth.token.email;
 
-      // Allow users to update only their own user_stores
+      // Allow users to update their own user_stores.
+      // Also allow shared recipients to update only the sharedWith/isSharedStore
+      // fields when they leave a shared store (their device cleans up the
+      // owner's sharing metadata).
       allow update: if request.auth != null &&
-                       resource.data.userEmail == request.auth.token.email;
+                       (resource.data.userEmail == request.auth.token.email ||
+                        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['sharedWith', 'isSharedStore']));
 
       // Allow deletion by:
       // 1. The owner of the user_store (userEmail matches)

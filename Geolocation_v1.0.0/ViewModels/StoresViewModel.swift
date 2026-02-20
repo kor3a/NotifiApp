@@ -150,6 +150,9 @@ class StoresViewModel: ObservableObject {
                 // Set up real-time listeners for reminder counts
                 self.setupReminderCountListeners(for: reminderStoreIds)
 
+                // Validate shared store status (self-healing for stale sharedWith)
+                self.validateSharedStoreStatus(for: tempUserStoreItems)
+
                 #if DEBUG
                 print("StoresViewModel: Loaded \(self.userStoreItems.count) stores, setting up reminder listeners")
                 #endif
@@ -243,6 +246,108 @@ class StoresViewModel: ObservableObject {
             listener.remove()
         }
         reminderCountListeners.removeAll()
+    }
+
+    /// Validate that stores marked as shared still have active recipients.
+    /// This self-heals stale sharedWith data when recipients have left
+    /// but the owner's user_store wasn't updated (e.g. due to security rules).
+    private func validateSharedStoreStatus(for items: [UserStoreItem]) {
+        let sharedItems = items.filter { item in
+            if let sharedWith = item.sharedWith, !sharedWith.isEmpty {
+                return true
+            }
+            return false
+        }
+
+        guard !sharedItems.isEmpty else { return }
+
+        for item in sharedItems {
+            db.collection("user_stores")
+                .whereField("sourceUserStoreId", isEqualTo: item.id)
+                .getDocuments { [weak self] snapshot, error in
+                    if let error = error {
+                        #if DEBUG
+                        print("StoresViewModel: Error validating shared status for \(item.store.name): \(error.localizedDescription)")
+                        #endif
+                        return
+                    }
+
+                    let actualRecipientCount = snapshot?.documents.count ?? 0
+                    let storedSharedWith = item.sharedWith ?? []
+
+                    if actualRecipientCount == 0 && !storedSharedWith.isEmpty {
+                        #if DEBUG
+                        print("StoresViewModel: Stale sharedWith detected for '\(item.store.name)' - clearing")
+                        #endif
+                        // No recipients exist, clear the owner's sharedWith
+                        self?.db.collection("user_stores").document(item.id).updateData([
+                            "sharedWith": FieldValue.delete(),
+                            "isSharedStore": FieldValue.delete()
+                        ]) { error in
+                            #if DEBUG
+                            if let error = error {
+                                print("StoresViewModel: Error clearing stale sharedWith: \(error.localizedDescription)")
+                            } else {
+                                print("StoresViewModel: Cleared stale sharedWith for '\(item.store.name)'")
+                            }
+                            #endif
+                        }
+                    } else if actualRecipientCount < storedSharedWith.count {
+                        #if DEBUG
+                        print("StoresViewModel: sharedWith count mismatch for '\(item.store.name)' - updating")
+                        #endif
+                        // Some recipients left, rebuild the sharedWith list from actual data
+                        let remainingNames = snapshot?.documents.compactMap { doc in
+                            doc.data()["sharedFromName"] as? String
+                        } ?? []
+
+                        // Get the display names: recipients store the owner's name in sharedFromName,
+                        // but the owner needs the recipient's name. Look up from the user document.
+                        let remainingUserIds = snapshot?.documents.compactMap { doc in
+                            doc.data()["userId"] as? String
+                        } ?? []
+
+                        self?.resolveRecipientNames(userIds: remainingUserIds) { names in
+                            let updatedSharedWith = names.isEmpty ? remainingNames : names
+                            if updatedSharedWith.isEmpty {
+                                self?.db.collection("user_stores").document(item.id).updateData([
+                                    "sharedWith": FieldValue.delete(),
+                                    "isSharedStore": FieldValue.delete()
+                                ])
+                            } else {
+                                self?.db.collection("user_stores").document(item.id).updateData([
+                                    "sharedWith": updatedSharedWith
+                                ])
+                            }
+                        }
+                    }
+                }
+        }
+    }
+
+    /// Resolve user IDs to display names for updating sharedWith
+    private func resolveRecipientNames(userIds: [String], completion: @escaping ([String]) -> Void) {
+        guard !userIds.isEmpty else {
+            completion([])
+            return
+        }
+
+        var names: [String] = []
+        let group = DispatchGroup()
+
+        for userId in userIds {
+            group.enter()
+            db.collection("users").document(userId).getDocument { snapshot, _ in
+                if let name = snapshot?.data()?["name"] as? String {
+                    names.append(name)
+                }
+                group.leave()
+            }
+        }
+
+        group.notify(queue: .main) {
+            completion(names)
+        }
     }
 
     /// Fetch all available stores from the stores collection
