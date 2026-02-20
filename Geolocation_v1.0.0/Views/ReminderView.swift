@@ -59,6 +59,7 @@ struct ReminderView: View {
         .toolbar { toolbarContent }
         .onAppear {
             viewModel.fetchReminders(for: userStoreItem.reminderStoreId, sharedFromName: userStoreItem.sharedFromName)
+            viewModel.fetchFavoriteTags(for: userStoreItem.reminderStoreId)
         }
         .onChange(of: autoDeleteEnabled) { oldValue, newValue in
             if newValue && !oldValue {
@@ -181,7 +182,7 @@ struct ReminderView: View {
         ScrollViewReader { proxy in
             List {
                 // Favorite tags section
-                if !viewModel.favoriteReminders.isEmpty {
+                if !viewModel.favoriteTags.isEmpty {
                     favoriteTagsSection
                         .listRowBackground(Color.clear)
                         .listRowSeparator(.hidden)
@@ -253,8 +254,17 @@ struct ReminderView: View {
                 }
             } : nil,
             onAddToFavorites: userStoreItem.permission != .view ? {
-                viewModel.toggleFavorite(reminder)
+                if viewModel.isFavoriteTag(title: reminder.title) {
+                    if let tag = viewModel.favoriteTags.first(where: {
+                        $0.title.lowercased().trimmingCharacters(in: .whitespacesAndNewlines) == reminder.title.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+                    }) {
+                        viewModel.removeFavoriteTag(tag)
+                    }
+                } else {
+                    viewModel.addFavoriteTag(userStoreId: userStoreItem.reminderStoreId, title: reminder.title)
+                }
             } : nil,
+            isFavorited: viewModel.isFavoriteTag(title: reminder.title),
             onAddPhoto: userStoreItem.permission != .view ? {
                 reminderForPhoto = reminder
             } : nil,
@@ -337,10 +347,23 @@ struct ReminderView: View {
 
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 10) {
-                    ForEach(viewModel.favoriteReminders) { reminder in
-                        FavoriteTagView(title: reminder.title)
+                    ForEach(viewModel.favoriteTags) { tag in
+                        let alreadyExists = viewModel.isDuplicateReminder(title: tag.title)
+                        FavoriteTagView(title: tag.title, isActive: !alreadyExists)
                             .onTapGesture {
-                                viewModel.toggleFavorite(reminder)
+                                viewModel.addReminderFromFavorite(
+                                    tag: tag,
+                                    sharedWith: userStoreItem.sharedWith,
+                                    sharedFromName: userStoreItem.sharedFromName,
+                                    currentUserName: UserSessionManager.shared.currentUser?.name
+                                )
+                            }
+                            .contextMenu {
+                                Button(role: .destructive) {
+                                    viewModel.removeFavoriteTag(tag)
+                                } label: {
+                                    Label("Remove from Favorites", systemImage: "star.slash")
+                                }
                             }
                     }
                 }
@@ -626,6 +649,7 @@ struct ReminderView: View {
 
 struct FavoriteTagView: View {
     let title: String
+    var isActive: Bool = true
 
     var body: some View {
         Text(title)
@@ -637,7 +661,7 @@ struct FavoriteTagView: View {
             .padding(.vertical, 8)
             .background(
                 Capsule()
-                    .fill(Color.appAccent)
+                    .fill(Color.appAccent.opacity(isActive ? 1.0 : 0.4))
             )
             .overlay(
                 Capsule()

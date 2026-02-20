@@ -91,7 +91,6 @@ class ReminderViewModel: ObservableObject {
                         let sortOrder = data["sortOrder"] as? Int
                         let quantity = data["quantity"] as? Int
                         let isOutOfStock = data["isOutOfStock"] as? Bool
-                        let isFavorite = data["isFavorite"] as? Bool
 
                         return Reminder(
                             id: doc.documentID,
@@ -107,8 +106,7 @@ class ReminderViewModel: ObservableObject {
                             photoURLs: photoURLs,
                             sortOrder: sortOrder,
                             quantity: quantity,
-                            isOutOfStock: isOutOfStock,
-                            isFavorite: isFavorite
+                            isOutOfStock: isOutOfStock
                         )
                     }
 
@@ -138,61 +136,120 @@ class ReminderViewModel: ObservableObject {
         return reminders.contains { $0.title.lowercased().trimmingCharacters(in: .whitespacesAndNewlines) == normalized }
     }
 
-    /// Reminders marked as favorites
-    var favoriteReminders: [Reminder] {
-        reminders.filter { $0.isFavorite == true }
-    }
+    // MARK: - Favorite Tags
 
-    /// Toggle a reminder's favorite status - syncs across all linked shared reminders
-    func toggleFavorite(_ reminder: Reminder) {
-        #if DEBUG
-        print("ReminderViewModel: Toggling favorite for reminder '\(reminder.title)'")
-        #endif
+    @Published var favoriteTags: [FavoriteTag] = []
+    private var favoriteTagsListener: ListenerRegistration?
 
-        let newIsFavorite = !(reminder.isFavorite ?? false)
-        let updateFields: [String: Any] = ["isFavorite": newIsFavorite]
+    /// Fetch favorite tags for a specific user_store (real-time listener)
+    func fetchFavoriteTags(for userStoreId: String) {
+        favoriteTagsListener?.remove()
 
-        if let sharedReminderId = reminder.sharedReminderId {
-            db.collection("reminders")
-                .whereField("sharedReminderId", isEqualTo: sharedReminderId)
-                .getDocuments { [weak self] snapshot, error in
-                    guard let self = self else { return }
+        favoriteTagsListener = db.collection("favorite_tags")
+            .whereField("userStoreId", isEqualTo: userStoreId)
+            .addSnapshotListener { [weak self] snapshot, error in
+                guard let self = self else { return }
 
+                DispatchQueue.main.async {
                     if let error = error {
                         #if DEBUG
-                        print("ReminderViewModel: Error finding linked reminders for favorite toggle: \(error.localizedDescription)")
+                        print("ReminderViewModel: Error fetching favorite tags: \(error.localizedDescription)")
                         #endif
-                        self.updateSingleReminderFields(reminder.id, fields: updateFields)
                         return
                     }
 
-                    guard let documents = snapshot?.documents, !documents.isEmpty else {
-                        self.updateSingleReminderFields(reminder.id, fields: updateFields)
+                    guard let documents = snapshot?.documents else {
+                        self.favoriteTags = []
                         return
                     }
 
-                    let batch = self.db.batch()
-                    for doc in documents {
-                        batch.updateData(updateFields, forDocument: doc.reference)
-                    }
-
-                    batch.commit { error in
-                        DispatchQueue.main.async {
-                            if let error = error {
-                                #if DEBUG
-                                print("ReminderViewModel: Error syncing favorite toggle: \(error.localizedDescription)")
-                                #endif
-                            } else {
-                                #if DEBUG
-                                print("ReminderViewModel: Synced favorite toggle across \(documents.count) linked reminders")
-                                #endif
-                            }
+                    self.favoriteTags = documents.compactMap { doc -> FavoriteTag? in
+                        let data = doc.data()
+                        guard let userStoreId = data["userStoreId"] as? String,
+                              let title = data["title"] as? String,
+                              let createdAt = data["createdAt"] as? TimeInterval else {
+                            return nil
                         }
-                    }
+                        return FavoriteTag(
+                            id: doc.documentID,
+                            userStoreId: userStoreId,
+                            title: title,
+                            createdAt: createdAt
+                        )
+                    }.sorted { $0.createdAt < $1.createdAt }
+
+                    #if DEBUG
+                    print("ReminderViewModel: Loaded \(self.favoriteTags.count) favorite tags")
+                    #endif
                 }
-        } else {
-            updateSingleReminderFields(reminder.id, fields: updateFields)
+            }
+    }
+
+    /// Check if a title already exists as a favorite tag (case-insensitive)
+    func isFavoriteTag(title: String) -> Bool {
+        let normalized = title.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+        return favoriteTags.contains { $0.title.lowercased().trimmingCharacters(in: .whitespacesAndNewlines) == normalized }
+    }
+
+    /// Add a reminder's title as a persistent favorite tag for the store
+    func addFavoriteTag(userStoreId: String, title: String) {
+        guard !isFavoriteTag(title: title) else {
+            #if DEBUG
+            print("ReminderViewModel: '\(title)' is already a favorite tag — skipping")
+            #endif
+            return
         }
+
+        let tagData: [String: Any] = [
+            "userStoreId": userStoreId,
+            "title": title,
+            "createdAt": Date().timeIntervalSince1970
+        ]
+
+        db.collection("favorite_tags").addDocument(data: tagData) { error in
+            if let error = error {
+                #if DEBUG
+                print("ReminderViewModel: Error adding favorite tag: \(error.localizedDescription)")
+                #endif
+            } else {
+                #if DEBUG
+                print("ReminderViewModel: Favorite tag '\(title)' added successfully")
+                #endif
+            }
+        }
+    }
+
+    /// Remove a favorite tag
+    func removeFavoriteTag(_ tag: FavoriteTag) {
+        db.collection("favorite_tags").document(tag.id).delete { error in
+            if let error = error {
+                #if DEBUG
+                print("ReminderViewModel: Error removing favorite tag: \(error.localizedDescription)")
+                #endif
+            } else {
+                #if DEBUG
+                print("ReminderViewModel: Favorite tag '\(tag.title)' removed successfully")
+                #endif
+            }
+        }
+    }
+
+    /// Add a reminder from a favorite tag tap (only if a reminder with that title doesn't already exist)
+    func addReminderFromFavorite(tag: FavoriteTag, sharedWith: [String]? = nil, sharedFromName: String? = nil, currentUserName: String? = nil) {
+        if isDuplicateReminder(title: tag.title) {
+            #if DEBUG
+            print("ReminderViewModel: Reminder '\(tag.title)' already exists — skipping add from favorite")
+            #endif
+            return
+        }
+
+        addReminder(
+            userStoreId: tag.userStoreId,
+            title: tag.title,
+            sharedWith: sharedWith,
+            sharedFromName: sharedFromName,
+            currentUserName: currentUserName
+        )
     }
 
     /// Add a new reminder

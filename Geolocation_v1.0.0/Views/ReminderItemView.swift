@@ -18,6 +18,7 @@ struct ReminderItemView: View {
     var onTitleCommit: ((String) -> Void)?
     var onReorderTap: (() -> Void)?
     var onAddToFavorites: (() -> Void)?
+    var isFavorited: Bool = false
     var onAddPhoto: (() -> Void)?
     var onAddQuantity: (() -> Void)?
     var isEditingQuantity: Bool = false
@@ -199,8 +200,8 @@ struct ReminderItemView: View {
                     onAddToFavorites()
                 } label: {
                     Label(
-                        item.isFavorite == true ? "Remove from Favorites" : "Add to Favorites",
-                        systemImage: item.isFavorite == true ? "star.slash" : "star"
+                        isFavorited ? "Remove from Favorites" : "Add to Favorites",
+                        systemImage: isFavorited ? "star.slash" : "star"
                     )
                 }
             }
