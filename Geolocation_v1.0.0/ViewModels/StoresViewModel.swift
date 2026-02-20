@@ -280,44 +280,36 @@ class StoresViewModel: ObservableObject {
             // Skip if already listening
             if sharedStatusListeners[item.id] != nil { continue }
 
+            let ownerStoreId = item.id
+            let storeName = item.store.name
             let listener = db.collection("user_stores")
-                .whereField("sourceUserStoreId", isEqualTo: item.id)
+                .whereField("sourceUserStoreId", isEqualTo: ownerStoreId)
                 .addSnapshotListener { [weak self] snapshot, error in
-                    guard let self = self else { return }
-
-                    if let error = error {
+                    guard let self = self, let snapshot = snapshot else {
                         #if DEBUG
-                        print("StoresViewModel: Error in shared status listener for \(item.store.name): \(error.localizedDescription)")
+                        if let error = error {
+                            print("StoresViewModel: Error in shared status listener for \(storeName): \(error.localizedDescription)")
+                        }
                         #endif
                         return
                     }
 
-                    let actualRecipients = snapshot?.documents ?? []
+                    // Only react when a recipient's user_store was actually removed.
+                    // This avoids clearing sharedWith for pending shares where the
+                    // recipient hasn't accepted yet (initial query returns 0 docs
+                    // with no removals).
+                    let hasRemovals = snapshot.documentChanges.contains { $0.type == .removed }
+                    guard hasRemovals else { return }
 
-                    // Build the current sharedWith from actual recipient data
-                    if actualRecipients.isEmpty {
+                    if snapshot.documents.isEmpty {
                         #if DEBUG
-                        print("StoresViewModel: No recipients left for '\(item.store.name)' - clearing sharedWith")
+                        print("StoresViewModel: Last recipient left '\(storeName)' - clearing sharedWith")
                         #endif
                         // Owner updates their own doc (allowed by Firestore rules)
-                        self.db.collection("user_stores").document(item.id).updateData([
+                        self.db.collection("user_stores").document(ownerStoreId).updateData([
                             "sharedWith": FieldValue.delete(),
                             "isSharedStore": FieldValue.delete()
                         ])
-                    } else {
-                        // Check if recipients changed - rebuild sharedWith from actual data
-                        let recipientNames = actualRecipients.compactMap { doc in
-                            doc.data()["userName"] as? String ?? doc.data()["userEmail"] as? String
-                        }
-
-                        // Only update if the list changed
-                        if let currentItem = self.userStoreItems.first(where: { $0.id == item.id }),
-                           let currentSharedWith = currentItem.sharedWith,
-                           Set(currentSharedWith) != Set(recipientNames), !recipientNames.isEmpty {
-                            self.db.collection("user_stores").document(item.id).updateData([
-                                "sharedWith": recipientNames
-                            ])
-                        }
                     }
                 }
 
