@@ -263,6 +263,8 @@ struct FriendsView: View {
     private var friendsGridSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
+                Image(systemName: "person.2.fill")
+                    .foregroundColor(.blue)
                 Text("Friends")
                     .font(.headline)
                     .foregroundStyle(.primary)
