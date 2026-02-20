@@ -6,22 +6,29 @@
 //
 
 import Foundation
+import FirebaseFirestore
 
 struct RecipeChatMessage: Identifiable, Equatable {
     let id = UUID()
     let role: MessageRole
     let content: String
     let timestamp: Date
+    var ingredients: [String]?
 
     enum MessageRole {
         case user
         case assistant
     }
 
-    init(role: MessageRole, content: String) {
+    init(role: MessageRole, content: String, ingredients: [String]? = nil) {
         self.role = role
         self.content = content
         self.timestamp = Date()
+        self.ingredients = ingredients
+    }
+
+    static func == (lhs: RecipeChatMessage, rhs: RecipeChatMessage) -> Bool {
+        lhs.id == rhs.id
     }
 }
 
@@ -31,8 +38,12 @@ class AIRecipeViewModel: ObservableObject {
     @Published var inputText: String = ""
     @Published var isLoading: Bool = false
     @Published var errorMessage: String?
+    @Published var isSavingIngredients: Bool = false
+    @Published var savedIngredientsCount: Int?
+    @Published var savedToStoreName: String?
 
     private let openAIService = OpenAIService.shared
+    private let db = Firestore.firestore()
 
     func sendMessage() {
         let text = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -54,12 +65,109 @@ class AIRecipeViewModel: ObservableObject {
                 }
 
                 let response = try await openAIService.sendMessage(messages: chatMessages)
-                let assistantMessage = RecipeChatMessage(role: .assistant, content: response)
+                var assistantMessage = RecipeChatMessage(role: .assistant, content: response)
                 messages.append(assistantMessage)
+                isLoading = false
+
+                // Extract ingredients in the background
+                if let ingredients = try? await openAIService.extractIngredients(from: response),
+                   !ingredients.isEmpty {
+                    // Update the last message with extracted ingredients
+                    if let lastIndex = messages.indices.last,
+                       messages[lastIndex].id == assistantMessage.id {
+                        assistantMessage.ingredients = ingredients
+                        messages[lastIndex] = assistantMessage
+                    }
+                }
             } catch {
                 errorMessage = error.localizedDescription
+                isLoading = false
             }
-            isLoading = false
         }
+    }
+
+    func addIngredientsToStore(messageId: UUID, userStoreItem: UserStoreItem) {
+        guard let message = messages.first(where: { $0.id == messageId }),
+              let ingredients = message.ingredients, !ingredients.isEmpty else { return }
+
+        let userStoreId = userStoreItem.reminderStoreId
+        let sharedWith = userStoreItem.sharedWith
+        let sharedFromName = userStoreItem.sharedFromName
+        let isSharedStore = (sharedWith != nil && !sharedWith!.isEmpty) || sharedFromName != nil
+
+        isSavingIngredients = true
+        savedIngredientsCount = nil
+        savedToStoreName = nil
+
+        // Fetch existing reminders for this store to find current max sortOrder and check duplicates
+        db.collection("reminders")
+            .whereField("userStoreId", isEqualTo: userStoreId)
+            .getDocuments { [weak self] snapshot, error in
+                guard let self = self else { return }
+
+                let existingTitles = Set(
+                    (snapshot?.documents ?? []).compactMap {
+                        ($0.data()["title"] as? String)?.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+                    }
+                )
+                let maxSortOrder = (snapshot?.documents ?? []).compactMap {
+                    $0.data()["sortOrder"] as? Int
+                }.max() ?? -1
+
+                let batch = self.db.batch()
+                var addedCount = 0
+
+                for ingredient in ingredients {
+                    let normalized = ingredient.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+                    guard !normalized.isEmpty, !existingTitles.contains(normalized) else { continue }
+
+                    let docRef = self.db.collection("reminders").document()
+                    var reminderData: [String: Any] = [
+                        "userStoreId": userStoreId,
+                        "title": ingredient,
+                        "isDone": false,
+                        "createdAt": Date().timeIntervalSince1970,
+                        "sortOrder": maxSortOrder + 1 + addedCount
+                    ]
+
+                    if isSharedStore {
+                        reminderData["isShared"] = true
+                        reminderData["sharedAt"] = Date().timeIntervalSince1970
+                        if let sharedWith = sharedWith, !sharedWith.isEmpty {
+                            reminderData["sharedWith"] = sharedWith
+                        } else if let sharedFromName = sharedFromName {
+                            reminderData["sharedWith"] = [sharedFromName]
+                        }
+                    }
+
+                    batch.setData(reminderData, forDocument: docRef)
+                    addedCount += 1
+                }
+
+                guard addedCount > 0 else {
+                    DispatchQueue.main.async {
+                        self.isSavingIngredients = false
+                        self.errorMessage = "All ingredients already exist in this store"
+                    }
+                    return
+                }
+
+                batch.commit { error in
+                    DispatchQueue.main.async {
+                        self.isSavingIngredients = false
+                        if let error = error {
+                            self.errorMessage = "Failed to add ingredients: \(error.localizedDescription)"
+                        } else {
+                            self.savedIngredientsCount = addedCount
+                            self.savedToStoreName = userStoreItem.store.name
+                        }
+                    }
+                }
+            }
+    }
+
+    func clearSavedConfirmation() {
+        savedIngredientsCount = nil
+        savedToStoreName = nil
     }
 }

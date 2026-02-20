@@ -220,7 +220,7 @@ struct StoresView: View {
             AddStoreView(viewModel: viewModel)
         }
         .sheet(isPresented: $showingAIRecipe) {
-            AIRecipeView()
+            AIRecipeView(storesViewModel: viewModel)
         }
         .sheet(item: $selectedStoreToShare) { storeToShare in
             ShareStoreView(viewModel: viewModel, messagesViewModel: messagesViewModel, userStoreItem: storeToShare)

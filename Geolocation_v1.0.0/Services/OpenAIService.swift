@@ -26,6 +26,66 @@ class OpenAIService {
         let content: String
     }
 
+    func extractIngredients(from recipeText: String) async throws -> [String] {
+        guard let url = URL(string: baseURL) else {
+            throw OpenAIError.invalidURL
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.addValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        let extractionPrompt = ChatMessage(
+            role: "system",
+            content: """
+            Extract only the ingredient names from the recipe below. \
+            Return a JSON array of short ingredient names suitable for a shopping list. \
+            Simplify each ingredient to its core item (e.g. "2 cups all-purpose flour" becomes "All-purpose flour", \
+            "1/2 cup unsalted butter, melted" becomes "Unsalted butter"). \
+            Do not include quantities or preparation notes. \
+            Return ONLY the JSON array, no other text.
+            """
+        )
+
+        let userMessage = ChatMessage(role: "user", content: recipeText)
+
+        let body: [String: Any] = [
+            "model": "gpt-4o-mini",
+            "messages": [
+                ["role": extractionPrompt.role, "content": extractionPrompt.content],
+                ["role": userMessage.role, "content": userMessage.content]
+            ],
+            "temperature": 0.0,
+            "max_tokens": 512
+        ]
+
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
+            throw OpenAIError.invalidResponse
+        }
+
+        let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+        guard let choices = json?["choices"] as? [[String: Any]],
+              let firstChoice = choices.first,
+              let message = firstChoice["message"] as? [String: Any],
+              let content = message["content"] as? String else {
+            throw OpenAIError.invalidResponse
+        }
+
+        // Parse the JSON array from the response
+        let trimmed = content.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let jsonData = trimmed.data(using: .utf8),
+              let ingredients = try? JSONSerialization.jsonObject(with: jsonData) as? [String] else {
+            throw OpenAIError.invalidResponse
+        }
+
+        return ingredients
+    }
+
     func sendMessage(messages: [ChatMessage]) async throws -> String {
         guard let url = URL(string: baseURL) else {
             throw OpenAIError.invalidURL

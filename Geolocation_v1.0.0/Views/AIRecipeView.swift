@@ -9,9 +9,11 @@ import SwiftUI
 
 struct AIRecipeView: View {
     @StateObject private var viewModel = AIRecipeViewModel()
+    @ObservedObject var storesViewModel: StoresViewModel
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) var colorScheme
     @FocusState private var isInputFocused: Bool
+    @State private var messageIdForStorePicker: UUID?
 
     var body: some View {
         NavigationStack {
@@ -26,8 +28,15 @@ struct AIRecipeView: View {
                             }
 
                             ForEach(viewModel.messages) { message in
-                                MessageBubbleView(message: message, colorScheme: colorScheme)
-                                    .id(message.id)
+                                VStack(alignment: .leading, spacing: 8) {
+                                    MessageBubbleView(message: message, colorScheme: colorScheme)
+
+                                    // Show "Add Ingredients to Store" button for recipe messages with ingredients
+                                    if message.role == .assistant, let ingredients = message.ingredients, !ingredients.isEmpty {
+                                        addIngredientsButton(for: message)
+                                    }
+                                }
+                                .id(message.id)
                             }
 
                             if viewModel.isLoading {
@@ -87,6 +96,25 @@ struct AIRecipeView: View {
                     .background(Color.orange.opacity(0.1))
                 }
 
+                // Success confirmation
+                if let count = viewModel.savedIngredientsCount, let storeName = viewModel.savedToStoreName {
+                    HStack {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundColor(.green)
+                        Text("Added \(count) ingredient\(count == 1 ? "" : "s") to \(storeName)")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        Spacer()
+                        Button("Dismiss") {
+                            viewModel.clearSavedConfirmation()
+                        }
+                        .font(.caption)
+                    }
+                    .padding(.horizontal)
+                    .padding(.vertical, 8)
+                    .background(Color.green.opacity(0.1))
+                }
+
                 Divider()
 
                 // Input bar
@@ -102,7 +130,42 @@ struct AIRecipeView: View {
                     }
                 }
             }
+            .sheet(item: $messageIdForStorePicker) { messageId in
+                StorePickerView(
+                    userStoreItems: storesViewModel.userStoreItems,
+                    colorScheme: colorScheme
+                ) { selectedStore in
+                    messageIdForStorePicker = nil
+                    viewModel.addIngredientsToStore(messageId: messageId, userStoreItem: selectedStore)
+                }
+            }
         }
+    }
+
+    // MARK: - Add Ingredients Button
+
+    private func addIngredientsButton(for message: RecipeChatMessage) -> some View {
+        Button {
+            messageIdForStorePicker = message.id
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "cart.badge.plus")
+                    .font(.system(size: 14))
+                Text("Add Ingredients to Store")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 8)
+            .background(
+                RoundedRectangle(cornerRadius: 20)
+                    .fill(Color.blue)
+            )
+            .foregroundColor(.white)
+        }
+        .disabled(viewModel.isSavingIngredients)
+        .opacity(viewModel.isSavingIngredients ? 0.6 : 1.0)
+        .padding(.horizontal)
     }
 
     // MARK: - Welcome View
@@ -198,6 +261,115 @@ struct AIRecipeView: View {
     }
 }
 
+// MARK: - UUID Identifiable Conformance for sheet(item:)
+
+extension UUID: @retroactive Identifiable {
+    public var id: UUID { self }
+}
+
+// MARK: - Store Picker View
+
+struct StorePickerView: View {
+    let userStoreItems: [UserStoreItem]
+    let colorScheme: ColorScheme
+    let onSelect: (UserStoreItem) -> Void
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            Group {
+                if userStoreItems.isEmpty {
+                    VStack(spacing: 16) {
+                        Image(systemName: "storefront")
+                            .font(.system(size: 40))
+                            .foregroundColor(.secondary)
+                        Text("No stores yet")
+                            .font(.headline)
+                        Text("Add a store first, then you can save recipe ingredients to it.")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 32)
+                    }
+                } else {
+                    List {
+                        Section {
+                            ForEach(userStoreItems) { item in
+                                Button {
+                                    onSelect(item)
+                                } label: {
+                                    HStack(spacing: 12) {
+                                        if let logoURL = StoreLogoProvider.shared.logoURL(for: item.store.name),
+                                           let url = URL(string: logoURL) {
+                                            AsyncImage(url: url) { phase in
+                                                switch phase {
+                                                case .success(let image):
+                                                    image
+                                                        .resizable()
+                                                        .scaledToFill()
+                                                        .frame(width: 40, height: 40)
+                                                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                                                default:
+                                                    storeIconPlaceholder(for: item.store.name)
+                                                }
+                                            }
+                                            .frame(width: 40, height: 40)
+                                        } else {
+                                            storeIconPlaceholder(for: item.store.name)
+                                        }
+
+                                        VStack(alignment: .leading, spacing: 2) {
+                                            Text(item.store.name)
+                                                .font(.body)
+                                                .fontWeight(.medium)
+                                            if item.store.reminderCount > 0 {
+                                                Text("\(item.store.reminderCount) item\(item.store.reminderCount == 1 ? "" : "s")")
+                                                    .font(.caption)
+                                                    .foregroundColor(.secondary)
+                                            }
+                                        }
+
+                                        Spacer()
+
+                                        Image(systemName: "chevron.right")
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                    }
+                                    .padding(.vertical, 4)
+                                }
+                                .foregroundColor(.primary)
+                            }
+                        } header: {
+                            Text("Select a store to add ingredients")
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Choose Store")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                }
+            }
+        }
+    }
+
+    private func storeIconPlaceholder(for name: String) -> some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Color.blue.opacity(0.15))
+                .frame(width: 40, height: 40)
+            Text(String(name.prefix(1)).uppercased())
+                .font(.headline)
+                .fontWeight(.bold)
+                .foregroundColor(.blue)
+        }
+    }
+}
+
 // MARK: - Message Bubble View
 
 struct MessageBubbleView: View {
@@ -256,5 +428,5 @@ struct TypingIndicatorView: View {
 }
 
 #Preview {
-    AIRecipeView()
+    AIRecipeView(storesViewModel: StoresViewModel())
 }
