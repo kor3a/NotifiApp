@@ -76,9 +76,21 @@ class OpenAIService {
             throw OpenAIError.invalidResponse
         }
 
-        // Parse the JSON array from the response
-        let trimmed = content.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let jsonData = trimmed.data(using: .utf8),
+        // Strip markdown code fences if present (e.g. ```json ... ```)
+        var cleaned = content.trimmingCharacters(in: .whitespacesAndNewlines)
+        if cleaned.hasPrefix("```") {
+            // Remove opening fence (```json or ```)
+            if let firstNewline = cleaned.firstIndex(of: "\n") {
+                cleaned = String(cleaned[cleaned.index(after: firstNewline)...])
+            }
+            // Remove closing fence
+            if cleaned.hasSuffix("```") {
+                cleaned = String(cleaned.dropLast(3))
+            }
+            cleaned = cleaned.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+
+        guard let jsonData = cleaned.data(using: .utf8),
               let ingredients = try? JSONSerialization.jsonObject(with: jsonData) as? [String] else {
             throw OpenAIError.invalidResponse
         }
