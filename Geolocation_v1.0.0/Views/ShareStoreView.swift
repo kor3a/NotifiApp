@@ -36,6 +36,8 @@ struct ShareStoreView: View {
     @State private var isLoadingSharedUsers: Bool = false
     @State private var reminderTitles: [String] = []
     @State private var selectedFriend: Contact?
+    @State private var isSharingWithAllFamily: Bool = false
+    @State private var familyShareProgress: String = ""
 
     private let db = Firestore.firestore()
     private let messagingService = MessagingService.shared
@@ -175,39 +177,54 @@ struct ShareStoreView: View {
                                     .font(.headline)
                             }
 
+                            if isSharingWithAllFamily {
+                                HStack(spacing: 8) {
+                                    ProgressView()
+                                    Text(familyShareProgress)
+                                        .font(.subheadline)
+                                        .foregroundColor(.secondary)
+                                }
+                                .padding(12)
+                                .frame(maxWidth: .infinity)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 10)
+                                        .fill(Color.purple.opacity(0.1))
+                                )
+                            }
+
                             ScrollView(.horizontal, showsIndicators: false) {
                                 HStack(spacing: 12) {
                                     // Share with all family button
                                     Button(action: {
-                                        // Select first non-shared family member
-                                        let userId = viewModel.sessionManager.currentUser?.userId ?? ""
-                                        if let first = friendsViewModel.familyMembers.first(where: { friendship in
-                                            let contact = friendship.toContact(currentUserId: userId)
-                                            return !sharedUsers.contains { $0.userEmail.lowercased() == contact.email.lowercased() }
-                                        }) {
-                                            let contact = first.toContact(currentUserId: userId)
-                                            selectedFriend = contact
-                                            recipientEmail = contact.email
-                                        }
+                                        shareWithAllFamily()
                                     }) {
                                         VStack(spacing: 8) {
                                             Circle()
-                                                .fill(Color.purple.opacity(0.2))
+                                                .fill(allFamilyAlreadyShared ? Color.appSuccess.opacity(0.2) : Color.purple.opacity(0.2))
                                                 .frame(width: 50, height: 50)
                                                 .overlay(
-                                                    Image(systemName: "person.3.fill")
-                                                        .font(.system(size: 16))
-                                                        .foregroundColor(.purple)
+                                                    Group {
+                                                        if allFamilyAlreadyShared {
+                                                            Image(systemName: "checkmark")
+                                                                .font(.system(size: 16))
+                                                                .foregroundColor(.appSuccess)
+                                                        } else {
+                                                            Image(systemName: "person.3.fill")
+                                                                .font(.system(size: 16))
+                                                                .foregroundColor(.purple)
+                                                        }
+                                                    }
                                                 )
 
                                             Text("All Family")
                                                 .font(.caption)
-                                                .foregroundColor(.primary)
+                                                .foregroundColor(allFamilyAlreadyShared ? .secondary : .primary)
                                                 .lineLimit(1)
                                                 .frame(width: 60)
                                         }
                                     }
                                     .buttonStyle(.plain)
+                                    .disabled(isSharingWithAllFamily || isSharing || allFamilyAlreadyShared)
 
                                     ForEach(friendsViewModel.familyMembers) { friendship in
                                         let contact = friendship.toContact(currentUserId: viewModel.sessionManager.currentUser?.userId ?? "")
@@ -451,10 +468,10 @@ struct ShareStoreView: View {
                         .padding()
                     }
                 }
-                .disabled(recipientEmail.isEmpty || isSharing)
+                .disabled(recipientEmail.isEmpty || isSharing || isSharingWithAllFamily)
                 .background(
                     RoundedRectangle(cornerRadius: 12)
-                        .fill(recipientEmail.isEmpty || isSharing ? Color.gray : Color.blue)
+                        .fill(recipientEmail.isEmpty || isSharing || isSharingWithAllFamily ? Color.gray : Color.blue)
                 )
                 .foregroundColor(.white)
                     } // End of owner-only sharing UI
@@ -491,7 +508,109 @@ struct ShareStoreView: View {
         }
     }
 
+    // MARK: - Computed Properties
+
+    private var allFamilyAlreadyShared: Bool {
+        let userId = viewModel.sessionManager.currentUser?.userId ?? ""
+        return friendsViewModel.familyMembers.allSatisfy { friendship in
+            let contact = friendship.toContact(currentUserId: userId)
+            return sharedUsers.contains { $0.userEmail.lowercased() == contact.email.lowercased() }
+        }
+    }
+
     // MARK: - FUNCTIONS
+
+    private func shareWithAllFamily() {
+        guard let currentUserName = viewModel.sessionManager.currentUser?.name else {
+            alertTitle = "Error"
+            alertMessage = "No user data available."
+            showAlert = true
+            return
+        }
+
+        let userId = viewModel.sessionManager.currentUser?.userId ?? ""
+        let permissionString = selectedPermission == .edit ? "edit" : "view"
+
+        // Get all family members who haven't been shared with yet
+        let unsahredFamily = friendsViewModel.familyMembers.compactMap { friendship -> Contact? in
+            let contact = friendship.toContact(currentUserId: userId)
+            let isAlreadyShared = sharedUsers.contains { $0.userEmail.lowercased() == contact.email.lowercased() }
+            return isAlreadyShared ? nil : contact
+        }
+
+        guard !unsahredFamily.isEmpty else {
+            alertTitle = "Already Shared"
+            alertMessage = "This store is already shared with all family members."
+            showAlert = true
+            return
+        }
+
+        isSharingWithAllFamily = true
+        familyShareProgress = "Sharing with 0/\(unsahredFamily.count) family members..."
+
+        var successCount = 0
+        var failCount = 0
+        let total = unsahredFamily.count
+        let group = DispatchGroup()
+
+        for contact in unsahredFamily {
+            group.enter()
+
+            // Check if recipient already has this store
+            db.collection("user_stores")
+                .whereField("userId", isEqualTo: contact.id)
+                .whereField("storeId", isEqualTo: userStoreItem.store.id)
+                .getDocuments { snapshot, _ in
+                    if let documents = snapshot?.documents, !documents.isEmpty {
+                        // Already has store, skip
+                        failCount += 1
+                        DispatchQueue.main.async {
+                            familyShareProgress = "Sharing with \(successCount + failCount)/\(total) family members..."
+                        }
+                        group.leave()
+                        return
+                    }
+
+                    messagesViewModel.shareStore(
+                        userStoreItem: userStoreItem,
+                        to: contact,
+                        permission: permissionString,
+                        currentUserName: currentUserName,
+                        reminderTitles: reminderTitles
+                    ) { success in
+                        if success {
+                            successCount += 1
+                        } else {
+                            failCount += 1
+                        }
+                        DispatchQueue.main.async {
+                            familyShareProgress = "Sharing with \(successCount + failCount)/\(total) family members..."
+                        }
+                        group.leave()
+                    }
+                }
+        }
+
+        group.notify(queue: .main) {
+            isSharingWithAllFamily = false
+            familyShareProgress = ""
+            fetchSharedUsers()
+            selectedFriend = nil
+            recipientEmail = ""
+
+            if successCount == total {
+                alertTitle = "Success"
+                alertMessage = "Share requests sent to all \(total) family member(s)! They will see it in their messages."
+            } else if successCount > 0 {
+                alertTitle = "Partially Shared"
+                alertMessage = "Shared with \(successCount) of \(total) family members. \(failCount) could not be shared (may already have this store)."
+            } else {
+                alertTitle = "Error"
+                alertMessage = "Failed to share with family members. They may already have this store."
+            }
+            showAlert = true
+        }
+    }
 
     private func shareStore() {
         #if DEBUG
