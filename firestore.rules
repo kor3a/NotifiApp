@@ -99,6 +99,21 @@ service cloud.firestore {
     }
 
     // ============================================================
+    // Store Logos (logo URL cache for store icons)
+    // ============================================================
+    match /stores_logos/{logoId} {
+      // Allow authenticated users to read store logos
+      allow read: if request.auth != null;
+
+      // Allow authenticated users to upload/update logos
+      allow create, update: if request.auth != null &&
+                               request.resource.data.logoURL is string;
+
+      // Allow authenticated users to delete logos
+      allow delete: if request.auth != null;
+    }
+
+    // ============================================================
     // Favorite Tags (persistent, reusable reminder shortcuts)
     // ============================================================
     match /favorite_tags/{tagId} {
@@ -134,9 +149,13 @@ service cloud.firestore {
                        request.resource.data.userEmail is string &&
                        request.resource.data.userEmail == request.auth.token.email;
 
-      // Allow users to update only their own user_stores
+      // Allow users to update their own user_stores.
+      // Also allow shared recipients to update only the sharedWith/isSharedStore
+      // fields when they leave a shared store (their device cleans up the
+      // owner's sharing metadata).
       allow update: if request.auth != null &&
-                       resource.data.userEmail == request.auth.token.email;
+                       (resource.data.userEmail == request.auth.token.email ||
+                        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['sharedWith', 'isSharedStore']));
 
       // Allow deletion by:
       // 1. The owner of the user_store (userEmail matches)

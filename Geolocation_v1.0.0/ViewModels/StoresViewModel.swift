@@ -20,6 +20,9 @@ class StoresViewModel: ObservableObject {
     // Reminder count listeners for real-time updates (keyed by reminderStoreId)
     private var reminderCountListeners: [String: ListenerRegistration] = [:]
 
+    // Shared status listeners to detect when recipients leave (keyed by owner's userStoreId)
+    private var sharedStatusListeners: [String: ListenerRegistration] = [:]
+
     // Flag to prevent listener from overwriting during manual sort
     private var isManuallyReordering = false
 
@@ -45,6 +48,7 @@ class StoresViewModel: ObservableObject {
         // Remove existing listeners to prevent duplicates
         storesListener?.remove()
         removeAllReminderCountListeners()
+        removeAllSharedStatusListeners()
 
         // Add new snapshot listener and store the registration
         storesListener = db.collection("user_stores")
@@ -68,6 +72,7 @@ class StoresViewModel: ObservableObject {
                     #endif
                     self.userStoreItems = []
                     self.removeAllReminderCountListeners()
+                    self.removeAllSharedStatusListeners()
                     return
                 }
 
@@ -149,6 +154,9 @@ class StoresViewModel: ObservableObject {
 
                 // Set up real-time listeners for reminder counts
                 self.setupReminderCountListeners(for: reminderStoreIds)
+
+                // Set up real-time listeners for shared store recipients
+                self.setupSharedStatusListeners(for: tempUserStoreItems)
 
                 #if DEBUG
                 print("StoresViewModel: Loaded \(self.userStoreItems.count) stores, setting up reminder listeners")
@@ -243,6 +251,78 @@ class StoresViewModel: ObservableObject {
             listener.remove()
         }
         reminderCountListeners.removeAll()
+    }
+
+    /// Set up real-time listeners to detect when shared store recipients leave.
+    /// When all recipients are gone, updates the owner's own user_store to clear sharedWith,
+    /// which triggers the main snapshot listener and updates the UI.
+    private func setupSharedStatusListeners(for items: [UserStoreItem]) {
+        // Find stores that are shared by the owner (have sharedWith set)
+        let sharedItemIds = Set(items.compactMap { item -> String? in
+            if let sharedWith = item.sharedWith, !sharedWith.isEmpty {
+                return item.id
+            }
+            return nil
+        })
+
+        // Remove listeners for stores no longer shared
+        let currentIds = Set(sharedStatusListeners.keys)
+        let idsToRemove = currentIds.subtracting(sharedItemIds)
+        for id in idsToRemove {
+            sharedStatusListeners[id]?.remove()
+            sharedStatusListeners.removeValue(forKey: id)
+        }
+
+        // Add listeners for newly shared stores
+        for item in items {
+            guard let sharedWith = item.sharedWith, !sharedWith.isEmpty else { continue }
+
+            // Skip if already listening
+            if sharedStatusListeners[item.id] != nil { continue }
+
+            let ownerStoreId = item.id
+            let storeName = item.store.name
+            let listener = db.collection("user_stores")
+                .whereField("sourceUserStoreId", isEqualTo: ownerStoreId)
+                .addSnapshotListener { [weak self] snapshot, error in
+                    guard let self = self, let snapshot = snapshot else {
+                        #if DEBUG
+                        if let error = error {
+                            print("StoresViewModel: Error in shared status listener for \(storeName): \(error.localizedDescription)")
+                        }
+                        #endif
+                        return
+                    }
+
+                    // Only react when a recipient's user_store was actually removed.
+                    // This avoids clearing sharedWith for pending shares where the
+                    // recipient hasn't accepted yet (initial query returns 0 docs
+                    // with no removals).
+                    let hasRemovals = snapshot.documentChanges.contains { $0.type == .removed }
+                    guard hasRemovals else { return }
+
+                    if snapshot.documents.isEmpty {
+                        #if DEBUG
+                        print("StoresViewModel: Last recipient left '\(storeName)' - clearing sharedWith")
+                        #endif
+                        // Owner updates their own doc (allowed by Firestore rules)
+                        self.db.collection("user_stores").document(ownerStoreId).updateData([
+                            "sharedWith": FieldValue.delete(),
+                            "isSharedStore": FieldValue.delete()
+                        ])
+                    }
+                }
+
+            sharedStatusListeners[item.id] = listener
+        }
+    }
+
+    /// Remove all shared status listeners
+    private func removeAllSharedStatusListeners() {
+        for (_, listener) in sharedStatusListeners {
+            listener.remove()
+        }
+        sharedStatusListeners.removeAll()
     }
 
     /// Fetch all available stores from the stores collection
@@ -485,7 +565,7 @@ class StoresViewModel: ObservableObject {
         print("StoresViewModel: Deleting recipient's shared user_store: \(userStoreItem.id)")
         #endif
 
-        // Get current user's name to remove from owner's reminders sharedWith
+        // Get current user's name to remove from owner's reminders and user_store sharedWith
         let currentUserName = sessionManager.currentUser?.name
 
         // Only delete the user_store document, don't touch owner's reminders
@@ -502,11 +582,16 @@ class StoresViewModel: ObservableObject {
                 print("StoresViewModel: Shared store removed successfully (recipient left)")
                 #endif
 
-                // Update owner's reminders to remove current user from sharedWith
-                // Use sourceUserStoreId if available, otherwise try to find owner's reminders by other means
                 if let currentUserName = currentUserName,
                    let sourceUserStoreId = userStoreItem.sourceUserStoreId {
+                    // Update owner's reminders to remove current user from sharedWith
                     self?.updateOwnerRemindersAfterRecipientLeaves(
+                        ownerUserStoreId: sourceUserStoreId,
+                        recipientName: currentUserName
+                    )
+
+                    // Update owner's user_store to remove current user from sharedWith
+                    self?.updateOwnerUserStoreAfterRecipientLeaves(
                         ownerUserStoreId: sourceUserStoreId,
                         recipientName: currentUserName
                     )
@@ -609,6 +694,61 @@ class StoresViewModel: ObservableObject {
                     }
                 }
             }
+    }
+
+    private func updateOwnerUserStoreAfterRecipientLeaves(ownerUserStoreId: String, recipientName: String) {
+        #if DEBUG
+        print("StoresViewModel: Updating owner's user_store \(ownerUserStoreId) to remove \(recipientName) from sharedWith")
+        #endif
+
+        let ownerDocRef = db.collection("user_stores").document(ownerUserStoreId)
+        ownerDocRef.getDocument { [weak self] snapshot, error in
+            if let error = error {
+                #if DEBUG
+                print("StoresViewModel: Error fetching owner's user_store: \(error.localizedDescription)")
+                #endif
+                return
+            }
+
+            guard let data = snapshot?.data() else {
+                #if DEBUG
+                print("StoresViewModel: Owner's user_store not found")
+                #endif
+                return
+            }
+
+            var sharedWith = data["sharedWith"] as? [String] ?? []
+            sharedWith.removeAll { $0 == recipientName }
+
+            if sharedWith.isEmpty {
+                // No more shared users, clear sharing fields
+                ownerDocRef.updateData([
+                    "sharedWith": FieldValue.delete(),
+                    "isSharedStore": FieldValue.delete()
+                ]) { error in
+                    #if DEBUG
+                    if let error = error {
+                        print("StoresViewModel: Error clearing owner's sharedWith: \(error.localizedDescription)")
+                    } else {
+                        print("StoresViewModel: Cleared owner's sharedWith (no more recipients)")
+                    }
+                    #endif
+                }
+            } else {
+                // Update with remaining shared users
+                ownerDocRef.updateData([
+                    "sharedWith": sharedWith
+                ]) { error in
+                    #if DEBUG
+                    if let error = error {
+                        print("StoresViewModel: Error updating owner's sharedWith: \(error.localizedDescription)")
+                    } else {
+                        print("StoresViewModel: Updated owner's sharedWith to \(sharedWith)")
+                    }
+                    #endif
+                }
+            }
+        }
     }
 
     private func deleteSharedStoreGroup(sharedGroupId: String) {
@@ -745,5 +885,6 @@ class StoresViewModel: ObservableObject {
         // Clean up listeners when ViewModel is destroyed
         storesListener?.remove()
         removeAllReminderCountListeners()
+        removeAllSharedStatusListeners()
     }
 }
