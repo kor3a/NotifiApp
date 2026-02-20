@@ -18,6 +18,8 @@ struct FriendsView: View {
     @State private var showingRemoveAlert = false
     @State private var friendshipToCancel: Friendship?
     @State private var showingCancelAlert = false
+    @State private var friendshipForFamilyAction: Friendship?
+    @State private var showingFamilyActionSheet = false
     @Environment(\.colorScheme) var colorScheme
 
     private let gridColumns = [
@@ -107,6 +109,38 @@ struct FriendsView: View {
                 Text("Cancel this friend request?")
             }
         }
+        .confirmationDialog(
+            familyActionTitle,
+            isPresented: $showingFamilyActionSheet,
+            titleVisibility: .visible
+        ) {
+            if let friendship = friendshipForFamilyAction {
+                if viewModel.isFamilyMember(friendship) {
+                    Button("Remove from Family", role: .destructive) {
+                        viewModel.removeFromFamily(friendship)
+                        friendshipForFamilyAction = nil
+                    }
+                } else {
+                    Button("Add to Family") {
+                        viewModel.addToFamily(friendship)
+                        friendshipForFamilyAction = nil
+                    }
+                }
+            }
+            Button("Cancel", role: .cancel) {
+                friendshipForFamilyAction = nil
+            }
+        }
+    }
+
+    private var familyActionTitle: String {
+        guard let friendship = friendshipForFamilyAction else { return "" }
+        let name = friendship.friendName(currentUserId: sessionManager.currentUser?.userId ?? "")
+        if viewModel.isFamilyMember(friendship) {
+            return "Remove \(name) from Family?"
+        } else {
+            return "Add \(name) to Family?"
+        }
     }
 
     // MARK: - Main Content
@@ -124,13 +158,18 @@ struct FriendsView: View {
                     sentRequestsSection
                 }
 
+                // Family Section - Above Friends
+                if !viewModel.familyMembers.isEmpty {
+                    familyGridSection
+                }
+
                 // Friends Grid
                 if !viewModel.friends.isEmpty {
                     friendsGridSection
                 }
 
                 // Empty State
-                if viewModel.friends.isEmpty && viewModel.pendingRequests.isEmpty && viewModel.sentRequests.isEmpty {
+                if viewModel.friends.isEmpty && viewModel.familyMembers.isEmpty && viewModel.pendingRequests.isEmpty && viewModel.sentRequests.isEmpty {
                     emptyState
                         .padding(.top, 60)
                 }
@@ -177,11 +216,55 @@ struct FriendsView: View {
         }
     }
 
+    // MARK: - Family Grid Section
+
+    private var familyGridSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Image(systemName: "house.fill")
+                    .foregroundColor(.purple)
+                Text("Family")
+                    .font(.headline)
+                    .foregroundStyle(.primary)
+
+                Text("\(viewModel.familyMembers.count)")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+
+                Spacer()
+            }
+            .padding(.horizontal)
+
+            LazyVGrid(columns: gridColumns, spacing: 12) {
+                ForEach(viewModel.familyMembers) { friendship in
+                    FriendCard(
+                        friendship: friendship,
+                        currentUserId: sessionManager.currentUser?.userId ?? "",
+                        colorScheme: colorScheme,
+                        isFamilyMember: true,
+                        onMessage: { startConversation(with: friendship) },
+                        onRemove: {
+                            friendshipToRemove = friendship
+                            showingRemoveAlert = true
+                        },
+                        onPhotoTap: {
+                            friendshipForFamilyAction = friendship
+                            showingFamilyActionSheet = true
+                        }
+                    )
+                }
+            }
+            .padding(.horizontal)
+        }
+    }
+
     // MARK: - Friends Grid Section
 
     private var friendsGridSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
+                Image(systemName: "person.2.fill")
+                    .foregroundColor(.blue)
                 Text("Friends")
                     .font(.headline)
                     .foregroundStyle(.primary)
@@ -200,10 +283,15 @@ struct FriendsView: View {
                         friendship: friendship,
                         currentUserId: sessionManager.currentUser?.userId ?? "",
                         colorScheme: colorScheme,
+                        isFamilyMember: false,
                         onMessage: { startConversation(with: friendship) },
                         onRemove: {
                             friendshipToRemove = friendship
                             showingRemoveAlert = true
+                        },
+                        onPhotoTap: {
+                            friendshipForFamilyAction = friendship
+                            showingFamilyActionSheet = true
                         }
                     )
                 }
@@ -293,8 +381,10 @@ struct FriendCard: View {
     let friendship: Friendship
     let currentUserId: String
     let colorScheme: ColorScheme
+    var isFamilyMember: Bool = false
     let onMessage: () -> Void
     let onRemove: () -> Void
+    var onPhotoTap: (() -> Void)?
 
     private var friendName: String {
         friendship.friendName(currentUserId: currentUserId)
@@ -320,24 +410,39 @@ struct FriendCard: View {
 
     var body: some View {
         VStack(spacing: 12) {
-            // Avatar
-            ProfilePictureView(profilePictureURL: friendProfilePictureURL, size: 64) {
-                Circle()
-                    .fill(
-                        LinearGradient(
-                            colors: [avatarColor.opacity(0.7), avatarColor],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .frame(width: 64, height: 64)
-                    .overlay(
-                        Text(avatarInitial)
-                            .font(.title2.bold())
+            // Avatar - tappable for family action
+            Button(action: { onPhotoTap?() }) {
+                ZStack(alignment: .bottomTrailing) {
+                    ProfilePictureView(profilePictureURL: friendProfilePictureURL, size: 64) {
+                        Circle()
+                            .fill(
+                                LinearGradient(
+                                    colors: [avatarColor.opacity(0.7), avatarColor],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                            .frame(width: 64, height: 64)
+                            .overlay(
+                                Text(avatarInitial)
+                                    .font(.title2.bold())
+                                    .foregroundColor(.white)
+                            )
+                    }
+                    .shadow(color: avatarColor.opacity(0.3), radius: 6, x: 0, y: 3)
+
+                    if isFamilyMember {
+                        Image(systemName: "house.fill")
+                            .font(.system(size: 10))
                             .foregroundColor(.white)
-                    )
+                            .padding(4)
+                            .background(Color.purple)
+                            .clipShape(Circle())
+                            .offset(x: 2, y: 2)
+                    }
+                }
             }
-            .shadow(color: avatarColor.opacity(0.3), radius: 6, x: 0, y: 3)
+            .buttonStyle(.plain)
 
             // Name & UserId
             VStack(spacing: 2) {
@@ -383,7 +488,9 @@ struct FriendCard: View {
                 .overlay(
                     RoundedRectangle(cornerRadius: 16)
                         .stroke(
-                            Color.cardBorder(for: colorScheme),
+                            isFamilyMember
+                                ? LinearGradient(colors: [Color.purple.opacity(0.4), Color.purple.opacity(0.15)], startPoint: .topLeading, endPoint: .bottomTrailing)
+                                : Color.cardBorder(for: colorScheme),
                             lineWidth: 1.5
                         )
                 )

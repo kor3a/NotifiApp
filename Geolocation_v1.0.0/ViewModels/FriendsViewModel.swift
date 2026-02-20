@@ -10,6 +10,7 @@ import FirebaseFirestore
 
 class FriendsViewModel: ObservableObject {
     @Published var friends: [Friendship] = []
+    @Published var familyMembers: [Friendship] = []
     @Published var pendingRequests: [Friendship] = []
     @Published var sentRequests: [Friendship] = []
     @Published var searchedUser: Contact?
@@ -93,8 +94,23 @@ class FriendsViewModel: ObservableObject {
             }
         }
 
+        // Separate family members from regular friends
+        let familyIds = UserSessionManager.shared.currentUser?.familyMemberIds ?? []
+        var family: [Friendship] = []
+        var nonFamily: [Friendship] = []
+
+        for friendship in acceptedFriends {
+            let friendId = friendship.friendId(currentUserId: currentUserId)
+            if familyIds.contains(friendId) {
+                family.append(friendship)
+            } else {
+                nonFamily.append(friendship)
+            }
+        }
+
         // Sort by name
-        self.friends = acceptedFriends.sorted { $0.friendName(currentUserId: currentUserId) < $1.friendName(currentUserId: currentUserId) }
+        self.familyMembers = family.sorted { $0.friendName(currentUserId: currentUserId) < $1.friendName(currentUserId: currentUserId) }
+        self.friends = nonFamily.sorted { $0.friendName(currentUserId: currentUserId) < $1.friendName(currentUserId: currentUserId) }
         self.pendingRequests = pending.sorted { $0.createdAt > $1.createdAt }
         self.sentRequests = sent.sorted { $0.createdAt > $1.createdAt }
     }
@@ -255,10 +271,62 @@ class FriendsViewModel: ObservableObject {
         }
     }
 
+    // MARK: - Family Management
+
+    func addToFamily(_ friendship: Friendship) {
+        guard let userId = currentUserId else { return }
+        let friendId = friendship.friendId(currentUserId: userId)
+        let friendName = friendship.friendName(currentUserId: userId)
+
+        UserSessionManager.shared.addFamilyMember(friendId) { [weak self] success, error in
+            DispatchQueue.main.async {
+                if success {
+                    self?.successMessage = "\(friendName) added to Family"
+                    self?.fetchFriendships()
+                } else {
+                    self?.errorMessage = error ?? "Failed to add to family"
+                }
+            }
+        }
+    }
+
+    func removeFromFamily(_ friendship: Friendship) {
+        guard let userId = currentUserId else { return }
+        let friendId = friendship.friendId(currentUserId: userId)
+        let friendName = friendship.friendName(currentUserId: userId)
+
+        UserSessionManager.shared.removeFamilyMember(friendId) { [weak self] success, error in
+            DispatchQueue.main.async {
+                if success {
+                    self?.successMessage = "\(friendName) removed from Family"
+                    self?.fetchFriendships()
+                } else {
+                    self?.errorMessage = error ?? "Failed to remove from family"
+                }
+            }
+        }
+    }
+
+    func isFamilyMember(_ friendship: Friendship) -> Bool {
+        guard let userId = currentUserId else { return false }
+        let friendId = friendship.friendId(currentUserId: userId)
+        let familyIds = UserSessionManager.shared.currentUser?.familyMemberIds ?? []
+        return familyIds.contains(friendId)
+    }
+
+    /// Get family members as contacts for sharing
+    func getFamilyMembersAsContacts() -> [Contact] {
+        guard let userId = currentUserId else { return [] }
+        return familyMembers.map { $0.toContact(currentUserId: userId) }
+    }
+
     // MARK: - Helpers
 
     private func findExistingRelationship(with userId: String) -> Friendship? {
-        // Check in all lists
+        // Check in all lists (including family members)
+        if let existing = familyMembers.first(where: { $0.requesterId == userId || $0.receiverId == userId }) {
+            return existing
+        }
         if let existing = friends.first(where: { $0.requesterId == userId || $0.receiverId == userId }) {
             return existing
         }
@@ -287,9 +355,10 @@ class FriendsViewModel: ObservableObject {
         successMessage = nil
     }
 
-    /// Get accepted friends as contacts for messaging/sharing
+    /// Get accepted friends as contacts for messaging/sharing (includes family members)
     func getAcceptedFriendsAsContacts() -> [Contact] {
         guard let userId = currentUserId else { return [] }
-        return friends.map { $0.toContact(currentUserId: userId) }
+        let allFriends = familyMembers + friends
+        return allFriends.map { $0.toContact(currentUserId: userId) }
     }
 }
