@@ -19,9 +19,14 @@ struct ReminderItemView: View {
     var onReorderTap: (() -> Void)?
     var onAddPhoto: (() -> Void)?
     var onAddQuantity: (() -> Void)?
+    var isEditingQuantity: Bool = false
+    var onQuantityTap: (() -> Void)?
+    var onQuantityCommit: ((Int?) -> Void)?
     @StateObject private var viewModel = ReminderItemViewModel()
     @State private var editText: String = ""
+    @State private var editQuantityText: String = ""
     @FocusState private var isTextFieldFocused: Bool
+    @FocusState private var isQuantityFieldFocused: Bool
 
     // Get current user's name to determine if they created the reminder
     private var currentUserName: String? {
@@ -71,11 +76,42 @@ struct ReminderItemView: View {
                 Spacer()
 
                 // Show quantity badge if quantity is set
-                if let quantity = item.quantity, quantity > 0 {
+                if isEditingQuantity {
+                    HStack(spacing: 2) {
+                        Text("Qty:")
+                            .font(.caption)
+                            .fontWeight(.medium)
+                            .foregroundColor(.secondary)
+                        TextField("", text: $editQuantityText)
+                            .font(.caption)
+                            .fontWeight(.medium)
+                            .keyboardType(.numberPad)
+                            .frame(width: 40)
+                            .focused($isQuantityFieldFocused)
+                            .onSubmit {
+                                commitQuantityEdit()
+                            }
+                            .onAppear {
+                                editQuantityText = item.quantity.map(String.init) ?? ""
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                    isQuantityFieldFocused = true
+                                }
+                            }
+                            .onChange(of: isQuantityFieldFocused) { _, focused in
+                                if !focused && isEditingQuantity {
+                                    commitQuantityEdit()
+                                }
+                            }
+                    }
+                } else if let quantity = item.quantity, quantity > 0 {
                     Text("Qty: \(quantity)")
                         .font(.caption)
                         .fontWeight(.medium)
                         .foregroundColor(.secondary)
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            onQuantityTap?()
+                        }
                 }
 
                 // Show "Shared" badge if the reminder is shared
@@ -174,6 +210,19 @@ struct ReminderItemView: View {
         } else {
             // Empty text - revert to original
             onTitleCommit?(item.title)
+        }
+    }
+
+    private func commitQuantityEdit() {
+        let trimmed = editQuantityText.trimmingCharacters(in: .whitespaces)
+        if trimmed.isEmpty {
+            // Empty text - remove quantity
+            onQuantityCommit?(nil)
+        } else if let qty = Int(trimmed), qty > 0 {
+            onQuantityCommit?(qty)
+        } else {
+            // Invalid input - revert to original
+            onQuantityCommit?(item.quantity)
         }
     }
 }

@@ -24,6 +24,7 @@ struct ReminderView: View {
     @State private var enlargedPhotoReminder: Reminder?
     @State private var showDeletePhotoConfirm = false
     @State private var editingReminderId: String?
+    @State private var editingQuantityReminderId: String?
     @State private var isReorderMode = false
     @State private var showDuplicateAlert = false
     @State private var duplicateTitle = ""
@@ -249,7 +250,17 @@ struct ReminderView: View {
             onAddQuantity: userStoreItem.permission != .view ? {
                 quantityText = reminder.quantity.map(String.init) ?? ""
                 reminderForQuantity = reminder
-            } : nil
+            } : nil,
+            isEditingQuantity: editingQuantityReminderId == reminder.id,
+            onQuantityTap: userStoreItem.permission != .view ? {
+                editingQuantityReminderId = reminder.id
+            } : nil,
+            onQuantityCommit: { newQuantity in
+                if newQuantity != reminder.quantity {
+                    viewModel.updateReminderQuantity(reminder, newQuantity: newQuantity)
+                }
+                editingQuantityReminderId = nil
+            }
         )
         .contentShape(Rectangle())
         .listRowBackground(cardRowBackground)
