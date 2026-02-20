@@ -43,12 +43,12 @@ struct StoresView: View {
                             ZStack {
                                 if editMode == .inactive {
                                     NavigationLink(destination: ReminderView(userStoreItem: userStoreItem)) {
-                                        StoreItemView(store: userStoreItem.store, logoURL: logoProvider.logoURL(for: userStoreItem.store.name))
+                                        StoreItemView(store: userStoreItem.store, logoURL: logoProvider.logoURL(for: userStoreItem.store.name), isShared: userStoreItem.isShared)
                                             .contentShape(Rectangle())
                                     }
                                     .buttonStyle(.plain)
                                 } else {
-                                    StoreItemView(store: userStoreItem.store, logoURL: logoProvider.logoURL(for: userStoreItem.store.name))
+                                    StoreItemView(store: userStoreItem.store, logoURL: logoProvider.logoURL(for: userStoreItem.store.name), isShared: userStoreItem.isShared)
                                 }
                             }
                             .listRowBackground(

@@ -10,6 +10,7 @@ import SwiftUI
 struct StoreItemView: View {
     let store: Store
     var logoURL: String? = nil
+    var isShared: Bool = false
 
     var body: some View {
         HStack(spacing: 16) {
@@ -21,6 +22,13 @@ struct StoreItemView: View {
                 .foregroundColor(.primary)
 
             Spacer()
+
+            // Shared icon
+            if isShared {
+                Image(systemName: "person.2.fill")
+                    .font(.system(size: 14))
+                    .foregroundStyle(.blue)
+            }
 
             // Reminder count badge
             if store.reminderCount > 0 {
