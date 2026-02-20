@@ -19,6 +19,14 @@ struct UserStoreItem: Identifiable, Hashable {
     let sharedWith: [String]? // Names of users this store is shared with (for owner)
     let notificationsEnabled: Bool // Whether notifications are enabled for this store
 
+    /// Whether this store is being shared with other users or was shared to the current user
+    var isShared: Bool {
+        if let sharedWith = sharedWith, !sharedWith.isEmpty {
+            return true
+        }
+        return sharedFromName != nil
+    }
+
     /// Returns the ID to use for reminders
     /// - For Can Edit: uses sharedStoreGroupId
     /// - For View Only: uses sourceUserStoreId (owner's user_store)
