@@ -49,6 +49,7 @@ struct AIRecipeView: View {
                         }
                         .padding(.vertical, 12)
                     }
+                    .scrollDismissesKeyboard(.interactively)
                     .onChange(of: viewModel.messages.count) { _, _ in
                         withAnimation {
                             if let lastMessage = viewModel.messages.last {
