@@ -88,8 +88,15 @@ struct ReminderItemView: View {
                             .keyboardType(.numberPad)
                             .frame(width: 40)
                             .focused($isQuantityFieldFocused)
-                            .onSubmit {
-                                commitQuantityEdit()
+                            .toolbar {
+                                ToolbarItemGroup(placement: .keyboard) {
+                                    if isQuantityFieldFocused {
+                                        Spacer()
+                                        Button("Done") {
+                                            isQuantityFieldFocused = false
+                                        }
+                                    }
+                                }
                             }
                             .onAppear {
                                 editQuantityText = item.quantity.map(String.init) ?? ""
@@ -221,8 +228,8 @@ struct ReminderItemView: View {
         } else if let qty = Int(trimmed), qty > 0 {
             onQuantityCommit?(qty)
         } else {
-            // Invalid input - revert to original
-            onQuantityCommit?(item.quantity)
+            // Zero or invalid input - remove quantity
+            onQuantityCommit?(nil)
         }
     }
 }
