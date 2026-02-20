@@ -99,6 +99,21 @@ service cloud.firestore {
     }
 
     // ============================================================
+    // Store Logos (logo URL cache for store icons)
+    // ============================================================
+    match /stores_logos/{logoId} {
+      // Allow authenticated users to read store logos
+      allow read: if request.auth != null;
+
+      // Allow authenticated users to upload/update logos
+      allow create, update: if request.auth != null &&
+                               request.resource.data.logoURL is string;
+
+      // Allow authenticated users to delete logos
+      allow delete: if request.auth != null;
+    }
+
+    // ============================================================
     // Favorite Tags (persistent, reusable reminder shortcuts)
     // ============================================================
     match /favorite_tags/{tagId} {
