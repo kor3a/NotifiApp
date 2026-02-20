@@ -84,6 +84,30 @@ struct ShareReminderView: View {
                     }
                 }
 
+                // Family list
+                if selectedContact == nil && !friendsViewModel.familyMembers.isEmpty {
+                    Section {
+                        ForEach(friendsViewModel.familyMembers) { friendship in
+                            let contact = friendship.toContact(currentUserId: sessionManager.currentUser?.userId ?? "")
+                            Button(action: { selectedContact = contact }) {
+                                HStack {
+                                    ContactRow(contact: contact)
+                                    Spacer()
+                                    Image(systemName: "house.fill")
+                                        .font(.caption)
+                                        .foregroundColor(.purple)
+                                }
+                            }
+                        }
+                    } header: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "house.fill")
+                                .foregroundColor(.purple)
+                            Text("Family")
+                        }
+                    }
+                }
+
                 // Friends list
                 if selectedContact == nil && !friendsViewModel.friends.isEmpty {
                     Section("Friends") {

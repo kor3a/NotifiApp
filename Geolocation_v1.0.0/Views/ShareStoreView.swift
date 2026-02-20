@@ -165,6 +165,103 @@ struct ShareStoreView: View {
                     if userStoreItem.sharedFromName == nil {
                         Divider()
 
+                        // Family Section
+                    if !friendsViewModel.familyMembers.isEmpty {
+                        VStack(alignment: .leading, spacing: 12) {
+                            HStack(spacing: 6) {
+                                Image(systemName: "house.fill")
+                                    .foregroundColor(.purple)
+                                Text("Share with Family")
+                                    .font(.headline)
+                            }
+
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: 12) {
+                                    // Share with all family button
+                                    Button(action: {
+                                        // Select first non-shared family member
+                                        let userId = viewModel.sessionManager.currentUser?.userId ?? ""
+                                        if let first = friendsViewModel.familyMembers.first(where: { friendship in
+                                            let contact = friendship.toContact(currentUserId: userId)
+                                            return !sharedUsers.contains { $0.userEmail.lowercased() == contact.email.lowercased() }
+                                        }) {
+                                            let contact = first.toContact(currentUserId: userId)
+                                            selectedFriend = contact
+                                            recipientEmail = contact.email
+                                        }
+                                    }) {
+                                        VStack(spacing: 8) {
+                                            Circle()
+                                                .fill(Color.purple.opacity(0.2))
+                                                .frame(width: 50, height: 50)
+                                                .overlay(
+                                                    Image(systemName: "person.3.fill")
+                                                        .font(.system(size: 16))
+                                                        .foregroundColor(.purple)
+                                                )
+
+                                            Text("All Family")
+                                                .font(.caption)
+                                                .foregroundColor(.primary)
+                                                .lineLimit(1)
+                                                .frame(width: 60)
+                                        }
+                                    }
+                                    .buttonStyle(.plain)
+
+                                    ForEach(friendsViewModel.familyMembers) { friendship in
+                                        let contact = friendship.toContact(currentUserId: viewModel.sessionManager.currentUser?.userId ?? "")
+                                        let isAlreadyShared = sharedUsers.contains { $0.userEmail.lowercased() == contact.email.lowercased() }
+
+                                        Button(action: {
+                                            if !isAlreadyShared {
+                                                selectedFriend = contact
+                                                recipientEmail = contact.email
+                                            }
+                                        }) {
+                                            VStack(spacing: 8) {
+                                                ZStack(alignment: .bottomTrailing) {
+                                                    Circle()
+                                                        .fill(isAlreadyShared ? Color.appSuccess.opacity(0.2) : Color.purple.opacity(0.2))
+                                                        .frame(width: 50, height: 50)
+                                                        .overlay(
+                                                            Group {
+                                                                if isAlreadyShared {
+                                                                    Image(systemName: "checkmark")
+                                                                        .foregroundColor(.appSuccess)
+                                                                } else {
+                                                                    Text(String(contact.name.prefix(1)).uppercased())
+                                                                        .font(.headline)
+                                                                        .foregroundColor(.purple)
+                                                                }
+                                                            }
+                                                        )
+
+                                                    Image(systemName: "house.fill")
+                                                        .font(.system(size: 8))
+                                                        .foregroundColor(.white)
+                                                        .padding(3)
+                                                        .background(Color.purple)
+                                                        .clipShape(Circle())
+                                                        .offset(x: 2, y: 2)
+                                                }
+
+                                                Text(contact.name)
+                                                    .font(.caption)
+                                                    .foregroundColor(isAlreadyShared ? .secondary : .primary)
+                                                    .lineLimit(1)
+                                                    .frame(width: 60)
+                                            }
+                                        }
+                                        .buttonStyle(.plain)
+                                        .disabled(isAlreadyShared)
+                                    }
+                                }
+                                .padding(.vertical, 4)
+                            }
+                        }
+                    }
+
                         // Friends Section
                     if !friendsViewModel.friends.isEmpty {
                         VStack(alignment: .leading, spacing: 12) {
@@ -214,6 +311,8 @@ struct ShareStoreView: View {
                                 }
                                 .padding(.vertical, 4)
                             }
+                        }
+                    }
 
                             if selectedFriend != nil {
                                 HStack {
@@ -236,8 +335,8 @@ struct ShareStoreView: View {
                                         .fill(Color.appAccent.opacity(0.1))
                                 )
                             }
-                        }
 
+                    if !friendsViewModel.friends.isEmpty || !friendsViewModel.familyMembers.isEmpty {
                         Text("Or enter email manually")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)

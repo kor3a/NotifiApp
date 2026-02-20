@@ -81,7 +81,8 @@ class UserSessionManager: ObservableObject {
                         name: userData["name"] as? String ?? "",
                         email: userData["email"] as? String ?? "",
                         joined: userData["joined"] as? TimeInterval ?? 0,
-                        profilePictureURL: userData["profilePictureURL"] as? String
+                        profilePictureURL: userData["profilePictureURL"] as? String,
+                        familyMemberIds: userData["familyMemberIds"] as? [String]
                     )
                 }
             }
@@ -163,6 +164,66 @@ class UserSessionManager: ObservableObject {
                     // Create new User instance to trigger @Published update
                     if var updatedUser = self.currentUser {
                         updatedUser.profilePictureURL = url
+                        self.currentUser = updatedUser
+                    }
+                }
+                completion(true, nil)
+            }
+        }
+    }
+
+    // Add a friend to the family group
+    func addFamilyMember(_ friendId: String, completion: @escaping (Bool, String?) -> Void) {
+        guard let userId = currentUser?.userId else {
+            completion(false, "User ID not found")
+            return
+        }
+
+        let db = Firestore.firestore()
+        db.collection("users").document(userId).updateData([
+            "familyMemberIds": FieldValue.arrayUnion([friendId])
+        ]) { [weak self] error in
+            guard let self = self else { return }
+
+            if let error = error {
+                completion(false, "Failed to add family member: \(error.localizedDescription)")
+            } else {
+                DispatchQueue.main.async {
+                    if var updatedUser = self.currentUser {
+                        var ids = updatedUser.familyMemberIds ?? []
+                        if !ids.contains(friendId) {
+                            ids.append(friendId)
+                        }
+                        updatedUser.familyMemberIds = ids
+                        self.currentUser = updatedUser
+                    }
+                }
+                completion(true, nil)
+            }
+        }
+    }
+
+    // Remove a friend from the family group
+    func removeFamilyMember(_ friendId: String, completion: @escaping (Bool, String?) -> Void) {
+        guard let userId = currentUser?.userId else {
+            completion(false, "User ID not found")
+            return
+        }
+
+        let db = Firestore.firestore()
+        db.collection("users").document(userId).updateData([
+            "familyMemberIds": FieldValue.arrayRemove([friendId])
+        ]) { [weak self] error in
+            guard let self = self else { return }
+
+            if let error = error {
+                completion(false, "Failed to remove family member: \(error.localizedDescription)")
+            } else {
+                DispatchQueue.main.async {
+                    if var updatedUser = self.currentUser {
+                        var ids = updatedUser.familyMemberIds ?? []
+                        ids.removeAll { $0 == friendId }
+                        updatedUser.familyMemberIds = ids.isEmpty ? nil : ids
                         self.currentUser = updatedUser
                     }
                 }
