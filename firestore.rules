@@ -99,6 +99,24 @@ service cloud.firestore {
     }
 
     // ============================================================
+    // Favorite Tags (persistent, reusable reminder shortcuts)
+    // ============================================================
+    match /favorite_tags/{tagId} {
+      // Allow authenticated users to read favorite tags.
+      // Tags are queried by userStoreId, same access model as reminders.
+      allow read: if request.auth != null;
+
+      // Allow creating favorite tags with required fields
+      allow create: if request.auth != null &&
+                       request.resource.data.userStoreId is string &&
+                       request.resource.data.title is string &&
+                       request.resource.data.createdAt is number;
+
+      // Allow updating/deleting favorite tags
+      allow update, delete: if request.auth != null;
+    }
+
+    // ============================================================
     // User-Store Associations
     // ============================================================
     match /user_stores/{userStoreId} {

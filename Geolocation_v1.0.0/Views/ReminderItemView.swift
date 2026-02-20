@@ -17,6 +17,8 @@ struct ReminderItemView: View {
     var onTextTap: (() -> Void)?
     var onTitleCommit: ((String) -> Void)?
     var onReorderTap: (() -> Void)?
+    var onAddToFavorites: (() -> Void)?
+    var isFavorited: Bool = false
     var onAddPhoto: (() -> Void)?
     var onAddQuantity: (() -> Void)?
     var isEditingQuantity: Bool = false
@@ -190,6 +192,16 @@ struct ReminderItemView: View {
                     Label(
                         item.isOutOfStock == true ? "Mark Available" : "Out of Stock",
                         systemImage: item.isOutOfStock == true ? "checkmark.circle" : "xmark.circle"
+                    )
+                }
+            }
+            if let onAddToFavorites = onAddToFavorites {
+                Button {
+                    onAddToFavorites()
+                } label: {
+                    Label(
+                        isFavorited ? "Remove from Favorites" : "Add to Favorites",
+                        systemImage: isFavorited ? "star.slash" : "star"
                     )
                 }
             }

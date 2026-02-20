@@ -59,6 +59,7 @@ struct ReminderView: View {
         .toolbar { toolbarContent }
         .onAppear {
             viewModel.fetchReminders(for: userStoreItem.reminderStoreId, sharedFromName: userStoreItem.sharedFromName)
+            viewModel.fetchFavoriteTags(for: userStoreItem.reminderStoreId)
         }
         .onChange(of: autoDeleteEnabled) { oldValue, newValue in
             if newValue && !oldValue {
@@ -180,6 +181,14 @@ struct ReminderView: View {
     private var reminderListView: some View {
         ScrollViewReader { proxy in
             List {
+                // Favorite tags section
+                if !viewModel.favoriteTags.isEmpty {
+                    favoriteTagsSection
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
+                        .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
+                }
+
                 ForEach(viewModel.reminders) { reminder in
                     reminderRow(for: reminder)
                 }
@@ -244,6 +253,18 @@ struct ReminderView: View {
                     editingReminderId = nil
                 }
             } : nil,
+            onAddToFavorites: userStoreItem.permission != .view ? {
+                if viewModel.isFavoriteTag(title: reminder.title) {
+                    if let tag = viewModel.favoriteTags.first(where: {
+                        $0.title.lowercased().trimmingCharacters(in: .whitespacesAndNewlines) == reminder.title.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+                    }) {
+                        viewModel.removeFavoriteTag(tag)
+                    }
+                } else {
+                    viewModel.addFavoriteTag(userStoreId: userStoreItem.reminderStoreId, title: reminder.title)
+                }
+            } : nil,
+            isFavorited: viewModel.isFavoriteTag(title: reminder.title),
             onAddPhoto: userStoreItem.permission != .view ? {
                 reminderForPhoto = reminder
             } : nil,
@@ -312,6 +333,43 @@ struct ReminderView: View {
             .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.3 : 0.1), radius: 8, x: 0, y: 4)
             .shadow(color: Color.white.opacity(colorScheme == .dark ? 0.05 : 0.5), radius: 2, x: 0, y: -2)
             .padding(.vertical, 4)
+    }
+
+    // MARK: - Favorite Tags
+
+    private var favoriteTagsSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Favorites")
+                .font(.caption)
+                .fontWeight(.semibold)
+                .foregroundStyle(.secondary)
+                .textCase(.uppercase)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 10) {
+                    ForEach(viewModel.favoriteTags) { tag in
+                        let alreadyExists = viewModel.isDuplicateReminder(title: tag.title)
+                        FavoriteTagView(title: tag.title, isActive: !alreadyExists)
+                            .onTapGesture {
+                                viewModel.addReminderFromFavorite(
+                                    tag: tag,
+                                    sharedWith: userStoreItem.sharedWith,
+                                    sharedFromName: userStoreItem.sharedFromName,
+                                    currentUserName: UserSessionManager.shared.currentUser?.name
+                                )
+                            }
+                            .contextMenu {
+                                Button(role: .destructive) {
+                                    viewModel.removeFavoriteTag(tag)
+                                } label: {
+                                    Label("Remove from Favorites", systemImage: "star.slash")
+                                }
+                            }
+                    }
+                }
+            }
+        }
+        .padding(.vertical, 4)
     }
 
     @ViewBuilder
@@ -584,6 +642,31 @@ struct ReminderView: View {
                 }
             }
         }
+    }
+}
+
+// MARK: - Favorite Tag View
+
+struct FavoriteTagView: View {
+    let title: String
+    var isActive: Bool = true
+
+    var body: some View {
+        Text(title)
+            .font(.caption)
+            .fontWeight(.medium)
+            .lineLimit(1)
+            .foregroundColor(.white)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 8)
+            .background(
+                Capsule()
+                    .fill(Color.appAccent.opacity(isActive ? 1.0 : 0.4))
+            )
+            .overlay(
+                Capsule()
+                    .stroke(Color.white.opacity(0.2), lineWidth: 1)
+            )
     }
 }
 
