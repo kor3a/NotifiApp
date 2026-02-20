@@ -28,7 +28,7 @@ struct RecipeChatMessage: Identifiable, Equatable {
     }
 
     static func == (lhs: RecipeChatMessage, rhs: RecipeChatMessage) -> Bool {
-        lhs.id == rhs.id
+        lhs.id == rhs.id && lhs.ingredients == rhs.ingredients
     }
 }
 
