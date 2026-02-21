@@ -1095,11 +1095,36 @@ class ReminderViewModel: ObservableObject {
 
         autosavedReminderId = nil
 
-        // Trigger AI categorization after snapshot listener picks up the reminder
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
-            guard let self = self else { return }
-            if let reminder = self.reminders.first(where: { $0.id == reminderId && $0.category == nil }) {
-                self.categorizeReminder(reminder)
+        // Fire-and-forget AI categorization — works even after the ViewModel is deallocated
+        // because it only captures the Firestore singleton and local values.
+        categorizeReminderDirectly(reminderId: reminderId, title: trimmedTitle)
+    }
+
+    /// Categorize a reminder by ID and title directly via Firestore, without depending on the ViewModel lifecycle.
+    /// Used by autosave finalization so categorization still runs even if the user navigates away.
+    private func categorizeReminderDirectly(reminderId: String, title: String) {
+        let db = self.db
+        Task {
+            do {
+                let mapping = try await OpenAIService.shared.categorizeItems([title])
+                let category = mapping[title] ?? "Uncategorized"
+                if category != "Uncategorized" {
+                    db.collection("reminders").document(reminderId).updateData([
+                        "category": category
+                    ]) { error in
+                        #if DEBUG
+                        if let error = error {
+                            print("ReminderViewModel: Error categorizing autosaved reminder: \(error.localizedDescription)")
+                        } else {
+                            print("ReminderViewModel: Autosaved reminder categorized as '\(category)'")
+                        }
+                        #endif
+                    }
+                }
+            } catch {
+                #if DEBUG
+                print("ReminderViewModel: AI categorization failed for '\(title)': \(error.localizedDescription)")
+                #endif
             }
         }
     }

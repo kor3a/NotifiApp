@@ -111,15 +111,9 @@ struct ReminderView: View {
             autosaveWorkItem?.cancel()
             let title = newReminderText.trimmingCharacters(in: .whitespaces)
             if !title.isEmpty && isAddingNewReminder {
-                if viewModel.autosavedReminderId != nil {
-                    // Autosaved doc exists — update to latest text and finalize
-                    viewModel.finalizeAutosave(
-                        userStoreId: userStoreItem.reminderStoreId,
-                        finalTitle: title
-                    )
-                } else {
-                    // No autosave yet (debounce hadn't fired) — save now
-                    viewModel.addReminder(
+                if viewModel.autosavedReminderId == nil {
+                    // No autosave yet (debounce hadn't fired) — create it immediately
+                    viewModel.autosaveReminder(
                         userStoreId: userStoreItem.reminderStoreId,
                         title: title,
                         sharedWith: userStoreItem.sharedWith,
@@ -127,6 +121,11 @@ struct ReminderView: View {
                         currentUserName: UserSessionManager.shared.currentUser?.name
                     )
                 }
+                // Finalize with fire-and-forget categorization that survives ViewModel deallocation
+                viewModel.finalizeAutosave(
+                    userStoreId: userStoreItem.reminderStoreId,
+                    finalTitle: title
+                )
             }
         }
         .sheet(item: $reminderToShare) { reminder in
