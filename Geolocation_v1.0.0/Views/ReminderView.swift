@@ -33,6 +33,7 @@ struct ReminderView: View {
     @State private var reminderForCategory: Reminder?
     @State private var customCategoryText = ""
     @State private var collapsedCategories: Set<String> = []
+    @State private var autosaveWorkItem: DispatchWorkItem?
     @Environment(\.colorScheme) var colorScheme
 
     private var editMode: Binding<EditMode> {
@@ -48,7 +49,7 @@ struct ReminderView: View {
         ZStack {
             if viewModel.isLoading {
                 ProgressView("Loading reminders...")
-            } else if viewModel.reminders.isEmpty && !isAddingNewReminder {
+            } else if viewModel.displayedReminders.isEmpty && !isAddingNewReminder {
                 emptyStateView
             } else {
                 reminderListView
@@ -75,6 +76,56 @@ struct ReminderView: View {
                 if title.isEmpty {
                     isAddingNewReminder = false
                 }
+            }
+        }
+        .onChange(of: newReminderText) { _, newValue in
+            autosaveWorkItem?.cancel()
+
+            let trimmed = newValue.trimmingCharacters(in: .whitespaces)
+            if trimmed.isEmpty {
+                viewModel.discardAutosave()
+                return
+            }
+
+            guard isAddingNewReminder else { return }
+
+            let vm = viewModel
+            let storeId = userStoreItem.reminderStoreId
+            let shared = userStoreItem.sharedWith
+            let sharedFrom = userStoreItem.sharedFromName
+            let userName = UserSessionManager.shared.currentUser?.name
+
+            let workItem = DispatchWorkItem {
+                vm.autosaveReminder(
+                    userStoreId: storeId,
+                    title: newValue,
+                    sharedWith: shared,
+                    sharedFromName: sharedFrom,
+                    currentUserName: userName
+                )
+            }
+            autosaveWorkItem = workItem
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: workItem)
+        }
+        .onDisappear {
+            autosaveWorkItem?.cancel()
+            let title = newReminderText.trimmingCharacters(in: .whitespaces)
+            if !title.isEmpty && isAddingNewReminder {
+                if viewModel.autosavedReminderId == nil {
+                    // No autosave yet (debounce hadn't fired) — create it immediately
+                    viewModel.autosaveReminder(
+                        userStoreId: userStoreItem.reminderStoreId,
+                        title: title,
+                        sharedWith: userStoreItem.sharedWith,
+                        sharedFromName: userStoreItem.sharedFromName,
+                        currentUserName: UserSessionManager.shared.currentUser?.name
+                    )
+                }
+                // Finalize with fire-and-forget categorization that survives ViewModel deallocation
+                viewModel.finalizeAutosave(
+                    userStoreId: userStoreItem.reminderStoreId,
+                    finalTitle: title
+                )
             }
         }
         .sheet(item: $reminderToShare) { reminder in
@@ -220,12 +271,12 @@ struct ReminderView: View {
                         .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
                 }
 
-                if viewModel.hasCategorizedReminders && !isReorderMode {
+                if viewModel.hasDisplayedCategorizedReminders && !isReorderMode {
                     // Grouped by category
-                    ForEach(viewModel.categoryOrder, id: \.self) { category in
+                    ForEach(viewModel.displayedCategoryOrder, id: \.self) { category in
                         Section {
                             if !collapsedCategories.contains(category) {
-                                ForEach(viewModel.reminders(for: category)) { reminder in
+                                ForEach(viewModel.displayedReminders(for: category)) { reminder in
                                     reminderRow(for: reminder)
                                 }
                             }
@@ -235,7 +286,7 @@ struct ReminderView: View {
                     }
                 } else {
                     // Flat list (no categories yet, or reorder mode)
-                    ForEach(viewModel.reminders) { reminder in
+                    ForEach(viewModel.displayedReminders) { reminder in
                         reminderRow(for: reminder)
                     }
                     .onMove(perform: isReorderMode ? { source, destination in
@@ -290,7 +341,7 @@ struct ReminderView: View {
                     .fontWeight(.semibold)
                     .foregroundStyle(.primary)
 
-                Text("\(viewModel.reminders(for: category).count)")
+                Text("\(viewModel.displayedReminders(for: category).count)")
                     .font(.caption2)
                     .fontWeight(.medium)
                     .foregroundStyle(.white)
@@ -692,26 +743,42 @@ struct ReminderView: View {
 
     private func submitNewReminder() {
         let title = newReminderText.trimmingCharacters(in: .whitespaces)
+
+        // Cancel any pending autosave debounce
+        autosaveWorkItem?.cancel()
+        autosaveWorkItem = nil
+
         if title.isEmpty {
-            // Nothing entered - stop adding
+            // Nothing entered - discard any autosave and stop adding
+            viewModel.discardAutosave()
             isAddingNewReminder = false
             newReminderText = ""
             return
         }
 
-        if viewModel.isDuplicateReminder(title: title) {
+        // Check for duplicates, excluding the autosaved reminder itself
+        if viewModel.isDuplicateReminder(title: title, excludingId: viewModel.autosavedReminderId) {
             duplicateTitle = title
             showDuplicateAlert = true
             return
         }
 
-        viewModel.addReminder(
-            userStoreId: userStoreItem.reminderStoreId,
-            title: title,
-            sharedWith: userStoreItem.sharedWith,
-            sharedFromName: userStoreItem.sharedFromName,
-            currentUserName: UserSessionManager.shared.currentUser?.name
-        )
+        if viewModel.autosavedReminderId != nil {
+            // Finalize the autosaved reminder with the final title
+            viewModel.finalizeAutosave(
+                userStoreId: userStoreItem.reminderStoreId,
+                finalTitle: title
+            )
+        } else {
+            // No autosave yet (user pressed Return before debounce fired) - create normally
+            viewModel.addReminder(
+                userStoreId: userStoreItem.reminderStoreId,
+                title: title,
+                sharedWith: userStoreItem.sharedWith,
+                sharedFromName: userStoreItem.sharedFromName,
+                currentUserName: UserSessionManager.shared.currentUser?.name
+            )
+        }
 
         // Clear text and keep focus for next reminder
         newReminderText = ""
