@@ -60,6 +60,32 @@ struct ReminderView: View {
             if enlargedPhotoURL != nil {
                 photoOverlayView
             }
+
+            // Auto-delete swipe rail — lives OUTSIDE the List so its
+            // UIPanGestureRecognizer never competes with UITableView's scroll.
+            // The rail's custom hitTest only claims touches starting in the
+            // left handle strip (x < 40 pt), so checkboxes and all other row
+            // interactions remain fully functional.
+            if autoDeleteEnabled && userStoreItem.permission != .view {
+                AutoDeleteSwipeRail(
+                    captureWidth: 40,
+                    isEnabled: autoDeleteEnabled,
+                    onDragChanged: { location in
+                        for (id, frame) in checkboxFrames {
+                            guard !swipedIds.contains(id) else { continue }
+                            if location.y >= (frame.minY - 20) && location.y <= (frame.maxY + 20),
+                               let target = viewModel.reminders.first(where: { $0.id == id }) {
+                                swipedIds.insert(id)
+                                handleReminderTap(target)
+                            }
+                        }
+                    },
+                    onDragEnded: {
+                        swipedIds.removeAll()
+                    }
+                )
+                .ignoresSafeArea()
+            }
         }
         .navigationTitle(userStoreItem.store.name)
         .toolbar { toolbarContent }
@@ -454,24 +480,9 @@ struct ReminderView: View {
             onCheckboxFrameChanged: { frame in
                 checkboxFrames[reminder.id] = frame
             },
-            onDragChanged: userStoreItem.permission != .view ? { location in
-                guard autoDeleteEnabled else { return }
-                for (id, frame) in checkboxFrames {
-                    guard !swipedIds.contains(id) else { continue }
-                    let expandedFrame = CGRect(
-                        x: frame.minX,
-                        y: frame.minY - 20,
-                        width: frame.width,
-                        height: frame.height + 40
-                    )
-                    if expandedFrame.contains(location),
-                       let target = viewModel.reminders.first(where: { $0.id == id }) {
-                        swipedIds.insert(id)
-                        handleReminderTap(target)
-                    }
-                }
-            } : nil,
-            onDragEnded: { swipedIds.removeAll() }
+            onDragChanged: nil,
+            onDragEnded: nil,
+            autoDeleteEnabled: autoDeleteEnabled
         )
         .contentShape(Rectangle())
         .listRowBackground(cardRowBackground)
