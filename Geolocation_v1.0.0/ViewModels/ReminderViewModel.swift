@@ -166,6 +166,47 @@ class ReminderViewModel: ObservableObject {
         reminders.contains { $0.category != nil && $0.category?.isEmpty == false }
     }
 
+    // MARK: - Display-Filtered Reminders (excludes in-progress autosave)
+
+    /// Reminders excluding the currently autosaved (in-progress) one, for display in the list.
+    /// The autosaved reminder is hidden while the user is still typing in the inline add field.
+    var displayedReminders: [Reminder] {
+        guard let autosaveId = autosavedReminderId else { return reminders }
+        return reminders.filter { $0.id != autosaveId }
+    }
+
+    /// Displayed category order (excludes autosaved reminder)
+    var displayedCategoryOrder: [String] {
+        var cats = Set<String>()
+        var hasUncategorized = false
+        for r in displayedReminders {
+            if let cat = r.category, !cat.isEmpty {
+                cats.insert(cat)
+            } else {
+                hasUncategorized = true
+            }
+        }
+        var sorted = cats.sorted()
+        if hasUncategorized {
+            sorted.append("Uncategorized")
+        }
+        return sorted
+    }
+
+    /// Displayed reminders for a given category (excludes autosaved reminder)
+    func displayedReminders(for category: String) -> [Reminder] {
+        let base = displayedReminders
+        if category == "Uncategorized" {
+            return base.filter { $0.category == nil || $0.category?.isEmpty == true }
+        }
+        return base.filter { $0.category == category }
+    }
+
+    /// Whether displayed reminders have categories (excludes autosaved reminder)
+    var hasDisplayedCategorizedReminders: Bool {
+        displayedReminders.contains { $0.category != nil && $0.category?.isEmpty == false }
+    }
+
     /// Categorize a single reminder using AI and update Firestore
     func categorizeReminder(_ reminder: Reminder) {
         Task {

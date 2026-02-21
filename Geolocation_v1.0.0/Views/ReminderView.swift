@@ -49,7 +49,7 @@ struct ReminderView: View {
         ZStack {
             if viewModel.isLoading {
                 ProgressView("Loading reminders...")
-            } else if viewModel.reminders.isEmpty && !isAddingNewReminder {
+            } else if viewModel.displayedReminders.isEmpty && !isAddingNewReminder {
                 emptyStateView
             } else {
                 reminderListView
@@ -272,12 +272,12 @@ struct ReminderView: View {
                         .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
                 }
 
-                if viewModel.hasCategorizedReminders && !isReorderMode {
+                if viewModel.hasDisplayedCategorizedReminders && !isReorderMode {
                     // Grouped by category
-                    ForEach(viewModel.categoryOrder, id: \.self) { category in
+                    ForEach(viewModel.displayedCategoryOrder, id: \.self) { category in
                         Section {
                             if !collapsedCategories.contains(category) {
-                                ForEach(viewModel.reminders(for: category)) { reminder in
+                                ForEach(viewModel.displayedReminders(for: category)) { reminder in
                                     reminderRow(for: reminder)
                                 }
                             }
@@ -287,7 +287,7 @@ struct ReminderView: View {
                     }
                 } else {
                     // Flat list (no categories yet, or reorder mode)
-                    ForEach(viewModel.reminders) { reminder in
+                    ForEach(viewModel.displayedReminders) { reminder in
                         reminderRow(for: reminder)
                     }
                     .onMove(perform: isReorderMode ? { source, destination in
@@ -342,7 +342,7 @@ struct ReminderView: View {
                     .fontWeight(.semibold)
                     .foregroundStyle(.primary)
 
-                Text("\(viewModel.reminders(for: category).count)")
+                Text("\(viewModel.displayedReminders(for: category).count)")
                     .font(.caption2)
                     .fontWeight(.medium)
                     .foregroundStyle(.white)
