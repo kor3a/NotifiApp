@@ -59,9 +59,13 @@ struct ReminderItemView: View {
                     .contentShape(Rectangle())
                     .background(
                         GeometryReader { geo in
-                            Color.clear.onAppear {
-                                onCheckboxFrameChanged?(geo.frame(in: .global))
-                            }
+                            Color.clear
+                                .onAppear {
+                                    onCheckboxFrameChanged?(geo.frame(in: .global))
+                                }
+                                .onChange(of: geo.frame(in: .global)) { _, frame in
+                                    onCheckboxFrameChanged?(frame)
+                                }
                         }
                     )
                     .onTapGesture {
