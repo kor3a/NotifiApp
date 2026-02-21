@@ -98,6 +98,81 @@ class OpenAIService {
         return ingredients
     }
 
+    /// Categorize a list of reminder/shopping items into store categories.
+    /// Returns a dictionary mapping each item title to its category string.
+    /// Items the AI cannot confidently categorize will be mapped to "Uncategorized".
+    func categorizeItems(_ items: [String]) async throws -> [String: String] {
+        guard !items.isEmpty else { return [:] }
+        guard let url = URL(string: baseURL) else {
+            throw OpenAIError.invalidURL
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.addValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        let systemPrompt = ChatMessage(
+            role: "system",
+            content: """
+            You categorize shopping/reminder items into store aisle categories. \
+            Given a JSON array of item names, return a JSON object mapping each item to exactly one category. \
+            Use these categories when they fit: Produce, Dairy, Meat & Seafood, Bakery, Beverages, \
+            Snacks, Frozen, Canned Goods, Condiments & Sauces, Grains & Pasta, Household, \
+            Personal Care, Baby, Pet, Health, Electronics, Clothing. \
+            If an item does not clearly fit any category, map it to "Uncategorized". \
+            Return ONLY the JSON object, no other text.
+            """
+        )
+
+        let userMessage = ChatMessage(role: "user", content: "[\(items.map { "\"\($0)\"" }.joined(separator: ", "))]")
+
+        let body: [String: Any] = [
+            "model": "gpt-4o-mini",
+            "messages": [
+                ["role": systemPrompt.role, "content": systemPrompt.content],
+                ["role": userMessage.role, "content": userMessage.content]
+            ],
+            "temperature": 0.0,
+            "max_tokens": 512
+        ]
+
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
+            throw OpenAIError.invalidResponse
+        }
+
+        let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+        guard let choices = json?["choices"] as? [[String: Any]],
+              let firstChoice = choices.first,
+              let message = firstChoice["message"] as? [String: Any],
+              let content = message["content"] as? String else {
+            throw OpenAIError.invalidResponse
+        }
+
+        // Strip markdown code fences if present
+        var cleaned = content.trimmingCharacters(in: .whitespacesAndNewlines)
+        if cleaned.hasPrefix("```") {
+            if let firstNewline = cleaned.firstIndex(of: "\n") {
+                cleaned = String(cleaned[cleaned.index(after: firstNewline)...])
+            }
+            if cleaned.hasSuffix("```") {
+                cleaned = String(cleaned.dropLast(3))
+            }
+            cleaned = cleaned.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+
+        guard let jsonData = cleaned.data(using: .utf8),
+              let mapping = try? JSONSerialization.jsonObject(with: jsonData) as? [String: String] else {
+            throw OpenAIError.invalidResponse
+        }
+
+        return mapping
+    }
+
     func sendMessage(messages: [ChatMessage]) async throws -> String {
         guard let url = URL(string: baseURL) else {
             throw OpenAIError.invalidURL

@@ -91,6 +91,7 @@ class ReminderViewModel: ObservableObject {
                         let sortOrder = data["sortOrder"] as? Int
                         let quantity = data["quantity"] as? Int
                         let isOutOfStock = data["isOutOfStock"] as? Bool
+                        let category = data["category"] as? String
 
                         return Reminder(
                             id: doc.documentID,
@@ -106,7 +107,8 @@ class ReminderViewModel: ObservableObject {
                             photoURLs: photoURLs,
                             sortOrder: sortOrder,
                             quantity: quantity,
-                            isOutOfStock: isOutOfStock
+                            isOutOfStock: isOutOfStock,
+                            category: category
                         )
                     }
 
@@ -128,6 +130,151 @@ class ReminderViewModel: ObservableObject {
                     #endif
                 }
             }
+    }
+
+    // MARK: - Category Grouping
+
+    /// All distinct categories present in the current reminders, sorted alphabetically,
+    /// with "Uncategorized" (nil category) always at the end.
+    var categoryOrder: [String] {
+        var cats = Set<String>()
+        var hasUncategorized = false
+        for r in reminders {
+            if let cat = r.category, !cat.isEmpty {
+                cats.insert(cat)
+            } else {
+                hasUncategorized = true
+            }
+        }
+        var sorted = cats.sorted()
+        if hasUncategorized {
+            sorted.append("Uncategorized")
+        }
+        return sorted
+    }
+
+    /// Reminders grouped by category. Key is the display category name.
+    func reminders(for category: String) -> [Reminder] {
+        if category == "Uncategorized" {
+            return reminders.filter { $0.category == nil || $0.category?.isEmpty == true }
+        }
+        return reminders.filter { $0.category == category }
+    }
+
+    /// Whether we should display reminders in category sections (true when at least one reminder has a category)
+    var hasCategorizedReminders: Bool {
+        reminders.contains { $0.category != nil && $0.category?.isEmpty == false }
+    }
+
+    /// Categorize a single reminder using AI and update Firestore
+    func categorizeReminder(_ reminder: Reminder) {
+        Task {
+            do {
+                let mapping = try await OpenAIService.shared.categorizeItems([reminder.title])
+                let category = mapping[reminder.title] ?? "Uncategorized"
+                await MainActor.run {
+                    self.updateReminderCategory(reminder, newCategory: category == "Uncategorized" ? nil : category)
+                }
+            } catch {
+                #if DEBUG
+                print("ReminderViewModel: AI categorization failed for '\(reminder.title)': \(error.localizedDescription)")
+                #endif
+                // Leave category as nil — user can set it manually
+            }
+        }
+    }
+
+    /// Categorize all uncategorized reminders in the current store
+    func categorizeUncategorizedReminders() {
+        let uncategorized = reminders.filter { $0.category == nil || $0.category?.isEmpty == true }
+        guard !uncategorized.isEmpty else { return }
+
+        let titles = uncategorized.map { $0.title }
+        Task {
+            do {
+                let mapping = try await OpenAIService.shared.categorizeItems(titles)
+                await MainActor.run {
+                    for reminder in uncategorized {
+                        if let category = mapping[reminder.title], category != "Uncategorized" {
+                            self.updateReminderCategory(reminder, newCategory: category)
+                        }
+                    }
+                }
+            } catch {
+                #if DEBUG
+                print("ReminderViewModel: Bulk AI categorization failed: \(error.localizedDescription)")
+                #endif
+            }
+        }
+    }
+
+    /// Update a reminder's category — syncs across all linked shared reminders
+    func updateReminderCategory(_ reminder: Reminder, newCategory: String?) {
+        #if DEBUG
+        print("ReminderViewModel: Updating category for '\(reminder.title)' to '\(newCategory ?? "nil")'")
+        #endif
+
+        let fieldValue: Any = newCategory ?? FieldValue.delete()
+
+        if let sharedReminderId = reminder.sharedReminderId {
+            db.collection("reminders")
+                .whereField("sharedReminderId", isEqualTo: sharedReminderId)
+                .getDocuments { [weak self] snapshot, error in
+                    guard let self = self else { return }
+
+                    if let error = error {
+                        #if DEBUG
+                        print("ReminderViewModel: Error finding linked reminders for category update: \(error.localizedDescription)")
+                        #endif
+                        self.updateSingleReminderCategory(reminder.id, category: fieldValue)
+                        return
+                    }
+
+                    guard let documents = snapshot?.documents, !documents.isEmpty else {
+                        self.updateSingleReminderCategory(reminder.id, category: fieldValue)
+                        return
+                    }
+
+                    let batch = self.db.batch()
+                    for doc in documents {
+                        batch.updateData(["category": fieldValue], forDocument: doc.reference)
+                    }
+
+                    batch.commit { error in
+                        DispatchQueue.main.async {
+                            if let error = error {
+                                #if DEBUG
+                                print("ReminderViewModel: Error syncing category update: \(error.localizedDescription)")
+                                #endif
+                            } else {
+                                #if DEBUG
+                                print("ReminderViewModel: Synced category update across \(documents.count) linked reminders")
+                                #endif
+                            }
+                        }
+                    }
+                }
+        } else {
+            updateSingleReminderCategory(reminder.id, category: fieldValue)
+        }
+    }
+
+    private func updateSingleReminderCategory(_ reminderId: String, category: Any) {
+        db.collection("reminders").document(reminderId).updateData([
+            "category": category
+        ]) { error in
+            DispatchQueue.main.async {
+                if let error = error {
+                    #if DEBUG
+                    print("ReminderViewModel: Error updating reminder category: \(error.localizedDescription)")
+                    #endif
+                } else {
+                    #if DEBUG
+                    print("ReminderViewModel: Reminder category updated successfully")
+                    #endif
+                }
+            }
+        }
     }
 
     /// Check whether a reminder with the given title already exists (case-insensitive) in the current store
@@ -325,6 +472,16 @@ class ReminderViewModel: ObservableObject {
                     #if DEBUG
                     print("ReminderViewModel: Reminder added successfully (isShared: \(isSharedStore))")
                     #endif
+                    // Trigger AI categorization for the newly added reminder once it appears
+                    // in the snapshot listener results
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        if let newReminder = self?.reminders.first(where: {
+                            $0.title.lowercased().trimmingCharacters(in: .whitespacesAndNewlines) == title.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+                            && $0.category == nil
+                        }) {
+                            self?.categorizeReminder(newReminder)
+                        }
+                    }
                 }
             }
         }

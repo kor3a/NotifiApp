@@ -24,6 +24,8 @@ struct ReminderItemView: View {
     var isEditingQuantity: Bool = false
     var onQuantityTap: (() -> Void)?
     var onQuantityCommit: ((Int?) -> Void)?
+    var category: String?
+    var onSetCategory: (() -> Void)?
     @StateObject private var viewModel = ReminderItemViewModel()
     @State private var editText: String = ""
     @State private var editQuantityText: String = ""
@@ -145,6 +147,23 @@ struct ReminderItemView: View {
                 }
             }
 
+            // Category badge
+            if let category = category, !category.isEmpty {
+                Text(category)
+                    .font(.caption2)
+                    .fontWeight(.medium)
+                    .foregroundColor(.appAccent)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(
+                        Capsule()
+                            .fill(Color.appAccent.opacity(0.12))
+                    )
+                    .onTapGesture {
+                        onSetCategory?()
+                    }
+            }
+
             // Photo thumbnails row
             if let photoURLs = item.photoURLs, !photoURLs.isEmpty {
                 ScrollView(.horizontal, showsIndicators: false) {
@@ -217,6 +236,16 @@ struct ReminderItemView: View {
                     onAddQuantity()
                 } label: {
                     Label("Add Quantity", systemImage: "number")
+                }
+            }
+            if let onSetCategory = onSetCategory {
+                Button {
+                    onSetCategory()
+                } label: {
+                    Label(
+                        category != nil ? "Change Category" : "Set Category",
+                        systemImage: "tag"
+                    )
                 }
             }
         }
