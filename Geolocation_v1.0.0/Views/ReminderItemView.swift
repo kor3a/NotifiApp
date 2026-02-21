@@ -26,6 +26,9 @@ struct ReminderItemView: View {
     var onQuantityCommit: ((Int?) -> Void)?
     var category: String?
     var onSetCategory: (() -> Void)?
+    var onCheckboxFrameChanged: ((CGRect) -> Void)?
+    var onDragChanged: ((CGPoint) -> Void)?
+    var onDragEnded: (() -> Void)?
     @StateObject private var viewModel = ReminderItemViewModel()
     @State private var editText: String = ""
     @State private var editQuantityText: String = ""
@@ -43,9 +46,25 @@ struct ReminderItemView: View {
                 Image(systemName: item.isOutOfStock == true ? "xmark.square" : (item.isDone ? "checkmark.square" : "square"))
                     .foregroundStyle(item.isOutOfStock == true ? .red : .primary)
                     .contentShape(Rectangle())
+                    .background(
+                        GeometryReader { geo in
+                            Color.clear.onAppear {
+                                onCheckboxFrameChanged?(geo.frame(in: .global))
+                            }
+                        }
+                    )
                     .onTapGesture {
                         onCheckboxTap?()
                     }
+                    .simultaneousGesture(
+                        DragGesture(minimumDistance: 10, coordinateSpace: .global)
+                            .onChanged { value in
+                                onDragChanged?(value.location)
+                            }
+                            .onEnded { _ in
+                                onDragEnded?()
+                            }
+                    )
 
                 if isEditing {
                     TextField("Reminder", text: $editText)

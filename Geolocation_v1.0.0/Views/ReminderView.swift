@@ -34,6 +34,8 @@ struct ReminderView: View {
     @State private var customCategoryText = ""
     @State private var collapsedCategories: Set<String> = []
     @State private var autosaveWorkItem: DispatchWorkItem?
+    @State private var checkboxFrames: [String: CGRect] = [:]
+    @State private var swipedIds: Set<String> = []
     @Environment(\.colorScheme) var colorScheme
 
     private var editMode: Binding<EditMode> {
@@ -448,7 +450,28 @@ struct ReminderView: View {
             onSetCategory: userStoreItem.permission != .view ? {
                 customCategoryText = reminder.category ?? ""
                 reminderForCategory = reminder
-            } : nil
+            } : nil,
+            onCheckboxFrameChanged: { frame in
+                checkboxFrames[reminder.id] = frame
+            },
+            onDragChanged: userStoreItem.permission != .view ? { location in
+                guard autoDeleteEnabled else { return }
+                for (id, frame) in checkboxFrames {
+                    guard !swipedIds.contains(id) else { continue }
+                    let expandedFrame = CGRect(
+                        x: frame.minX,
+                        y: frame.minY - 20,
+                        width: frame.width,
+                        height: frame.height + 40
+                    )
+                    if expandedFrame.contains(location),
+                       let target = viewModel.reminders.first(where: { $0.id == id }) {
+                        swipedIds.insert(id)
+                        handleReminderTap(target)
+                    }
+                }
+            } : nil,
+            onDragEnded: { swipedIds.removeAll() }
         )
         .contentShape(Rectangle())
         .listRowBackground(cardRowBackground)
