@@ -308,24 +308,7 @@ struct StorePickerView: View {
                                     onSelect(item)
                                 } label: {
                                     HStack(spacing: 12) {
-                                        if let logoURL = StoreLogoProvider.shared.logoURL(for: item.store.name),
-                                           let url = URL(string: logoURL) {
-                                            AsyncImage(url: url) { phase in
-                                                switch phase {
-                                                case .success(let image):
-                                                    image
-                                                        .resizable()
-                                                        .scaledToFill()
-                                                        .frame(width: 40, height: 40)
-                                                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                                                default:
-                                                    storeIconPlaceholder(for: item.store.name)
-                                                }
-                                            }
-                                            .frame(width: 40, height: 40)
-                                        } else {
-                                            storeIconPlaceholder(for: item.store.name)
-                                        }
+                                        CachedLogoImage(storeName: item.store.name, size: 40)
 
                                         VStack(alignment: .leading, spacing: 2) {
                                             Text(item.store.name)
@@ -366,17 +349,6 @@ struct StorePickerView: View {
         }
     }
 
-    private func storeIconPlaceholder(for name: String) -> some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 8)
-                .fill(Color.blue.opacity(0.15))
-                .frame(width: 40, height: 40)
-            Text(String(name.prefix(1)).uppercased())
-                .font(.headline)
-                .fontWeight(.bold)
-                .foregroundColor(.blue)
-        }
-    }
 }
 
 // MARK: - Message Bubble View

@@ -10,7 +10,6 @@ import SwiftUI
 struct AddStoreView: View {
     @Environment(\.dismiss) var dismiss
     @ObservedObject var viewModel: StoresViewModel
-    @ObservedObject private var logoProvider = StoreLogoProvider.shared
     @StateObject private var locationSearchManager = LocationSearchManager()
     @State private var searchText = ""
     
@@ -174,41 +173,9 @@ struct AddStoreView: View {
 
     @ViewBuilder
     private func searchResultLogo(for storeName: String) -> some View {
-        if let logoURL = logoProvider.logoURL(for: storeName), let url = URL(string: logoURL) {
-            AsyncImage(url: url) { phase in
-                switch phase {
-                case .success(let image):
-                    image
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: 36, height: 36)
-                        .clipShape(Circle())
-                default:
-                    defaultSearchIcon
-                }
-            }
-            .frame(width: 36, height: 36)
-        } else {
-            defaultSearchIcon
-        }
+        CachedLogoImage(storeName: storeName, size: 36)
     }
 
-    private var defaultSearchIcon: some View {
-        ZStack {
-            Circle()
-                .fill(.ultraThinMaterial)
-                .frame(width: 36, height: 36)
-            Image(systemName: "storefront")
-                .font(.system(size: 16))
-                .foregroundStyle(
-                    LinearGradient(
-                        colors: [.blue, .purple],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-        }
-    }
 }
 
 #Preview {

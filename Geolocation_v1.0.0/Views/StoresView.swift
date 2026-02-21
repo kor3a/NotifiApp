@@ -14,7 +14,6 @@ struct StoresView: View {
     @StateObject private var messagesViewModel = MessagesViewModel()
     @StateObject private var aiRecipeViewModel = AIRecipeViewModel()
     @ObservedObject private var sessionManager = UserSessionManager.shared
-    @ObservedObject private var logoProvider = StoreLogoProvider.shared
     @State private var showingAddStore = false
     @State private var showingAIRecipe = false
     @State private var isMenuExpanded = false
@@ -45,12 +44,12 @@ struct StoresView: View {
                             ZStack {
                                 if editMode == .inactive {
                                     NavigationLink(destination: ReminderView(userStoreItem: userStoreItem)) {
-                                        StoreItemView(store: userStoreItem.store, logoURL: logoProvider.logoURL(for: userStoreItem.store.name), isShared: userStoreItem.isShared)
+                                        StoreItemView(store: userStoreItem.store, isShared: userStoreItem.isShared)
                                             .contentShape(Rectangle())
                                     }
                                     .buttonStyle(.plain)
                                 } else {
-                                    StoreItemView(store: userStoreItem.store, logoURL: logoProvider.logoURL(for: userStoreItem.store.name), isShared: userStoreItem.isShared)
+                                    StoreItemView(store: userStoreItem.store, isShared: userStoreItem.isShared)
                                 }
                             }
                             .listRowBackground(
@@ -230,16 +229,14 @@ struct StoresView: View {
             // Try to fetch immediately if user data is available
             if sessionManager.currentUser != nil {
                 self.viewModel.fetchUserStores()
-                logoProvider.fetchStoreLogos()
             }
         }
         .onChange(of: sessionManager.currentUser) { oldValue, newValue in
-            // Fetch stores and logos when user data becomes available
+            // Fetch stores when user data becomes available
             if newValue != nil {
                 if viewModel.userStoreItems.isEmpty {
                     self.viewModel.fetchUserStores()
                 }
-                logoProvider.fetchStoreLogos()
             }
         }
     }//:BODY
