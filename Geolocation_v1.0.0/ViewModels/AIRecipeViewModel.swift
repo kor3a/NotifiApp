@@ -116,6 +116,7 @@ class AIRecipeViewModel: ObservableObject {
 
                 let batch = self.db.batch()
                 var addedCount = 0
+                var addedIngredients: [(docId: String, title: String)] = []
 
                 for ingredient in ingredients {
                     let normalized = ingredient.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
@@ -141,6 +142,7 @@ class AIRecipeViewModel: ObservableObject {
                     }
 
                     batch.setData(reminderData, forDocument: docRef)
+                    addedIngredients.append((docId: docRef.documentID, title: ingredient))
                     addedCount += 1
                 }
 
@@ -160,10 +162,47 @@ class AIRecipeViewModel: ObservableObject {
                         } else {
                             self.savedIngredientsCount = addedCount
                             self.savedToStoreName = userStoreItem.store.name
+
+                            // Auto-categorize the newly added ingredients
+                            self.categorizeAddedIngredients(addedIngredients)
                         }
                     }
                 }
             }
+    }
+
+    /// Auto-categorize ingredients that were just added to a store
+    private func categorizeAddedIngredients(_ ingredients: [(docId: String, title: String)]) {
+        guard !ingredients.isEmpty else { return }
+
+        let titles = ingredients.map { $0.title }
+        Task {
+            do {
+                let mapping = try await openAIService.categorizeItems(titles)
+                let batch = db.batch()
+                var hasUpdates = false
+
+                for ingredient in ingredients {
+                    if let category = mapping[ingredient.title], category != "Uncategorized" {
+                        let docRef = db.collection("reminders").document(ingredient.docId)
+                        batch.updateData(["category": category], forDocument: docRef)
+                        hasUpdates = true
+                    }
+                }
+
+                if hasUpdates {
+                    try await batch.commit()
+                    #if DEBUG
+                    print("AIRecipeViewModel: Auto-categorized \(mapping.count) ingredients")
+                    #endif
+                }
+            } catch {
+                #if DEBUG
+                print("AIRecipeViewModel: Auto-categorization failed: \(error.localizedDescription)")
+                #endif
+                // Non-critical failure — ingredients are added, just uncategorized
+            }
+        }
     }
 
     func clearSavedConfirmation() {
