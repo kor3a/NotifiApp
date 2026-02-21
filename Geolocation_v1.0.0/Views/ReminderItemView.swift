@@ -166,22 +166,6 @@ struct ReminderItemView: View {
                 }
             }
 
-            // Category badge
-            if let category = category, !category.isEmpty {
-                Text(category)
-                    .font(.caption2)
-                    .fontWeight(.medium)
-                    .foregroundColor(.appAccent)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 3)
-                    .background(
-                        Capsule()
-                            .fill(Color.appAccent.opacity(0.12))
-                    )
-                    .onTapGesture {
-                        onSetCategory?()
-                    }
-            }
 
             // Photo thumbnails row
             if let photoURLs = item.photoURLs, !photoURLs.isEmpty {
