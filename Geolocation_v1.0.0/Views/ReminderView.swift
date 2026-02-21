@@ -33,6 +33,7 @@ struct ReminderView: View {
     @State private var reminderForCategory: Reminder?
     @State private var customCategoryText = ""
     @State private var collapsedCategories: Set<String> = []
+    @State private var autosaveWorkItem: DispatchWorkItem?
     @Environment(\.colorScheme) var colorScheme
 
     private var editMode: Binding<EditMode> {
@@ -74,6 +75,57 @@ struct ReminderView: View {
                 let title = newReminderText.trimmingCharacters(in: .whitespaces)
                 if title.isEmpty {
                     isAddingNewReminder = false
+                }
+            }
+        }
+        .onChange(of: newReminderText) { _, newValue in
+            autosaveWorkItem?.cancel()
+
+            let trimmed = newValue.trimmingCharacters(in: .whitespaces)
+            if trimmed.isEmpty {
+                viewModel.discardAutosave()
+                return
+            }
+
+            guard isAddingNewReminder else { return }
+
+            let vm = viewModel
+            let storeId = userStoreItem.reminderStoreId
+            let shared = userStoreItem.sharedWith
+            let sharedFrom = userStoreItem.sharedFromName
+            let userName = UserSessionManager.shared.currentUser?.name
+
+            let workItem = DispatchWorkItem {
+                vm.autosaveReminder(
+                    userStoreId: storeId,
+                    title: newValue,
+                    sharedWith: shared,
+                    sharedFromName: sharedFrom,
+                    currentUserName: userName
+                )
+            }
+            autosaveWorkItem = workItem
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: workItem)
+        }
+        .onDisappear {
+            autosaveWorkItem?.cancel()
+            let title = newReminderText.trimmingCharacters(in: .whitespaces)
+            if !title.isEmpty && isAddingNewReminder {
+                if viewModel.autosavedReminderId != nil {
+                    // Autosaved doc exists — update to latest text and finalize
+                    viewModel.finalizeAutosave(
+                        userStoreId: userStoreItem.reminderStoreId,
+                        finalTitle: title
+                    )
+                } else {
+                    // No autosave yet (debounce hadn't fired) — save now
+                    viewModel.addReminder(
+                        userStoreId: userStoreItem.reminderStoreId,
+                        title: title,
+                        sharedWith: userStoreItem.sharedWith,
+                        sharedFromName: userStoreItem.sharedFromName,
+                        currentUserName: UserSessionManager.shared.currentUser?.name
+                    )
                 }
             }
         }
@@ -692,26 +744,42 @@ struct ReminderView: View {
 
     private func submitNewReminder() {
         let title = newReminderText.trimmingCharacters(in: .whitespaces)
+
+        // Cancel any pending autosave debounce
+        autosaveWorkItem?.cancel()
+        autosaveWorkItem = nil
+
         if title.isEmpty {
-            // Nothing entered - stop adding
+            // Nothing entered - discard any autosave and stop adding
+            viewModel.discardAutosave()
             isAddingNewReminder = false
             newReminderText = ""
             return
         }
 
-        if viewModel.isDuplicateReminder(title: title) {
+        // Check for duplicates, excluding the autosaved reminder itself
+        if viewModel.isDuplicateReminder(title: title, excludingId: viewModel.autosavedReminderId) {
             duplicateTitle = title
             showDuplicateAlert = true
             return
         }
 
-        viewModel.addReminder(
-            userStoreId: userStoreItem.reminderStoreId,
-            title: title,
-            sharedWith: userStoreItem.sharedWith,
-            sharedFromName: userStoreItem.sharedFromName,
-            currentUserName: UserSessionManager.shared.currentUser?.name
-        )
+        if viewModel.autosavedReminderId != nil {
+            // Finalize the autosaved reminder with the final title
+            viewModel.finalizeAutosave(
+                userStoreId: userStoreItem.reminderStoreId,
+                finalTitle: title
+            )
+        } else {
+            // No autosave yet (user pressed Return before debounce fired) - create normally
+            viewModel.addReminder(
+                userStoreId: userStoreItem.reminderStoreId,
+                title: title,
+                sharedWith: userStoreItem.sharedWith,
+                sharedFromName: userStoreItem.sharedFromName,
+                currentUserName: UserSessionManager.shared.currentUser?.name
+            )
+        }
 
         // Clear text and keep focus for next reminder
         newReminderText = ""

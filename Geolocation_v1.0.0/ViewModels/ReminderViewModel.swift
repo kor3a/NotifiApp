@@ -278,9 +278,15 @@ class ReminderViewModel: ObservableObject {
     }
 
     /// Check whether a reminder with the given title already exists (case-insensitive) in the current store
-    func isDuplicateReminder(title: String) -> Bool {
+    /// - Parameters:
+    ///   - title: The title to check for duplicates
+    ///   - excludingId: Optional reminder ID to exclude from the check (e.g., an autosaved reminder)
+    func isDuplicateReminder(title: String, excludingId: String? = nil) -> Bool {
         let normalized = title.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
-        return reminders.contains { $0.title.lowercased().trimmingCharacters(in: .whitespacesAndNewlines) == normalized }
+        return reminders.contains {
+            $0.title.lowercased().trimmingCharacters(in: .whitespacesAndNewlines) == normalized &&
+            (excludingId == nil || $0.id != excludingId)
+        }
     }
 
     // MARK: - Favorite Tags
@@ -951,6 +957,117 @@ class ReminderViewModel: ObservableObject {
                 #endif
             }
         }
+    }
+
+    // MARK: - Autosave
+
+    /// The Firestore document ID of the currently autosaved (in-progress) reminder, if any
+    var autosavedReminderId: String?
+
+    /// Create or update an autosaved reminder as the user types.
+    /// If no autosaved reminder exists yet, creates a new document. Otherwise updates the title of the existing one.
+    func autosaveReminder(userStoreId: String, title: String, sharedWith: [String]? = nil, sharedFromName: String? = nil, currentUserName: String? = nil) {
+        let trimmedTitle = title.trimmingCharacters(in: .whitespaces)
+        guard !trimmedTitle.isEmpty else {
+            discardAutosave()
+            return
+        }
+
+        if let existingId = autosavedReminderId {
+            // Update existing autosaved reminder's title
+            db.collection("reminders").document(existingId).updateData([
+                "title": trimmedTitle
+            ]) { error in
+                #if DEBUG
+                if let error = error {
+                    print("ReminderViewModel: Error updating autosaved reminder: \(error.localizedDescription)")
+                }
+                #endif
+            }
+        } else {
+            // Create a new autosaved reminder
+            let nextSortOrder = (reminders.compactMap { $0.sortOrder }.max() ?? -1) + 1
+
+            var reminderData: [String: Any] = [
+                "userStoreId": userStoreId,
+                "title": trimmedTitle,
+                "isDone": false,
+                "createdAt": Date().timeIntervalSince1970,
+                "sortOrder": nextSortOrder
+            ]
+
+            let isSharedStore = (sharedWith != nil && !sharedWith!.isEmpty) || sharedFromName != nil
+            if isSharedStore {
+                reminderData["isShared"] = true
+                reminderData["sharedAt"] = Date().timeIntervalSince1970
+                if let sharedWith = sharedWith, !sharedWith.isEmpty {
+                    reminderData["sharedWith"] = sharedWith
+                } else if let sharedFromName = sharedFromName {
+                    reminderData["sharedWith"] = [sharedFromName]
+                    if let currentUserName = currentUserName {
+                        reminderData["sharedFrom"] = currentUserName
+                    }
+                }
+            }
+
+            let docRef = db.collection("reminders").document()
+            autosavedReminderId = docRef.documentID
+
+            docRef.setData(reminderData) { [weak self] error in
+                if let error = error {
+                    #if DEBUG
+                    print("ReminderViewModel: Error creating autosaved reminder: \(error.localizedDescription)")
+                    #endif
+                    DispatchQueue.main.async {
+                        self?.autosavedReminderId = nil
+                    }
+                } else {
+                    #if DEBUG
+                    print("ReminderViewModel: Autosaved reminder created with ID: \(docRef.documentID)")
+                    #endif
+                }
+            }
+        }
+    }
+
+    /// Finalize the autosaved reminder: update to the final title and trigger AI categorization.
+    /// Called when the user presses Return or navigates away with text entered.
+    func finalizeAutosave(userStoreId: String, finalTitle: String) {
+        guard let reminderId = autosavedReminderId else { return }
+
+        let trimmedTitle = finalTitle.trimmingCharacters(in: .whitespaces)
+        guard !trimmedTitle.isEmpty else {
+            discardAutosave()
+            return
+        }
+
+        // Update to the final title
+        db.collection("reminders").document(reminderId).updateData([
+            "title": trimmedTitle
+        ]) { error in
+            #if DEBUG
+            if let error = error {
+                print("ReminderViewModel: Error finalizing autosaved reminder title: \(error.localizedDescription)")
+            }
+            #endif
+        }
+
+        autosavedReminderId = nil
+
+        // Trigger AI categorization after snapshot listener picks up the reminder
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+            guard let self = self else { return }
+            if let reminder = self.reminders.first(where: { $0.id == reminderId && $0.category == nil }) {
+                self.categorizeReminder(reminder)
+            }
+        }
+    }
+
+    /// Discard (delete) the autosaved reminder from Firestore
+    func discardAutosave() {
+        guard let reminderId = autosavedReminderId else { return }
+        autosavedReminderId = nil
+        deleteSingleReminder(reminderId)
     }
 
     /// Upload a photo for a reminder and append its URL to the reminder's photoURLs array
