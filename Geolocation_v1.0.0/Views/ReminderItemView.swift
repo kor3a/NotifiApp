@@ -49,16 +49,9 @@ struct ReminderItemView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary.opacity(0.5))
                         .frame(width: 20, height: 30)
-                        .contentShape(Rectangle())
-                        .highPriorityGesture(
-                            DragGesture(minimumDistance: 10, coordinateSpace: .global)
-                                .onChanged { value in
-                                    onDragChanged?(value.location)
-                                }
-                                .onEnded { _ in
-                                    onDragEnded?()
-                                }
-                        )
+                        // Visual affordance only. The AutoDeleteSwipeRail overlay
+                        // in ReminderView owns the gesture at the ZStack level so
+                        // it never competes with the List's scroll recognizer.
                 }
 
                 Image(systemName: item.isOutOfStock == true ? "xmark.square" : (item.isDone ? "checkmark.square" : "square"))
