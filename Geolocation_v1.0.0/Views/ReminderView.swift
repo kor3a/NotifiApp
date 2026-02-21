@@ -282,7 +282,7 @@ struct ReminderView: View {
             HStack(spacing: 8) {
                 Image(systemName: categoryIcon(for: category))
                     .font(.caption)
-                    .foregroundStyle(.appAccent)
+                    .foregroundColor(Color.appAccent)
                     .frame(width: 20)
 
                 Text(category)
