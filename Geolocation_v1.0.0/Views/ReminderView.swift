@@ -30,6 +30,9 @@ struct ReminderView: View {
     @State private var duplicateTitle = ""
     @State private var reminderForQuantity: Reminder?
     @State private var quantityText = ""
+    @State private var reminderForCategory: Reminder?
+    @State private var customCategoryText = ""
+    @State private var collapsedCategories: Set<String> = []
     @Environment(\.colorScheme) var colorScheme
 
     private var editMode: Binding<EditMode> {
@@ -143,6 +146,34 @@ struct ReminderView: View {
         } message: {
             Text("Enter quantity for this reminder item.")
         }
+        .alert("Set Category", isPresented: .init(
+            get: { reminderForCategory != nil },
+            set: { if !$0 { reminderForCategory = nil } }
+        )) {
+            TextField("Category name", text: $customCategoryText)
+                .textInputAutocapitalization(.words)
+            Button("Save") {
+                if let reminder = reminderForCategory {
+                    let cat = customCategoryText.trimmingCharacters(in: .whitespaces)
+                    viewModel.updateReminderCategory(reminder, newCategory: cat.isEmpty ? nil : cat)
+                }
+                reminderForCategory = nil
+                customCategoryText = ""
+            }
+            Button("Remove Category", role: .destructive) {
+                if let reminder = reminderForCategory {
+                    viewModel.updateReminderCategory(reminder, newCategory: nil)
+                }
+                reminderForCategory = nil
+                customCategoryText = ""
+            }
+            Button("Cancel", role: .cancel) {
+                reminderForCategory = nil
+                customCategoryText = ""
+            }
+        } message: {
+            Text("Enter a custom category for this item.")
+        }
     }
 
     // MARK: - Extracted Sub-Views
@@ -189,13 +220,29 @@ struct ReminderView: View {
                         .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
                 }
 
-                ForEach(viewModel.reminders) { reminder in
-                    reminderRow(for: reminder)
+                if viewModel.hasCategorizedReminders && !isReorderMode {
+                    // Grouped by category
+                    ForEach(viewModel.categoryOrder, id: \.self) { category in
+                        Section {
+                            if !collapsedCategories.contains(category) {
+                                ForEach(viewModel.reminders(for: category)) { reminder in
+                                    reminderRow(for: reminder)
+                                }
+                            }
+                        } header: {
+                            categoryHeader(for: category)
+                        }
+                    }
+                } else {
+                    // Flat list (no categories yet, or reorder mode)
+                    ForEach(viewModel.reminders) { reminder in
+                        reminderRow(for: reminder)
+                    }
+                    .onMove(perform: isReorderMode ? { source, destination in
+                        viewModel.moveReminder(from: source, to: destination)
+                    } : nil)
+                    .deleteDisabled(true)
                 }
-                .onMove(perform: isReorderMode ? { source, destination in
-                    viewModel.moveReminder(from: source, to: destination)
-                } : nil)
-                .deleteDisabled(true)
 
                 // Inline add reminder row (hidden during reorder mode)
                 if userStoreItem.permission != .view && !isReorderMode {
@@ -219,6 +266,70 @@ struct ReminderView: View {
                     }
                 }
             }
+        }
+    }
+
+    private func categoryHeader(for category: String) -> some View {
+        Button {
+            withAnimation {
+                if collapsedCategories.contains(category) {
+                    collapsedCategories.remove(category)
+                } else {
+                    collapsedCategories.insert(category)
+                }
+            }
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: categoryIcon(for: category))
+                    .font(.caption)
+                    .foregroundColor(Color.appAccent)
+                    .frame(width: 20)
+
+                Text(category)
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(.primary)
+
+                Text("\(viewModel.reminders(for: category).count)")
+                    .font(.caption2)
+                    .fontWeight(.medium)
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(Capsule().fill(Color.appAccent.opacity(0.7)))
+
+                Spacer()
+
+                Image(systemName: collapsedCategories.contains(category) ? "chevron.right" : "chevron.down")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.vertical, 4)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func categoryIcon(for category: String) -> String {
+        switch category.lowercased() {
+        case "produce": return "leaf"
+        case "dairy": return "cup.and.saucer"
+        case "meat & seafood": return "fish"
+        case "bakery": return "birthday.cake"
+        case "beverages": return "waterbottle"
+        case "snacks": return "popcorn"
+        case "frozen": return "snowflake"
+        case "canned goods": return "cylinder"
+        case "condiments & sauces": return "flask"
+        case "grains & pasta": return "takeoutbag.and.cup.and.straw"
+        case "household": return "house"
+        case "personal care": return "hands.sparkles"
+        case "baby": return "stroller"
+        case "pet": return "pawprint"
+        case "health": return "cross.case"
+        case "electronics": return "bolt"
+        case "clothing": return "tshirt"
+        case "uncategorized": return "questionmark.folder"
+        default: return "tag"
         }
     }
 
@@ -281,7 +392,12 @@ struct ReminderView: View {
                     viewModel.updateReminderQuantity(reminder, newQuantity: newQuantity)
                 }
                 editingQuantityReminderId = nil
-            }
+            },
+            category: reminder.category,
+            onSetCategory: userStoreItem.permission != .view ? {
+                customCategoryText = reminder.category ?? ""
+                reminderForCategory = reminder
+            } : nil
         )
         .contentShape(Rectangle())
         .listRowBackground(cardRowBackground)
