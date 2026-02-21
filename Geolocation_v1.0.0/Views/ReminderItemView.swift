@@ -29,6 +29,7 @@ struct ReminderItemView: View {
     var onCheckboxFrameChanged: ((CGRect) -> Void)?
     var onDragChanged: ((CGPoint) -> Void)?
     var onDragEnded: (() -> Void)?
+    var autoDeleteEnabled: Bool = false
     @StateObject private var viewModel = ReminderItemViewModel()
     @State private var editText: String = ""
     @State private var editQuantityText: String = ""
@@ -43,6 +44,23 @@ struct ReminderItemView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
+                if autoDeleteEnabled {
+                    Image(systemName: "line.3.horizontal")
+                        .font(.caption)
+                        .foregroundStyle(.secondary.opacity(0.5))
+                        .frame(width: 20, height: 30)
+                        .contentShape(Rectangle())
+                        .highPriorityGesture(
+                            DragGesture(minimumDistance: 10, coordinateSpace: .global)
+                                .onChanged { value in
+                                    onDragChanged?(value.location)
+                                }
+                                .onEnded { _ in
+                                    onDragEnded?()
+                                }
+                        )
+                }
+
                 Image(systemName: item.isOutOfStock == true ? "xmark.square" : (item.isDone ? "checkmark.square" : "square"))
                     .foregroundStyle(item.isOutOfStock == true ? .red : .primary)
                     .contentShape(Rectangle())
@@ -56,15 +74,6 @@ struct ReminderItemView: View {
                     .onTapGesture {
                         onCheckboxTap?()
                     }
-                    .simultaneousGesture(
-                        DragGesture(minimumDistance: 10, coordinateSpace: .global)
-                            .onChanged { value in
-                                onDragChanged?(value.location)
-                            }
-                            .onEnded { _ in
-                                onDragEnded?()
-                            }
-                    )
 
                 if isEditing {
                     TextField("Reminder", text: $editText)

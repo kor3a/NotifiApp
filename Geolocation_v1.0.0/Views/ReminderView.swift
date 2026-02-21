@@ -458,20 +458,17 @@ struct ReminderView: View {
                 guard autoDeleteEnabled else { return }
                 for (id, frame) in checkboxFrames {
                     guard !swipedIds.contains(id) else { continue }
-                    let expandedFrame = CGRect(
-                        x: frame.minX,
-                        y: frame.minY - 20,
-                        width: frame.width,
-                        height: frame.height + 40
-                    )
-                    if expandedFrame.contains(location),
+                    // Check only the vertical range so the drag handle (left of checkbox)
+                    // correctly identifies items by Y position, avoiding scroll conflicts
+                    if location.y >= (frame.minY - 20) && location.y <= (frame.maxY + 20),
                        let target = viewModel.reminders.first(where: { $0.id == id }) {
                         swipedIds.insert(id)
                         handleReminderTap(target)
                     }
                 }
             } : nil,
-            onDragEnded: { swipedIds.removeAll() }
+            onDragEnded: { swipedIds.removeAll() },
+            autoDeleteEnabled: autoDeleteEnabled
         )
         .contentShape(Rectangle())
         .listRowBackground(cardRowBackground)
