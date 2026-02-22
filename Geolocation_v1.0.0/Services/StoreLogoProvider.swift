@@ -17,6 +17,7 @@ import UIKit
 /// 2. Download URLs are cached in Firestore `stores_logos` collection
 /// 3. The app fetches from Firestore on launch and caches in memory
 /// 4. When a store name matches a known logo, the logo is displayed
+/// 5. Downloaded images are cached to disk so they persist across app sessions
 ///
 /// ## Adding logos
 /// Call `uploadStoreLogo(storeName:image:)` to upload a logo for a store.
@@ -35,7 +36,24 @@ class StoreLogoProvider: ObservableObject {
     private var hasFetched = false
     private var isFetching = false
 
+    // MARK: - Image Disk Cache
+
+    private static let urlCacheKey = "StoreLogoProvider.cachedURLs"
+    private let imageCache = NSCache<NSString, UIImage>()
+    private let cacheDirectory: URL = {
+        let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
+        let dir = caches.appendingPathComponent("StoreLogos", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return dir
+    }()
+    /// Tracks which logos are currently being downloaded to avoid duplicate requests.
+    private var downloadingLogos: Set<String> = []
+
     private init() {
+        // Load cached URL mappings from UserDefaults for instant availability
+        if let cached = UserDefaults.standard.dictionary(forKey: Self.urlCacheKey) as? [String: String] {
+            storeLogos = cached
+        }
         fetchStoreLogos()
     }
 
@@ -61,6 +79,91 @@ class StoreLogoProvider: ObservableObject {
             }
         }
         return bestMatch?.url
+    }
+
+    /// Resolves which cache key (normalized ID) to use for a given store name,
+    /// accounting for prefix matching.
+    func resolvedLogoId(for storeName: String) -> String? {
+        let normalizedId = Store.normalizedId(from: storeName)
+        if storeLogos[normalizedId] != nil { return normalizedId }
+        var bestMatch: (key: String, url: String)?
+        for (key, url) in storeLogos {
+            if normalizedId.hasPrefix(key) {
+                if bestMatch == nil || key.count > bestMatch!.key.count {
+                    bestMatch = (key, url)
+                }
+            }
+        }
+        return bestMatch?.key
+    }
+
+    // MARK: - Cached Image Access
+
+    /// Returns a cached UIImage for the given store name, checking memory then disk.
+    /// If no cached image exists but a URL is known, triggers a background download.
+    func cachedImage(for storeName: String) -> UIImage? {
+        guard let logoId = resolvedLogoId(for: storeName) else { return nil }
+        let cacheKey = logoId as NSString
+
+        // 1. Check in-memory cache
+        if let image = imageCache.object(forKey: cacheKey) {
+            return image
+        }
+
+        // 2. Check disk cache
+        let filePath = cacheDirectory.appendingPathComponent("\(logoId).jpg")
+        if let data = try? Data(contentsOf: filePath), let image = UIImage(data: data) {
+            imageCache.setObject(image, forKey: cacheKey)
+            return image
+        }
+
+        // 3. No cache hit — trigger background download if we have a URL
+        if let urlString = storeLogos[logoId] {
+            downloadAndCacheLogo(id: logoId, urlString: urlString)
+        }
+
+        return nil
+    }
+
+    /// Downloads a logo image and writes it to both disk and memory cache.
+    private func downloadAndCacheLogo(id: String, urlString: String) {
+        guard !downloadingLogos.contains(id), let url = URL(string: urlString) else { return }
+        downloadingLogos.insert(id)
+
+        URLSession.shared.dataTask(with: url) { [weak self] data, _, error in
+            guard let self = self else { return }
+            defer { DispatchQueue.main.async { self.downloadingLogos.remove(id) } }
+
+            guard let data = data, error == nil, let image = UIImage(data: data) else {
+                #if DEBUG
+                print("StoreLogoProvider: Failed to download logo for '\(id)': \(error?.localizedDescription ?? "bad data")")
+                #endif
+                return
+            }
+
+            // Write to disk
+            let filePath = self.cacheDirectory.appendingPathComponent("\(id).jpg")
+            try? data.write(to: filePath)
+
+            // Update in-memory cache and notify UI
+            let cacheKey = id as NSString
+            self.imageCache.setObject(image, forKey: cacheKey)
+
+            DispatchQueue.main.async {
+                self.objectWillChange.send()
+            }
+
+            #if DEBUG
+            print("StoreLogoProvider: Cached logo to disk for '\(id)'")
+            #endif
+        }.resume()
+    }
+
+    /// Removes the cached image for a store from both disk and memory.
+    private func removeCachedImage(for id: String) {
+        imageCache.removeObject(forKey: id as NSString)
+        let filePath = cacheDirectory.appendingPathComponent("\(id).jpg")
+        try? FileManager.default.removeItem(at: filePath)
     }
 
     /// Fetch logo mappings from Firestore
@@ -100,12 +203,24 @@ class StoreLogoProvider: ObservableObject {
             DispatchQueue.main.async {
                 self.storeLogos = logos
                 self.hasFetched = true
+
+                // Persist URL mappings for instant availability on next launch
+                UserDefaults.standard.set(logos, forKey: Self.urlCacheKey)
+
                 #if DEBUG
                 print("StoreLogoProvider: Loaded \(logos.count) store logos from Firestore")
                 for (id, url) in logos {
                     print("  - \(id): \(url.prefix(80))...")
                 }
                 #endif
+
+                // Pre-download any logos not yet cached to disk
+                for (id, urlString) in logos {
+                    let filePath = self.cacheDirectory.appendingPathComponent("\(id).jpg")
+                    if !FileManager.default.fileExists(atPath: filePath.path) {
+                        self.downloadAndCacheLogo(id: id, urlString: urlString)
+                    }
+                }
             }
         }
     }
@@ -161,10 +276,16 @@ class StoreLogoProvider: ObservableObject {
                         return
                     }
 
-                    // Update local cache
+                    // Update local cache (memory, disk, and UserDefaults)
                     DispatchQueue.main.async {
                         self.storeLogos[normalizedId] = downloadURL
+                        UserDefaults.standard.set(self.storeLogos, forKey: Self.urlCacheKey)
                     }
+
+                    // Cache the image to disk immediately (we already have the data)
+                    let filePath = self.cacheDirectory.appendingPathComponent("\(normalizedId).jpg")
+                    try? imageData.write(to: filePath)
+                    self.imageCache.setObject(image, forKey: normalizedId as NSString)
 
                     #if DEBUG
                     print("StoreLogoProvider: Uploaded logo for '\(storeName)' (id: \(normalizedId))")
@@ -196,15 +317,24 @@ class StoreLogoProvider: ObservableObject {
 
                 DispatchQueue.main.async {
                     self?.storeLogos.removeValue(forKey: normalizedId)
+                    if let updatedLogos = self?.storeLogos {
+                        UserDefaults.standard.set(updatedLogos, forKey: Self.urlCacheKey)
+                    }
                 }
+                self?.removeCachedImage(for: normalizedId)
                 completion(.success(()))
             }
         }
     }
 
-    /// Force refresh logos from Firestore
+    /// Force refresh logos from Firestore and re-download all images.
     func refreshLogos() {
         hasFetched = false
+        // Clear disk cache so images are re-downloaded
+        if let files = try? FileManager.default.contentsOfDirectory(at: cacheDirectory, includingPropertiesForKeys: nil) {
+            for file in files { try? FileManager.default.removeItem(at: file) }
+        }
+        imageCache.removeAllObjects()
         fetchStoreLogos()
     }
 
