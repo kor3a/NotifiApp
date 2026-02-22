@@ -73,6 +73,7 @@
 		AA1234560001AABB00CC0027 /* NotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0017 /* NotificationManager.swift */; };
 		AA1234560001AABB00CC0028 /* StoreLogoProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0018 /* StoreLogoProvider.swift */; };
 		AA1234560001AABB00CC0029 /* UserSessionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0019 /* UserSessionManager.swift */; };
+		AA1234560001AABB00CC0031 /* SubscriptionPaywallView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0030 /* SubscriptionPaywallView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -154,6 +155,7 @@
 		AA1234560001AABB00CC0017 /* NotificationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationManager.swift; sourceTree = "<group>"; };
 		AA1234560001AABB00CC0018 /* StoreLogoProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoreLogoProvider.swift; sourceTree = "<group>"; };
 		AA1234560001AABB00CC0019 /* UserSessionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserSessionManager.swift; sourceTree = "<group>"; };
+		AA1234560001AABB00CC0030 /* SubscriptionPaywallView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionPaywallView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -256,6 +258,7 @@
 				74A79E7E2CBDAB2A00713F0E /* ReminderItemView.swift */,
 				74A8AA3D2DEBB84B005855A0 /* AddReminderView.swift */,
 				010B28082EB6C2E9004E828B /* AddStoreView.swift */,
+				AA1234560001AABB00CC0030 /* SubscriptionPaywallView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -516,6 +519,7 @@
 				AA1234560001AABB00CC0027 /* NotificationManager.swift in Sources */,
 				AA1234560001AABB00CC0028 /* StoreLogoProvider.swift in Sources */,
 				AA1234560001AABB00CC0029 /* UserSessionManager.swift in Sources */,
+				AA1234560001AABB00CC0031 /* SubscriptionPaywallView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

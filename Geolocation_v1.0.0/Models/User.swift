@@ -14,4 +14,5 @@ struct User: Codable, Equatable {
     let joined: TimeInterval
     var profilePictureURL: String?
     var familyMemberIds: [String]?
+    var isSubscribed: Bool?
 }
