@@ -16,6 +16,16 @@ class ReminderViewModel: ObservableObject {
     @Published var reminders: [Reminder] = []
     @Published var isLoading: Bool = false
     @Published var errorMessage: String = ""
+    /// Set when AI categorization returns "Uncategorized" — triggers a picker sheet for manual category selection
+    @Published var uncategorizedReminderForPrompt: Reminder?
+
+    /// Predefined store aisle categories (matches the AI system prompt)
+    static let predefinedCategories = [
+        "Produce", "Dairy", "Meat & Seafood", "Bakery", "Beverages",
+        "Snacks", "Frozen", "Canned Goods", "Condiments & Sauces",
+        "Grains & Pasta", "Household", "Personal Care", "Baby",
+        "Pet", "Health", "Electronics", "Clothing"
+    ]
     /// Flag to prevent snapshot listener from overwriting local state during a reorder operation
     private var isReordering = false
 
@@ -207,14 +217,20 @@ class ReminderViewModel: ObservableObject {
         displayedReminders.contains { $0.category != nil && $0.category?.isEmpty == false }
     }
 
-    /// Categorize a single reminder using AI and update Firestore
+    /// Categorize a single reminder using AI and update Firestore.
+    /// When the AI returns "Uncategorized", prompts the user to pick a category manually.
     func categorizeReminder(_ reminder: Reminder) {
         Task {
             do {
                 let mapping = try await OpenAIService.shared.categorizeItems([reminder.title])
                 let category = mapping[reminder.title] ?? "Uncategorized"
                 await MainActor.run {
-                    self.updateReminderCategory(reminder, newCategory: category == "Uncategorized" ? nil : category)
+                    if category == "Uncategorized" {
+                        // AI couldn't categorize — prompt user to pick a category
+                        self.uncategorizedReminderForPrompt = reminder
+                    } else {
+                        self.updateReminderCategory(reminder, newCategory: category)
+                    }
                 }
             } catch {
                 #if DEBUG
@@ -1100,11 +1116,12 @@ class ReminderViewModel: ObservableObject {
         categorizeReminderDirectly(reminderId: reminderId, title: trimmedTitle)
     }
 
-    /// Categorize a reminder by ID and title directly via Firestore, without depending on the ViewModel lifecycle.
-    /// Used by autosave finalization so categorization still runs even if the user navigates away.
+    /// Categorize a reminder by ID and title directly via Firestore.
+    /// Used by autosave finalization. When the AI returns "Uncategorized", prompts the user
+    /// to pick a category manually (if the ViewModel is still alive).
     private func categorizeReminderDirectly(reminderId: String, title: String) {
         let db = self.db
-        Task {
+        Task { [weak self] in
             do {
                 let mapping = try await OpenAIService.shared.categorizeItems([title])
                 let category = mapping[title] ?? "Uncategorized"
@@ -1119,6 +1136,13 @@ class ReminderViewModel: ObservableObject {
                             print("ReminderViewModel: Autosaved reminder categorized as '\(category)'")
                         }
                         #endif
+                    }
+                } else {
+                    // AI couldn't categorize — prompt user to pick a category
+                    await MainActor.run {
+                        if let reminder = self?.reminders.first(where: { $0.id == reminderId }) {
+                            self?.uncategorizedReminderForPrompt = reminder
+                        }
                     }
                 }
             } catch {

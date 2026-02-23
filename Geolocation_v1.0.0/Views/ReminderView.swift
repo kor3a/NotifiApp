@@ -253,6 +253,40 @@ struct ReminderView: View {
         } message: {
             Text("Enter a custom category for this item.")
         }
+        .sheet(item: $viewModel.uncategorizedReminderForPrompt) { reminder in
+            NavigationStack {
+                List {
+                    Section {
+                        ForEach(ReminderViewModel.predefinedCategories, id: \.self) { category in
+                            Button {
+                                viewModel.updateReminderCategory(reminder, newCategory: category)
+                                viewModel.uncategorizedReminderForPrompt = nil
+                            } label: {
+                                HStack(spacing: 12) {
+                                    Image(systemName: categoryIcon(for: category))
+                                        .foregroundColor(Color.appAccent)
+                                        .frame(width: 24)
+                                    Text(category)
+                                        .foregroundColor(.primary)
+                                }
+                            }
+                        }
+                    } header: {
+                        Text("Choose a category for \"\(reminder.title)\"")
+                    }
+                }
+                .navigationTitle("Select Category")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Skip") {
+                            viewModel.uncategorizedReminderForPrompt = nil
+                        }
+                    }
+                }
+            }
+            .presentationDetents([.medium, .large])
+        }
     }
 
     // MARK: - Extracted Sub-Views
