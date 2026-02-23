@@ -8,6 +8,8 @@
 
 /* Begin PBXBuildFile section */
 		010B28092EB6C2E9004E828B /* AddStoreView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010B28082EB6C2E9004E828B /* AddStoreView.swift */; };
+		0119CD0D2F4CF95A00DEDEFD /* AutoDeleteSwipeRail.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0119CD0C2F4CF95A00DEDEFD /* AutoDeleteSwipeRail.swift */; };
+		0119CD0F2F4CF96000DEDEFD /* CachedLogoImage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0119CD0E2F4CF96000DEDEFD /* CachedLogoImage.swift */; };
 		011CF5FE2ED638D6009A31A6 /* ForgotPasswordView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 011CF5FD2ED638D6009A31A6 /* ForgotPasswordView.swift */; };
 		011CF6002ED638DD009A31A6 /* ShareStoreView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 011CF5FF2ED638DD009A31A6 /* ShareStoreView.swift */; };
 		011CF6022ED638E4009A31A6 /* SharedStoreGroup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 011CF6012ED638E4009A31A6 /* SharedStoreGroup.swift */; };
@@ -59,7 +61,6 @@
 		82D289B72C61D631009F357F /* ProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82D289B62C61D631009F357F /* ProfileView.swift */; };
 		82D715C62C8D6B230000D1E3 /* MapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82D715C52C8D6B230000D1E3 /* MapView.swift */; };
 		82EC11832C64755300A6CD8C /* LocationDetailsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82EC11822C64755300A6CD8C /* LocationDetailsView.swift */; };
-		DF66A9982E24C86100C15DA9 /* User_Store.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF66A9972E24C86100C15DA9 /* User_Store.swift */; };
 		AA1234560001AABB00CC0004 /* OpenAIService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0001 /* OpenAIService.swift */; };
 		AA1234560001AABB00CC0005 /* AIRecipeViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0002 /* AIRecipeViewModel.swift */; };
 		AA1234560001AABB00CC0006 /* AIRecipeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0003 /* AIRecipeView.swift */; };
@@ -74,6 +75,7 @@
 		AA1234560001AABB00CC0028 /* StoreLogoProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0018 /* StoreLogoProvider.swift */; };
 		AA1234560001AABB00CC0029 /* UserSessionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0019 /* UserSessionManager.swift */; };
 		AA1234560001AABB00CC0031 /* SubscriptionPaywallView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0030 /* SubscriptionPaywallView.swift */; };
+		DF66A9982E24C86100C15DA9 /* User_Store.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF66A9972E24C86100C15DA9 /* User_Store.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -88,6 +90,8 @@
 
 /* Begin PBXFileReference section */
 		010B28082EB6C2E9004E828B /* AddStoreView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddStoreView.swift; sourceTree = "<group>"; };
+		0119CD0C2F4CF95A00DEDEFD /* AutoDeleteSwipeRail.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoDeleteSwipeRail.swift; sourceTree = "<group>"; };
+		0119CD0E2F4CF96000DEDEFD /* CachedLogoImage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CachedLogoImage.swift; sourceTree = "<group>"; };
 		011CF5FD2ED638D6009A31A6 /* ForgotPasswordView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForgotPasswordView.swift; sourceTree = "<group>"; };
 		011CF5FF2ED638DD009A31A6 /* ShareStoreView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareStoreView.swift; sourceTree = "<group>"; };
 		011CF6012ED638E4009A31A6 /* SharedStoreGroup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedStoreGroup.swift; sourceTree = "<group>"; };
@@ -140,8 +144,6 @@
 		82D289B62C61D631009F357F /* ProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileView.swift; sourceTree = "<group>"; };
 		82D715C52C8D6B230000D1E3 /* MapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapView.swift; sourceTree = "<group>"; };
 		82EC11822C64755300A6CD8C /* LocationDetailsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationDetailsView.swift; sourceTree = "<group>"; };
-		DF66A9972E24C86100C15DA9 /* User_Store.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = User_Store.swift; sourceTree = "<group>"; };
-		DF66A9992E24C86100C15DA9 /* Geolocation_v1.0.0.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Geolocation_v1.0.0.entitlements; sourceTree = "<group>"; };
 		AA1234560001AABB00CC0001 /* OpenAIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenAIService.swift; sourceTree = "<group>"; };
 		AA1234560001AABB00CC0002 /* AIRecipeViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIRecipeViewModel.swift; sourceTree = "<group>"; };
 		AA1234560001AABB00CC0003 /* AIRecipeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIRecipeView.swift; sourceTree = "<group>"; };
@@ -156,6 +158,8 @@
 		AA1234560001AABB00CC0018 /* StoreLogoProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoreLogoProvider.swift; sourceTree = "<group>"; };
 		AA1234560001AABB00CC0019 /* UserSessionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserSessionManager.swift; sourceTree = "<group>"; };
 		AA1234560001AABB00CC0030 /* SubscriptionPaywallView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionPaywallView.swift; sourceTree = "<group>"; };
+		DF66A9972E24C86100C15DA9 /* User_Store.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = User_Store.swift; sourceTree = "<group>"; };
+		DF66A9992E24C86100C15DA9 /* Geolocation_v1.0.0.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Geolocation_v1.0.0.entitlements; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -185,6 +189,24 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		01FB27582EC2A7490038E406 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				AA1234560001AABB00CC0010 /* FriendRequestService.swift */,
+				AA1234560001AABB00CC0011 /* FriendsService.swift */,
+				AA1234560001AABB00CC0012 /* GooglePlacesService.swift */,
+				AA1234560001AABB00CC0013 /* LocationMonitoringManager.swift */,
+				AA1234560001AABB00CC0014 /* LocationSearchManager.swift */,
+				AA1234560001AABB00CC0015 /* MessagingService.swift */,
+				AA1234560001AABB00CC0016 /* NotificationLogStore.swift */,
+				AA1234560001AABB00CC0017 /* NotificationManager.swift */,
+				AA1234560001AABB00CC0001 /* OpenAIService.swift */,
+				AA1234560001AABB00CC0018 /* StoreLogoProvider.swift */,
+				AA1234560001AABB00CC0019 /* UserSessionManager.swift */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
 		8278FDEB2C5DD1C80017EB72 = {
 			isa = PBXGroup;
 			children = (
@@ -236,6 +258,8 @@
 		8278FE0E2C5DE5930017EB72 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				0119CD0E2F4CF96000DEDEFD /* CachedLogoImage.swift */,
+				0119CD0C2F4CF95A00DEDEFD /* AutoDeleteSwipeRail.swift */,
 				AA1234560001AABB00CC0003 /* AIRecipeView.swift */,
 				01B408342F3BECF900EA1F25 /* ShareReminderView.swift */,
 				01B408322F3BECF200EA1F25 /* MessagesView.swift */,
@@ -315,24 +339,6 @@
 				82D289B22C61D403009F357F /* EncodableExtension.swift */,
 			);
 			path = Extensions;
-			sourceTree = "<group>";
-		};
-		01FB27582EC2A7490038E406 /* Services */ = {
-			isa = PBXGroup;
-			children = (
-				AA1234560001AABB00CC0010 /* FriendRequestService.swift */,
-				AA1234560001AABB00CC0011 /* FriendsService.swift */,
-				AA1234560001AABB00CC0012 /* GooglePlacesService.swift */,
-				AA1234560001AABB00CC0013 /* LocationMonitoringManager.swift */,
-				AA1234560001AABB00CC0014 /* LocationSearchManager.swift */,
-				AA1234560001AABB00CC0015 /* MessagingService.swift */,
-				AA1234560001AABB00CC0016 /* NotificationLogStore.swift */,
-				AA1234560001AABB00CC0017 /* NotificationManager.swift */,
-				AA1234560001AABB00CC0001 /* OpenAIService.swift */,
-				AA1234560001AABB00CC0018 /* StoreLogoProvider.swift */,
-				AA1234560001AABB00CC0019 /* UserSessionManager.swift */,
-			);
-			path = Services;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -469,7 +475,9 @@
 				748542B32CB5307000C58D9B /* HomeView.swift in Sources */,
 				82D715C62C8D6B230000D1E3 /* MapView.swift in Sources */,
 				74A79E832CBDAC7500713F0E /* ReminderItemViewModel.swift in Sources */,
+				0119CD0D2F4CF95A00DEDEFD /* AutoDeleteSwipeRail.swift in Sources */,
 				01B4082B2F3BECCF00EA1F25 /* Message.swift in Sources */,
+				0119CD0F2F4CF96000DEDEFD /* CachedLogoImage.swift in Sources */,
 				011CF6072ED638F9009A31A6 /* ForgotPasswordViewModel.swift in Sources */,
 				74A79E7F2CBDAB2A00713F0E /* ReminderItemView.swift in Sources */,
 				82D289AA2C61CA71009F357F /* SignupView.swift in Sources */,
