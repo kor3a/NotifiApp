@@ -16,6 +16,7 @@ struct StoresView: View {
     @ObservedObject private var sessionManager = UserSessionManager.shared
     @State private var showingAddStore = false
     @State private var showingAIRecipe = false
+    @State private var showingPaywall = false
     @State private var isMenuExpanded = false
     @State private var selectedStoreToShare: UserStoreItem?
     @State private var editMode: EditMode = .inactive
@@ -169,7 +170,11 @@ struct StoresView: View {
                                         withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
                                             isMenuExpanded = false
                                         }
-                                        showingAIRecipe = true
+                                        if sessionManager.currentUser?.isSubscribed == true {
+                                            showingAIRecipe = true
+                                        } else {
+                                            showingPaywall = true
+                                        }
                                     }) {
                                         HStack {
                                             Image(systemName: "fork.knife.circle")
@@ -221,6 +226,9 @@ struct StoresView: View {
         }
         .sheet(isPresented: $showingAIRecipe) {
             AIRecipeView(viewModel: aiRecipeViewModel, storesViewModel: viewModel)
+        }
+        .sheet(isPresented: $showingPaywall) {
+            SubscriptionPaywallView()
         }
         .sheet(item: $selectedStoreToShare) { storeToShare in
             ShareStoreView(viewModel: viewModel, messagesViewModel: messagesViewModel, userStoreItem: storeToShare)

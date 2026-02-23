@@ -82,7 +82,8 @@ class UserSessionManager: ObservableObject {
                         email: userData["email"] as? String ?? "",
                         joined: userData["joined"] as? TimeInterval ?? 0,
                         profilePictureURL: userData["profilePictureURL"] as? String,
-                        familyMemberIds: userData["familyMemberIds"] as? [String]
+                        familyMemberIds: userData["familyMemberIds"] as? [String],
+                        isSubscribed: userData["isSubscribed"] as? Bool
                     )
                 }
             }
