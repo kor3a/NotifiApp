@@ -55,10 +55,10 @@ struct MapView: View {
                         reminderCount: storeLocation.userStoreItem.store.reminderCount
                     )
                     .onTapGesture {
-                        // Use separate state for store location selection to avoid Map resetting it
-                        selectedStoreLocation = storeLocation
+                        // Set selection first; onChange(of: selectedStoreLocation)
+                        // will open the sheet after the state is committed.
                         mapSelection = nil // Clear any search result selection
-                        showDetails = true
+                        selectedStoreLocation = storeLocation
                     }
                 }
                 .annotationTitles(.hidden)
@@ -207,6 +207,13 @@ struct MapView: View {
                 selectedStoreLocation = nil
             }
         })
+        .onChange(of: selectedStoreLocation) { oldValue, newValue in
+            // Open the sheet AFTER selectedStoreLocation is committed so
+            // the binding reads the correct value on first presentation.
+            if newValue != nil {
+                showDetails = true
+            }
+        }
         .onAppear {
             // Fetch user's stores when view appears
             storesViewModel.fetchUserStores()
