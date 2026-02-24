@@ -394,10 +394,10 @@ extension MapView {
         // Cancel any existing search task
         storeSearchTask?.cancel()
 
-        // Debounce the search to avoid too many requests
+        // Debounce: wait 600ms after the last camera change so we don't
+        // fire dozens of MKLocalSearch requests during a pinch-to-zoom gesture.
         storeSearchTask = Task {
-            // Wait a bit to allow for smooth panning
-            try? await Task.sleep(nanoseconds: 300_000_000)
+            try? await Task.sleep(nanoseconds: 600_000_000)
 
             guard !Task.isCancelled else { return }
 

@@ -82,6 +82,7 @@ class StoreClusterManager {
     private var searchTasks: [String: Task<Void, Never>] = [:]
     private var cachedResults: [String: [StoreLocation]] = [:]
     private var lastSearchRegion: MKCoordinateRegion?
+    private var lastSearchCenter: CLLocationCoordinate2D?
 
     /// Search for nearby locations of saved stores in the current map region
     /// - Parameters:
@@ -95,30 +96,48 @@ class StoreClusterManager {
             return
         }
 
-        // Check if region changed significantly
-        if let lastRegion = lastSearchRegion {
-            let centerLatChange = abs(region.center.latitude - lastRegion.center.latitude)
-            let centerLonChange = abs(region.center.longitude - lastRegion.center.longitude)
-            let spanChange = abs(region.span.latitudeDelta - lastRegion.span.latitudeDelta) / max(lastRegion.span.latitudeDelta, 0.001)
+        // Only re-search when the map center has moved significantly (panning).
+        // Zoom-only changes reuse cached results so pins don't vanish mid-pinch.
+        if let lastRegion = lastSearchRegion, let lastCenter = lastSearchCenter {
+            let centerLatChange = abs(region.center.latitude - lastCenter.latitude)
+            let centerLonChange = abs(region.center.longitude - lastCenter.longitude)
 
-            // Skip if region hasn't changed much
-            if centerLatChange < region.span.latitudeDelta * 0.1 &&
-               centerLonChange < region.span.longitudeDelta * 0.1 &&
-               spanChange < 0.1 {
-                // Return cached results
+            // Use the larger of the two spans so zooming in doesn't shrink the threshold
+            let referenceSpan = max(region.span.latitudeDelta, lastRegion.span.latitudeDelta)
+            let referenceLonSpan = max(region.span.longitudeDelta, lastRegion.span.longitudeDelta)
+
+            let centerMovedSignificantly = centerLatChange > referenceSpan * 0.25 ||
+                                           centerLonChange > referenceLonSpan * 0.25
+
+            if !centerMovedSignificantly {
+                // Center hasn't moved much — return cached results
                 let allCached = cachedResults.values.flatMap { $0 }
-                completion(allCached)
-                return
+                if !allCached.isEmpty {
+                    completion(allCached)
+                    return
+                }
+                // Cache is empty, fall through to search
             }
         }
 
         lastSearchRegion = region
+        lastSearchCenter = region.center
 
         // Cancel existing tasks
         for task in searchTasks.values {
             task.cancel()
         }
         searchTasks.removeAll()
+
+        // Use an expanded search region (3x visible area) so stores just outside
+        // the viewport are still found and don't vanish at the edges.
+        let expandedRegion = MKCoordinateRegion(
+            center: region.center,
+            span: MKCoordinateSpan(
+                latitudeDelta: region.span.latitudeDelta * 3,
+                longitudeDelta: region.span.longitudeDelta * 3
+            )
+        )
 
         // Search for each store
         let dispatchGroup = DispatchGroup()
@@ -129,11 +148,16 @@ class StoreClusterManager {
             dispatchGroup.enter()
 
             let task = Task {
-                let locations = await searchForStore(userStoreItem, in: region)
+                let locations = await searchForStore(userStoreItem, in: expandedRegion)
 
                 locationsLock.lock()
-                allLocations.append(contentsOf: locations)
-                cachedResults[userStoreItem.id] = locations
+                // Only update cache for this store if we got results;
+                // keep old cached results if the search returned empty
+                // (avoids wiping pins due to throttled/failed searches).
+                if !locations.isEmpty {
+                    cachedResults[userStoreItem.id] = locations
+                }
+                allLocations.append(contentsOf: cachedResults[userStoreItem.id] ?? [])
                 locationsLock.unlock()
 
                 dispatchGroup.leave()
@@ -158,14 +182,9 @@ class StoreClusterManager {
             let search = MKLocalSearch(request: request)
             let response = try await search.start()
 
-            // Filter results to only include items within the visible region
-            let filteredItems = response.mapItems.filter { item in
-                let coord = item.placemark.coordinate
-                return isCoordinate(coord, within: region)
-            }
-
-            // Convert to StoreLocation objects
-            return filteredItems.prefix(10).map { item in
+            // Convert to StoreLocation objects — no strict visible-region filter
+            // so pins persist when zooming in/out.
+            return response.mapItems.prefix(10).map { item in
                 let coord = item.placemark.coordinate
                 let address = formatAddress(from: item.placemark)
                 let uniqueId = "\(userStoreItem.id)_\(coord.latitude)_\(coord.longitude)"
@@ -184,17 +203,6 @@ class StoreClusterManager {
             #endif
             return []
         }
-    }
-
-    /// Check if a coordinate is within the given region
-    private func isCoordinate(_ coordinate: CLLocationCoordinate2D, within region: MKCoordinateRegion) -> Bool {
-        let latMin = region.center.latitude - region.span.latitudeDelta / 2
-        let latMax = region.center.latitude + region.span.latitudeDelta / 2
-        let lonMin = region.center.longitude - region.span.longitudeDelta / 2
-        let lonMax = region.center.longitude + region.span.longitudeDelta / 2
-
-        return coordinate.latitude >= latMin && coordinate.latitude <= latMax &&
-               coordinate.longitude >= lonMin && coordinate.longitude <= lonMax
     }
 
     /// Format address from placemark
@@ -220,6 +228,7 @@ class StoreClusterManager {
     func clearCache() {
         cachedResults.removeAll()
         lastSearchRegion = nil
+        lastSearchCenter = nil
     }
 
     // Legacy method - kept for compatibility but now returns empty
