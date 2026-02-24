@@ -66,7 +66,6 @@
 		AA1234560001AABB00CC0006 /* AIRecipeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0003 /* AIRecipeView.swift */; };
 		AA1234560001AABB00CC0020 /* FriendRequestService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0010 /* FriendRequestService.swift */; };
 		AA1234560001AABB00CC0021 /* FriendsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0011 /* FriendsService.swift */; };
-		AA1234560001AABB00CC0022 /* GooglePlacesService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0012 /* GooglePlacesService.swift */; };
 		AA1234560001AABB00CC0023 /* LocationMonitoringManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0013 /* LocationMonitoringManager.swift */; };
 		AA1234560001AABB00CC0024 /* LocationSearchManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0014 /* LocationSearchManager.swift */; };
 		AA1234560001AABB00CC0025 /* MessagingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0015 /* MessagingService.swift */; };
@@ -149,7 +148,6 @@
 		AA1234560001AABB00CC0003 /* AIRecipeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIRecipeView.swift; sourceTree = "<group>"; };
 		AA1234560001AABB00CC0010 /* FriendRequestService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FriendRequestService.swift; sourceTree = "<group>"; };
 		AA1234560001AABB00CC0011 /* FriendsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FriendsService.swift; sourceTree = "<group>"; };
-		AA1234560001AABB00CC0012 /* GooglePlacesService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GooglePlacesService.swift; sourceTree = "<group>"; };
 		AA1234560001AABB00CC0013 /* LocationMonitoringManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationMonitoringManager.swift; sourceTree = "<group>"; };
 		AA1234560001AABB00CC0014 /* LocationSearchManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationSearchManager.swift; sourceTree = "<group>"; };
 		AA1234560001AABB00CC0015 /* MessagingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessagingService.swift; sourceTree = "<group>"; };
@@ -194,7 +192,6 @@
 			children = (
 				AA1234560001AABB00CC0010 /* FriendRequestService.swift */,
 				AA1234560001AABB00CC0011 /* FriendsService.swift */,
-				AA1234560001AABB00CC0012 /* GooglePlacesService.swift */,
 				AA1234560001AABB00CC0013 /* LocationMonitoringManager.swift */,
 				AA1234560001AABB00CC0014 /* LocationSearchManager.swift */,
 				AA1234560001AABB00CC0015 /* MessagingService.swift */,
@@ -519,7 +516,6 @@
 				AA1234560001AABB00CC0006 /* AIRecipeView.swift in Sources */,
 				AA1234560001AABB00CC0020 /* FriendRequestService.swift in Sources */,
 				AA1234560001AABB00CC0021 /* FriendsService.swift in Sources */,
-				AA1234560001AABB00CC0022 /* GooglePlacesService.swift in Sources */,
 				AA1234560001AABB00CC0023 /* LocationMonitoringManager.swift in Sources */,
 				AA1234560001AABB00CC0024 /* LocationSearchManager.swift in Sources */,
 				AA1234560001AABB00CC0025 /* MessagingService.swift in Sources */,
