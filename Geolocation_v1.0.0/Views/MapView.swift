@@ -50,13 +50,16 @@ struct MapView: View {
             // User's saved store locations (found via search)
             ForEach(storeLocations) { storeLocation in
                 Annotation("", coordinate: storeLocation.coordinate) {
-                    StoreIconView(storeName: storeLocation.userStoreItem.store.name)
-                        .onTapGesture {
-                            // Use separate state for store location selection to avoid Map resetting it
-                            selectedStoreLocation = storeLocation
-                            mapSelection = nil // Clear any search result selection
-                            showDetails = true
-                        }
+                    StoreIconView(
+                        storeName: storeLocation.userStoreItem.store.name,
+                        reminderCount: storeLocation.userStoreItem.store.reminderCount
+                    )
+                    .onTapGesture {
+                        // Use separate state for store location selection to avoid Map resetting it
+                        selectedStoreLocation = storeLocation
+                        mapSelection = nil // Clear any search result selection
+                        showDetails = true
+                    }
                 }
                 .annotationTitles(.hidden)
             }
@@ -553,10 +556,12 @@ extension MapView {
     }
 }
 
-// MARK: - Store Icon View (First Letter Circle)
+// MARK: - Store Icon View (Logo with Reminder Badge)
 
 struct StoreIconView: View {
     let storeName: String
+    var reminderCount: Int = 0
+    @ObservedObject private var logoProvider = StoreLogoProvider.shared
     @State private var isAnimating = false
 
     private var firstLetter: String {
@@ -574,40 +579,67 @@ struct StoreIconView: View {
     }
 
     var body: some View {
-        ZStack {
-            // Outer glow for visibility
-            Circle()
-                .fill(storeColor.opacity(0.3))
-                .frame(width: 36, height: 36)
+        ZStack(alignment: .topTrailing) {
+            // Main pin content
+            ZStack {
+                // Outer glow for visibility
+                Circle()
+                    .fill(storeColor.opacity(0.3))
+                    .frame(width: 36, height: 36)
 
-            // Main circle with gradient
-            Circle()
-                .fill(
-                    LinearGradient(
-                        colors: [storeColor, storeColor.opacity(0.8)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
+                if let image = logoProvider.cachedImage(for: storeName) {
+                    // Store logo from cache
+                    Image(uiImage: image)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 28, height: 28)
+                        .clipShape(Circle())
+                        .shadow(color: Color.black.opacity(0.25), radius: 3, x: 0, y: 2)
+                } else {
+                    // Fallback: letter circle
+                    Circle()
+                        .fill(
+                            LinearGradient(
+                                colors: [storeColor, storeColor.opacity(0.8)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .frame(width: 28, height: 28)
+                        .shadow(color: Color.black.opacity(0.25), radius: 3, x: 0, y: 2)
+
+                    // Inner highlight for 3D effect
+                    Circle()
+                        .fill(
+                            LinearGradient(
+                                colors: [Color.white.opacity(0.4), Color.clear],
+                                startPoint: .topLeading,
+                                endPoint: .center
+                            )
+                        )
+                        .frame(width: 24, height: 24)
+                        .offset(x: -2, y: -2)
+
+                    // First letter
+                    Text(firstLetter)
+                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                        .foregroundColor(.white)
+                }
+            }
+
+            // Reminder count badge
+            if reminderCount > 0 {
+                Text("\(reminderCount)")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 4)
+                    .padding(.vertical, 1)
+                    .background(
+                        Capsule()
+                            .fill(.red)
                     )
-                )
-                .frame(width: 28, height: 28)
-                .shadow(color: Color.black.opacity(0.25), radius: 3, x: 0, y: 2)
-
-            // Inner highlight for 3D effect
-            Circle()
-                .fill(
-                    LinearGradient(
-                        colors: [Color.white.opacity(0.4), Color.clear],
-                        startPoint: .topLeading,
-                        endPoint: .center
-                    )
-                )
-                .frame(width: 24, height: 24)
-                .offset(x: -2, y: -2)
-
-            // First letter
-            Text(firstLetter)
-                .font(.system(size: 14, weight: .bold, design: .rounded))
-                .foregroundColor(.white)
+                    .offset(x: 6, y: -6)
+            }
         }
         .scaleEffect(isAnimating ? 1.0 : 0.5)
         .opacity(isAnimating ? 1.0 : 0)
@@ -735,9 +767,9 @@ struct Triangle: Shape {
     ZStack {
         Color.gray.opacity(0.3)
         HStack(spacing: 20) {
-            StoreIconView(storeName: "Walmart")
-            StoreIconView(storeName: "Target")
-            StoreIconView(storeName: "Costco")
+            StoreIconView(storeName: "Walmart", reminderCount: 3)
+            StoreIconView(storeName: "Target", reminderCount: 0)
+            StoreIconView(storeName: "Costco", reminderCount: 1)
             StoreIconView(storeName: "Best Buy")
         }
     }
