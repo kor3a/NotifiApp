@@ -31,6 +31,7 @@
 		01B408352F3BECF900EA1F25 /* ShareReminderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01B408342F3BECF900EA1F25 /* ShareReminderView.swift */; };
 		01B78C382EBD414A00201B88 /* UserStoreItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01B78C372EBD414A00201B88 /* UserStoreItem.swift */; };
 		01B78C3A2EBD415F00201B88 /* ReminderViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01B78C392EBD415F00201B88 /* ReminderViewModel.swift */; };
+		01B901EF2F4CFB38005C896A /* FavoriteTag.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01B901EE2F4CFB38005C896A /* FavoriteTag.swift */; };
 		01D2D8732EC2901F009C371F /* ImagePicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01D2D8722EC2901F009C371F /* ImagePicker.swift */; };
 		742E371B2CBC036F0056F692 /* ProfileViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 742E371A2CBC036F0056F692 /* ProfileViewModel.swift */; };
 		744091EC2DE57AB600ACC67A /* StoreItemView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 744091EB2DE57AB500ACC67A /* StoreItemView.swift */; };
@@ -116,6 +117,7 @@
 		01B408342F3BECF900EA1F25 /* ShareReminderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareReminderView.swift; sourceTree = "<group>"; };
 		01B78C372EBD414A00201B88 /* UserStoreItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserStoreItem.swift; sourceTree = "<group>"; };
 		01B78C392EBD415F00201B88 /* ReminderViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderViewModel.swift; sourceTree = "<group>"; };
+		01B901EE2F4CFB38005C896A /* FavoriteTag.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FavoriteTag.swift; sourceTree = "<group>"; };
 		01D2D8722EC2901F009C371F /* ImagePicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImagePicker.swift; sourceTree = "<group>"; };
 		742E371A2CBC036F0056F692 /* ProfileViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileViewModel.swift; sourceTree = "<group>"; };
 		744091EB2DE57AB500ACC67A /* StoreItemView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoreItemView.swift; sourceTree = "<group>"; };
@@ -309,6 +311,7 @@
 		8278FE102C5DE5A60017EB72 /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				01B901EE2F4CFB38005C896A /* FavoriteTag.swift */,
 				01B4082C2F3BECD600EA1F25 /* StoreCluster.swift */,
 				01B4082A2F3BECCF00EA1F25 /* Message.swift */,
 				01B408282F3BECC900EA1F25 /* FriendRequest.swift */,
@@ -488,6 +491,7 @@
 				748542B52CB5378A00C58D9B /* ReminderView.swift in Sources */,
 				82D289B72C61D631009F357F /* ProfileView.swift in Sources */,
 				82916C162C914BA800F810A3 /* MapViewModel.swift in Sources */,
+				01B901EF2F4CFB38005C896A /* FavoriteTag.swift in Sources */,
 				01B408272F3BECC300EA1F25 /* Friend.swift in Sources */,
 				82EC11832C64755300A6CD8C /* LocationDetailsView.swift in Sources */,
 				8278FE132C5F23010017EB72 /* LoginView.swift in Sources */,
