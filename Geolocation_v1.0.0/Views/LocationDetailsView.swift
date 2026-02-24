@@ -18,7 +18,7 @@ struct LocationDetailsView: View {
     // Check if the currently selected store is already in user's list (by normalized name)
     private var isStoreAlreadyAdded: Bool {
         guard let mapSelection = mapSelection else { return false }
-        let storeName = mapSelection.placemark.name ?? ""
+        let storeName = mapSelection.name ?? ""
         let normalizedId = Store.normalizedId(from: storeName)
 
         // Check if any user store matches this store name
@@ -28,7 +28,7 @@ struct LocationDetailsView: View {
     }
 
     private var storeName: String {
-        mapSelection?.placemark.name ?? "Store"
+        mapSelection?.name ?? "Store"
     }
 
     var body: some View {
@@ -100,8 +100,8 @@ struct LocationDetailsView: View {
 
                         // Create a Store object from the MKMapItem (name-based, no address/coords stored)
                         let store = Store(
-                            name: selectedItem.placemark.name ?? "Unknown Store",
-                            imageURL: logoProvider.logoURL(for: selectedItem.placemark.name ?? "")
+                            name: selectedItem.name ?? "Unknown Store",
+                            imageURL: logoProvider.logoURL(for: selectedItem.name ?? "")
                         )
 
                         // Add store to user's list
