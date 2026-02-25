@@ -826,6 +826,64 @@ class MessagingService: ObservableObject {
         }
     }
 
+    /// Update the owner's user_store with sharedWith array when recipient accepts
+    private func updateOwnerStoreSharedWith(
+        userStoreId: String?,
+        recipientName: String,
+        completion: @escaping () -> Void
+    ) {
+        guard let userStoreId = userStoreId else {
+            #if DEBUG
+            print("📤 updateOwnerStoreSharedWith: No senderUserStoreId, skipping")
+            #endif
+            completion()
+            return
+        }
+
+        #if DEBUG
+        print("📤 updateOwnerStoreSharedWith: Updating user_store \(userStoreId) with sharedWith")
+        #endif
+
+        db.collection("user_stores").document(userStoreId).getDocument { [weak self] snapshot, error in
+            if let error = error {
+                #if DEBUG
+                print("📤 updateOwnerStoreSharedWith: ERROR fetching user_store - \(error)")
+                #endif
+                completion()
+                return
+            }
+
+            guard let data = snapshot?.data() else {
+                #if DEBUG
+                print("📤 updateOwnerStoreSharedWith: No data found")
+                #endif
+                completion()
+                return
+            }
+
+            var sharedWith = data["sharedWith"] as? [String] ?? []
+
+            // Add recipient if not already in the list
+            if !sharedWith.contains(recipientName) {
+                sharedWith.append(recipientName)
+            }
+
+            self?.db.collection("user_stores").document(userStoreId).updateData([
+                "sharedWith": sharedWith,
+                "isSharedStore": true
+            ]) { error in
+                #if DEBUG
+                if let error = error {
+                    print("📤 updateOwnerStoreSharedWith: ERROR updating - \(error)")
+                } else {
+                    print("📤 updateOwnerStoreSharedWith: SUCCESS - sharedWith=\(sharedWith)")
+                }
+                #endif
+                completion()
+            }
+        }
+    }
+
     // MARK: - Shared Store Accept/Reject
 
     /// Accept a shared store - adds the store to the user's list with appropriate permission
@@ -837,6 +895,7 @@ class MessagingService: ObservableObject {
         senderUserId: String,
         senderUserStoreId: String?,
         senderName: String,
+        recipientName: String,
         completion: @escaping (Result<Void, Error>) -> Void
     ) {
         #if DEBUG
@@ -921,6 +980,7 @@ class MessagingService: ObservableObject {
                                 senderEmail: linkedStore.senderEmail,
                                 sortOrder: sortOrder,
                                 messageId: messageId,
+                                recipientName: recipientName,
                                 completion: completion
                             )
                         } else {
@@ -937,6 +997,7 @@ class MessagingService: ObservableObject {
                                 senderEmail: linkedStore.senderEmail,
                                 sortOrder: sortOrder,
                                 messageId: messageId,
+                                recipientName: recipientName,
                                 completion: completion
                             )
                         }
@@ -955,6 +1016,7 @@ class MessagingService: ObservableObject {
         senderEmail: String?,
         sortOrder: Int,
         messageId: String,
+        recipientName: String,
         completion: @escaping (Result<Void, Error>) -> Void
     ) {
         #if DEBUG
@@ -1014,7 +1076,10 @@ class MessagingService: ObservableObject {
             #if DEBUG
             print("🟡 createSharedStoreWithEditPermission: SUCCESS - store created")
             #endif
-            self?.updateLinkedStoreStatus(messageId: messageId, status: .accepted, completion: completion)
+            // Update owner's user_store sharedWith so shared icon appears now that recipient accepted
+            self?.updateOwnerStoreSharedWith(userStoreId: senderUserStoreId, recipientName: recipientName) {
+                self?.updateLinkedStoreStatus(messageId: messageId, status: .accepted, completion: completion)
+            }
         }
     }
 
@@ -1029,6 +1094,7 @@ class MessagingService: ObservableObject {
         senderEmail: String?,
         sortOrder: Int,
         messageId: String,
+        recipientName: String,
         completion: @escaping (Result<Void, Error>) -> Void
     ) {
         var recipientUserStore: [String: Any] = [
@@ -1078,7 +1144,10 @@ class MessagingService: ObservableObject {
             #if DEBUG
             print("MessagingService: Successfully created view-only shared store")
             #endif
-            self?.updateLinkedStoreStatus(messageId: messageId, status: .accepted, completion: completion)
+            // Update owner's user_store sharedWith so shared icon appears now that recipient accepted
+            self?.updateOwnerStoreSharedWith(userStoreId: senderUserStoreId, recipientName: recipientName) {
+                self?.updateLinkedStoreStatus(messageId: messageId, status: .accepted, completion: completion)
+            }
         }
     }
 
