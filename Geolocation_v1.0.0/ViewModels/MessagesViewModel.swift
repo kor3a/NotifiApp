@@ -653,58 +653,6 @@ class MessagesViewModel: ObservableObject {
             }
     }
 
-    /// Update the owner's user_store with sharedWith array (for auto-marking new reminders as shared)
-    private func updateOwnerStoreSharedWith(
-        userStoreId: String,
-        recipientName: String,
-        completion: @escaping () -> Void
-    ) {
-        let db = Firestore.firestore()
-
-        #if DEBUG
-        print("📤 updateOwnerStoreSharedWith: Updating user_store \(userStoreId) with sharedWith")
-        #endif
-
-        db.collection("user_stores").document(userStoreId).getDocument { snapshot, error in
-            if let error = error {
-                #if DEBUG
-                print("📤 updateOwnerStoreSharedWith: ERROR fetching user_store - \(error)")
-                #endif
-                completion()
-                return
-            }
-
-            guard let data = snapshot?.data() else {
-                #if DEBUG
-                print("📤 updateOwnerStoreSharedWith: No data found")
-                #endif
-                completion()
-                return
-            }
-
-            var sharedWith = data["sharedWith"] as? [String] ?? []
-
-            // Add recipient if not already in the list
-            if !sharedWith.contains(recipientName) {
-                sharedWith.append(recipientName)
-            }
-
-            db.collection("user_stores").document(userStoreId).updateData([
-                "sharedWith": sharedWith,
-                "isSharedStore": true
-            ]) { error in
-                #if DEBUG
-                if let error = error {
-                    print("📤 updateOwnerStoreSharedWith: ERROR updating - \(error)")
-                } else {
-                    print("📤 updateOwnerStoreSharedWith: SUCCESS - sharedWith=\(sharedWith)")
-                }
-                #endif
-                completion()
-            }
-        }
-    }
-
     // MARK: - Shared Store Accept/Reject
 
     func acceptSharedStore(
