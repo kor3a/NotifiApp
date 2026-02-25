@@ -255,8 +255,8 @@ class StoresViewModel: ObservableObject {
 
     /// Set up real-time listeners to detect when shared store recipients join or leave.
     /// Watches all owner stores for recipient user_store documents (via sourceUserStoreId).
-    /// When recipients change, updates the owner's own user_store sharedWith field,
-    /// which triggers the main snapshot listener and updates the UI in real time.
+    /// Directly updates the local userStoreItems array for instant UI feedback,
+    /// and also persists changes to Firestore for durability.
     private func setupSharedStatusListeners(for items: [UserStoreItem]) {
         // Monitor all owner stores — recipients can appear at any time after a share invite
         let ownerItemIds = Set(items.compactMap { item -> String? in
@@ -302,7 +302,13 @@ class StoresViewModel: ObservableObject {
                         #if DEBUG
                         print("StoresViewModel: Last recipient left '\(storeName)' - clearing sharedWith")
                         #endif
-                        // Owner updates their own doc (allowed by Firestore rules)
+
+                        // Update local array immediately for instant UI feedback
+                        if let index = self.userStoreItems.firstIndex(where: { $0.id == ownerStoreId }) {
+                            self.userStoreItems[index].sharedWith = nil
+                        }
+
+                        // Persist to Firestore
                         self.db.collection("user_stores").document(ownerStoreId).updateData([
                             "sharedWith": FieldValue.delete(),
                             "isSharedStore": FieldValue.delete()
@@ -317,6 +323,13 @@ class StoresViewModel: ObservableObject {
                             #if DEBUG
                             print("StoresViewModel: Recipients changed for '\(storeName)' - sharedWith=\(recipientNames)")
                             #endif
+
+                            // Update local array immediately for instant UI feedback
+                            if let index = self.userStoreItems.firstIndex(where: { $0.id == ownerStoreId }) {
+                                self.userStoreItems[index].sharedWith = recipientNames
+                            }
+
+                            // Persist to Firestore
                             self.db.collection("user_stores").document(ownerStoreId).updateData([
                                 "sharedWith": recipientNames,
                                 "isSharedStore": true
