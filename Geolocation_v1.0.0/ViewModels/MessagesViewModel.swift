@@ -547,20 +547,15 @@ class MessagesViewModel: ObservableObject {
                         print("📤 MessagesViewModel.shareStore: SUCCESS - Message sent with id=\(message.id)")
                         #endif
 
-                        // Mark all reminders in this store as shared and update owner's user_store
+                        // Mark all reminders in this store as shared
+                        // Note: owner's user_store sharedWith is updated when recipient accepts the invite
                         self?.markRemindersAsShared(
                             userStoreItem: userStoreItem,
                             recipientName: contact.name,
                             currentUserName: currentUserName
                         ) {
-                            // Also update owner's user_store with sharedWith array
-                            self?.updateOwnerStoreSharedWith(
-                                userStoreId: userStoreItem.id,
-                                recipientName: contact.name
-                            ) {
-                                DispatchQueue.main.async {
-                                    completion(true)
-                                }
+                            DispatchQueue.main.async {
+                                completion(true)
                             }
                         }
 
@@ -658,58 +653,6 @@ class MessagesViewModel: ObservableObject {
             }
     }
 
-    /// Update the owner's user_store with sharedWith array (for auto-marking new reminders as shared)
-    private func updateOwnerStoreSharedWith(
-        userStoreId: String,
-        recipientName: String,
-        completion: @escaping () -> Void
-    ) {
-        let db = Firestore.firestore()
-
-        #if DEBUG
-        print("📤 updateOwnerStoreSharedWith: Updating user_store \(userStoreId) with sharedWith")
-        #endif
-
-        db.collection("user_stores").document(userStoreId).getDocument { snapshot, error in
-            if let error = error {
-                #if DEBUG
-                print("📤 updateOwnerStoreSharedWith: ERROR fetching user_store - \(error)")
-                #endif
-                completion()
-                return
-            }
-
-            guard let data = snapshot?.data() else {
-                #if DEBUG
-                print("📤 updateOwnerStoreSharedWith: No data found")
-                #endif
-                completion()
-                return
-            }
-
-            var sharedWith = data["sharedWith"] as? [String] ?? []
-
-            // Add recipient if not already in the list
-            if !sharedWith.contains(recipientName) {
-                sharedWith.append(recipientName)
-            }
-
-            db.collection("user_stores").document(userStoreId).updateData([
-                "sharedWith": sharedWith,
-                "isSharedStore": true
-            ]) { error in
-                #if DEBUG
-                if let error = error {
-                    print("📤 updateOwnerStoreSharedWith: ERROR updating - \(error)")
-                } else {
-                    print("📤 updateOwnerStoreSharedWith: SUCCESS - sharedWith=\(sharedWith)")
-                }
-                #endif
-                completion()
-            }
-        }
-    }
-
     // MARK: - Shared Store Accept/Reject
 
     func acceptSharedStore(
@@ -736,6 +679,14 @@ class MessagesViewModel: ObservableObject {
             return
         }
 
+        guard let userName = UserSessionManager.shared.currentUser?.name else {
+            #if DEBUG
+            print("🔵 MessagesViewModel.acceptSharedStore: ERROR - No userName")
+            #endif
+            completion(false)
+            return
+        }
+
         guard let linkedStore = message.linkedStore else {
             #if DEBUG
             print("🔵 MessagesViewModel.acceptSharedStore: ERROR - No linkedStore in message")
@@ -755,7 +706,8 @@ class MessagesViewModel: ObservableObject {
             currentUserEmail: userEmail,
             senderUserId: linkedStore.senderUserId,
             senderUserStoreId: linkedStore.senderUserStoreId,
-            senderName: message.senderName  // Pass sender name for display
+            senderName: message.senderName,  // Pass sender name for display
+            recipientName: userName  // Pass recipient name to update owner's sharedWith
         ) { result in
             DispatchQueue.main.async {
                 switch result {

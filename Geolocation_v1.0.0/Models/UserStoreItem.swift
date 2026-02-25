@@ -16,7 +16,7 @@ struct UserStoreItem: Identifiable, Hashable {
     let sharedStoreGroupId: String? // If shared with Can Edit, this links to the shared group
     let sourceUserStoreId: String? // If View Only, points to owner's user_store ID
     let sharedFromName: String? // Display name of user who shared this store (for recipient)
-    let sharedWith: [String]? // Names of users this store is shared with (for owner)
+    var sharedWith: [String]? // Names of users this store is shared with (for owner)
     let notificationsEnabled: Bool // Whether notifications are enabled for this store
 
     /// Whether this store is being shared with other users or was shared to the current user

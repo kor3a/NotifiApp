@@ -253,29 +253,27 @@ class StoresViewModel: ObservableObject {
         reminderCountListeners.removeAll()
     }
 
-    /// Set up real-time listeners to detect when shared store recipients leave.
-    /// When all recipients are gone, updates the owner's own user_store to clear sharedWith,
-    /// which triggers the main snapshot listener and updates the UI.
+    /// Set up real-time listeners to detect when shared store recipients join or leave.
+    /// Watches all owner stores for recipient user_store documents (via sourceUserStoreId).
+    /// Directly updates the local userStoreItems array for instant UI feedback,
+    /// and also persists changes to Firestore for durability.
     private func setupSharedStatusListeners(for items: [UserStoreItem]) {
-        // Find stores that are shared by the owner (have sharedWith set)
-        let sharedItemIds = Set(items.compactMap { item -> String? in
-            if let sharedWith = item.sharedWith, !sharedWith.isEmpty {
-                return item.id
-            }
-            return nil
+        // Monitor all owner stores — recipients can appear at any time after a share invite
+        let ownerItemIds = Set(items.compactMap { item -> String? in
+            item.permission == .owner ? item.id : nil
         })
 
-        // Remove listeners for stores no longer shared
+        // Remove listeners for stores no longer in the list
         let currentIds = Set(sharedStatusListeners.keys)
-        let idsToRemove = currentIds.subtracting(sharedItemIds)
+        let idsToRemove = currentIds.subtracting(ownerItemIds)
         for id in idsToRemove {
             sharedStatusListeners[id]?.remove()
             sharedStatusListeners.removeValue(forKey: id)
         }
 
-        // Add listeners for newly shared stores
+        // Add listeners for owner stores
         for item in items {
-            guard let sharedWith = item.sharedWith, !sharedWith.isEmpty else { continue }
+            guard item.permission == .owner else { continue }
 
             // Skip if already listening
             if sharedStatusListeners[item.id] != nil { continue }
@@ -294,22 +292,49 @@ class StoresViewModel: ObservableObject {
                         return
                     }
 
-                    // Only react when a recipient's user_store was actually removed.
-                    // This avoids clearing sharedWith for pending shares where the
-                    // recipient hasn't accepted yet (initial query returns 0 docs
-                    // with no removals).
+                    let hasAdditions = snapshot.documentChanges.contains { $0.type == .added }
                     let hasRemovals = snapshot.documentChanges.contains { $0.type == .removed }
-                    guard hasRemovals else { return }
+
+                    // Only react to actual recipient additions or removals
+                    guard hasAdditions || hasRemovals else { return }
 
                     if snapshot.documents.isEmpty {
                         #if DEBUG
                         print("StoresViewModel: Last recipient left '\(storeName)' - clearing sharedWith")
                         #endif
-                        // Owner updates their own doc (allowed by Firestore rules)
+
+                        // Update local array immediately for instant UI feedback
+                        if let index = self.userStoreItems.firstIndex(where: { $0.id == ownerStoreId }) {
+                            self.userStoreItems[index].sharedWith = nil
+                        }
+
+                        // Persist to Firestore
                         self.db.collection("user_stores").document(ownerStoreId).updateData([
                             "sharedWith": FieldValue.delete(),
                             "isSharedStore": FieldValue.delete()
                         ])
+                    } else {
+                        // Build sharedWith from current recipient documents
+                        let recipientNames = snapshot.documents.compactMap { doc in
+                            doc.data()["userName"] as? String
+                        }
+
+                        if !recipientNames.isEmpty {
+                            #if DEBUG
+                            print("StoresViewModel: Recipients changed for '\(storeName)' - sharedWith=\(recipientNames)")
+                            #endif
+
+                            // Update local array immediately for instant UI feedback
+                            if let index = self.userStoreItems.firstIndex(where: { $0.id == ownerStoreId }) {
+                                self.userStoreItems[index].sharedWith = recipientNames
+                            }
+
+                            // Persist to Firestore
+                            self.db.collection("user_stores").document(ownerStoreId).updateData([
+                                "sharedWith": recipientNames,
+                                "isSharedStore": true
+                            ])
+                        }
                     }
                 }
 
