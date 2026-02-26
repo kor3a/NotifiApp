@@ -524,6 +524,10 @@ class ReminderViewModel: ObservableObject {
             }
         }
 
+        // Track addition synchronously so the count is available immediately
+        // (before the user can navigate away)
+        pendingAdditions += 1
+
         db.collection("reminders").addDocument(data: reminderData) { [weak self] error in
             DispatchQueue.main.async {
                 if let error = error {
@@ -531,11 +535,12 @@ class ReminderViewModel: ObservableObject {
                     print("ReminderViewModel: Error adding reminder: \(error.localizedDescription)")
                     #endif
                     self?.errorMessage = "Error adding reminder: \(error.localizedDescription)"
+                    // Undo the synchronous increment since the add failed
+                    self?.pendingAdditions = max(0, (self?.pendingAdditions ?? 1) - 1)
                 } else {
                     #if DEBUG
                     print("ReminderViewModel: Reminder added successfully (isShared: \(isSharedStore))")
                     #endif
-                    self?.pendingAdditions += 1
                     // Trigger AI categorization for the newly added reminder once it appears
                     // in the snapshot listener results
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {

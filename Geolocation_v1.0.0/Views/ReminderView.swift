@@ -872,12 +872,39 @@ struct ReminderView: View {
     /// Send shared store notifications if the store is shared and changes were made.
     /// Resets the pending change counters after sending.
     private func sendPendingSharedNotificationsIfNeeded() {
-        guard userStoreItem.isShared,
-              viewModel.hasPendingChanges,
-              let currentUserId = UserSessionManager.shared.currentUser?.userId,
-              let currentUserName = UserSessionManager.shared.currentUser?.name else {
+        #if DEBUG
+        print("📤 ReminderView: sendPendingSharedNotificationsIfNeeded called")
+        print("📤   isShared: \(userStoreItem.isShared), hasPendingChanges: \(viewModel.hasPendingChanges)")
+        print("📤   pendingAdditions: \(viewModel.pendingAdditions), pendingOtherChanges: \(viewModel.pendingOtherChanges)")
+        print("📤   currentUserId: \(UserSessionManager.shared.currentUser?.userId ?? "nil")")
+        print("📤   currentUserName: \(UserSessionManager.shared.currentUser?.name ?? "nil")")
+        #endif
+
+        guard userStoreItem.isShared else {
+            #if DEBUG
+            print("📤 ReminderView: Skipping — store is not shared")
+            #endif
             return
         }
+
+        guard viewModel.hasPendingChanges else {
+            #if DEBUG
+            print("📤 ReminderView: Skipping — no pending changes")
+            #endif
+            return
+        }
+
+        guard let currentUserId = UserSessionManager.shared.currentUser?.userId,
+              let currentUserName = UserSessionManager.shared.currentUser?.name else {
+            #if DEBUG
+            print("📤 ReminderView: Skipping — current user data not available")
+            #endif
+            return
+        }
+
+        #if DEBUG
+        print("📤 ReminderView: Sending notifications for \(viewModel.pendingAdditions) additions, \(viewModel.pendingOtherChanges) other changes")
+        #endif
 
         SharedReminderNotificationService.shared.sendNotifications(
             for: userStoreItem,
