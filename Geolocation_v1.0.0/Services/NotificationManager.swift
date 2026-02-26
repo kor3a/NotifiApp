@@ -50,7 +50,15 @@ class NotificationManager: NSObject, ObservableObject {
             options: [.customDismissAction, .allowInCarPlay, .allowAnnouncement]
         )
 
-        notificationCenter.setNotificationCategories([storeProximityCategory, friendRequestCategory, newMessageCategory])
+        // Create a category for shared reminder change notifications
+        let sharedReminderCategory = UNNotificationCategory(
+            identifier: "SHARED_REMINDER_CHANGE",
+            actions: [],
+            intentIdentifiers: [],
+            options: [.customDismissAction, .allowInCarPlay, .allowAnnouncement]
+        )
+
+        notificationCenter.setNotificationCategories([storeProximityCategory, friendRequestCategory, newMessageCategory, sharedReminderCategory])
         #if DEBUG
         print("✅ Registered notification categories with CarPlay and announcement support")
         #endif
@@ -264,6 +272,56 @@ class NotificationManager: NSObject, ObservableObject {
                 } else {
                     #if DEBUG
                     print("   ✅ Successfully scheduled new message notification from \(fromUserName)")
+                    #endif
+                }
+            }
+        }
+    }
+
+    func scheduleSharedReminderNotification(senderName: String, storeName: String, addedCount: Int, otherChangeCount: Int) {
+        #if DEBUG
+        print("🔔 NotificationManager: Scheduling shared reminder notification from \(senderName) for \(storeName)")
+        #endif
+
+        notificationCenter.getNotificationSettings { settings in
+            guard settings.authorizationStatus == .authorized else {
+                #if DEBUG
+                print("   ❌ Notifications not authorized!")
+                #endif
+                return
+            }
+
+            let content = UNMutableNotificationContent()
+            content.title = "Shared List Updated"
+
+            // Build a descriptive body based on what changed
+            if addedCount > 0 && otherChangeCount > 0 {
+                let itemWord = addedCount == 1 ? "item" : "items"
+                content.body = "\(senderName) added \(addedCount) \(itemWord) and made changes to the \(storeName) list."
+            } else if addedCount > 0 {
+                let itemWord = addedCount == 1 ? "item" : "items"
+                content.body = "\(senderName) added \(addedCount) \(itemWord) to \(storeName)."
+            } else {
+                content.body = "\(senderName) updated the \(storeName) list."
+            }
+
+            content.sound = .default
+            content.interruptionLevel = .active
+            content.relevanceScore = 0.8
+            content.categoryIdentifier = "SHARED_REMINDER_CHANGE"
+
+            let identifier = "shared_reminder_\(storeName)_\(Date().timeIntervalSince1970)"
+            let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
+            let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
+
+            self.notificationCenter.add(request) { error in
+                if let error = error {
+                    #if DEBUG
+                    print("   ❌ Error scheduling shared reminder notification: \(error)")
+                    #endif
+                } else {
+                    #if DEBUG
+                    print("   ✅ Scheduled shared reminder notification from \(senderName) for \(storeName)")
                     #endif
                 }
             }

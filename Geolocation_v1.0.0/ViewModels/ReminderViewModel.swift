@@ -19,6 +19,21 @@ class ReminderViewModel: ObservableObject {
     /// Flag to prevent snapshot listener from overwriting local state during a reorder operation
     private var isReordering = false
 
+    // MARK: - Change Tracking for Shared Store Notifications
+
+    /// Number of reminders added during this editing session (for shared store notifications)
+    private(set) var pendingAdditions: Int = 0
+    /// Number of other changes (edits, deletes, toggles) during this editing session
+    private(set) var pendingOtherChanges: Int = 0
+    /// Whether any tracked changes have been made since the last reset
+    var hasPendingChanges: Bool { pendingAdditions > 0 || pendingOtherChanges > 0 }
+
+    /// Reset change counters (call after sending notifications)
+    func resetPendingChanges() {
+        pendingAdditions = 0
+        pendingOtherChanges = 0
+    }
+
     /// Fetch reminders for a specific user_store document
     /// - Parameters:
     ///   - userStoreId: The user_store ID to fetch reminders for
@@ -255,6 +270,7 @@ class ReminderViewModel: ObservableObject {
         print("ReminderViewModel: Updating category for '\(reminder.title)' to '\(newCategory ?? "nil")'")
         #endif
 
+        pendingOtherChanges += 1
         let fieldValue: Any = newCategory ?? FieldValue.delete()
 
         if let sharedReminderId = reminder.sharedReminderId {
@@ -519,6 +535,7 @@ class ReminderViewModel: ObservableObject {
                     #if DEBUG
                     print("ReminderViewModel: Reminder added successfully (isShared: \(isSharedStore))")
                     #endif
+                    self?.pendingAdditions += 1
                     // Trigger AI categorization for the newly added reminder once it appears
                     // in the snapshot listener results
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
@@ -571,6 +588,7 @@ class ReminderViewModel: ObservableObject {
         print("ReminderViewModel: Toggling reminder '\(reminder.title)'")
         #endif
 
+        pendingOtherChanges += 1
         let newIsDone = !reminder.isDone
         var updateFields: [String: Any] = ["isDone": newIsDone]
 
@@ -637,6 +655,8 @@ class ReminderViewModel: ObservableObject {
         #if DEBUG
         print("ReminderViewModel: Toggling out-of-stock for reminder '\(reminder.title)'")
         #endif
+
+        pendingOtherChanges += 1
 
         let newOutOfStock = !(reminder.isOutOfStock ?? false)
         var updateFields: [String: Any] = ["isOutOfStock": newOutOfStock]
@@ -714,6 +734,7 @@ class ReminderViewModel: ObservableObject {
         let trimmedTitle = newTitle.trimmingCharacters(in: .whitespaces)
         guard !trimmedTitle.isEmpty, trimmedTitle != reminder.title else { return }
 
+        pendingOtherChanges += 1
         #if DEBUG
         print("ReminderViewModel: Updating title for reminder '\(reminder.title)' to '\(trimmedTitle)'")
         #endif
@@ -768,6 +789,7 @@ class ReminderViewModel: ObservableObject {
         print("ReminderViewModel: Updating quantity for reminder '\(reminder.title)' to \(newQuantity.map(String.init) ?? "nil")")
         #endif
 
+        pendingOtherChanges += 1
         let fieldValue: Any = newQuantity ?? FieldValue.delete()
 
         if let sharedReminderId = reminder.sharedReminderId {
@@ -888,6 +910,8 @@ class ReminderViewModel: ObservableObject {
         #if DEBUG
         print("ReminderViewModel: Deleting reminder '\(reminder.title)'")
         #endif
+
+        pendingOtherChanges += 1
 
         // If this reminder has a sharedReminderId, delete all linked reminders
         if let sharedReminderId = reminder.sharedReminderId {
@@ -1053,6 +1077,7 @@ class ReminderViewModel: ObservableObject {
 
             let docRef = db.collection("reminders").document()
             autosavedReminderId = docRef.documentID
+            pendingAdditions += 1
 
             docRef.setData(reminderData) { [weak self] error in
                 if let error = error {
@@ -1061,6 +1086,7 @@ class ReminderViewModel: ObservableObject {
                     #endif
                     DispatchQueue.main.async {
                         self?.autosavedReminderId = nil
+                        self?.pendingAdditions = max(0, (self?.pendingAdditions ?? 1) - 1)
                     }
                 } else {
                     #if DEBUG
@@ -1133,6 +1159,8 @@ class ReminderViewModel: ObservableObject {
     func discardAutosave() {
         guard let reminderId = autosavedReminderId else { return }
         autosavedReminderId = nil
+        // Undo the addition count since the reminder was created then immediately discarded
+        pendingAdditions = max(0, pendingAdditions - 1)
         deleteSingleReminder(reminderId)
     }
 

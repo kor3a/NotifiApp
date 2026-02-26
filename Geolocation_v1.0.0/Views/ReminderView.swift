@@ -37,6 +37,7 @@ struct ReminderView: View {
     @State private var checkboxFrames: [String: CGRect] = [:]
     @State private var swipedIds: Set<String> = []
     @Environment(\.colorScheme) var colorScheme
+    @Environment(\.scenePhase) var scenePhase
 
     private var editMode: Binding<EditMode> {
         Binding(
@@ -154,6 +155,13 @@ struct ReminderView: View {
                     userStoreId: userStoreItem.reminderStoreId,
                     finalTitle: title
                 )
+            }
+
+            sendPendingSharedNotificationsIfNeeded()
+        }
+        .onChange(of: scenePhase) { _, newPhase in
+            if newPhase == .background {
+                sendPendingSharedNotificationsIfNeeded()
             }
         }
         .sheet(item: $reminderToShare) { reminder in
@@ -859,6 +867,26 @@ struct ReminderView: View {
                 }
             }
         }
+    }
+
+    /// Send shared store notifications if the store is shared and changes were made.
+    /// Resets the pending change counters after sending.
+    private func sendPendingSharedNotificationsIfNeeded() {
+        guard userStoreItem.isShared,
+              viewModel.hasPendingChanges,
+              let currentUserId = UserSessionManager.shared.currentUser?.userId,
+              let currentUserName = UserSessionManager.shared.currentUser?.name else {
+            return
+        }
+
+        SharedReminderNotificationService.shared.sendNotifications(
+            for: userStoreItem,
+            addedCount: viewModel.pendingAdditions,
+            otherChangeCount: viewModel.pendingOtherChanges,
+            currentUserId: currentUserId,
+            currentUserName: currentUserName
+        )
+        viewModel.resetPendingChanges()
     }
 }
 
