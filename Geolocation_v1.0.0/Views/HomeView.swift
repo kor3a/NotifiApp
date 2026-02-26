@@ -112,10 +112,13 @@ struct HomeView: View {
             // Fetch pending friend request count for badge
             friendsViewModel.fetchPendingRequestCount()
 
-            // Start listening for friend requests and incoming messages if user is already logged in
+            // Start listening for friend requests, incoming messages, and shared reminder changes
             if let userId = sessionManager.currentUser?.userId {
                 friendRequestService.listenForIncomingRequests(userId: userId)
                 messagingService.startListeningForIncomingMessages(userId: userId)
+            }
+            if let userEmail = sessionManager.currentUser?.email {
+                SharedReminderNotificationService.shared.startListening(userEmail: userEmail)
             }
         }
         .onChange(of: sessionManager.currentUser) { oldUser, newUser in
@@ -129,6 +132,11 @@ struct HomeView: View {
 
                 // Start listening for incoming messages
                 messagingService.startListeningForIncomingMessages(userId: userId)
+
+                // Start listening for shared reminder change notifications
+                if let userEmail = newUser?.email {
+                    SharedReminderNotificationService.shared.startListening(userEmail: userEmail)
+                }
             }
 
             // Start monitoring when user data becomes available

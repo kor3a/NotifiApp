@@ -37,6 +37,7 @@ struct ReminderView: View {
     @State private var checkboxFrames: [String: CGRect] = [:]
     @State private var swipedIds: Set<String> = []
     @Environment(\.colorScheme) var colorScheme
+    @Environment(\.scenePhase) var scenePhase
 
     private var editMode: Binding<EditMode> {
         Binding(
@@ -154,6 +155,13 @@ struct ReminderView: View {
                     userStoreId: userStoreItem.reminderStoreId,
                     finalTitle: title
                 )
+            }
+
+            sendPendingSharedNotificationsIfNeeded()
+        }
+        .onChange(of: scenePhase) { _, newPhase in
+            if newPhase == .background {
+                sendPendingSharedNotificationsIfNeeded()
             }
         }
         .sheet(item: $reminderToShare) { reminder in
@@ -859,6 +867,53 @@ struct ReminderView: View {
                 }
             }
         }
+    }
+
+    /// Send shared store notifications if the store is shared and changes were made.
+    /// Resets the pending change counters after sending.
+    private func sendPendingSharedNotificationsIfNeeded() {
+        #if DEBUG
+        print("📤 ReminderView: sendPendingSharedNotificationsIfNeeded called")
+        print("📤   isShared: \(userStoreItem.isShared), hasPendingChanges: \(viewModel.hasPendingChanges)")
+        print("📤   pendingAdditions: \(viewModel.pendingAdditions), pendingOtherChanges: \(viewModel.pendingOtherChanges)")
+        print("📤   currentUserId: \(UserSessionManager.shared.currentUser?.userId ?? "nil")")
+        print("📤   currentUserName: \(UserSessionManager.shared.currentUser?.name ?? "nil")")
+        #endif
+
+        guard userStoreItem.isShared else {
+            #if DEBUG
+            print("📤 ReminderView: Skipping — store is not shared")
+            #endif
+            return
+        }
+
+        guard viewModel.hasPendingChanges else {
+            #if DEBUG
+            print("📤 ReminderView: Skipping — no pending changes")
+            #endif
+            return
+        }
+
+        guard let currentUserId = UserSessionManager.shared.currentUser?.userId,
+              let currentUserName = UserSessionManager.shared.currentUser?.name else {
+            #if DEBUG
+            print("📤 ReminderView: Skipping — current user data not available")
+            #endif
+            return
+        }
+
+        #if DEBUG
+        print("📤 ReminderView: Sending notifications for \(viewModel.pendingAdditions) additions, \(viewModel.pendingOtherChanges) other changes")
+        #endif
+
+        SharedReminderNotificationService.shared.sendNotifications(
+            for: userStoreItem,
+            addedCount: viewModel.pendingAdditions,
+            otherChangeCount: viewModel.pendingOtherChanges,
+            currentUserId: currentUserId,
+            currentUserName: currentUserName
+        )
+        viewModel.resetPendingChanges()
     }
 }
 

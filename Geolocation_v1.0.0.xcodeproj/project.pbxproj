@@ -32,6 +32,7 @@
 		01B78C382EBD414A00201B88 /* UserStoreItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01B78C372EBD414A00201B88 /* UserStoreItem.swift */; };
 		01B78C3A2EBD415F00201B88 /* ReminderViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01B78C392EBD415F00201B88 /* ReminderViewModel.swift */; };
 		01D2D8732EC2901F009C371F /* ImagePicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01D2D8722EC2901F009C371F /* ImagePicker.swift */; };
+		01EF1E4D2F50A1B500D79D3C /* FavoriteTag.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01EF1E4C2F50A1B500D79D3C /* FavoriteTag.swift */; };
 		742E371B2CBC036F0056F692 /* ProfileViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 742E371A2CBC036F0056F692 /* ProfileViewModel.swift */; };
 		744091EC2DE57AB600ACC67A /* StoreItemView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 744091EB2DE57AB500ACC67A /* StoreItemView.swift */; };
 		748542B32CB5307000C58D9B /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 748542B22CB5307000C58D9B /* HomeView.swift */; };
@@ -74,6 +75,7 @@
 		AA1234560001AABB00CC0028 /* StoreLogoProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0018 /* StoreLogoProvider.swift */; };
 		AA1234560001AABB00CC0029 /* UserSessionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0019 /* UserSessionManager.swift */; };
 		AA1234560001AABB00CC0031 /* SubscriptionPaywallView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0030 /* SubscriptionPaywallView.swift */; };
+		C10000000001AABB00CC0041 /* SharedReminderNotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C10000000001AABB00CC0040 /* SharedReminderNotificationService.swift */; };
 		DF66A9982E24C86100C15DA9 /* User_Store.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF66A9972E24C86100C15DA9 /* User_Store.swift */; };
 /* End PBXBuildFile section */
 
@@ -116,6 +118,7 @@
 		01B78C372EBD414A00201B88 /* UserStoreItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserStoreItem.swift; sourceTree = "<group>"; };
 		01B78C392EBD415F00201B88 /* ReminderViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderViewModel.swift; sourceTree = "<group>"; };
 		01D2D8722EC2901F009C371F /* ImagePicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImagePicker.swift; sourceTree = "<group>"; };
+		01EF1E4C2F50A1B500D79D3C /* FavoriteTag.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FavoriteTag.swift; sourceTree = "<group>"; };
 		742E371A2CBC036F0056F692 /* ProfileViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileViewModel.swift; sourceTree = "<group>"; };
 		744091EB2DE57AB500ACC67A /* StoreItemView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoreItemView.swift; sourceTree = "<group>"; };
 		748542B22CB5307000C58D9B /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
@@ -156,6 +159,7 @@
 		AA1234560001AABB00CC0018 /* StoreLogoProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoreLogoProvider.swift; sourceTree = "<group>"; };
 		AA1234560001AABB00CC0019 /* UserSessionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserSessionManager.swift; sourceTree = "<group>"; };
 		AA1234560001AABB00CC0030 /* SubscriptionPaywallView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionPaywallView.swift; sourceTree = "<group>"; };
+		C10000000001AABB00CC0040 /* SharedReminderNotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedReminderNotificationService.swift; sourceTree = "<group>"; };
 		DF66A9972E24C86100C15DA9 /* User_Store.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = User_Store.swift; sourceTree = "<group>"; };
 		DF66A9992E24C86100C15DA9 /* Geolocation_v1.0.0.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Geolocation_v1.0.0.entitlements; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -197,6 +201,7 @@
 				AA1234560001AABB00CC0015 /* MessagingService.swift */,
 				AA1234560001AABB00CC0016 /* NotificationLogStore.swift */,
 				AA1234560001AABB00CC0017 /* NotificationManager.swift */,
+				C10000000001AABB00CC0040 /* SharedReminderNotificationService.swift */,
 				AA1234560001AABB00CC0001 /* OpenAIService.swift */,
 				AA1234560001AABB00CC0018 /* StoreLogoProvider.swift */,
 				AA1234560001AABB00CC0019 /* UserSessionManager.swift */,
@@ -306,6 +311,7 @@
 		8278FE102C5DE5A60017EB72 /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				01EF1E4C2F50A1B500D79D3C /* FavoriteTag.swift */,
 				01B4082C2F3BECD600EA1F25 /* StoreCluster.swift */,
 				01B4082A2F3BECCF00EA1F25 /* Message.swift */,
 				01B408282F3BECC900EA1F25 /* FriendRequest.swift */,
@@ -485,6 +491,7 @@
 				748542B52CB5378A00C58D9B /* ReminderView.swift in Sources */,
 				82D289B72C61D631009F357F /* ProfileView.swift in Sources */,
 				82916C162C914BA800F810A3 /* MapViewModel.swift in Sources */,
+				01EF1E4D2F50A1B500D79D3C /* FavoriteTag.swift in Sources */,
 				01B408272F3BECC300EA1F25 /* Friend.swift in Sources */,
 				82EC11832C64755300A6CD8C /* LocationDetailsView.swift in Sources */,
 				8278FE132C5F23010017EB72 /* LoginView.swift in Sources */,
@@ -521,6 +528,7 @@
 				AA1234560001AABB00CC0025 /* MessagingService.swift in Sources */,
 				AA1234560001AABB00CC0026 /* NotificationLogStore.swift in Sources */,
 				AA1234560001AABB00CC0027 /* NotificationManager.swift in Sources */,
+				C10000000001AABB00CC0041 /* SharedReminderNotificationService.swift in Sources */,
 				AA1234560001AABB00CC0028 /* StoreLogoProvider.swift in Sources */,
 				AA1234560001AABB00CC0029 /* UserSessionManager.swift in Sources */,
 				AA1234560001AABB00CC0031 /* SubscriptionPaywallView.swift in Sources */,

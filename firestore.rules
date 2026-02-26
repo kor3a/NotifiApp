@@ -266,6 +266,26 @@ service cloud.firestore {
     }
 
     // ============================================================
+    // Reminder Change Notifications (shared store updates)
+    // ============================================================
+    match /reminder_change_notifications/{notificationId} {
+      // Only the recipient can read their own notifications (matched by email)
+      allow read: if request.auth != null &&
+                     resource.data.recipientEmail == request.auth.token.email;
+
+      // Any authenticated user can create a notification for another user
+      allow create: if request.auth != null &&
+                       request.resource.data.recipientEmail is string &&
+                       request.resource.data.senderName is string &&
+                       request.resource.data.storeName is string &&
+                       request.resource.data.createdAt is number;
+
+      // Only the recipient can delete (after consuming the notification)
+      allow delete: if request.auth != null &&
+                       resource.data.recipientEmail == request.auth.token.email;
+    }
+
+    // ============================================================
     // Friend Requests
     // ============================================================
     match /friend_requests/{requestId} {
