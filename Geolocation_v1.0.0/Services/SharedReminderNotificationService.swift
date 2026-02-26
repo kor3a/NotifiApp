@@ -42,15 +42,15 @@ class SharedReminderNotificationService {
         print("📤   sharedFromName: \(userStoreItem.sharedFromName ?? "nil")")
         #endif
 
-        findSharedUserIds(for: userStoreItem, excludingUserId: currentUserId) { [weak self] userIds in
+        findSharedUsers(for: userStoreItem, excludingUserId: currentUserId) { [weak self] sharedUsers in
             guard let self = self else {
                 #if DEBUG
-                print("📤 SharedReminderNotificationService: self is nil in findSharedUserIds completion")
+                print("📤 SharedReminderNotificationService: self is nil in completion")
                 #endif
                 return
             }
 
-            guard !userIds.isEmpty else {
+            guard !sharedUsers.isEmpty else {
                 #if DEBUG
                 print("📤 SharedReminderNotificationService: No shared users found to notify")
                 #endif
@@ -58,19 +58,20 @@ class SharedReminderNotificationService {
             }
 
             #if DEBUG
-            print("📤 SharedReminderNotificationService: Found \(userIds.count) user(s) to notify: \(userIds)")
+            print("📤 SharedReminderNotificationService: Found \(sharedUsers.count) user(s) to notify: \(sharedUsers.map { $0.email })")
             #endif
 
             let batch = self.db.batch()
             let now = Date().timeIntervalSince1970
 
-            for userId in userIds {
+            for user in sharedUsers {
                 let docRef = self.db.collection("reminder_change_notifications").document()
                 #if DEBUG
-                print("📤   Writing notification doc \(docRef.documentID) for userId: \(userId)")
+                print("📤   Writing notification doc \(docRef.documentID) for \(user.email)")
                 #endif
                 batch.setData([
-                    "recipientUserId": userId,
+                    "recipientUserId": user.userId,
+                    "recipientEmail": user.email,
                     "senderName": currentUserName,
                     "storeName": storeName,
                     "addedCount": addedCount,
@@ -84,7 +85,7 @@ class SharedReminderNotificationService {
                 if let error = error {
                     print("📤 SharedReminderNotificationService: ❌ Batch commit error: \(error.localizedDescription)")
                 } else {
-                    print("📤 SharedReminderNotificationService: ✅ Notifications sent to \(userIds.count) user(s)")
+                    print("📤 SharedReminderNotificationService: ✅ Notifications sent to \(sharedUsers.count) user(s)")
                 }
                 print("📤 SharedReminderNotificationService: --- SEND END ---")
                 #endif
@@ -94,47 +95,53 @@ class SharedReminderNotificationService {
 
     // MARK: - Find Shared Users
 
-    /// Find all user IDs that share the same store, excluding the current user.
+    /// A shared user's userId and email, collected from user_stores documents.
+    private struct SharedUser {
+        let userId: String
+        let email: String
+    }
+
+    /// Find all users that share the same store, excluding the current user.
     /// Respects each recipient's `notificationsEnabled` preference.
-    private func findSharedUserIds(
+    private func findSharedUsers(
         for userStoreItem: UserStoreItem,
         excludingUserId currentUserId: String,
-        completion: @escaping ([String]) -> Void
+        completion: @escaping ([SharedUser]) -> Void
     ) {
-        var userIds = Set<String>()
+        // Use a dictionary keyed by userId to deduplicate
+        var usersById = [String: SharedUser]()
         let group = DispatchGroup()
 
         #if DEBUG
-        print("📤 findSharedUserIds: permission=\(userStoreItem.permission), id=\(userStoreItem.id), sourceUserStoreId=\(userStoreItem.sourceUserStoreId ?? "nil"), sharedStoreGroupId=\(userStoreItem.sharedStoreGroupId ?? "nil")")
+        print("📤 findSharedUsers: permission=\(userStoreItem.permission), id=\(userStoreItem.id), sourceUserStoreId=\(userStoreItem.sourceUserStoreId ?? "nil"), sharedStoreGroupId=\(userStoreItem.sharedStoreGroupId ?? "nil")")
         #endif
 
         // Case 1: Current user is the owner — find all recipients (both edit and view)
         if userStoreItem.permission == .owner {
             group.enter()
             #if DEBUG
-            print("📤 findSharedUserIds: Case 1 (owner) — querying sourceUserStoreId == \(userStoreItem.id)")
+            print("📤 findSharedUsers: Case 1 (owner) — querying sourceUserStoreId == \(userStoreItem.id)")
             #endif
             db.collection("user_stores")
                 .whereField("sourceUserStoreId", isEqualTo: userStoreItem.id)
                 .getDocuments { snapshot, error in
                     #if DEBUG
                     if let error = error {
-                        print("📤 findSharedUserIds: Case 1 error: \(error.localizedDescription)")
+                        print("📤 findSharedUsers: Case 1 error: \(error.localizedDescription)")
                     }
-                    print("📤 findSharedUserIds: Case 1 found \(snapshot?.documents.count ?? 0) document(s)")
+                    print("📤 findSharedUsers: Case 1 found \(snapshot?.documents.count ?? 0) document(s)")
                     #endif
                     if let docs = snapshot?.documents {
                         for doc in docs {
                             let data = doc.data()
-                            let userId = data["userId"] as? String
-                            let notifEnabled = data["notificationsEnabled"] as? Bool ?? true
-                            #if DEBUG
-                            print("📤   Case 1 doc \(doc.documentID): userId=\(userId ?? "nil"), notifEnabled=\(notifEnabled)")
-                            #endif
-                            if let userId = userId,
+                            if let userId = data["userId"] as? String,
+                               let email = data["userEmail"] as? String,
                                userId != currentUserId,
-                               notifEnabled {
-                                userIds.insert(userId)
+                               data["notificationsEnabled"] as? Bool ?? true {
+                                usersById[userId] = SharedUser(userId: userId, email: email)
+                                #if DEBUG
+                                print("📤   Case 1: found user \(userId) (\(email))")
+                                #endif
                             }
                         }
                     }
@@ -146,24 +153,25 @@ class SharedReminderNotificationService {
         if let groupId = userStoreItem.sharedStoreGroupId {
             group.enter()
             #if DEBUG
-            print("📤 findSharedUserIds: Case 2 (shared group) — querying sharedStoreGroupId == \(groupId)")
+            print("📤 findSharedUsers: Case 2 (shared group) — querying sharedStoreGroupId == \(groupId)")
             #endif
             db.collection("user_stores")
                 .whereField("sharedStoreGroupId", isEqualTo: groupId)
                 .getDocuments { snapshot, error in
                     #if DEBUG
                     if let error = error {
-                        print("📤 findSharedUserIds: Case 2 error: \(error.localizedDescription)")
+                        print("📤 findSharedUsers: Case 2 error: \(error.localizedDescription)")
                     }
-                    print("📤 findSharedUserIds: Case 2 found \(snapshot?.documents.count ?? 0) document(s)")
+                    print("📤 findSharedUsers: Case 2 found \(snapshot?.documents.count ?? 0) document(s)")
                     #endif
                     if let docs = snapshot?.documents {
                         for doc in docs {
                             let data = doc.data()
                             if let userId = data["userId"] as? String,
+                               let email = data["userEmail"] as? String,
                                userId != currentUserId,
                                data["notificationsEnabled"] as? Bool ?? true {
-                                userIds.insert(userId)
+                                usersById[userId] = SharedUser(userId: userId, email: email)
                             }
                         }
                     }
@@ -175,33 +183,34 @@ class SharedReminderNotificationService {
         if let sourceId = userStoreItem.sourceUserStoreId {
             group.enter()
             #if DEBUG
-            print("📤 findSharedUserIds: Case 3 (recipient) — looking up owner doc \(sourceId) and querying sourceUserStoreId == \(sourceId)")
+            print("📤 findSharedUsers: Case 3 (recipient) — looking up owner doc \(sourceId) and querying sourceUserStoreId == \(sourceId)")
             #endif
             // Find the owner
             db.collection("user_stores").document(sourceId).getDocument { [weak self] snapshot, error in
                 #if DEBUG
                 if let error = error {
-                    print("📤 findSharedUserIds: Case 3 owner lookup error: \(error.localizedDescription)")
+                    print("📤 findSharedUsers: Case 3 owner lookup error: \(error.localizedDescription)")
                 }
                 #endif
                 if let data = snapshot?.data(),
                    let userId = data["userId"] as? String,
+                   let email = data["userEmail"] as? String,
                    userId != currentUserId,
                    data["notificationsEnabled"] as? Bool ?? true {
+                    usersById[userId] = SharedUser(userId: userId, email: email)
                     #if DEBUG
-                    print("📤 findSharedUserIds: Case 3 found owner userId: \(userId)")
+                    print("📤 findSharedUsers: Case 3 found owner \(userId) (\(email))")
                     #endif
-                    userIds.insert(userId)
                 } else {
                     #if DEBUG
-                    print("📤 findSharedUserIds: Case 3 owner doc data: \(snapshot?.data() ?? [:])")
+                    print("📤 findSharedUsers: Case 3 owner doc data: \(snapshot?.data() ?? [:])")
                     #endif
                 }
 
                 // Find other recipients that share the same source
                 guard let self = self else {
                     #if DEBUG
-                    print("📤 findSharedUserIds: Case 3 self is nil, calling group.leave()")
+                    print("📤 findSharedUsers: Case 3 self is nil, calling group.leave()")
                     #endif
                     group.leave()
                     return
@@ -212,17 +221,18 @@ class SharedReminderNotificationService {
                     .getDocuments { snapshot, error in
                         #if DEBUG
                         if let error = error {
-                            print("📤 findSharedUserIds: Case 3 other recipients error: \(error.localizedDescription)")
+                            print("📤 findSharedUsers: Case 3 other recipients error: \(error.localizedDescription)")
                         }
-                        print("📤 findSharedUserIds: Case 3 found \(snapshot?.documents.count ?? 0) other recipient(s)")
+                        print("📤 findSharedUsers: Case 3 found \(snapshot?.documents.count ?? 0) other recipient(s)")
                         #endif
                         if let docs = snapshot?.documents {
                             for doc in docs {
                                 let data = doc.data()
                                 if let userId = data["userId"] as? String,
+                                   let email = data["userEmail"] as? String,
                                    userId != currentUserId,
                                    data["notificationsEnabled"] as? Bool ?? true {
-                                    userIds.insert(userId)
+                                    usersById[userId] = SharedUser(userId: userId, email: email)
                                 }
                             }
                         }
@@ -235,33 +245,34 @@ class SharedReminderNotificationService {
         let casesEntered = (userStoreItem.permission == .owner ? 1 : 0)
             + (userStoreItem.sharedStoreGroupId != nil ? 1 : 0)
             + (userStoreItem.sourceUserStoreId != nil ? 1 : 0)
-        print("📤 findSharedUserIds: \(casesEntered) case(s) entered, waiting for completion...")
+        print("📤 findSharedUsers: \(casesEntered) case(s) entered, waiting for completion...")
         if casesEntered == 0 {
-            print("📤 findSharedUserIds: ⚠️ NO cases matched! permission=\(userStoreItem.permission), sourceUserStoreId=\(userStoreItem.sourceUserStoreId ?? "nil")")
+            print("📤 findSharedUsers: ⚠️ NO cases matched! permission=\(userStoreItem.permission), sourceUserStoreId=\(userStoreItem.sourceUserStoreId ?? "nil")")
         }
         #endif
 
         group.notify(queue: .main) {
+            let result = Array(usersById.values)
             #if DEBUG
-            print("📤 findSharedUserIds: completed with \(userIds.count) user(s): \(userIds)")
+            print("📤 findSharedUsers: completed with \(result.count) user(s): \(result.map { "\($0.userId) (\($0.email))" })")
             #endif
-            completion(Array(userIds))
+            completion(result)
         }
     }
 
     // MARK: - Listen for Incoming Notifications
 
     /// Start listening for shared reminder notifications addressed to the current user.
-    /// Shows a local notification for each incoming document and then deletes it.
-    func startListening(userId: String) {
+    /// Uses email for matching since userId is the app username, not the Firebase Auth UID.
+    func startListening(userEmail: String) {
         listener?.remove()
 
         #if DEBUG
-        print("📥 SharedReminderNotificationService: Starting listener for userId: \(userId)")
+        print("📥 SharedReminderNotificationService: Starting listener for email: \(userEmail)")
         #endif
 
         listener = db.collection("reminder_change_notifications")
-            .whereField("recipientUserId", isEqualTo: userId)
+            .whereField("recipientEmail", isEqualTo: userEmail)
             .addSnapshotListener { snapshot, error in
                 if let error = error {
                     #if DEBUG

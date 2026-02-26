@@ -116,7 +116,9 @@ struct HomeView: View {
             if let userId = sessionManager.currentUser?.userId {
                 friendRequestService.listenForIncomingRequests(userId: userId)
                 messagingService.startListeningForIncomingMessages(userId: userId)
-                SharedReminderNotificationService.shared.startListening(userId: userId)
+            }
+            if let userEmail = sessionManager.currentUser?.email {
+                SharedReminderNotificationService.shared.startListening(userEmail: userEmail)
             }
         }
         .onChange(of: sessionManager.currentUser) { oldUser, newUser in
@@ -132,7 +134,9 @@ struct HomeView: View {
                 messagingService.startListeningForIncomingMessages(userId: userId)
 
                 // Start listening for shared reminder change notifications
-                SharedReminderNotificationService.shared.startListening(userId: userId)
+                if let userEmail = newUser?.email {
+                    SharedReminderNotificationService.shared.startListening(userEmail: userEmail)
+                }
             }
 
             // Start monitoring when user data becomes available
