@@ -159,6 +159,17 @@ struct ReminderItemView: View {
                     )
                 }
 
+                // Star icon for toggling favorite
+                if onAddToFavorites != nil {
+                    Image(systemName: isFavorited ? "star.fill" : "star")
+                        .foregroundStyle(isFavorited ? .yellow : .secondary)
+                        .frame(width: 30, height: 30)
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            onAddToFavorites?()
+                        }
+                }
+
                 // Three vertical dots drag handle for reordering
                 if !isReorderMode, onReorderTap != nil {
                     Image(systemName: "ellipsis")

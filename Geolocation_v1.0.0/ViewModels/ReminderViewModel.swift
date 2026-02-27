@@ -444,6 +444,25 @@ class ReminderViewModel: ObservableObject {
         }
     }
 
+    func removeAllFavoriteTags() {
+        let batch = db.batch()
+        for tag in favoriteTags {
+            let ref = db.collection("favorite_tags").document(tag.id)
+            batch.deleteDocument(ref)
+        }
+        batch.commit { error in
+            if let error = error {
+                #if DEBUG
+                print("ReminderViewModel: Error removing all favorite tags: \(error.localizedDescription)")
+                #endif
+            } else {
+                #if DEBUG
+                print("ReminderViewModel: All favorite tags removed successfully")
+                #endif
+            }
+        }
+    }
+
     /// Add a reminder from a favorite tag tap (only if a reminder with that title doesn't already exist)
     func addReminderFromFavorite(tag: FavoriteTag, sharedWith: [String]? = nil, sharedFromName: String? = nil, currentUserName: String? = nil) {
         if isDuplicateReminder(title: tag.title) {

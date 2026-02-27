@@ -34,6 +34,7 @@ struct ReminderView: View {
     @State private var customCategoryText = ""
     @State private var collapsedCategories: Set<String> = []
     @State private var autosaveWorkItem: DispatchWorkItem?
+    @State private var showRemoveAllFavoritesConfirmation = false
     @State private var checkboxFrames: [String: CGRect] = [:]
     @State private var swipedIds: Set<String> = []
     @Environment(\.colorScheme) var colorScheme
@@ -569,9 +570,9 @@ struct ReminderView: View {
                             }
                             .contextMenu {
                                 Button(role: .destructive) {
-                                    viewModel.removeFavoriteTag(tag)
+                                    showRemoveAllFavoritesConfirmation = true
                                 } label: {
-                                    Label("Remove from Favorites", systemImage: "star.slash")
+                                    Label("Remove All Favorites", systemImage: "star.slash.fill")
                                 }
                             }
                     }
@@ -579,6 +580,18 @@ struct ReminderView: View {
             }
         }
         .padding(.vertical, 4)
+        .confirmationDialog(
+            "Remove All Favorites",
+            isPresented: $showRemoveAllFavoritesConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Remove All", role: .destructive) {
+                viewModel.removeAllFavoriteTags()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This will remove all \(viewModel.favoriteTags.count) favorite\(viewModel.favoriteTags.count == 1 ? "" : "s"). This cannot be undone.")
+        }
     }
 
     @ViewBuilder
