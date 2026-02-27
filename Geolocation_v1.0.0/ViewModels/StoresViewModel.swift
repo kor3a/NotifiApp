@@ -152,6 +152,9 @@ class StoresViewModel: ObservableObject {
                     return order1 < order2
                 }
 
+                // Push updated store list to the home screen widget
+                WidgetDataStore.shared.updateWidgetData(from: self.userStoreItems)
+
                 // Set up real-time listeners for reminder counts
                 self.setupReminderCountListeners(for: reminderStoreIds)
 
@@ -242,6 +245,8 @@ class StoresViewModel: ObservableObject {
         if updated {
             // Trigger UI update by reassigning (in case SwiftUI doesn't detect the change)
             objectWillChange.send()
+            // Push updated reminder counts to the home screen widget
+            WidgetDataStore.shared.updateWidgetData(from: userStoreItems)
         }
     }
 
@@ -504,6 +509,8 @@ class StoresViewModel: ObservableObject {
 
         // Remove from local array immediately for smooth UI
         userStoreItems.removeAll { $0.id == userStoreItem.id }
+        // Reflect removal in the home screen widget immediately
+        WidgetDataStore.shared.updateWidgetData(from: userStoreItems)
 
         // Use the permission information already available in userStoreItem
         // instead of fetching the document again (which could fail and leave orphaned reminders)
@@ -880,6 +887,8 @@ class StoresViewModel: ObservableObject {
 
         // Update the local state immediately for smooth UI
         userStoreItems = updatedItems
+        // Reflect reordering in the home screen widget
+        WidgetDataStore.shared.updateWidgetData(from: userStoreItems)
 
         // Update sortOrder for all items in Firestore
         let batch = db.batch()

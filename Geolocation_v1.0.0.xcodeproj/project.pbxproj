@@ -77,7 +77,26 @@
 		AA1234560001AABB00CC0031 /* SubscriptionPaywallView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0030 /* SubscriptionPaywallView.swift */; };
 		C10000000001AABB00CC0041 /* SharedReminderNotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C10000000001AABB00CC0040 /* SharedReminderNotificationService.swift */; };
 		DF66A9982E24C86100C15DA9 /* User_Store.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF66A9972E24C86100C15DA9 /* User_Store.swift */; };
+		CC0200000000000000000001 /* NotifiWidgetBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC0100000000000000000001 /* NotifiWidgetBundle.swift */; };
+		CC0200000000000000000002 /* NotifiWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC0100000000000000000002 /* NotifiWidget.swift */; };
+		CC0200000000000000000003 /* NotifiWidgetViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC0100000000000000000003 /* NotifiWidgetViews.swift */; };
+		CC0200000000000000000004 /* WidgetDataStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC0100000000000000000004 /* WidgetDataStore.swift */; };
+		CC0200000000000000000005 /* NotifiWidget.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = CC0100000000000000000005 /* NotifiWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		CC0300000000000000000004 /* Embed App Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				CC0200000000000000000005 /* NotifiWidget.appex in Embed App Extensions */,
+			);
+			name = "Embed App Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXContainerItemProxy section */
 		0176B30C2F3CE658003B9C75 /* PBXContainerItemProxy */ = {
@@ -86,6 +105,13 @@
 			proxyType = 1;
 			remoteGlobalIDString = 8278FDF32C5DD1C80017EB72;
 			remoteInfo = Allim;
+		};
+		CC0800000000000000000001 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 8278FDEC2C5DD1C80017EB72 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = CC0500000000000000000001;
+			remoteInfo = NotifiWidget;
 		};
 /* End PBXContainerItemProxy section */
 
@@ -162,6 +188,12 @@
 		C10000000001AABB00CC0040 /* SharedReminderNotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedReminderNotificationService.swift; sourceTree = "<group>"; };
 		DF66A9972E24C86100C15DA9 /* User_Store.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = User_Store.swift; sourceTree = "<group>"; };
 		DF66A9992E24C86100C15DA9 /* Geolocation_v1.0.0.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Geolocation_v1.0.0.entitlements; sourceTree = "<group>"; };
+		CC0100000000000000000001 /* NotifiWidgetBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotifiWidgetBundle.swift; sourceTree = "<group>"; };
+		CC0100000000000000000002 /* NotifiWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotifiWidget.swift; sourceTree = "<group>"; };
+		CC0100000000000000000003 /* NotifiWidgetViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotifiWidgetViews.swift; sourceTree = "<group>"; };
+		CC0100000000000000000004 /* WidgetDataStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetDataStore.swift; sourceTree = "<group>"; };
+		CC0100000000000000000005 /* NotifiWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = NotifiWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		CC0100000000000000000006 /* NotifiWidget.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = NotifiWidget.entitlements; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -171,6 +203,13 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		CC0300000000000000000002 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		0176B3052F3CE658003B9C75 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -205,6 +244,7 @@
 				AA1234560001AABB00CC0001 /* OpenAIService.swift */,
 				AA1234560001AABB00CC0018 /* StoreLogoProvider.swift */,
 				AA1234560001AABB00CC0019 /* UserSessionManager.swift */,
+				CC0100000000000000000004 /* WidgetDataStore.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -213,6 +253,7 @@
 			isa = PBXGroup;
 			children = (
 				8278FDF62C5DD1C90017EB72 /* Geolocation_v1.0.0 */,
+				CC0400000000000000000001 /* NotifiWidget */,
 				0176B3092F3CE658003B9C75 /* Geolocation_v1_0_0Tests */,
 				8278FDF52C5DD1C90017EB72 /* Products */,
 				01B408202F3BEBF400EA1F25 /* Geolocation_v1.0.0 */,
@@ -225,6 +266,7 @@
 			children = (
 				8278FDF42C5DD1C90017EB72 /* Allim.app */,
 				0176B3082F3CE658003B9C75 /* Geolocation_v1_0_0Tests.xctest */,
+				CC0100000000000000000005 /* NotifiWidget.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -344,6 +386,17 @@
 			path = Extensions;
 			sourceTree = "<group>";
 		};
+		CC0400000000000000000001 /* NotifiWidget */ = {
+			isa = PBXGroup;
+			children = (
+				CC0100000000000000000006 /* NotifiWidget.entitlements */,
+				CC0100000000000000000001 /* NotifiWidgetBundle.swift */,
+				CC0100000000000000000002 /* NotifiWidget.swift */,
+				CC0100000000000000000003 /* NotifiWidgetViews.swift */,
+			);
+			path = NotifiWidget;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -377,10 +430,12 @@
 				8278FDF02C5DD1C80017EB72 /* Sources */,
 				8278FDF12C5DD1C80017EB72 /* Frameworks */,
 				8278FDF22C5DD1C80017EB72 /* Resources */,
+				CC0300000000000000000004 /* Embed App Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				CC0800000000000000000002 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				011CF6042ED638ED009A31A6 /* Theme */,
@@ -394,6 +449,25 @@
 			productName = Geolocation_v1.0.0;
 			productReference = 8278FDF42C5DD1C90017EB72 /* Allim.app */;
 			productType = "com.apple.product-type.application";
+		};
+		CC0500000000000000000001 /* NotifiWidget */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = CC0600000000000000000001 /* Build configuration list for PBXNativeTarget "NotifiWidget" */;
+			buildPhases = (
+				CC0300000000000000000001 /* Sources */,
+				CC0300000000000000000002 /* Frameworks */,
+				CC0300000000000000000003 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = NotifiWidget;
+			packageProductDependencies = (
+			);
+			productName = NotifiWidget;
+			productReference = CC0100000000000000000005 /* NotifiWidget.appex */;
+			productType = "com.apple.product-type.app-extension";
 		};
 /* End PBXNativeTarget section */
 
@@ -410,6 +484,9 @@
 						TestTargetID = 8278FDF32C5DD1C80017EB72;
 					};
 					8278FDF32C5DD1C80017EB72 = {
+						CreatedOnToolsVersion = 15.4;
+					};
+					CC0500000000000000000001 = {
 						CreatedOnToolsVersion = 15.4;
 					};
 				};
@@ -431,12 +508,20 @@
 			projectRoot = "";
 			targets = (
 				8278FDF32C5DD1C80017EB72 /* Allim */,
+				CC0500000000000000000001 /* NotifiWidget */,
 				0176B3072F3CE658003B9C75 /* Geolocation_v1_0_0Tests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		CC0300000000000000000003 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		0176B3062F3CE658003B9C75 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -459,6 +544,16 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		CC0300000000000000000001 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				CC0200000000000000000001 /* NotifiWidgetBundle.swift in Sources */,
+				CC0200000000000000000002 /* NotifiWidget.swift in Sources */,
+				CC0200000000000000000003 /* NotifiWidgetViews.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		0176B3042F3CE658003B9C75 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -532,6 +627,7 @@
 				AA1234560001AABB00CC0028 /* StoreLogoProvider.swift in Sources */,
 				AA1234560001AABB00CC0029 /* UserSessionManager.swift in Sources */,
 				AA1234560001AABB00CC0031 /* SubscriptionPaywallView.swift in Sources */,
+				CC0200000000000000000004 /* WidgetDataStore.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -542,6 +638,11 @@
 			isa = PBXTargetDependency;
 			target = 8278FDF32C5DD1C80017EB72 /* Allim */;
 			targetProxy = 0176B30C2F3CE658003B9C75 /* PBXContainerItemProxy */;
+		};
+		CC0800000000000000000002 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = CC0500000000000000000001 /* NotifiWidget */;
+			targetProxy = CC0800000000000000000001 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -765,6 +866,58 @@
 			};
 			name = Release;
 		};
+		CC0700000000000000000001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = NotifiWidget/NotifiWidget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = XT28W79782;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "NearBuy Stores";
+				INFOPLIST_KEY_NSExtensionPointIdentifier = "com.apple.widgetkit-extension";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.5;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.kor3a.nearbuy.widget";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		CC0700000000000000000002 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = NotifiWidget/NotifiWidget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = XT28W79782;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "NearBuy Stores";
+				INFOPLIST_KEY_NSExtensionPointIdentifier = "com.apple.widgetkit-extension";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.5;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.kor3a.nearbuy.widget";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -791,6 +944,15 @@
 			buildConfigurations = (
 				8278FE032C5DD1CB0017EB72 /* Debug */,
 				8278FE042C5DD1CB0017EB72 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		CC0600000000000000000001 /* Build configuration list for PBXNativeTarget "NotifiWidget" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				CC0700000000000000000001 /* Debug */,
+				CC0700000000000000000002 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
