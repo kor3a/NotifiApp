@@ -605,6 +605,27 @@ class ReminderViewModel: ObservableObject {
         }
     }
 
+    /// Move a reminder to a different store by updating its userStoreId in Firestore
+    func moveReminderToStore(_ reminder: Reminder, targetUserStoreId: String) {
+        #if DEBUG
+        print("ReminderViewModel: Moving reminder '\(reminder.title)' to store \(targetUserStoreId)")
+        #endif
+
+        db.collection("reminders").document(reminder.id).updateData([
+            "userStoreId": targetUserStoreId
+        ]) { error in
+            if let error = error {
+                #if DEBUG
+                print("ReminderViewModel: Error moving reminder to store: \(error.localizedDescription)")
+                #endif
+            } else {
+                #if DEBUG
+                print("ReminderViewModel: Reminder moved successfully")
+                #endif
+            }
+        }
+    }
+
     /// Toggle reminder isDone status - syncs across all linked shared reminders
     /// Also clears isOutOfStock when toggling isDone on
     func toggleReminder(_ reminder: Reminder) {
