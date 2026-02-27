@@ -570,11 +570,6 @@ struct ReminderView: View {
                             }
                             .contextMenu {
                                 Button(role: .destructive) {
-                                    viewModel.removeFavoriteTag(tag)
-                                } label: {
-                                    Label("Remove from Favorites", systemImage: "star.slash")
-                                }
-                                Button(role: .destructive) {
                                     showRemoveAllFavoritesConfirmation = true
                                 } label: {
                                     Label("Remove All Favorites", systemImage: "star.slash.fill")
