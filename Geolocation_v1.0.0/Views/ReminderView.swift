@@ -9,6 +9,7 @@ import SwiftUI
 
 struct ReminderView: View {
     let userStoreItem: UserStoreItem
+    var availableStores: [UserStoreItem] = []
     @StateObject private var viewModel = ReminderViewModel()
     @State private var isAddingNewReminder = false
     @State private var newReminderText = ""
@@ -464,6 +465,10 @@ struct ReminderView: View {
                 }
             } : nil,
             isFavorited: viewModel.isFavoriteTag(title: reminder.title),
+            availableStores: availableStores,
+            onMoveToStore: userStoreItem.permission != .view ? { targetStore in
+                viewModel.moveReminderToStore(reminder, targetUserStoreId: targetStore.reminderStoreId)
+            } : nil,
             onAddPhoto: userStoreItem.permission != .view ? {
                 reminderForPhoto = reminder
             } : nil,

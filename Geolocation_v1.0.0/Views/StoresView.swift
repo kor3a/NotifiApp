@@ -44,7 +44,10 @@ struct StoresView: View {
                         ForEach(viewModel.userStoreItems) { userStoreItem in
                             ZStack {
                                 if editMode == .inactive {
-                                    NavigationLink(destination: ReminderView(userStoreItem: userStoreItem)) {
+                                    NavigationLink(destination: ReminderView(
+                                        userStoreItem: userStoreItem,
+                                        availableStores: viewModel.userStoreItems.filter { $0.id != userStoreItem.id }
+                                    )) {
                                         StoreItemView(store: userStoreItem.store, isShared: userStoreItem.isShared)
                                             .contentShape(Rectangle())
                                     }

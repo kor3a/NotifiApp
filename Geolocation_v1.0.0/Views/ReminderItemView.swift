@@ -19,6 +19,8 @@ struct ReminderItemView: View {
     var onReorderTap: (() -> Void)?
     var onAddToFavorites: (() -> Void)?
     var isFavorited: Bool = false
+    var availableStores: [UserStoreItem] = []
+    var onMoveToStore: ((UserStoreItem) -> Void)?
     var onAddPhoto: (() -> Void)?
     var onAddQuantity: (() -> Void)?
     var isEditingQuantity: Bool = false
@@ -234,14 +236,17 @@ struct ReminderItemView: View {
                     )
                 }
             }
-            if let onAddToFavorites = onAddToFavorites {
-                Button {
-                    onAddToFavorites()
+            if let onMoveToStore = onMoveToStore, !availableStores.isEmpty {
+                Menu {
+                    ForEach(availableStores, id: \.id) { store in
+                        Button {
+                            onMoveToStore(store)
+                        } label: {
+                            Label(store.store.name, systemImage: "cart")
+                        }
+                    }
                 } label: {
-                    Label(
-                        isFavorited ? "Remove from Favorites" : "Add to Favorites",
-                        systemImage: isFavorited ? "star.slash" : "star"
-                    )
+                    Label("Move to Store", systemImage: "arrow.right.square")
                 }
             }
             if let onAddPhoto = onAddPhoto {
