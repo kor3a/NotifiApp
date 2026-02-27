@@ -194,6 +194,7 @@
 		CC0100000000000000000004 /* WidgetDataStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetDataStore.swift; sourceTree = "<group>"; };
 		CC0100000000000000000005 /* NotifiWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = NotifiWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		CC0100000000000000000006 /* NotifiWidget.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = NotifiWidget.entitlements; sourceTree = "<group>"; };
+		CC0100000000000000000007 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -390,6 +391,7 @@
 			isa = PBXGroup;
 			children = (
 				CC0100000000000000000006 /* NotifiWidget.entitlements */,
+				CC0100000000000000000007 /* Info.plist */,
 				CC0100000000000000000001 /* NotifiWidgetBundle.swift */,
 				CC0100000000000000000002 /* NotifiWidget.swift */,
 				CC0100000000000000000003 /* NotifiWidgetViews.swift */,
@@ -873,9 +875,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = XT28W79782;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = "NearBuy Stores";
-				INFOPLIST_KEY_NSExtensionPointIdentifier = "com.apple.widgetkit-extension";
+				INFOPLIST_FILE = NotifiWidget/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.5;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -899,9 +899,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = XT28W79782;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = "NearBuy Stores";
-				INFOPLIST_KEY_NSExtensionPointIdentifier = "com.apple.widgetkit-extension";
+				INFOPLIST_FILE = NotifiWidget/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.5;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
