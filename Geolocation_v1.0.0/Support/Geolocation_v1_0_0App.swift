@@ -7,6 +7,7 @@
 
 import SwiftUI
 import FirebaseCore
+import WidgetKit
 
 @main
 struct Geolocation_v1_0_0App: App {
@@ -25,6 +26,11 @@ struct Geolocation_v1_0_0App: App {
     var body: some Scene {
         WindowGroup {
             MainView()
+                .onAppear {
+                    // Reload widget timelines every time the app comes to the foreground
+                    // so the widget reflects the latest store data immediately on open.
+                    WidgetCenter.shared.reloadAllTimelines()
+                }
         }
     }
 }
