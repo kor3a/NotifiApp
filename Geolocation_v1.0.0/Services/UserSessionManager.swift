@@ -124,6 +124,8 @@ class UserSessionManager: ObservableObject {
             return
         }
 
+        let oldName = currentUser?.name
+
         let db = Firestore.firestore()
         db.collection("users").document(userId).updateData([
             "name": newName
@@ -140,9 +142,293 @@ class UserSessionManager: ObservableObject {
                         self.currentUser = updatedUser
                     }
                 }
+
+                // Propagate name change to related documents (friendships, reminders, user_stores)
+                if let oldName = oldName, oldName != newName {
+                    self.propagateNameChange(userId: userId, oldName: oldName, newName: newName)
+                }
+
                 completion(true, nil)
             }
         }
+    }
+
+    // MARK: - Name Change Propagation
+
+    /// Propagate a user's name change to all related Firestore documents
+    private func propagateNameChange(userId: String, oldName: String, newName: String) {
+        let db = Firestore.firestore()
+
+        #if DEBUG
+        print("UserSessionManager: Propagating name change from '\(oldName)' to '\(newName)' for userId: \(userId)")
+        #endif
+
+        // 1. Update friendships where user is the requester
+        db.collection("friends")
+            .whereField("requesterId", isEqualTo: userId)
+            .getDocuments { snapshot, error in
+                if let error = error {
+                    #if DEBUG
+                    print("UserSessionManager: Error fetching friendships as requester: \(error.localizedDescription)")
+                    #endif
+                    return
+                }
+
+                guard let documents = snapshot?.documents, !documents.isEmpty else { return }
+
+                let batch = db.batch()
+                for doc in documents {
+                    batch.updateData(["requesterName": newName], forDocument: doc.reference)
+                }
+                batch.commit { error in
+                    #if DEBUG
+                    if let error = error {
+                        print("UserSessionManager: Error updating requester names: \(error.localizedDescription)")
+                    } else {
+                        print("UserSessionManager: Updated requesterName in \(documents.count) friendship(s)")
+                    }
+                    #endif
+                }
+            }
+
+        // 2. Update friendships where user is the receiver
+        db.collection("friends")
+            .whereField("receiverId", isEqualTo: userId)
+            .getDocuments { snapshot, error in
+                if let error = error {
+                    #if DEBUG
+                    print("UserSessionManager: Error fetching friendships as receiver: \(error.localizedDescription)")
+                    #endif
+                    return
+                }
+
+                guard let documents = snapshot?.documents, !documents.isEmpty else { return }
+
+                let batch = db.batch()
+                for doc in documents {
+                    batch.updateData(["receiverName": newName], forDocument: doc.reference)
+                }
+                batch.commit { error in
+                    #if DEBUG
+                    if let error = error {
+                        print("UserSessionManager: Error updating receiver names: \(error.localizedDescription)")
+                    } else {
+                        print("UserSessionManager: Updated receiverName in \(documents.count) friendship(s)")
+                    }
+                    #endif
+                }
+            }
+
+        // 3. Update reminders where sharedFrom matches old name (using sharedFromId for reliable matching)
+        db.collection("reminders")
+            .whereField("sharedFromId", isEqualTo: userId)
+            .getDocuments { snapshot, error in
+                if let error = error {
+                    #if DEBUG
+                    print("UserSessionManager: Error fetching reminders by sharedFromId: \(error.localizedDescription)")
+                    #endif
+                    return
+                }
+
+                guard let documents = snapshot?.documents, !documents.isEmpty else { return }
+
+                let batch = db.batch()
+                for doc in documents {
+                    batch.updateData(["sharedFrom": newName], forDocument: doc.reference)
+                }
+                batch.commit { error in
+                    #if DEBUG
+                    if let error = error {
+                        print("UserSessionManager: Error updating sharedFrom in reminders: \(error.localizedDescription)")
+                    } else {
+                        print("UserSessionManager: Updated sharedFrom in \(documents.count) reminder(s) by ID")
+                    }
+                    #endif
+                }
+            }
+
+        // 4. Update reminders where sharedFrom matches old name (fallback for old reminders without sharedFromId)
+        db.collection("reminders")
+            .whereField("sharedFrom", isEqualTo: oldName)
+            .getDocuments { snapshot, error in
+                if let error = error {
+                    #if DEBUG
+                    print("UserSessionManager: Error fetching reminders by sharedFrom name: \(error.localizedDescription)")
+                    #endif
+                    return
+                }
+
+                guard let documents = snapshot?.documents, !documents.isEmpty else { return }
+
+                let batch = db.batch()
+                for doc in documents {
+                    // Also backfill the sharedFromId for old reminders
+                    batch.updateData([
+                        "sharedFrom": newName,
+                        "sharedFromId": userId
+                    ], forDocument: doc.reference)
+                }
+                batch.commit { error in
+                    #if DEBUG
+                    if let error = error {
+                        print("UserSessionManager: Error updating sharedFrom by name in reminders: \(error.localizedDescription)")
+                    } else {
+                        print("UserSessionManager: Updated sharedFrom in \(documents.count) reminder(s) by name")
+                    }
+                    #endif
+                }
+            }
+
+        // 5. Update sharedWith arrays in reminders (old name -> new name)
+        db.collection("reminders")
+            .whereField("sharedWith", arrayContains: oldName)
+            .getDocuments { snapshot, error in
+                if let error = error {
+                    #if DEBUG
+                    print("UserSessionManager: Error fetching reminders with sharedWith: \(error.localizedDescription)")
+                    #endif
+                    return
+                }
+
+                guard let documents = snapshot?.documents, !documents.isEmpty else { return }
+
+                let batch = db.batch()
+                for doc in documents {
+                    var sharedWith = doc.data()["sharedWith"] as? [String] ?? []
+                    sharedWith = sharedWith.map { $0 == oldName ? newName : $0 }
+                    batch.updateData(["sharedWith": sharedWith], forDocument: doc.reference)
+                }
+                batch.commit { error in
+                    #if DEBUG
+                    if let error = error {
+                        print("UserSessionManager: Error updating sharedWith in reminders: \(error.localizedDescription)")
+                    } else {
+                        print("UserSessionManager: Updated sharedWith in \(documents.count) reminder(s)")
+                    }
+                    #endif
+                }
+            }
+
+        // 6. Update user_stores where sharedFromName matches old name
+        db.collection("user_stores")
+            .whereField("sharedFrom", isEqualTo: userId)
+            .getDocuments { snapshot, error in
+                if let error = error {
+                    #if DEBUG
+                    print("UserSessionManager: Error fetching user_stores by sharedFrom: \(error.localizedDescription)")
+                    #endif
+                    return
+                }
+
+                guard let documents = snapshot?.documents, !documents.isEmpty else { return }
+
+                let batch = db.batch()
+                for doc in documents {
+                    batch.updateData(["sharedFromName": newName], forDocument: doc.reference)
+                }
+                batch.commit { error in
+                    #if DEBUG
+                    if let error = error {
+                        print("UserSessionManager: Error updating sharedFromName in user_stores: \(error.localizedDescription)")
+                    } else {
+                        print("UserSessionManager: Updated sharedFromName in \(documents.count) user_store(s)")
+                    }
+                    #endif
+                }
+            }
+
+        // 7. Update user_stores where sharedWith contains old name (owner's perspective)
+        db.collection("user_stores")
+            .whereField("sharedWith", arrayContains: oldName)
+            .getDocuments { snapshot, error in
+                if let error = error {
+                    #if DEBUG
+                    print("UserSessionManager: Error fetching user_stores with sharedWith: \(error.localizedDescription)")
+                    #endif
+                    return
+                }
+
+                guard let documents = snapshot?.documents, !documents.isEmpty else { return }
+
+                let batch = db.batch()
+                for doc in documents {
+                    var sharedWith = doc.data()["sharedWith"] as? [String] ?? []
+                    sharedWith = sharedWith.map { $0 == oldName ? newName : $0 }
+                    batch.updateData(["sharedWith": sharedWith], forDocument: doc.reference)
+                }
+                batch.commit { error in
+                    #if DEBUG
+                    if let error = error {
+                        print("UserSessionManager: Error updating sharedWith in user_stores: \(error.localizedDescription)")
+                    } else {
+                        print("UserSessionManager: Updated sharedWith in \(documents.count) user_store(s)")
+                    }
+                    #endif
+                }
+            }
+
+        // 8. Update user_stores where userName matches old name (recipient's own store doc)
+        db.collection("user_stores")
+            .whereField("userId", isEqualTo: userId)
+            .getDocuments { snapshot, error in
+                if let error = error {
+                    #if DEBUG
+                    print("UserSessionManager: Error fetching user's own user_stores: \(error.localizedDescription)")
+                    #endif
+                    return
+                }
+
+                guard let documents = snapshot?.documents, !documents.isEmpty else { return }
+
+                let batch = db.batch()
+                var updatedCount = 0
+                for doc in documents {
+                    let data = doc.data()
+                    if let userName = data["userName"] as? String, userName == oldName {
+                        batch.updateData(["userName": newName], forDocument: doc.reference)
+                        updatedCount += 1
+                    }
+                }
+                if updatedCount > 0 {
+                    batch.commit { error in
+                        #if DEBUG
+                        if let error = error {
+                            print("UserSessionManager: Error updating userName in user_stores: \(error.localizedDescription)")
+                        } else {
+                            print("UserSessionManager: Updated userName in \(updatedCount) user_store(s)")
+                        }
+                        #endif
+                    }
+                }
+            }
+
+        // 9. Update conversation participantNames
+        db.collection("conversations")
+            .whereField("participantIds", arrayContains: userId)
+            .getDocuments { snapshot, error in
+                if let error = error {
+                    #if DEBUG
+                    print("UserSessionManager: Error fetching conversations: \(error.localizedDescription)")
+                    #endif
+                    return
+                }
+
+                guard let documents = snapshot?.documents, !documents.isEmpty else { return }
+
+                let batch = db.batch()
+                for doc in documents {
+                    batch.updateData(["participantNames.\(userId)": newName], forDocument: doc.reference)
+                }
+                batch.commit { error in
+                    #if DEBUG
+                    if let error = error {
+                        print("UserSessionManager: Error updating participantNames in conversations: \(error.localizedDescription)")
+                    } else {
+                        print("UserSessionManager: Updated participantNames in \(documents.count) conversation(s)")
+                    }
+                    #endif
+                }
+            }
     }
 
     // Update profile picture URL in Firestore and local cache

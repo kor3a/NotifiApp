@@ -423,6 +423,7 @@ class MessagesViewModel: ObservableObject {
             linkedReminder: linkedReminder,
             currentUserId: userId,
             currentUserEmail: userEmail,
+            senderUserId: message.senderId,
             senderName: message.senderName,
             recipientName: userName
         ) { result in

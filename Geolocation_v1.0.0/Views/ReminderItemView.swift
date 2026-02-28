@@ -38,9 +38,13 @@ struct ReminderItemView: View {
     @FocusState private var isTextFieldFocused: Bool
     @FocusState private var isQuantityFieldFocused: Bool
 
-    // Get current user's name to determine if they created the reminder
+    // Get current user's info to determine if they created the reminder
     private var currentUserName: String? {
         UserSessionManager.shared.currentUser?.name
+    }
+
+    private var currentUserId: String? {
+        UserSessionManager.shared.currentUser?.userId
     }
 
     var body: some View {
@@ -156,8 +160,10 @@ struct ReminderItemView: View {
                 if item.isShared == true {
                     SharedBadge(
                         sharedFrom: item.sharedFrom,
+                        sharedFromId: item.sharedFromId,
                         sharedWith: item.sharedWith,
-                        currentUserName: currentUserName
+                        currentUserName: currentUserName,
+                        currentUserId: currentUserId
                     )
                 }
 
@@ -304,11 +310,20 @@ struct ReminderItemView: View {
 
 struct SharedBadge: View {
     let sharedFrom: String?
+    let sharedFromId: String?
     let sharedWith: [String]?
     let currentUserName: String?
+    let currentUserId: String?
 
     // Check if current user is the one who shared/created this reminder
+    // Uses userId for reliable comparison, falls back to name for old data
     private var isCurrentUserTheSharer: Bool {
+        // Prefer ID-based comparison (reliable even after name changes)
+        if let sharedFromId = sharedFromId, !sharedFromId.isEmpty,
+           let currentUserId = currentUserId {
+            return sharedFromId == currentUserId
+        }
+        // Fallback to name comparison for old reminders without sharedFromId
         guard let sharedFrom = sharedFrom, !sharedFrom.isEmpty,
               let currentUserName = currentUserName else {
             return false

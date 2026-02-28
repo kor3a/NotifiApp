@@ -92,6 +92,7 @@ class ReminderViewModel: ObservableObject {
                         // Parse optional shared fields
                         let isShared = data["isShared"] as? Bool
                         var sharedFrom = data["sharedFrom"] as? String
+                        let sharedFromId = data["sharedFromId"] as? String
                         let sharedAt = data["sharedAt"] as? TimeInterval
                         let sharedReminderId = data["sharedReminderId"] as? String
                         let sharedWith = data["sharedWith"] as? [String]
@@ -116,6 +117,7 @@ class ReminderViewModel: ObservableObject {
                             createdAt: createdAt,
                             isShared: isShared,
                             sharedFrom: sharedFrom,
+                            sharedFromId: sharedFromId,
                             sharedAt: sharedAt,
                             sharedReminderId: sharedReminderId,
                             sharedWith: sharedWith,
@@ -539,6 +541,10 @@ class ReminderViewModel: ObservableObject {
                 // Also set sharedFrom to the current user (recipient) who created this reminder
                 if let currentUserName = currentUserName {
                     reminderData["sharedFrom"] = currentUserName
+                }
+                // Store user ID for reliable identity comparison after name changes
+                if let currentUserId = UserSessionManager.shared.currentUser?.userId {
+                    reminderData["sharedFromId"] = currentUserId
                 }
             }
         }
@@ -1116,6 +1122,10 @@ class ReminderViewModel: ObservableObject {
                     reminderData["sharedWith"] = [sharedFromName]
                     if let currentUserName = currentUserName {
                         reminderData["sharedFrom"] = currentUserName
+                    }
+                    // Store user ID for reliable identity comparison after name changes
+                    if let currentUserId = UserSessionManager.shared.currentUser?.userId {
+                        reminderData["sharedFromId"] = currentUserId
                     }
                 }
             }

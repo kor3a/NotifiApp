@@ -777,9 +777,17 @@ struct ReminderView: View {
     private var sharedReminderInfoMessage: some View {
         if let reminder = showingSharedInfo {
             let currentUserName = UserSessionManager.shared.currentUser?.name
-            let isCurrentUserTheSharer = reminder.sharedFrom != nil &&
-                !reminder.sharedFrom!.isEmpty &&
-                reminder.sharedFrom == currentUserName
+            let currentUserId = UserSessionManager.shared.currentUser?.userId
+            // Prefer ID-based comparison (reliable after name changes), fall back to name
+            let isCurrentUserTheSharer: Bool = {
+                if let sharedFromId = reminder.sharedFromId, !sharedFromId.isEmpty,
+                   let currentUserId = currentUserId {
+                    return sharedFromId == currentUserId
+                }
+                return reminder.sharedFrom != nil &&
+                    !reminder.sharedFrom!.isEmpty &&
+                    reminder.sharedFrom == currentUserName
+            }()
 
             if isCurrentUserTheSharer {
                 if let sharedWith = reminder.sharedWith, !sharedWith.isEmpty {

@@ -17,6 +17,7 @@ struct Reminder: Codable, Identifiable {
     // Shared reminder tracking
     var isShared: Bool? // True if this reminder is shared with another user
     var sharedFrom: String? // Name of the user who shared it (for receiver)
+    var sharedFromId: String? // User ID of the user who shared/created it (for identity comparison)
     var sharedAt: TimeInterval? // When it was shared/accepted
 
     // Sync fields for linking shared reminders
@@ -46,6 +47,7 @@ struct Reminder: Codable, Identifiable {
         case createdAt
         case isShared
         case sharedFrom
+        case sharedFromId
         case sharedAt
         case sharedReminderId
         case sharedWith
