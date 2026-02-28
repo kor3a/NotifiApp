@@ -228,31 +228,55 @@ class FriendsViewModel: ObservableObject {
     }
 
     func removeFriend(_ friendship: Friendship) {
-        guard let userId = currentUserId else {
+        guard let userId = currentUserId,
+              let currentUserName = UserSessionManager.shared.currentUser?.name else {
             #if DEBUG
-            print("FriendsViewModel: Cannot remove friend - no current user ID")
+            print("FriendsViewModel: Cannot remove friend - no current user data")
             #endif
             return
         }
+        let friendId = friendship.friendId(currentUserId: userId)
         let friendName = friendship.friendName(currentUserId: userId)
 
         #if DEBUG
         print("FriendsViewModel: Removing friend '\(friendName)' with friendship ID: \(friendship.id)")
         #endif
 
-        friendsService.removeFriend(friendshipId: friendship.id) { [weak self] result in
-            DispatchQueue.main.async {
-                switch result {
-                case .success:
-                    #if DEBUG
-                    print("FriendsViewModel: Successfully removed friend '\(friendName)'")
-                    #endif
-                    self?.successMessage = "\(friendName) removed from friends"
-                case .failure(let error):
-                    #if DEBUG
-                    print("FriendsViewModel: Failed to remove friend '\(friendName)': \(error.localizedDescription)")
-                    #endif
-                    self?.errorMessage = error.localizedDescription
+        // First, unshare all stores between the two users
+        friendsService.unshareAllStoresBetweenUsers(
+            currentUserId: userId,
+            currentUserName: currentUserName,
+            friendId: friendId,
+            friendName: friendName
+        ) { [weak self] unshareResult in
+            #if DEBUG
+            switch unshareResult {
+            case .success(let count):
+                print("FriendsViewModel: Unshared \(count) store(s) with '\(friendName)'")
+            case .failure(let error):
+                print("FriendsViewModel: Error unsharing stores with '\(friendName)': \(error.localizedDescription)")
+            }
+            #endif
+
+            // Then remove the friendship regardless of unshare result
+            self?.friendsService.removeFriend(friendshipId: friendship.id) { [weak self] result in
+                DispatchQueue.main.async {
+                    switch result {
+                    case .success:
+                        #if DEBUG
+                        print("FriendsViewModel: Successfully removed friend '\(friendName)'")
+                        #endif
+                        if case .success(let count) = unshareResult, count > 0 {
+                            self?.successMessage = "\(friendName) removed from friends and \(count) shared store(s) unshared"
+                        } else {
+                            self?.successMessage = "\(friendName) removed from friends"
+                        }
+                    case .failure(let error):
+                        #if DEBUG
+                        print("FriendsViewModel: Failed to remove friend '\(friendName)': \(error.localizedDescription)")
+                        #endif
+                        self?.errorMessage = error.localizedDescription
+                    }
                 }
             }
         }

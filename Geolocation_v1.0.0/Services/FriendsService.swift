@@ -282,6 +282,316 @@ class FriendsService: ObservableObject {
         }
     }
 
+    // MARK: - Unshare Stores on Unfriend
+
+    /// When unfriending, remove all shared stores between the two users.
+    /// This handles both directions: stores the current user shared with the friend,
+    /// and stores the friend shared with the current user.
+    func unshareAllStoresBetweenUsers(
+        currentUserId: String,
+        currentUserName: String,
+        friendId: String,
+        friendName: String,
+        completion: @escaping (Result<Int, Error>) -> Void
+    ) {
+        let group = DispatchGroup()
+        var totalUnshared = 0
+        var firstError: Error?
+
+        // Direction 1: Stores the current user owns that are shared with the friend
+        // Find friend's user_stores where sharedFrom == currentUserId
+        group.enter()
+        db.collection("user_stores")
+            .whereField("userId", isEqualTo: friendId)
+            .whereField("sharedFrom", isEqualTo: currentUserId)
+            .getDocuments { [weak self] snapshot, error in
+                guard let self = self else {
+                    group.leave()
+                    return
+                }
+
+                if let error = error {
+                    #if DEBUG
+                    print("FriendsService: Error finding stores shared with friend: \(error.localizedDescription)")
+                    #endif
+                    if firstError == nil { firstError = error }
+                    group.leave()
+                    return
+                }
+
+                guard let documents = snapshot?.documents, !documents.isEmpty else {
+                    #if DEBUG
+                    print("FriendsService: No stores found that current user shared with friend")
+                    #endif
+                    group.leave()
+                    return
+                }
+
+                #if DEBUG
+                print("FriendsService: Found \(documents.count) store(s) shared with friend '\(friendName)' - removing")
+                #endif
+
+                let innerGroup = DispatchGroup()
+
+                for doc in documents {
+                    let data = doc.data()
+                    let recipientUserStoreId = doc.documentID
+                    let sourceUserStoreId = data["sourceUserStoreId"] as? String
+
+                    innerGroup.enter()
+
+                    // Delete the friend's user_store document
+                    self.db.collection("user_stores").document(recipientUserStoreId).delete { error in
+                        if let error = error {
+                            #if DEBUG
+                            print("FriendsService: Error deleting friend's user_store \(recipientUserStoreId): \(error.localizedDescription)")
+                            #endif
+                            if firstError == nil { firstError = error }
+                        } else {
+                            totalUnshared += 1
+                            #if DEBUG
+                            print("FriendsService: Deleted friend's user_store \(recipientUserStoreId)")
+                            #endif
+                        }
+
+                        // Update the owner's (current user's) user_store and reminders
+                        if let ownerStoreId = sourceUserStoreId {
+                            self.cleanUpOwnerAfterUnshare(
+                                ownerUserStoreId: ownerStoreId,
+                                recipientName: friendName
+                            )
+                        }
+
+                        innerGroup.leave()
+                    }
+                }
+
+                innerGroup.notify(queue: .main) {
+                    group.leave()
+                }
+            }
+
+        // Direction 2: Stores the friend owns that are shared with the current user
+        // Find current user's user_stores where sharedFrom == friendId
+        group.enter()
+        db.collection("user_stores")
+            .whereField("userId", isEqualTo: currentUserId)
+            .whereField("sharedFrom", isEqualTo: friendId)
+            .getDocuments { [weak self] snapshot, error in
+                guard let self = self else {
+                    group.leave()
+                    return
+                }
+
+                if let error = error {
+                    #if DEBUG
+                    print("FriendsService: Error finding stores shared by friend: \(error.localizedDescription)")
+                    #endif
+                    if firstError == nil { firstError = error }
+                    group.leave()
+                    return
+                }
+
+                guard let documents = snapshot?.documents, !documents.isEmpty else {
+                    #if DEBUG
+                    print("FriendsService: No stores found that friend shared with current user")
+                    #endif
+                    group.leave()
+                    return
+                }
+
+                #if DEBUG
+                print("FriendsService: Found \(documents.count) store(s) shared by friend '\(friendName)' - removing")
+                #endif
+
+                let innerGroup = DispatchGroup()
+
+                for doc in documents {
+                    let data = doc.data()
+                    let recipientUserStoreId = doc.documentID
+                    let sourceUserStoreId = data["sourceUserStoreId"] as? String
+
+                    innerGroup.enter()
+
+                    // Delete the current user's shared user_store document
+                    self.db.collection("user_stores").document(recipientUserStoreId).delete { error in
+                        if let error = error {
+                            #if DEBUG
+                            print("FriendsService: Error deleting current user's shared user_store \(recipientUserStoreId): \(error.localizedDescription)")
+                            #endif
+                            if firstError == nil { firstError = error }
+                        } else {
+                            totalUnshared += 1
+                            #if DEBUG
+                            print("FriendsService: Deleted current user's shared user_store \(recipientUserStoreId)")
+                            #endif
+                        }
+
+                        // Update the owner's (friend's) user_store and reminders
+                        if let ownerStoreId = sourceUserStoreId {
+                            self.cleanUpOwnerAfterUnshare(
+                                ownerUserStoreId: ownerStoreId,
+                                recipientName: currentUserName
+                            )
+                        }
+
+                        innerGroup.leave()
+                    }
+                }
+
+                innerGroup.notify(queue: .main) {
+                    group.leave()
+                }
+            }
+
+        // When both directions are done, report results
+        group.notify(queue: .main) {
+            if let error = firstError, totalUnshared == 0 {
+                completion(.failure(error))
+            } else {
+                #if DEBUG
+                print("FriendsService: Unshared \(totalUnshared) store(s) between users")
+                #endif
+                completion(.success(totalUnshared))
+            }
+        }
+    }
+
+    /// Clean up the owner's user_store and reminders after a recipient is removed
+    private func cleanUpOwnerAfterUnshare(ownerUserStoreId: String, recipientName: String) {
+        // Update owner's user_store sharedWith
+        let ownerDocRef = db.collection("user_stores").document(ownerUserStoreId)
+        ownerDocRef.getDocument { [weak self] snapshot, error in
+            guard let self = self else { return }
+
+            if let error = error {
+                #if DEBUG
+                print("FriendsService: Error fetching owner's user_store: \(error.localizedDescription)")
+                #endif
+                return
+            }
+
+            guard let data = snapshot?.data() else {
+                #if DEBUG
+                print("FriendsService: Owner's user_store \(ownerUserStoreId) not found")
+                #endif
+                return
+            }
+
+            var sharedWith = data["sharedWith"] as? [String] ?? []
+            sharedWith.removeAll { $0 == recipientName }
+
+            if sharedWith.isEmpty {
+                // No more shared users, clear sharing fields
+                ownerDocRef.updateData([
+                    "sharedWith": FieldValue.delete(),
+                    "isSharedStore": FieldValue.delete()
+                ]) { error in
+                    #if DEBUG
+                    if let error = error {
+                        print("FriendsService: Error clearing owner's sharedWith: \(error.localizedDescription)")
+                    } else {
+                        print("FriendsService: Cleared owner's sharedWith for \(ownerUserStoreId)")
+                    }
+                    #endif
+                }
+            } else {
+                ownerDocRef.updateData([
+                    "sharedWith": sharedWith
+                ]) { error in
+                    #if DEBUG
+                    if let error = error {
+                        print("FriendsService: Error updating owner's sharedWith: \(error.localizedDescription)")
+                    } else {
+                        print("FriendsService: Updated owner's sharedWith to \(sharedWith)")
+                    }
+                    #endif
+                }
+            }
+
+            // Update reminders to remove shared status with this recipient
+            self.cleanUpRemindersAfterUnshare(
+                ownerUserStoreId: ownerUserStoreId,
+                recipientName: recipientName
+            )
+        }
+    }
+
+    /// Clean up shared reminders after a recipient is removed
+    private func cleanUpRemindersAfterUnshare(ownerUserStoreId: String, recipientName: String) {
+        db.collection("reminders")
+            .whereField("userStoreId", isEqualTo: ownerUserStoreId)
+            .whereField("isShared", isEqualTo: true)
+            .getDocuments { [weak self] snapshot, error in
+                guard let self = self else { return }
+
+                if let error = error {
+                    #if DEBUG
+                    print("FriendsService: Error fetching reminders to clean up: \(error.localizedDescription)")
+                    #endif
+                    return
+                }
+
+                guard let documents = snapshot?.documents, !documents.isEmpty else {
+                    return
+                }
+
+                let batch = self.db.batch()
+                var updatedCount = 0
+
+                for doc in documents {
+                    let data = doc.data()
+                    var sharedWith = data["sharedWith"] as? [String] ?? []
+                    let sharedFrom = data["sharedFrom"] as? String
+
+                    var needsUpdate = false
+                    var clearSharedStatus = false
+
+                    // Reminder shared with the recipient - remove them
+                    if sharedWith.contains(recipientName) {
+                        sharedWith.removeAll { $0 == recipientName }
+                        needsUpdate = true
+                        if sharedWith.isEmpty {
+                            clearSharedStatus = true
+                        }
+                    }
+
+                    // Reminder created by the recipient - clear shared status
+                    if sharedFrom == recipientName {
+                        clearSharedStatus = true
+                        needsUpdate = true
+                    }
+
+                    if needsUpdate {
+                        updatedCount += 1
+                        if clearSharedStatus {
+                            batch.updateData([
+                                "isShared": false,
+                                "sharedWith": FieldValue.delete(),
+                                "sharedFrom": FieldValue.delete()
+                            ], forDocument: doc.reference)
+                        } else {
+                            batch.updateData([
+                                "sharedWith": sharedWith
+                            ], forDocument: doc.reference)
+                        }
+                    }
+                }
+
+                if updatedCount > 0 {
+                    batch.commit { error in
+                        #if DEBUG
+                        if let error = error {
+                            print("FriendsService: Error updating reminders after unshare: \(error.localizedDescription)")
+                        } else {
+                            print("FriendsService: Updated \(updatedCount) reminder(s) after unshare")
+                        }
+                        #endif
+                    }
+                }
+            }
+    }
+
     // MARK: - Search Users
 
     /// Search for users by email
