@@ -87,7 +87,7 @@ struct FriendsView: View {
             }
         } message: {
             if let friendship = friendshipToRemove {
-                Text("Are you sure you want to remove \(friendship.friendName(currentUserId: sessionManager.currentUser?.userId ?? "")) from your friends?")
+                Text("Are you sure you want to remove \(friendship.friendName(currentUserId: sessionManager.currentUser?.userId ?? "")) from your friends? Any stores shared between you will be unshared.")
             } else {
                 Text("Are you sure you want to remove this friend?")
             }
