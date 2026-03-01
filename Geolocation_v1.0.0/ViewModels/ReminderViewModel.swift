@@ -353,12 +353,19 @@ class ReminderViewModel: ObservableObject {
     @Published var favoriteTags: [FavoriteTag] = []
     private var favoriteTagsListener: ListenerRegistration?
 
-    /// Fetch favorite tags for a specific user_store (real-time listener)
+    /// Fetch favorite tags for a specific user_store (real-time listener).
+    /// Only returns tags belonging to the current user — favorites are private per user.
     func fetchFavoriteTags(for userStoreId: String) {
         favoriteTagsListener?.remove()
 
+        guard let currentUserId = UserSessionManager.shared.currentUser?.userId else {
+            favoriteTags = []
+            return
+        }
+
         favoriteTagsListener = db.collection("favorite_tags")
             .whereField("userStoreId", isEqualTo: userStoreId)
+            .whereField("userId", isEqualTo: currentUserId)
             .addSnapshotListener { [weak self] snapshot, error in
                 guard let self = self else { return }
 
@@ -378,6 +385,7 @@ class ReminderViewModel: ObservableObject {
                     self.favoriteTags = documents.compactMap { doc -> FavoriteTag? in
                         let data = doc.data()
                         guard let userStoreId = data["userStoreId"] as? String,
+                              let userId = data["userId"] as? String,
                               let title = data["title"] as? String,
                               let createdAt = data["createdAt"] as? TimeInterval else {
                             return nil
@@ -385,6 +393,7 @@ class ReminderViewModel: ObservableObject {
                         return FavoriteTag(
                             id: doc.documentID,
                             userStoreId: userStoreId,
+                            userId: userId,
                             title: title,
                             createdAt: createdAt
                         )
@@ -414,6 +423,7 @@ class ReminderViewModel: ObservableObject {
 
         let tagData: [String: Any] = [
             "userStoreId": userStoreId,
+            "userId": UserSessionManager.shared.currentUser?.userId ?? "",
             "title": title,
             "createdAt": Date().timeIntervalSince1970
         ]
