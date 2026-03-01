@@ -112,6 +112,9 @@ struct StoresView: View {
                         Color.backgroundGradient(for: colorScheme)
                             .ignoresSafeArea()
                     )
+                    .safeAreaInset(edge: .bottom) {
+                        Color.clear.frame(height: 90)
+                    }
                     .toolbar {
                         if editMode == .active {
                             ToolbarItem(placement: .navigationBarLeading) {
