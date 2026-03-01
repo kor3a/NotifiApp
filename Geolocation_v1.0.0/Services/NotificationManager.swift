@@ -306,7 +306,7 @@ class NotificationManager: NSObject, ObservableObject {
             }
 
             content.sound = .default
-            content.interruptionLevel = .active
+            content.interruptionLevel = .timeSensitive
             content.relevanceScore = 0.8
             content.categoryIdentifier = "SHARED_REMINDER_CHANGE"
 
