@@ -976,6 +976,7 @@ struct FavoriteTagView: View {
         sharedStoreGroupId: nil,
         sourceUserStoreId: nil,
         sharedFromName: nil,
+        sharedFromId: nil,
         sharedWith: nil,
         notificationsEnabled: true
     ))

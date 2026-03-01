@@ -18,6 +18,7 @@ final class UserStoreItemTests: XCTestCase {
             sharedStoreGroupId: nil,
             sourceUserStoreId: nil,
             sharedFromName: nil,
+            sharedFromId: nil,
             sharedWith: nil,
             notificationsEnabled: true
         )
@@ -32,6 +33,7 @@ final class UserStoreItemTests: XCTestCase {
             sharedStoreGroupId: "shared-group-1",
             sourceUserStoreId: nil,
             sharedFromName: "Alice",
+            sharedFromId: "user-alice-123",
             sharedWith: nil,
             notificationsEnabled: true
         )
@@ -46,6 +48,7 @@ final class UserStoreItemTests: XCTestCase {
             sharedStoreGroupId: nil,
             sourceUserStoreId: "owner-user-store-1",
             sharedFromName: "Bob",
+            sharedFromId: "user-bob-456",
             sharedWith: nil,
             notificationsEnabled: true
         )
@@ -62,6 +65,7 @@ final class UserStoreItemTests: XCTestCase {
             sharedStoreGroupId: "shared-group-2",
             sourceUserStoreId: "owner-store-5",
             sharedFromName: "Charlie",
+            sharedFromId: "user-charlie-789",
             sharedWith: nil,
             notificationsEnabled: true
         )
@@ -78,6 +82,7 @@ final class UserStoreItemTests: XCTestCase {
             sharedStoreGroupId: nil,
             sourceUserStoreId: nil,
             sharedFromName: nil,
+            sharedFromId: nil,
             sharedWith: nil,
             notificationsEnabled: true
         )
@@ -92,6 +97,7 @@ final class UserStoreItemTests: XCTestCase {
             sharedStoreGroupId: nil,
             sourceUserStoreId: nil,
             sharedFromName: nil,
+            sharedFromId: nil,
             sharedWith: nil,
             notificationsEnabled: true
         )
@@ -102,6 +108,7 @@ final class UserStoreItemTests: XCTestCase {
             sharedStoreGroupId: nil,
             sourceUserStoreId: nil,
             sharedFromName: nil,
+            sharedFromId: nil,
             sharedWith: nil,
             notificationsEnabled: true
         )
@@ -118,6 +125,7 @@ final class UserStoreItemTests: XCTestCase {
             sharedStoreGroupId: nil,
             sourceUserStoreId: nil,
             sharedFromName: nil,
+            sharedFromId: nil,
             sharedWith: nil,
             notificationsEnabled: true
         )
@@ -132,6 +140,7 @@ final class UserStoreItemTests: XCTestCase {
             sharedStoreGroupId: nil,
             sourceUserStoreId: nil,
             sharedFromName: nil,
+            sharedFromId: nil,
             sharedWith: nil,
             notificationsEnabled: false
         )
