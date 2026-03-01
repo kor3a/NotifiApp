@@ -110,6 +110,7 @@ class StoresViewModel: ObservableObject {
                     let sharedStoreGroupId = data["sharedStoreGroupId"] as? String
                     let sourceUserStoreId = data["sourceUserStoreId"] as? String
                     let sharedFromName = data["sharedFromName"] as? String
+                    let sharedFromId = data["sharedFrom"] as? String // userId of sharer
                     let sharedWith = data["sharedWith"] as? [String]
                     let notificationsEnabled = data["notificationsEnabled"] as? Bool ?? true
 
@@ -131,6 +132,7 @@ class StoresViewModel: ObservableObject {
                         sharedStoreGroupId: sharedStoreGroupId,
                         sourceUserStoreId: sourceUserStoreId,
                         sharedFromName: sharedFromName,
+                        sharedFromId: sharedFromId,
                         sharedWith: sharedWith,
                         notificationsEnabled: notificationsEnabled
                     )
@@ -154,6 +156,9 @@ class StoresViewModel: ObservableObject {
 
                 // Push updated store list to the home screen widget
                 WidgetDataStore.shared.updateWidgetData(from: self.userStoreItems)
+
+                // Refresh stale sharedFromName values by looking up current names
+                self.refreshSharedFromNames(for: self.userStoreItems)
 
                 // Set up real-time listeners for reminder counts
                 self.setupReminderCountListeners(for: reminderStoreIds)
@@ -231,6 +236,7 @@ class StoresViewModel: ObservableObject {
                     sharedStoreGroupId: item.sharedStoreGroupId,
                     sourceUserStoreId: item.sourceUserStoreId,
                     sharedFromName: item.sharedFromName,
+                    sharedFromId: item.sharedFromId,
                     sharedWith: item.sharedWith,
                     notificationsEnabled: item.notificationsEnabled
                 )
@@ -344,6 +350,79 @@ class StoresViewModel: ObservableObject {
                 }
 
             sharedStatusListeners[item.id] = listener
+        }
+    }
+
+    /// Look up the current display name for each sharer and update stale sharedFromName values.
+    /// This "self-heals" the cached name so the other user always sees the sharer's latest name.
+    private func refreshSharedFromNames(for items: [UserStoreItem]) {
+        // Collect shared stores that have a sharedFromId (userId of the person who shared)
+        var sharerIdToStoreIndices: [String: [Int]] = [:]
+        for (index, item) in items.enumerated() {
+            guard let sharedFromId = item.sharedFromId, !sharedFromId.isEmpty else { continue }
+            sharerIdToStoreIndices[sharedFromId, default: []].append(index)
+        }
+
+        guard !sharerIdToStoreIndices.isEmpty else { return }
+
+        let sharerIds = Array(sharerIdToStoreIndices.keys)
+
+        // Firestore `whereField("in")` supports up to 10 values per query
+        let chunks = stride(from: 0, to: sharerIds.count, by: 10).map {
+            Array(sharerIds[$0..<min($0 + 10, sharerIds.count)])
+        }
+
+        for chunk in chunks {
+            db.collection("users")
+                .whereField("userId", in: chunk)
+                .getDocuments { [weak self] snapshot, error in
+                    guard let self = self else { return }
+
+                    if let error = error {
+                        #if DEBUG
+                        print("StoresViewModel: Error looking up sharer names: \(error.localizedDescription)")
+                        #endif
+                        return
+                    }
+
+                    guard let documents = snapshot?.documents else { return }
+
+                    // Build a map of userId -> current display name
+                    var currentNames: [String: String] = [:]
+                    for doc in documents {
+                        let data = doc.data()
+                        if let userId = data["userId"] as? String,
+                           let name = data["name"] as? String {
+                            currentNames[userId] = name
+                        }
+                    }
+
+                    // Check each shared store and update if the name is stale
+                    for (sharerId, indices) in sharerIdToStoreIndices {
+                        guard let currentName = currentNames[sharerId] else { continue }
+
+                        for index in indices {
+                            guard index < self.userStoreItems.count else { continue }
+                            let item = self.userStoreItems[index]
+                            // Only update if sharedFromId matches (guard against array shifts)
+                            guard item.sharedFromId == sharerId else { continue }
+
+                            if item.sharedFromName != currentName {
+                                #if DEBUG
+                                print("StoresViewModel: Updating stale sharedFromName for '\(item.store.name)': '\(item.sharedFromName ?? "nil")' -> '\(currentName)'")
+                                #endif
+
+                                // Update in-memory
+                                self.userStoreItems[index].sharedFromName = currentName
+
+                                // Persist to this user's own user_store document (allowed by security rules)
+                                self.db.collection("user_stores").document(item.id).updateData([
+                                    "sharedFromName": currentName
+                                ])
+                            }
+                        }
+                    }
+                }
         }
     }
 
