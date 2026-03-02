@@ -6,6 +6,8 @@
 //
 
 import SwiftUI
+import GoogleMobileAds
+import UIKit
 
 struct StoresView: View {
     // MARK: - PROPERTIES
@@ -22,6 +24,18 @@ struct StoresView: View {
     @State private var editMode: EditMode = .inactive
     @State private var longPressedItemId: String?
     @Environment(\.colorScheme) var colorScheme
+
+    private var shouldShowAds: Bool {
+        sessionManager.currentUser?.isSubscribed != true && AdConfiguration.areAdsEnabled
+    }
+
+    private var listBottomInset: CGFloat {
+        shouldShowAds ? 156 : 90
+    }
+
+    private var floatingMenuBottomPadding: CGFloat {
+        shouldShowAds ? 96 : 24
+    }
 
     var body: some View {
         NavigationStack {
@@ -113,7 +127,7 @@ struct StoresView: View {
                             .ignoresSafeArea()
                     )
                     .safeAreaInset(edge: .bottom) {
-                        Color.clear.frame(height: 90)
+                        Color.clear.frame(height: listBottomInset)
                     }
                     .toolbar {
                         if editMode == .active {
@@ -222,11 +236,16 @@ struct StoresView: View {
                             }
                         }
                         .padding(.trailing, 24)
-                        .padding(.bottom, 24)
+                        .padding(.bottom, floatingMenuBottomPadding)
                     }
                 }
             }
         }//:NAVIGATIONSTACK
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            if shouldShowAds {
+                StoreBannerAdContainer(adUnitID: AdConfiguration.bannerAdUnitID)
+            }
+        }
         .sheet(isPresented: $showingAddStore) {
             AddStoreView(viewModel: viewModel)
         }
@@ -276,4 +295,45 @@ struct StoresView: View {
 
 #Preview {
     StoresView()
+}
+
+private struct StoreBannerAdContainer: View {
+    let adUnitID: String
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Divider()
+            AdMobBannerView(adUnitID: adUnitID)
+                .frame(height: 50)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 8)
+                .background(.ultraThinMaterial)
+        }
+    }
+}
+
+private struct AdMobBannerView: UIViewRepresentable {
+    let adUnitID: String
+
+    func makeUIView(context: Context) -> BannerView {
+        let bannerView = BannerView(adSize: AdSizeBanner)
+        bannerView.adUnitID = adUnitID
+        bannerView.rootViewController = UIApplication.shared.activeRootViewController
+        bannerView.load(Request())
+        return bannerView
+    }
+
+    func updateUIView(_ uiView: BannerView, context: Context) {
+        uiView.rootViewController = UIApplication.shared.activeRootViewController
+    }
+}
+
+private extension UIApplication {
+    var activeRootViewController: UIViewController? {
+        connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .flatMap(\.windows)
+            .first(where: \.isKeyWindow)?
+            .rootViewController
+    }
 }

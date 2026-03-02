@@ -50,6 +50,7 @@
 		8278FE072C5DD4310017EB72 /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = 8278FE062C5DD4310017EB72 /* FirebaseAuth */; };
 		8278FE092C5DD4310017EB72 /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = 8278FE082C5DD4310017EB72 /* FirebaseFirestore */; };
 		8278FE0B2C5DD4310017EB72 /* FirebaseStorage in Frameworks */ = {isa = PBXBuildFile; productRef = 8278FE0A2C5DD4310017EB72 /* FirebaseStorage */; };
+		A9E6C1012F64AE7000AD0001 /* GoogleMobileAds in Frameworks */ = {isa = PBXBuildFile; productRef = A9E6C1022F64AE7000AD0001 /* GoogleMobileAds */; };
 		8278FE0D2C5DD6DE0017EB72 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 8278FE0C2C5DD6DE0017EB72 /* GoogleService-Info.plist */; };
 		8278FE132C5F23010017EB72 /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8278FE122C5F23010017EB72 /* LoginView.swift */; };
 		82916C162C914BA800F810A3 /* MapViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82916C152C914BA800F810A3 /* MapViewModel.swift */; };
@@ -225,6 +226,7 @@
 				8278FE072C5DD4310017EB72 /* FirebaseAuth in Frameworks */,
 				8278FE092C5DD4310017EB72 /* FirebaseFirestore in Frameworks */,
 				8278FE0B2C5DD4310017EB72 /* FirebaseStorage in Frameworks */,
+				A9E6C1012F64AE7000AD0001 /* GoogleMobileAds in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -447,6 +449,7 @@
 				8278FE062C5DD4310017EB72 /* FirebaseAuth */,
 				8278FE082C5DD4310017EB72 /* FirebaseFirestore */,
 				8278FE0A2C5DD4310017EB72 /* FirebaseStorage */,
+				A9E6C1022F64AE7000AD0001 /* GoogleMobileAds */,
 			);
 			productName = Geolocation_v1.0.0;
 			productReference = 8278FDF42C5DD1C90017EB72 /* Allim.app */;
@@ -504,6 +507,7 @@
 			mainGroup = 8278FDEB2C5DD1C80017EB72;
 			packageReferences = (
 				8278FE052C5DD4310017EB72 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
+				A9E6C1032F64AE7000AD0001 /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */,
 			);
 			productRefGroup = 8278FDF52C5DD1C90017EB72 /* Products */;
 			projectDirPath = "";
@@ -966,6 +970,14 @@
 				minimumVersion = 11.0.0;
 			};
 		};
+		A9E6C1032F64AE7000AD0001 /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/googleads/swift-package-manager-google-mobile-ads.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 13.1.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -983,6 +995,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 8278FE052C5DD4310017EB72 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
 			productName = FirebaseStorage;
+		};
+		A9E6C1022F64AE7000AD0001 /* GoogleMobileAds */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A9E6C1032F64AE7000AD0001 /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */;
+			productName = GoogleMobileAds;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
