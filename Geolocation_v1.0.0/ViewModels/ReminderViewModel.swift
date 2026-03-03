@@ -16,6 +16,8 @@ class ReminderViewModel: ObservableObject {
     @Published var reminders: [Reminder] = []
     @Published var isLoading: Bool = false
     @Published var errorMessage: String = ""
+    /// Reminder IDs that are staged for deletion (hidden from display, pending undo window)
+    @Published var stagedForDeletion: Set<String> = []
     /// Flag to prevent snapshot listener from overwriting local state during a reorder operation
     private var isReordering = false
 
@@ -142,6 +144,13 @@ class ReminderViewModel: ObservableObject {
                         return a.createdAt < b.createdAt
                     }
 
+                    // Remove orphaned staged photo URLs — once Firestore confirms a photo
+                    // is deleted its URL is absent from all reminders, so the entry is stale.
+                    if !self.stagedPhotoUrls.isEmpty {
+                        let allPhotoURLs = Set(fetchedReminders.flatMap { $0.photoURLs ?? [] })
+                        self.stagedPhotoUrls = self.stagedPhotoUrls.intersection(allPhotoURLs)
+                    }
+
                     #if DEBUG
                     print("ReminderViewModel: Successfully loaded \(self.reminders.count) reminders")
                     #endif
@@ -188,8 +197,7 @@ class ReminderViewModel: ObservableObject {
     /// Reminders excluding the currently autosaved (in-progress) one, for display in the list.
     /// The autosaved reminder is hidden while the user is still typing in the inline add field.
     var displayedReminders: [Reminder] {
-        guard let autosaveId = autosavedReminderId else { return reminders }
-        return reminders.filter { $0.id != autosaveId }
+        reminders.filter { $0.id != autosavedReminderId && !stagedForDeletion.contains($0.id) }
     }
 
     /// Displayed category order (excludes autosaved reminder)
@@ -964,6 +972,41 @@ class ReminderViewModel: ObservableObject {
                 }
             }
         }
+    }
+
+    // MARK: - Undo Support (Staged Deletion)
+
+    /// Stage a reminder for deletion — hides it from the list without touching Firestore.
+    /// Call `commitStagedDeletion` to permanently delete or `undoStagedDeletion` to restore.
+    func stageForDeletion(_ reminder: Reminder) {
+        stagedForDeletion.insert(reminder.id)
+    }
+
+    /// Restore a staged reminder — removes it from the hidden set so it reappears in the list.
+    func undoStagedDeletion(_ reminderId: String) {
+        stagedForDeletion.remove(reminderId)
+    }
+
+    /// Permanently delete a staged reminder from Firestore.
+    func commitStagedDeletion(_ reminder: Reminder) {
+        stagedForDeletion.remove(reminder.id)
+        deleteReminder(reminder)
+    }
+
+    // MARK: - Undo Support (Staged Photo Deletion)
+
+    /// Photo URLs staged for deletion — hidden from the item view during the undo window.
+    /// Entries are cleaned up automatically when the Firestore snapshot no longer contains them.
+    @Published var stagedPhotoUrls: Set<String> = []
+
+    /// Hide a photo URL locally without touching Firestore.
+    func stagePhotoUrl(_ url: String) {
+        stagedPhotoUrls.insert(url)
+    }
+
+    /// Restore a staged photo URL so it reappears in the item view.
+    func unstagePhotoUrl(_ url: String) {
+        stagedPhotoUrls.remove(url)
     }
 
     /// Delete a reminder - syncs deletion across all linked shared reminders
