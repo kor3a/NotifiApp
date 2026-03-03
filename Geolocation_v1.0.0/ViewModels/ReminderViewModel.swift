@@ -16,6 +16,8 @@ class ReminderViewModel: ObservableObject {
     @Published var reminders: [Reminder] = []
     @Published var isLoading: Bool = false
     @Published var errorMessage: String = ""
+    /// Reminder IDs that are staged for deletion (hidden from display, pending undo window)
+    @Published var stagedForDeletion: Set<String> = []
     /// Flag to prevent snapshot listener from overwriting local state during a reorder operation
     private var isReordering = false
 
@@ -188,8 +190,7 @@ class ReminderViewModel: ObservableObject {
     /// Reminders excluding the currently autosaved (in-progress) one, for display in the list.
     /// The autosaved reminder is hidden while the user is still typing in the inline add field.
     var displayedReminders: [Reminder] {
-        guard let autosaveId = autosavedReminderId else { return reminders }
-        return reminders.filter { $0.id != autosaveId }
+        reminders.filter { $0.id != autosavedReminderId && !stagedForDeletion.contains($0.id) }
     }
 
     /// Displayed category order (excludes autosaved reminder)
@@ -964,6 +965,25 @@ class ReminderViewModel: ObservableObject {
                 }
             }
         }
+    }
+
+    // MARK: - Undo Support (Staged Deletion)
+
+    /// Stage a reminder for deletion — hides it from the list without touching Firestore.
+    /// Call `commitStagedDeletion` to permanently delete or `undoStagedDeletion` to restore.
+    func stageForDeletion(_ reminder: Reminder) {
+        stagedForDeletion.insert(reminder.id)
+    }
+
+    /// Restore a staged reminder — removes it from the hidden set so it reappears in the list.
+    func undoStagedDeletion(_ reminderId: String) {
+        stagedForDeletion.remove(reminderId)
+    }
+
+    /// Permanently delete a staged reminder from Firestore.
+    func commitStagedDeletion(_ reminder: Reminder) {
+        stagedForDeletion.remove(reminder.id)
+        deleteReminder(reminder)
     }
 
     /// Delete a reminder - syncs deletion across all linked shared reminders

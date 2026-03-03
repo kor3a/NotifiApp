@@ -38,6 +38,8 @@ struct ReminderView: View {
     @State private var showRemoveAllFavoritesConfirmation = false
     @State private var checkboxFrames: [String: CGRect] = [:]
     @State private var swipedIds: Set<String> = []
+    @State private var pendingDeleteReminder: Reminder?
+    @State private var undoWorkItem: DispatchWorkItem?
     @Environment(\.colorScheme) var colorScheme
     @Environment(\.scenePhase) var scenePhase
 
@@ -89,6 +91,13 @@ struct ReminderView: View {
                 )
                 .ignoresSafeArea()
             }
+
+            // Undo toast — floats above all content after a deletion
+            if let pending = pendingDeleteReminder {
+                undoToastView(for: pending)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                    .zIndex(3)
+            }
         }
         .navigationTitle(userStoreItem.store.name)
         .toolbar { toolbarContent }
@@ -139,6 +148,14 @@ struct ReminderView: View {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: workItem)
         }
         .onDisappear {
+            // Commit any pending deletion immediately when leaving the view
+            if let pending = pendingDeleteReminder {
+                undoWorkItem?.cancel()
+                undoWorkItem = nil
+                pendingDeleteReminder = nil
+                viewModel.commitStagedDeletion(pending)
+            }
+
             autosaveWorkItem?.cancel()
             let title = newReminderText.trimmingCharacters(in: .whitespaces)
             if !title.isEmpty && isAddingNewReminder {
@@ -163,6 +180,13 @@ struct ReminderView: View {
         }
         .onChange(of: scenePhase) { _, newPhase in
             if newPhase == .background {
+                // Commit any pending deletion before going to background
+                if let pending = pendingDeleteReminder {
+                    undoWorkItem?.cancel()
+                    undoWorkItem = nil
+                    pendingDeleteReminder = nil
+                    viewModel.commitStagedDeletion(pending)
+                }
                 sendPendingSharedNotificationsIfNeeded()
             }
         }
@@ -180,7 +204,7 @@ struct ReminderView: View {
         )) {
             Button("Delete for Everyone", role: .destructive) {
                 if let reminder = reminderToDelete {
-                    viewModel.deleteReminder(reminder)
+                    stageReminderForDeletion(reminder)
                     reminderToDelete = nil
                 }
             }
@@ -510,7 +534,7 @@ struct ReminderView: View {
                     if reminder.isShared == true && reminder.sharedReminderId != nil {
                         reminderToDelete = reminder
                     } else {
-                        viewModel.deleteReminder(reminder)
+                        stageReminderForDeletion(reminder)
                     }
                 } label: {
                     Image(systemName: "trash")
@@ -863,10 +887,10 @@ struct ReminderView: View {
             // Add to fading set for animation
             fadingReminderIds.insert(reminder.id)
 
-            // Delay deletion to show fade animation
+            // After fade animation, stage the deletion (undo still possible)
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                viewModel.deleteReminder(reminder)
                 fadingReminderIds.remove(reminder.id)
+                stageReminderForDeletion(reminder)
             }
         } else {
             // Normal toggle behavior
@@ -893,6 +917,97 @@ struct ReminderView: View {
                 }
             }
         }
+    }
+
+    // MARK: - Undo Deletion
+
+    /// Stage a reminder for deletion and start the 5-second undo window.
+    private func stageReminderForDeletion(_ reminder: Reminder) {
+        // If there's already a staged deletion, commit it immediately
+        if let previous = pendingDeleteReminder, previous.id != reminder.id {
+            undoWorkItem?.cancel()
+            undoWorkItem = nil
+            viewModel.commitStagedDeletion(previous)
+        }
+
+        undoWorkItem?.cancel()
+        viewModel.stageForDeletion(reminder)
+
+        withAnimation(.spring(duration: 0.35)) {
+            pendingDeleteReminder = reminder
+        }
+
+        let workItem = DispatchWorkItem {
+            commitPendingDeletion()
+        }
+        undoWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + 5, execute: workItem)
+    }
+
+    /// Permanently delete the staged reminder (undo window expired or view closing).
+    private func commitPendingDeletion() {
+        guard let reminder = pendingDeleteReminder else { return }
+        undoWorkItem?.cancel()
+        undoWorkItem = nil
+        withAnimation(.spring(duration: 0.35)) {
+            pendingDeleteReminder = nil
+        }
+        viewModel.commitStagedDeletion(reminder)
+    }
+
+    /// Restore the staged reminder — user tapped Undo.
+    private func undoPendingDeletion() {
+        guard let reminder = pendingDeleteReminder else { return }
+        undoWorkItem?.cancel()
+        undoWorkItem = nil
+        withAnimation(.spring(duration: 0.35)) {
+            pendingDeleteReminder = nil
+        }
+        viewModel.undoStagedDeletion(reminder.id)
+    }
+
+    // MARK: - Undo Toast View
+
+    private func undoToastView(for reminder: Reminder) -> some View {
+        VStack {
+            Spacer()
+            HStack(spacing: 12) {
+                Image(systemName: "trash.fill")
+                    .foregroundStyle(.white.opacity(0.75))
+                    .font(.subheadline)
+
+                Text("\"\(reminder.title)\"")
+                    .foregroundStyle(.white)
+                    .font(.subheadline)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+
+                Text("deleted")
+                    .foregroundStyle(.white.opacity(0.75))
+                    .font(.subheadline)
+
+                Spacer()
+
+                Button {
+                    undoPendingDeletion()
+                } label: {
+                    Text("Undo")
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(.yellow)
+                }
+            }
+            .padding(.horizontal, 18)
+            .padding(.vertical, 14)
+            .background(
+                Capsule()
+                    .fill(Color(.systemGray2).opacity(colorScheme == .dark ? 0.95 : 0.85))
+                    .shadow(color: .black.opacity(0.25), radius: 12, x: 0, y: 4)
+            )
+            .padding(.horizontal, 20)
+            .padding(.bottom, 24)
+        }
+        .allowsHitTesting(true)
     }
 
     /// Send shared store notifications if the store is shared and changes were made.
