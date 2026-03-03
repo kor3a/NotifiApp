@@ -994,6 +994,55 @@ class StoresViewModel: ObservableObject {
         }
     }
 
+    // MARK: - On My Way Notification
+
+    @Published var isSendingOnMyWay = false
+    @Published var onMyWayError: String?
+    @Published var onMyWaySentStoreName: String?
+
+    /// Send "on my way" notification to all users sharing the given store.
+    /// Calculates driving time from the user's current location to the nearest store location.
+    func sendOnMyWayNotification(for userStoreItem: UserStoreItem) {
+        guard let currentUser = sessionManager.currentUser else {
+            onMyWayError = "User data not available."
+            return
+        }
+
+        isSendingOnMyWay = true
+        onMyWayError = nil
+        onMyWaySentStoreName = nil
+
+        TravelTimeService.shared.calculateTravelTime(to: userStoreItem.store.name) { [weak self] result in
+            DispatchQueue.main.async {
+                guard let self = self else { return }
+
+                switch result {
+                case .success(let estimate):
+                    #if DEBUG
+                    print("🚗 StoresViewModel: Travel time to \(userStoreItem.store.name): \(estimate.formattedTravelTime)")
+                    #endif
+
+                    OnMyWayNotificationService.shared.sendNotification(
+                        for: userStoreItem,
+                        travelTimeMinutes: estimate.travelTimeMinutes,
+                        currentUserId: currentUser.userId,
+                        currentUserName: currentUser.name
+                    )
+
+                    self.isSendingOnMyWay = false
+                    self.onMyWaySentStoreName = userStoreItem.store.name
+
+                case .failure(let error):
+                    #if DEBUG
+                    print("🚗 StoresViewModel: Failed to calculate travel time: \(error.localizedDescription)")
+                    #endif
+                    self.isSendingOnMyWay = false
+                    self.onMyWayError = error.localizedDescription
+                }
+            }
+        }
+    }
+
     deinit {
         // Clean up listeners when ViewModel is destroyed
         storesListener?.remove()

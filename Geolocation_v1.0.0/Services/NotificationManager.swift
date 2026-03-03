@@ -58,7 +58,15 @@ class NotificationManager: NSObject, ObservableObject {
             options: [.customDismissAction, .allowInCarPlay, .allowAnnouncement]
         )
 
-        notificationCenter.setNotificationCategories([storeProximityCategory, friendRequestCategory, newMessageCategory, sharedReminderCategory])
+        // Create a category for "on my way" notifications
+        let onMyWayCategory = UNNotificationCategory(
+            identifier: "ON_MY_WAY",
+            actions: [],
+            intentIdentifiers: [],
+            options: [.customDismissAction, .allowInCarPlay, .allowAnnouncement]
+        )
+
+        notificationCenter.setNotificationCategories([storeProximityCategory, friendRequestCategory, newMessageCategory, sharedReminderCategory, onMyWayCategory])
         #if DEBUG
         print("✅ Registered notification categories with CarPlay and announcement support")
         #endif
@@ -324,6 +332,55 @@ class NotificationManager: NSObject, ObservableObject {
                     print("   ✅ Scheduled shared reminder notification from \(senderName) for \(storeName)")
                     #endif
                 }
+            }
+        }
+    }
+
+    func scheduleOnMyWayNotification(senderName: String, storeName: String, travelTimeMinutes: Int) {
+        #if DEBUG
+        print("🔔 NotificationManager: Scheduling on-my-way notification from \(senderName) for \(storeName)")
+        #endif
+
+        notificationCenter.getNotificationSettings { settings in
+            guard settings.authorizationStatus == .authorized else {
+                #if DEBUG
+                print("   ❌ Notifications not authorized!")
+                #endif
+                return
+            }
+
+            let content = UNMutableNotificationContent()
+            content.title = "🚗 \(senderName) is on their way!"
+
+            if travelTimeMinutes < 60 {
+                content.body = "\(senderName) is on their way to \(storeName)! It'll take approximately \(travelTimeMinutes) min to get there."
+            } else {
+                let hours = travelTimeMinutes / 60
+                let minutes = travelTimeMinutes % 60
+                if minutes == 0 {
+                    content.body = "\(senderName) is on their way to \(storeName)! It'll take approximately \(hours) hr to get there."
+                } else {
+                    content.body = "\(senderName) is on their way to \(storeName)! It'll take approximately \(hours) hr \(minutes) min to get there."
+                }
+            }
+
+            content.sound = .default
+            content.interruptionLevel = .timeSensitive
+            content.relevanceScore = 0.9
+            content.categoryIdentifier = "ON_MY_WAY"
+
+            let identifier = "on_my_way_\(storeName)_\(Date().timeIntervalSince1970)"
+            let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
+            let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
+
+            self.notificationCenter.add(request) { error in
+                #if DEBUG
+                if let error = error {
+                    print("   ❌ Error scheduling on-my-way notification: \(error)")
+                } else {
+                    print("   ✅ Scheduled on-my-way notification from \(senderName) for \(storeName)")
+                }
+                #endif
             }
         }
     }
