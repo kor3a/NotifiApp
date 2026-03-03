@@ -144,6 +144,13 @@ class ReminderViewModel: ObservableObject {
                         return a.createdAt < b.createdAt
                     }
 
+                    // Remove orphaned staged photo URLs — once Firestore confirms a photo
+                    // is deleted its URL is absent from all reminders, so the entry is stale.
+                    if !self.stagedPhotoUrls.isEmpty {
+                        let allPhotoURLs = Set(fetchedReminders.flatMap { $0.photoURLs ?? [] })
+                        self.stagedPhotoUrls = self.stagedPhotoUrls.intersection(allPhotoURLs)
+                    }
+
                     #if DEBUG
                     print("ReminderViewModel: Successfully loaded \(self.reminders.count) reminders")
                     #endif
@@ -984,6 +991,22 @@ class ReminderViewModel: ObservableObject {
     func commitStagedDeletion(_ reminder: Reminder) {
         stagedForDeletion.remove(reminder.id)
         deleteReminder(reminder)
+    }
+
+    // MARK: - Undo Support (Staged Photo Deletion)
+
+    /// Photo URLs staged for deletion — hidden from the item view during the undo window.
+    /// Entries are cleaned up automatically when the Firestore snapshot no longer contains them.
+    @Published var stagedPhotoUrls: Set<String> = []
+
+    /// Hide a photo URL locally without touching Firestore.
+    func stagePhotoUrl(_ url: String) {
+        stagedPhotoUrls.insert(url)
+    }
+
+    /// Restore a staged photo URL so it reappears in the item view.
+    func unstagePhotoUrl(_ url: String) {
+        stagedPhotoUrls.remove(url)
     }
 
     /// Delete a reminder - syncs deletion across all linked shared reminders

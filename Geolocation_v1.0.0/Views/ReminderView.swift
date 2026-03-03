@@ -159,6 +159,7 @@ struct ReminderView: View {
                 photoUndoWorkItem?.cancel()
                 photoUndoWorkItem = nil
                 pendingDeletePhoto = nil
+                viewModel.unstagePhotoUrl(pending.url)
                 viewModel.deletePhoto(for: pending.reminder, photoURL: pending.url)
             }
             if let pending = pendingDeleteReminder {
@@ -197,6 +198,7 @@ struct ReminderView: View {
                     photoUndoWorkItem?.cancel()
                     photoUndoWorkItem = nil
                     pendingDeletePhoto = nil
+                    viewModel.unstagePhotoUrl(pending.url)
                     viewModel.deletePhoto(for: pending.reminder, photoURL: pending.url)
                 }
                 if let pending = pendingDeleteReminder {
@@ -465,8 +467,20 @@ struct ReminderView: View {
     }
 
     private func reminderRow(for reminder: Reminder) -> some View {
-        ReminderItemView(
-            item: reminder,
+        // Filter out any photo URLs that are staged for deletion so they
+        // disappear immediately while the undo window is open.
+        let displayReminder: Reminder = {
+            guard !viewModel.stagedPhotoUrls.isEmpty,
+                  let urls = reminder.photoURLs,
+                  urls.contains(where: { viewModel.stagedPhotoUrls.contains($0) }) else {
+                return reminder
+            }
+            var r = reminder
+            r.photoURLs = urls.filter { !viewModel.stagedPhotoUrls.contains($0) }
+            return r
+        }()
+        return ReminderItemView(
+            item: displayReminder,
             isEditing: editingReminderId == reminder.id,
             isReorderMode: isReorderMode,
             onPhotoTap: { photoURL in
@@ -955,6 +969,7 @@ struct ReminderView: View {
         }
 
         photoUndoWorkItem?.cancel()
+        viewModel.stagePhotoUrl(url)  // hide the photo immediately in the item list
         withAnimation(.spring(duration: 0.35)) {
             pendingDeletePhoto = (reminder: reminder, url: url)
         }
@@ -974,14 +989,18 @@ struct ReminderView: View {
         withAnimation(.spring(duration: 0.35)) {
             pendingDeletePhoto = nil
         }
+        // stagedPhotoUrls entry is left in place; the snapshot listener cleans it
+        // up automatically once Firestore confirms the URL is gone.
         viewModel.deletePhoto(for: pending.reminder, photoURL: pending.url)
     }
 
     /// Restore the staged photo — user tapped Undo.
-    /// Photo URL is still in Firestore, so no further action needed.
+    /// Photo URL is still in Firestore; un-staging makes it visible again.
     private func undoPendingPhotoDeletion() {
+        guard let pending = pendingDeletePhoto else { return }
         photoUndoWorkItem?.cancel()
         photoUndoWorkItem = nil
+        viewModel.unstagePhotoUrl(pending.url)  // restore photo in item list
         withAnimation(.spring(duration: 0.35)) {
             pendingDeletePhoto = nil
         }
