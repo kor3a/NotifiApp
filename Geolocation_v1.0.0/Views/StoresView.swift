@@ -21,6 +21,8 @@ struct StoresView: View {
     @State private var selectedStoreToShare: UserStoreItem?
     @State private var editMode: EditMode = .inactive
     @State private var longPressedItemId: String?
+    @State private var showOnMyWayConfirmation = false
+    @State private var selectedOnMyWayStore: UserStoreItem?
     @Environment(\.colorScheme) var colorScheme
 
     var body: some View {
@@ -91,6 +93,17 @@ struct StoresView: View {
                                         Label("Share", systemImage: "square.and.arrow.up")
                                     }
                                     .tint(.blue)
+                                }
+                            }
+                            .swipeActions(edge: .leading, allowsFullSwipe: false) {
+                                if userStoreItem.isShared {
+                                    Button {
+                                        selectedOnMyWayStore = userStoreItem
+                                        showOnMyWayConfirmation = true
+                                    } label: {
+                                        Label("On My Way", systemImage: "car.fill")
+                                    }
+                                    .tint(.green)
                                 }
                             }
                             .simultaneousGesture(
@@ -238,6 +251,47 @@ struct StoresView: View {
         }
         .sheet(item: $selectedStoreToShare) { storeToShare in
             ShareStoreView(viewModel: viewModel, messagesViewModel: messagesViewModel, userStoreItem: storeToShare)
+        }
+        .alert("On My Way", isPresented: $showOnMyWayConfirmation) {
+            Button("Send") {
+                if let store = selectedOnMyWayStore {
+                    viewModel.sendOnMyWayNotification(for: store)
+                }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            if let store = selectedOnMyWayStore {
+                Text("Notify people you share \(store.store.name) with that you're on your way?")
+            }
+        }
+        .alert("Notification Sent", isPresented: Binding(
+            get: { viewModel.onMyWaySentStoreName != nil },
+            set: { if !$0 { viewModel.onMyWaySentStoreName = nil } }
+        )) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            if let storeName = viewModel.onMyWaySentStoreName {
+                Text("Your shared contacts have been notified that you're on your way to \(storeName).")
+            }
+        }
+        .alert("Unable to Send", isPresented: Binding(
+            get: { viewModel.onMyWayError != nil },
+            set: { if !$0 { viewModel.onMyWayError = nil } }
+        )) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            if let error = viewModel.onMyWayError {
+                Text(error)
+            }
+        }
+        .overlay {
+            if viewModel.isSendingOnMyWay {
+                Color.black.opacity(0.3)
+                    .ignoresSafeArea()
+                ProgressView("Calculating travel time...")
+                    .padding()
+                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
+            }
         }
         .onAppear() {
             // Try to fetch immediately if user data is available

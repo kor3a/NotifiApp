@@ -119,6 +119,7 @@ struct HomeView: View {
             }
             if let userEmail = sessionManager.currentUser?.email {
                 SharedReminderNotificationService.shared.startListening(userEmail: userEmail)
+                OnMyWayNotificationService.shared.startListening(userEmail: userEmail)
             }
         }
         .onChange(of: sessionManager.currentUser) { oldUser, newUser in
@@ -133,9 +134,10 @@ struct HomeView: View {
                 // Start listening for incoming messages
                 messagingService.startListeningForIncomingMessages(userId: userId)
 
-                // Start listening for shared reminder change notifications
+                // Start listening for shared reminder change and on-my-way notifications
                 if let userEmail = newUser?.email {
                     SharedReminderNotificationService.shared.startListening(userEmail: userEmail)
+                    OnMyWayNotificationService.shared.startListening(userEmail: userEmail)
                 }
             }
 
