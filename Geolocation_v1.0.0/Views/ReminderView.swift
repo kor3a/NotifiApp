@@ -40,6 +40,8 @@ struct ReminderView: View {
     @State private var swipedIds: Set<String> = []
     @State private var pendingDeleteReminder: Reminder?
     @State private var undoWorkItem: DispatchWorkItem?
+    @State private var pendingDeletePhoto: (reminder: Reminder, url: String)?
+    @State private var photoUndoWorkItem: DispatchWorkItem?
     @Environment(\.colorScheme) var colorScheme
     @Environment(\.scenePhase) var scenePhase
 
@@ -93,8 +95,12 @@ struct ReminderView: View {
             }
 
             // Undo toast — floats above all content after a deletion
-            if let pending = pendingDeleteReminder {
-                undoToastView(for: pending)
+            if pendingDeletePhoto != nil {
+                undoToastView(message: "Photo deleted", onUndo: undoPendingPhotoDeletion)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                    .zIndex(3)
+            } else if let pending = pendingDeleteReminder {
+                undoToastView(message: "\"\(pending.title)\" deleted", onUndo: undoPendingDeletion)
                     .transition(.move(edge: .bottom).combined(with: .opacity))
                     .zIndex(3)
             }
@@ -149,6 +155,12 @@ struct ReminderView: View {
         }
         .onDisappear {
             // Commit any pending deletion immediately when leaving the view
+            if let pending = pendingDeletePhoto {
+                photoUndoWorkItem?.cancel()
+                photoUndoWorkItem = nil
+                pendingDeletePhoto = nil
+                viewModel.deletePhoto(for: pending.reminder, photoURL: pending.url)
+            }
             if let pending = pendingDeleteReminder {
                 undoWorkItem?.cancel()
                 undoWorkItem = nil
@@ -180,7 +192,13 @@ struct ReminderView: View {
         }
         .onChange(of: scenePhase) { _, newPhase in
             if newPhase == .background {
-                // Commit any pending deletion before going to background
+                // Commit any pending deletions before going to background
+                if let pending = pendingDeletePhoto {
+                    photoUndoWorkItem?.cancel()
+                    photoUndoWorkItem = nil
+                    pendingDeletePhoto = nil
+                    viewModel.deletePhoto(for: pending.reminder, photoURL: pending.url)
+                }
                 if let pending = pendingDeleteReminder {
                     undoWorkItem?.cancel()
                     undoWorkItem = nil
@@ -734,11 +752,9 @@ struct ReminderView: View {
             .alert("Delete Photo", isPresented: $showDeletePhotoConfirm) {
                 Button("Delete", role: .destructive) {
                     if let reminder = enlargedPhotoReminder, let url = enlargedPhotoURL {
-                        viewModel.deletePhoto(for: reminder, photoURL: url)
-                    }
-                    withAnimation {
-                        enlargedPhotoURL = nil
+                        withAnimation { enlargedPhotoURL = nil }
                         enlargedPhotoReminder = nil
+                        stagePhotoForDeletion(reminder: reminder, url: url)
                     }
                 }
                 Button("Cancel", role: .cancel) {}
@@ -919,11 +935,70 @@ struct ReminderView: View {
         }
     }
 
+    // MARK: - Photo Undo Deletion
+
+    /// Stage a photo for deletion and open the 5-second undo window.
+    /// The photo URL remains in Firestore until the window expires (or view disappears).
+    private func stagePhotoForDeletion(reminder: Reminder, url: String) {
+        // If a reminder deletion is pending, commit it first (only one toast at a time)
+        if let pending = pendingDeleteReminder {
+            undoWorkItem?.cancel()
+            undoWorkItem = nil
+            pendingDeleteReminder = nil
+            viewModel.commitStagedDeletion(pending)
+        }
+        // If a different photo deletion is pending, commit it first
+        if let existing = pendingDeletePhoto, existing.url != url {
+            photoUndoWorkItem?.cancel()
+            photoUndoWorkItem = nil
+            viewModel.deletePhoto(for: existing.reminder, photoURL: existing.url)
+        }
+
+        photoUndoWorkItem?.cancel()
+        withAnimation(.spring(duration: 0.35)) {
+            pendingDeletePhoto = (reminder: reminder, url: url)
+        }
+
+        let workItem = DispatchWorkItem {
+            commitPendingPhotoDeletion()
+        }
+        photoUndoWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + 5, execute: workItem)
+    }
+
+    /// Permanently delete the staged photo (undo window expired or view closing).
+    private func commitPendingPhotoDeletion() {
+        guard let pending = pendingDeletePhoto else { return }
+        photoUndoWorkItem?.cancel()
+        photoUndoWorkItem = nil
+        withAnimation(.spring(duration: 0.35)) {
+            pendingDeletePhoto = nil
+        }
+        viewModel.deletePhoto(for: pending.reminder, photoURL: pending.url)
+    }
+
+    /// Restore the staged photo — user tapped Undo.
+    /// Photo URL is still in Firestore, so no further action needed.
+    private func undoPendingPhotoDeletion() {
+        photoUndoWorkItem?.cancel()
+        photoUndoWorkItem = nil
+        withAnimation(.spring(duration: 0.35)) {
+            pendingDeletePhoto = nil
+        }
+    }
+
     // MARK: - Undo Deletion
 
     /// Stage a reminder for deletion and start the 5-second undo window.
     private func stageReminderForDeletion(_ reminder: Reminder) {
-        // If there's already a staged deletion, commit it immediately
+        // If a photo deletion is pending, commit it first (only one toast at a time)
+        if let photo = pendingDeletePhoto {
+            photoUndoWorkItem?.cancel()
+            photoUndoWorkItem = nil
+            pendingDeletePhoto = nil
+            viewModel.deletePhoto(for: photo.reminder, photoURL: photo.url)
+        }
+        // If there's already a staged reminder deletion, commit it immediately
         if let previous = pendingDeleteReminder, previous.id != reminder.id {
             undoWorkItem?.cancel()
             undoWorkItem = nil
@@ -968,7 +1043,7 @@ struct ReminderView: View {
 
     // MARK: - Undo Toast View
 
-    private func undoToastView(for reminder: Reminder) -> some View {
+    private func undoToastView(message: String, onUndo: @escaping () -> Void) -> some View {
         VStack {
             Spacer()
             HStack(spacing: 12) {
@@ -976,20 +1051,16 @@ struct ReminderView: View {
                     .foregroundStyle(.white.opacity(0.75))
                     .font(.subheadline)
 
-                Text("\"\(reminder.title)\"")
+                Text(message)
                     .foregroundStyle(.white)
                     .font(.subheadline)
                     .lineLimit(1)
                     .truncationMode(.tail)
 
-                Text("deleted")
-                    .foregroundStyle(.white.opacity(0.75))
-                    .font(.subheadline)
-
                 Spacer()
 
                 Button {
-                    undoPendingDeletion()
+                    onUndo()
                 } label: {
                     Text("Undo")
                         .font(.subheadline)
