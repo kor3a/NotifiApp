@@ -62,39 +62,99 @@ class StoreLogoProvider: ObservableObject {
     /// normalized name starts with any known store key (e.g., "walmart-supercenter" matches "walmart").
     func logoURL(for storeName: String) -> String? {
         let normalizedId = Store.normalizedId(from: storeName)
-
-        // Exact match
-        if let url = storeLogos[normalizedId] {
-            return url
+        #if DEBUG
+        print("StoreLogoProvider: Fetching store logo with ID: \(normalizedId)")
+        #endif
+        guard let key = bestLogoKey(for: normalizedId) else {
+            #if DEBUG
+            print("StoreLogoProvider: No logo match for ID: \(normalizedId) (canonical: \(canonicalLogoKey(normalizedId)))")
+            #endif
+            return nil
         }
-
-        // Prefix match: find the longest key that the normalized name starts with.
-        // E.g., "walmart-supercenter" starts with "walmart"
-        var bestMatch: (key: String, url: String)?
-        for (key, url) in storeLogos {
-            if normalizedId.hasPrefix(key) {
-                if bestMatch == nil || key.count > bestMatch!.key.count {
-                    bestMatch = (key, url)
-                }
-            }
+        #if DEBUG
+        if key == normalizedId {
+            print("StoreLogoProvider: Matched logo key: \(key) (exact)")
+        } else {
+            print("StoreLogoProvider: Matched logo key: \(key) (via normalization/prefix)")
         }
-        return bestMatch?.url
+        #endif
+        return storeLogos[key]
     }
 
     /// Resolves which cache key (normalized ID) to use for a given store name,
     /// accounting for prefix matching.
     func resolvedLogoId(for storeName: String) -> String? {
         let normalizedId = Store.normalizedId(from: storeName)
+        return bestLogoKey(for: normalizedId)
+    }
+
+    /// Returns a canonical key for resilient matching across punctuation/symbol variants.
+    /// Example: "85°c-bakery-cafe" and "85c bakery cafe" both become "85c-bakery-cafe".
+    private func canonicalLogoKey(_ value: String) -> String {
+        let lowercased = value.lowercased().replacingOccurrences(of: "&", with: "and")
+        var output = ""
+        var lastWasHyphen = false
+
+        for scalar in lowercased.unicodeScalars {
+            if CharacterSet.alphanumerics.contains(scalar) {
+                output.append(String(scalar))
+                lastWasHyphen = false
+                continue
+            }
+
+            // Whitespace/common delimiters become "-", while symbols like "°" are dropped.
+            let isSeparator = CharacterSet.whitespacesAndNewlines.contains(scalar) || scalar == "-" || scalar == "_" || scalar == "/"
+            if isSeparator && !lastWasHyphen && !output.isEmpty {
+                output.append("-")
+                lastWasHyphen = true
+            }
+        }
+
+        return output.trimmingCharacters(in: CharacterSet(charactersIn: "-"))
+    }
+
+    /// Finds the best matching logo key using exact and prefix checks on both
+    /// raw normalized IDs and canonicalized IDs.
+    private func bestLogoKey(for normalizedId: String) -> String? {
+        // 1) Raw exact match (fast path)
         if storeLogos[normalizedId] != nil { return normalizedId }
-        var bestMatch: (key: String, url: String)?
-        for (key, url) in storeLogos {
-            if normalizedId.hasPrefix(key) {
-                if bestMatch == nil || key.count > bestMatch!.key.count {
-                    bestMatch = (key, url)
+
+        // 2) Canonical exact match (handles symbols like "°")
+        let canonicalId = canonicalLogoKey(normalizedId)
+        var canonicalExact: String?
+        for key in storeLogos.keys {
+            if canonicalLogoKey(key) == canonicalId {
+                if canonicalExact == nil || key.count > canonicalExact!.count {
+                    canonicalExact = key
                 }
             }
         }
-        return bestMatch?.key
+        if let canonicalExact {
+            return canonicalExact
+        }
+
+        // 3) Raw prefix match
+        var bestRawPrefix: String?
+        for key in storeLogos.keys where normalizedId.hasPrefix(key) {
+            if bestRawPrefix == nil || key.count > bestRawPrefix!.count {
+                bestRawPrefix = key
+            }
+        }
+        if let bestRawPrefix {
+            return bestRawPrefix
+        }
+
+        // 4) Canonical prefix match
+        var bestCanonicalPrefix: String?
+        for key in storeLogos.keys {
+            let canonicalKey = canonicalLogoKey(key)
+            if canonicalId.hasPrefix(canonicalKey) {
+                if bestCanonicalPrefix == nil || canonicalKey.count > canonicalLogoKey(bestCanonicalPrefix!).count {
+                    bestCanonicalPrefix = key
+                }
+            }
+        }
+        return bestCanonicalPrefix
     }
 
     // MARK: - Cached Image Access
