@@ -62,7 +62,17 @@ class StoreLogoProvider: ObservableObject {
     /// normalized name starts with any known store key (e.g., "walmart-supercenter" matches "walmart").
     func logoURL(for storeName: String) -> String? {
         let normalizedId = Store.normalizedId(from: storeName)
+        #if DEBUG
+        print("StoreLogoProvider: Fetching store logo with ID: \(normalizedId)")
+        #endif
         guard let key = bestLogoKey(for: normalizedId) else { return nil }
+        #if DEBUG
+        if key == normalizedId {
+            print("StoreLogoProvider: Matched logo key: \(key) (exact)")
+        } else {
+            print("StoreLogoProvider: Matched logo key: \(key) (via normalization/prefix)")
+        }
+        #endif
         return storeLogos[key]
     }
 
