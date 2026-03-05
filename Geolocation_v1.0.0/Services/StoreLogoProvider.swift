@@ -65,7 +65,12 @@ class StoreLogoProvider: ObservableObject {
         #if DEBUG
         print("StoreLogoProvider: Fetching store logo with ID: \(normalizedId)")
         #endif
-        guard let key = bestLogoKey(for: normalizedId) else { return nil }
+        guard let key = bestLogoKey(for: normalizedId) else {
+            #if DEBUG
+            print("StoreLogoProvider: No logo match for ID: \(normalizedId) (canonical: \(canonicalLogoKey(normalizedId)))")
+            #endif
+            return nil
+        }
         #if DEBUG
         if key == normalizedId {
             print("StoreLogoProvider: Matched logo key: \(key) (exact)")
@@ -87,12 +92,25 @@ class StoreLogoProvider: ObservableObject {
     /// Example: "85°c-bakery-cafe" and "85c bakery cafe" both become "85c-bakery-cafe".
     private func canonicalLogoKey(_ value: String) -> String {
         let lowercased = value.lowercased().replacingOccurrences(of: "&", with: "and")
-        let allowed = CharacterSet.alphanumerics
-        let replaced = lowercased.unicodeScalars.map { scalar in
-            allowed.contains(scalar) ? String(scalar) : "-"
-        }.joined()
-        let collapsed = replaced.replacingOccurrences(of: "-+", with: "-", options: .regularExpression)
-        return collapsed.trimmingCharacters(in: CharacterSet(charactersIn: "-"))
+        var output = ""
+        var lastWasHyphen = false
+
+        for scalar in lowercased.unicodeScalars {
+            if CharacterSet.alphanumerics.contains(scalar) {
+                output.append(String(scalar))
+                lastWasHyphen = false
+                continue
+            }
+
+            // Whitespace/common delimiters become "-", while symbols like "°" are dropped.
+            let isSeparator = CharacterSet.whitespacesAndNewlines.contains(scalar) || scalar == "-" || scalar == "_" || scalar == "/"
+            if isSeparator && !lastWasHyphen && !output.isEmpty {
+                output.append("-")
+                lastWasHyphen = true
+            }
+        }
+
+        return output.trimmingCharacters(in: CharacterSet(charactersIn: "-"))
     }
 
     /// Finds the best matching logo key using exact and prefix checks on both
