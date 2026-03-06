@@ -15,6 +15,8 @@ struct ReminderView: View {
     @State private var newReminderText = ""
     @FocusState private var isNewReminderFocused: Bool
     @AppStorage("autoDeleteReminders") private var autoDeleteEnabled = false
+    @AppStorage("smartCategoryEnabled") private var smartCategoryEnabled = true
+    @State private var showInfoPanel = false
     @State private var fadingReminderIds: Set<String> = []
     @State private var reminderToShare: Reminder?
     @State private var reminderToDelete: Reminder?
@@ -52,6 +54,15 @@ struct ReminderView: View {
                 isReorderMode = (newValue == .active)
             }
         )
+    }
+
+    private var isSubscribed: Bool {
+        UserSessionManager.shared.currentUser?.isSubscribed == true
+    }
+
+    /// Smart Category is active only when the user is subscribed AND has the toggle enabled.
+    private var effectiveSmartCategoryEnabled: Bool {
+        isSubscribed && smartCategoryEnabled
     }
 
     var body: some View {
@@ -205,6 +216,23 @@ struct ReminderView: View {
                     .transition(.move(edge: .bottom).combined(with: .opacity))
                     .zIndex(3)
             }
+
+            // Info panel — tap outside to dismiss
+            if showInfoPanel {
+                Color.clear
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        withAnimation(.easeInOut(duration: 0.18)) {
+                            showInfoPanel = false
+                        }
+                    }
+                    .ignoresSafeArea()
+                    .zIndex(9)
+
+                infoPanelOverlay
+                    .transition(.opacity.combined(with: .scale(scale: 0.95, anchor: .topTrailing)))
+                    .zIndex(10)
+            }
         }
         .navigationTitle(userStoreItem.store.name)
         .toolbar { toolbarContent }
@@ -292,7 +320,8 @@ struct ReminderView: View {
                 // Finalize with fire-and-forget categorization that survives ViewModel deallocation
                 viewModel.finalizeAutosave(
                     userStoreId: userStoreItem.reminderStoreId,
-                    finalTitle: title
+                    finalTitle: title,
+                    useSmartCategory: effectiveSmartCategoryEnabled
                 )
             }
 
@@ -636,7 +665,8 @@ struct ReminderView: View {
                                     tag: tag,
                                     sharedWith: userStoreItem.sharedWith,
                                     sharedFromName: userStoreItem.sharedFromName,
-                                    currentUserName: UserSessionManager.shared.currentUser?.name
+                                    currentUserName: UserSessionManager.shared.currentUser?.name,
+                                    useSmartCategory: effectiveSmartCategoryEnabled
                                 )
                             }
                             .contextMenu {
@@ -822,6 +852,20 @@ struct ReminderView: View {
                     .frame(width: 22, height: 22)
             }
         }
+
+        ToolbarItem(placement: .navigationBarTrailing) {
+            if !isReorderMode {
+                Button {
+                    withAnimation(.easeInOut(duration: 0.18)) {
+                        showInfoPanel.toggle()
+                    }
+                } label: {
+                    Image(systemName: showInfoPanel ? "info.circle.fill" : "info.circle")
+                        .frame(width: 22, height: 22)
+                }
+                .frame(width: 44, height: 44)
+            }
+        }
     }
 
     @ViewBuilder
@@ -899,7 +943,8 @@ struct ReminderView: View {
             // Finalize the autosaved reminder with the final title
             viewModel.finalizeAutosave(
                 userStoreId: userStoreItem.reminderStoreId,
-                finalTitle: title
+                finalTitle: title,
+                useSmartCategory: effectiveSmartCategoryEnabled
             )
         } else {
             // No autosave yet (user pressed Return before debounce fired) - create normally
@@ -908,7 +953,8 @@ struct ReminderView: View {
                 title: title,
                 sharedWith: userStoreItem.sharedWith,
                 sharedFromName: userStoreItem.sharedFromName,
-                currentUserName: UserSessionManager.shared.currentUser?.name
+                currentUserName: UserSessionManager.shared.currentUser?.name,
+                useSmartCategory: effectiveSmartCategoryEnabled
             )
         }
 
@@ -1107,6 +1153,80 @@ struct ReminderView: View {
             .padding(.horizontal, 20)
             .padding(.bottom, 24)
         }
+        .allowsHitTesting(true)
+    }
+
+    // MARK: - Info Panel
+
+    private var infoPanelOverlay: some View {
+        VStack(spacing: 0) {
+            HStack(alignment: .top) {
+                Spacer()
+                VStack(alignment: .leading, spacing: 0) {
+                    // Auto Delete row
+                    HStack(spacing: 12) {
+                        Image(systemName: autoDeleteEnabled ? "trash.fill" : "trash")
+                            .font(.body)
+                            .foregroundColor(autoDeleteEnabled ? .red : .primary)
+                            .frame(width: 24)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Auto Delete")
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                            Text("Delete checked items automatically")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Toggle("", isOn: $autoDeleteEnabled)
+                            .labelsHidden()
+                            .disabled(userStoreItem.permission == .view)
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+
+                    Divider()
+                        .padding(.horizontal, 16)
+
+                    // Smart Category row
+                    HStack(spacing: 12) {
+                        Image(systemName: "sparkles")
+                            .font(.body)
+                            .foregroundColor(isSubscribed ? Color.appAccent : .secondary)
+                            .frame(width: 24)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Smart Category")
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                                .foregroundStyle(isSubscribed ? Color.primary : Color.secondary)
+                            Text(isSubscribed ? "AI auto-categorizes new items" : "Available for subscribers")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        if isSubscribed {
+                            Toggle("", isOn: $smartCategoryEnabled)
+                                .labelsHidden()
+                        } else {
+                            Image(systemName: "lock.fill")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                }
+                .background(
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(.regularMaterial)
+                        .shadow(color: .black.opacity(0.2), radius: 16, x: 0, y: 8)
+                )
+                .frame(width: 290)
+                .padding(.trailing, 12)
+            }
+            Spacer()
+        }
+        .padding(.top, 8)
         .allowsHitTesting(true)
     }
 
