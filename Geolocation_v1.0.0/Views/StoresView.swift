@@ -23,6 +23,7 @@ struct StoresView: View {
     @State private var longPressedItemId: String?
     @State private var showOnMyWayConfirmation = false
     @State private var selectedOnMyWayStore: UserStoreItem?
+    @State private var storeToDelete: UserStoreItem?
     @Environment(\.colorScheme) var colorScheme
 
     var body: some View {
@@ -75,9 +76,7 @@ struct StoresView: View {
                             .listRowSeparator(.hidden)
                             .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                                 Button(role: .destructive) {
-                                    if let index = viewModel.userStoreItems.firstIndex(where: { $0.id == userStoreItem.id }) {
-                                        deleteStore(at: IndexSet(integer: index))
-                                    }
+                                    storeToDelete = userStoreItem
                                 } label: {
                                     if userStoreItem.permission == .view {
                                         Label("Remove", systemImage: "xmark.circle")
@@ -284,6 +283,24 @@ struct StoresView: View {
                 Text(error)
             }
         }
+        .alert(deleteAlertTitle, isPresented: Binding(
+            get: { storeToDelete != nil },
+            set: { if !$0 { storeToDelete = nil } }
+        )) {
+            Button(deleteAlertActionLabel, role: .destructive) {
+                if let store = storeToDelete {
+                    deleteStore(store)
+                }
+                storeToDelete = nil
+            }
+            Button("Cancel", role: .cancel) {
+                storeToDelete = nil
+            }
+        } message: {
+            if let store = storeToDelete {
+                Text(deleteAlertMessage(for: store))
+            }
+        }
         .overlay {
             if viewModel.isSendingOnMyWay {
                 Color.black.opacity(0.3)
@@ -309,11 +326,32 @@ struct StoresView: View {
         }
     }//:BODY
 
-    private func deleteStore(at offsets: IndexSet) {
-        for index in offsets {
-            let userStoreItem = viewModel.userStoreItems[index]
-            viewModel.removeStoreFromUser(userStoreItem: userStoreItem)
+    private var deleteAlertTitle: String {
+        guard let store = storeToDelete else { return "Delete Store?" }
+        if store.sharedFromName != nil {
+            return "Remove \(store.store.name)?"
         }
+        return "Delete \(store.store.name)?"
+    }
+
+    private var deleteAlertActionLabel: String {
+        storeToDelete?.sharedFromName != nil ? "Remove" : "Delete"
+    }
+
+    private func deleteAlertMessage(for store: UserStoreItem) -> String {
+        if let ownerName = store.sharedFromName {
+            return "This will only remove \(store.store.name) from your account. \(ownerName) will be notified that you removed the shared store."
+        } else if let sharedWith = store.sharedWith, !sharedWith.isEmpty {
+            let names = sharedWith.joined(separator: ", ")
+            return "\(store.store.name) is currently shared with \(names). Deleting it will remove the store from their accounts too, and they will be notified."
+        } else if store.permission == .edit, store.sharedStoreGroupId != nil {
+            return "\(store.store.name) is a shared store. Deleting it will remove it from all shared accounts, and they will be notified."
+        }
+        return "All reminders for \(store.store.name) will also be deleted."
+    }
+
+    private func deleteStore(_ userStoreItem: UserStoreItem) {
+        viewModel.removeStoreFromUser(userStoreItem: userStoreItem)
     }
 
     private func moveStore(from source: IndexSet, to destination: Int) {

@@ -597,15 +597,18 @@ class StoresViewModel: ObservableObject {
         let sharedGroupId = userStoreItem.sharedStoreGroupId
         let isRecipient = userStoreItem.sharedFromName != nil // If sharedFromName is set, user is a recipient
 
-        // Check if this is a shared store with Can Edit permission and a shared group
-        if permission == .edit, let sharedGroupId = sharedGroupId {
-            // Delete all user_stores and reminders in the shared group
-            self.deleteSharedStoreGroup(sharedGroupId: sharedGroupId)
+        // Check if this is a shared store with Can Edit permission and a shared group.
+        // !isRecipient ensures only the original creator of the group (not co-editors) deletes
+        // the entire group. Co-editors (who have sharedFromName set) are treated as recipients
+        // and only remove their own copy.
+        if permission == .edit, let sharedGroupId = sharedGroupId, !isRecipient {
+            // Original creator of "Can Edit" group - delete entire group for all users
+            self.deleteSharedStoreGroup(sharedGroupId: sharedGroupId, userStoreItem: userStoreItem)
         } else if isRecipient {
-            // Recipient (view or edit without shared group) - delete user_store and update owner's reminders
+            // Recipient leaving (view-only or co-editor) - only remove from their account
             self.deleteRecipientUserStore(userStoreItem: userStoreItem)
         } else {
-            // Owner without sharing - delete user_store and its reminders
+            // Owner without sharing, or owner with view-only recipients - delete store
             self.deleteSingleUserStore(userStoreItem: userStoreItem)
         }
     }
@@ -615,8 +618,10 @@ class StoresViewModel: ObservableObject {
         print("StoresViewModel: Deleting single user_store: \(userStoreItem.id)")
         #endif
 
+        let ownerUserStoreId = userStoreItem.id
+
         // Delete the user_store document
-        db.collection("user_stores").document(userStoreItem.id).delete { [weak self] error in
+        db.collection("user_stores").document(ownerUserStoreId).delete { [weak self] error in
             if let error = error {
                 #if DEBUG
                 print("StoresViewModel: Error removing store: \(error.localizedDescription)")
@@ -633,7 +638,7 @@ class StoresViewModel: ObservableObject {
 
         // Delete all reminders for this user_store
         db.collection("reminders")
-            .whereField("userStoreId", isEqualTo: userStoreItem.id)
+            .whereField("userStoreId", isEqualTo: ownerUserStoreId)
             .getDocuments { [weak self] snapshot, error in
                 if let error = error {
                     #if DEBUG
@@ -669,6 +674,63 @@ class StoresViewModel: ObservableObject {
                     }
                 }
             }
+
+        // Find and clean up view-only recipient user_stores, then notify them.
+        // Firestore rules allow the original sharer to delete recipient user_stores
+        // (via the sharedFrom userId check in rules).
+        db.collection("user_stores")
+            .whereField("sourceUserStoreId", isEqualTo: ownerUserStoreId)
+            .getDocuments { [weak self] snapshot, error in
+                guard let self = self else { return }
+
+                if let error = error {
+                    #if DEBUG
+                    print("StoresViewModel: Error fetching recipient user_stores: \(error.localizedDescription)")
+                    #endif
+                    return
+                }
+
+                let recipientDocs = snapshot?.documents ?? []
+                guard !recipientDocs.isEmpty else { return }
+
+                #if DEBUG
+                print("StoresViewModel: Cleaning up \(recipientDocs.count) recipient user_stores for deleted owner store")
+                #endif
+
+                // Delete recipient user_stores in a batch
+                let batch = self.db.batch()
+                for doc in recipientDocs {
+                    batch.deleteDocument(doc.reference)
+                }
+                batch.commit { error in
+                    #if DEBUG
+                    if let error = error {
+                        print("StoresViewModel: Error deleting recipient user_stores: \(error.localizedDescription)")
+                    } else {
+                        print("StoresViewModel: Deleted \(recipientDocs.count) recipient user_stores")
+                    }
+                    #endif
+                }
+
+                // Notify each recipient that the owner deleted the shared store
+                guard let currentUser = self.sessionManager.currentUser else { return }
+                let recipientIds = recipientDocs.compactMap { $0.data()["userId"] as? String }
+                    .filter { $0 != currentUser.userId }
+                guard !recipientIds.isEmpty else { return }
+
+                self.fetchUsersNames(userIds: recipientIds) { nameMap in
+                    for recipientId in recipientIds {
+                        let recipientName = nameMap[recipientId] ?? "Unknown"
+                        self.sendStoreDeletionMessage(
+                            currentUserId: currentUser.userId,
+                            currentUserName: currentUser.name,
+                            recipientId: recipientId,
+                            recipientName: recipientName,
+                            message: "\(currentUser.name) deleted \(userStoreItem.store.name), which was shared with you. The store has been removed from your account."
+                        )
+                    }
+                }
+            }
     }
 
     private func deleteRecipientUserStore(userStoreItem: UserStoreItem) {
@@ -676,8 +738,9 @@ class StoresViewModel: ObservableObject {
         print("StoresViewModel: Deleting recipient's shared user_store: \(userStoreItem.id)")
         #endif
 
-        // Get current user's name to remove from owner's reminders and user_store sharedWith
-        let currentUserName = sessionManager.currentUser?.name
+        // Capture current user info before the async delete
+        let currentUser = sessionManager.currentUser
+        let currentUserName = currentUser?.name
 
         // Only delete the user_store document, don't touch owner's reminders
         db.collection("user_stores").document(userStoreItem.id).delete { [weak self] error in
@@ -705,6 +768,25 @@ class StoresViewModel: ObservableObject {
                     self?.updateOwnerUserStoreAfterRecipientLeaves(
                         ownerUserStoreId: sourceUserStoreId,
                         recipientName: currentUserName
+                    )
+                }
+
+                // Notify the owner that the recipient removed the shared store
+                if let currentUser = currentUser,
+                   let ownerId = userStoreItem.sharedFromId,
+                   let ownerName = userStoreItem.sharedFromName {
+                    let message: String
+                    if userStoreItem.permission == .edit {
+                        message = "\(currentUser.name) left the shared \(userStoreItem.store.name) store. The store is no longer shared with them."
+                    } else {
+                        message = "\(currentUser.name) removed \(userStoreItem.store.name) from their account. The store is no longer shared with them."
+                    }
+                    self?.sendStoreDeletionMessage(
+                        currentUserId: currentUser.userId,
+                        currentUserName: currentUser.name,
+                        recipientId: ownerId,
+                        recipientName: ownerName,
+                        message: message
                     )
                 }
             }
@@ -862,10 +944,39 @@ class StoresViewModel: ObservableObject {
         }
     }
 
-    private func deleteSharedStoreGroup(sharedGroupId: String) {
+    private func deleteSharedStoreGroup(sharedGroupId: String, userStoreItem: UserStoreItem) {
         #if DEBUG
         print("StoresViewModel: Deleting shared store group: \(sharedGroupId)")
         #endif
+
+        // Notify co-editors asynchronously before proceeding with deletion.
+        // Their user_stores share the same sharedStoreGroupId.
+        if let currentUser = sessionManager.currentUser {
+            db.collection("user_stores")
+                .whereField("sharedStoreGroupId", isEqualTo: sharedGroupId)
+                .getDocuments { [weak self] snapshot, _ in
+                    guard let self = self else { return }
+
+                    let coEditorDocs = snapshot?.documents.filter {
+                        $0.data()["userId"] as? String != currentUser.userId
+                    } ?? []
+                    let coEditorIds = coEditorDocs.compactMap { $0.data()["userId"] as? String }
+                    guard !coEditorIds.isEmpty else { return }
+
+                    self.fetchUsersNames(userIds: coEditorIds) { nameMap in
+                        for coEditorId in coEditorIds {
+                            let coEditorName = nameMap[coEditorId] ?? "Unknown"
+                            self.sendStoreDeletionMessage(
+                                currentUserId: currentUser.userId,
+                                currentUserName: currentUser.name,
+                                recipientId: coEditorId,
+                                recipientName: coEditorName,
+                                message: "\(currentUser.name) deleted the shared \(userStoreItem.store.name) store. It has been removed from your account."
+                            )
+                        }
+                    }
+                }
+        }
 
         // Step 1: Delete the shared store group first
         // This allows the Firestore rules to permit deletion of user_stores
@@ -952,6 +1063,78 @@ class StoresViewModel: ObservableObject {
                             }
                         }
                 }
+        }
+    }
+
+    // MARK: - Deletion Messaging Helpers
+
+    /// Send a message to a user notifying them about a store deletion.
+    /// Finds or creates a conversation with the recipient, then sends the message.
+    private func sendStoreDeletionMessage(
+        currentUserId: String,
+        currentUserName: String,
+        recipientId: String,
+        recipientName: String,
+        message: String
+    ) {
+        MessagingService.shared.findOrCreateConversation(
+            currentUserId: currentUserId,
+            currentUserName: currentUserName,
+            otherUserId: recipientId,
+            otherUserName: recipientName
+        ) { result in
+            switch result {
+            case .success(let conversation):
+                MessagingService.shared.sendMessage(
+                    conversationId: conversation.id,
+                    senderId: currentUserId,
+                    senderName: currentUserName,
+                    content: message,
+                    completion: { _ in }
+                )
+            case .failure(let error):
+                #if DEBUG
+                print("StoresViewModel: Failed to send store deletion message to \(recipientName): \(error.localizedDescription)")
+                #endif
+            }
+        }
+    }
+
+    /// Look up the display names for a list of user IDs.
+    /// Queries the users collection using `whereField("userId", in:)` in chunks of 10.
+    /// Calls completion on the main queue with a userId -> name mapping.
+    private func fetchUsersNames(userIds: [String], completion: @escaping ([String: String]) -> Void) {
+        guard !userIds.isEmpty else {
+            completion([:])
+            return
+        }
+
+        // Firestore `in` queries support at most 10 values per call
+        let chunks = stride(from: 0, to: userIds.count, by: 10).map {
+            Array(userIds[$0..<min($0 + 10, userIds.count)])
+        }
+
+        var nameMap: [String: String] = [:]
+        let group = DispatchGroup()
+
+        for chunk in chunks {
+            group.enter()
+            db.collection("users")
+                .whereField("userId", in: chunk)
+                .getDocuments { snapshot, _ in
+                    for doc in snapshot?.documents ?? [] {
+                        let data = doc.data()
+                        if let userId = data["userId"] as? String,
+                           let name = data["name"] as? String {
+                            nameMap[userId] = name
+                        }
+                    }
+                    group.leave()
+                }
+        }
+
+        group.notify(queue: .main) {
+            completion(nameMap)
         }
     }
 
