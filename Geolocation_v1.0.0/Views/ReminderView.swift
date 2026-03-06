@@ -153,7 +153,13 @@ struct ReminderView: View {
             autosaveWorkItem = workItem
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: workItem)
         }
+        .onChange(of: viewModel.displayedReminders) { _, newReminders in
+            if autoDeleteEnabled && newReminders.isEmpty {
+                autoDeleteEnabled = false
+            }
+        }
         .onDisappear {
+            autoDeleteEnabled = false
             // Commit any pending deletion immediately when leaving the view
             if let pending = pendingDeletePhoto {
                 photoUndoWorkItem?.cancel()
