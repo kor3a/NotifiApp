@@ -153,8 +153,8 @@ struct ReminderView: View {
             autosaveWorkItem = workItem
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: workItem)
         }
-        .onChange(of: viewModel.displayedReminders) { _, newReminders in
-            if autoDeleteEnabled && newReminders.isEmpty {
+        .onChange(of: viewModel.displayedReminders.count) { _, count in
+            if autoDeleteEnabled && count == 0 {
                 autoDeleteEnabled = false
             }
         }
