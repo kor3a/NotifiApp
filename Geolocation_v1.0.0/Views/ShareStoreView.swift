@@ -758,14 +758,12 @@ struct ShareStoreView: View {
     private func fetchSharedUsers() {
         isLoadingSharedUsers = true
 
-        // Get current user's ID to exclude from results
-        guard let currentUserId = viewModel.sessionManager.currentUser?.userId else {
-            return
-        }
-
-        // Query all user_stores with the same storeId but different userId
+        // Query only recipient user_stores that were shared from THIS owner's
+        // specific user_store document. Using sourceUserStoreId scopes results
+        // to the current user's sharing relationships, preventing unrelated
+        // users who independently added the same store from appearing.
         db.collection("user_stores")
-            .whereField("storeId", isEqualTo: userStoreItem.store.id)
+            .whereField("sourceUserStoreId", isEqualTo: userStoreItem.id)
             .getDocuments { snapshot, error in
                 self.isLoadingSharedUsers = false
 
@@ -780,11 +778,9 @@ struct ShareStoreView: View {
                     return
                 }
 
-                // Filter out current user and map to SharedUser
                 self.sharedUsers = documents.compactMap { doc in
                     let data = doc.data()
                     guard let userId = data["userId"] as? String,
-                          userId != currentUserId, // Exclude current user
                           let userEmail = data["userEmail"] as? String,
                           let permissionString = data["permission"] as? String,
                           let permission = StorePermission(rawValue: permissionString) else {
@@ -801,7 +797,7 @@ struct ShareStoreView: View {
                         sharedAt: sharedAt
                     )
                 }
-                .sorted { ($0.sharedAt ?? 0) > ($1.sharedAt ?? 0) } // Most recent first
+                .sorted { ($0.sharedAt ?? 0) > ($1.sharedAt ?? 0) }
             }
     }
 
