@@ -620,6 +620,12 @@ class StoresViewModel: ObservableObject {
 
         let ownerUserStoreId = userStoreItem.id
 
+        // Capture db and user info before async operations so that critical
+        // Firestore cleanup still runs even if the ViewModel is deallocated
+        // (e.g. the user navigates away immediately after deleting).
+        let db = self.db
+        let currentUser = self.sessionManager.currentUser
+
         // Delete the user_store document
         db.collection("user_stores").document(ownerUserStoreId).delete { [weak self] error in
             if let error = error {
@@ -639,14 +645,11 @@ class StoresViewModel: ObservableObject {
         // Delete all reminders for this user_store
         db.collection("reminders")
             .whereField("userStoreId", isEqualTo: ownerUserStoreId)
-            .getDocuments { [weak self] snapshot, error in
+            .getDocuments { snapshot, error in
                 if let error = error {
                     #if DEBUG
                     print("StoresViewModel: Error fetching reminders: \(error.localizedDescription)")
                     #endif
-                    DispatchQueue.main.async {
-                        self?.errorMessage = "Failed to clean up reminders: \(error.localizedDescription)"
-                    }
                     return
                 }
 
@@ -654,35 +657,28 @@ class StoresViewModel: ObservableObject {
                     return
                 }
 
-                let batch = self?.db.batch()
+                let batch = db.batch()
                 for doc in documents {
-                    batch?.deleteDocument(doc.reference)
+                    batch.deleteDocument(doc.reference)
                 }
 
-                batch?.commit { error in
+                batch.commit { error in
+                    #if DEBUG
                     if let error = error {
-                        #if DEBUG
                         print("StoresViewModel: Error deleting reminders: \(error.localizedDescription)")
-                        #endif
-                        DispatchQueue.main.async {
-                            self?.errorMessage = "Failed to delete reminders: \(error.localizedDescription)"
-                        }
                     } else {
-                        #if DEBUG
                         print("StoresViewModel: Deleted \(documents.count) reminders")
-                        #endif
                     }
+                    #endif
                 }
             }
 
-        // Find and clean up view-only recipient user_stores, then notify them.
+        // Find and clean up recipient user_stores, then notify them.
         // Firestore rules allow the original sharer to delete recipient user_stores
         // (via the sharedFrom userId check in rules).
         db.collection("user_stores")
             .whereField("sourceUserStoreId", isEqualTo: ownerUserStoreId)
             .getDocuments { [weak self] snapshot, error in
-                guard let self = self else { return }
-
                 if let error = error {
                     #if DEBUG
                     print("StoresViewModel: Error fetching recipient user_stores: \(error.localizedDescription)")
@@ -697,8 +693,8 @@ class StoresViewModel: ObservableObject {
                 print("StoresViewModel: Cleaning up \(recipientDocs.count) recipient user_stores for deleted owner store")
                 #endif
 
-                // Delete recipient user_stores in a batch
-                let batch = self.db.batch()
+                // Delete recipient user_stores in a batch (uses captured db, no self needed)
+                let batch = db.batch()
                 for doc in recipientDocs {
                     batch.deleteDocument(doc.reference)
                 }
@@ -713,15 +709,15 @@ class StoresViewModel: ObservableObject {
                 }
 
                 // Notify each recipient that the owner deleted the shared store
-                guard let currentUser = self.sessionManager.currentUser else { return }
+                guard let currentUser = currentUser else { return }
                 let recipientIds = recipientDocs.compactMap { $0.data()["userId"] as? String }
                     .filter { $0 != currentUser.userId }
                 guard !recipientIds.isEmpty else { return }
 
-                self.fetchUsersNames(userIds: recipientIds) { nameMap in
+                self?.fetchUsersNames(userIds: recipientIds) { nameMap in
                     for recipientId in recipientIds {
                         let recipientName = nameMap[recipientId] ?? "Unknown"
-                        self.sendStoreDeletionMessage(
+                        self?.sendStoreDeletionMessage(
                             currentUserId: currentUser.userId,
                             currentUserName: currentUser.name,
                             recipientId: recipientId,
