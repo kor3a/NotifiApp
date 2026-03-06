@@ -26,13 +26,13 @@ struct SubscriptionPaywallView: View {
                     ))
 
                 // Title
-                Text("AI Recipe is a Premium Feature")
+                Text("Smart Recipe is a Premium Feature")
                     .font(.title2)
                     .fontWeight(.bold)
                     .multilineTextAlignment(.center)
 
                 // Description
-                Text("Subscribe to unlock the AI Recipe Assistant and get personalized recipes, ingredient lists, and more.")
+                Text("Subscribe to unlock the Smart Recipe Assistant and get personalized recipes, ingredient lists, and more.")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
@@ -58,7 +58,7 @@ struct SubscriptionPaywallView: View {
                     .padding(.bottom, 16)
             }
             .background(Color.backgroundGradient(for: colorScheme).ignoresSafeArea())
-            .navigationTitle("AI Recipe")
+            .navigationTitle("Smart Recipe")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {

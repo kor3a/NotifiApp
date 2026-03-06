@@ -1,5 +1,5 @@
 //
-//  AIRecipeViewModel.swift
+//  SmartRecipeViewModel.swift
 //  Geolocation_v1.0.0
 //
 //  Created by Claude on 2/20/26.
@@ -33,7 +33,7 @@ struct RecipeChatMessage: Identifiable, Equatable {
 }
 
 @MainActor
-class AIRecipeViewModel: ObservableObject {
+class SmartRecipeViewModel: ObservableObject {
     @Published var messages: [RecipeChatMessage] = []
     @Published var inputText: String = ""
     @Published var isLoading: Bool = false
@@ -193,12 +193,12 @@ class AIRecipeViewModel: ObservableObject {
                 if hasUpdates {
                     try await batch.commit()
                     #if DEBUG
-                    print("AIRecipeViewModel: Auto-categorized \(mapping.count) ingredients")
+                    print("SmartRecipeViewModel: Auto-categorized \(mapping.count) ingredients")
                     #endif
                 }
             } catch {
                 #if DEBUG
-                print("AIRecipeViewModel: Auto-categorization failed: \(error.localizedDescription)")
+                print("SmartRecipeViewModel: Auto-categorization failed: \(error.localizedDescription)")
                 #endif
                 // Non-critical failure — ingredients are added, just uncategorized
             }

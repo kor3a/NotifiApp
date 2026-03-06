@@ -1,5 +1,5 @@
 //
-//  AIRecipeView.swift
+//  SmartRecipeView.swift
 //  Geolocation_v1.0.0
 //
 //  Created by Claude on 2/20/26.
@@ -7,8 +7,8 @@
 
 import SwiftUI
 
-struct AIRecipeView: View {
-    @ObservedObject var viewModel: AIRecipeViewModel
+struct SmartRecipeView: View {
+    @ObservedObject var viewModel: SmartRecipeViewModel
     @ObservedObject var storesViewModel: StoresViewModel
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) var colorScheme
@@ -121,7 +121,7 @@ struct AIRecipeView: View {
                 inputBar
             }
             .background(Color.backgroundGradient(for: colorScheme).ignoresSafeArea())
-            .navigationTitle("AI Recipe")
+            .navigationTitle("Smart Recipe")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
@@ -190,7 +190,7 @@ struct AIRecipeView: View {
                 ))
                 .padding(.top, 40)
 
-            Text("AI Recipe Assistant")
+            Text("Smart Recipe Assistant")
                 .font(.title2)
                 .fontWeight(.bold)
 
@@ -409,5 +409,5 @@ struct TypingIndicatorView: View {
 }
 
 #Preview {
-    AIRecipeView(viewModel: AIRecipeViewModel(), storesViewModel: StoresViewModel())
+    SmartRecipeView(viewModel: SmartRecipeViewModel(), storesViewModel: StoresViewModel())
 }
