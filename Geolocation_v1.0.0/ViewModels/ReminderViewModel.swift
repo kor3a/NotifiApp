@@ -484,7 +484,7 @@ class ReminderViewModel: ObservableObject {
     }
 
     /// Add a reminder from a favorite tag tap (only if a reminder with that title doesn't already exist)
-    func addReminderFromFavorite(tag: FavoriteTag, sharedWith: [String]? = nil, sharedFromName: String? = nil, currentUserName: String? = nil) {
+    func addReminderFromFavorite(tag: FavoriteTag, sharedWith: [String]? = nil, sharedFromName: String? = nil, currentUserName: String? = nil, useSmartCategory: Bool = true) {
         if isDuplicateReminder(title: tag.title) {
             #if DEBUG
             print("ReminderViewModel: Reminder '\(tag.title)' already exists — skipping add from favorite")
@@ -497,7 +497,8 @@ class ReminderViewModel: ObservableObject {
             title: tag.title,
             sharedWith: sharedWith,
             sharedFromName: sharedFromName,
-            currentUserName: currentUserName
+            currentUserName: currentUserName,
+            useSmartCategory: useSmartCategory
         )
     }
 
@@ -508,7 +509,7 @@ class ReminderViewModel: ObservableObject {
     ///   - sharedWith: If the store is shared (owner's perspective), the names of users it's shared with
     ///   - sharedFromName: If the store is shared (recipient's perspective), the name of the owner who shared the store
     ///   - currentUserName: The name of the user adding the reminder (for tracking who created it in shared stores)
-    func addReminder(userStoreId: String, title: String, sharedWith: [String]? = nil, sharedFromName: String? = nil, currentUserName: String? = nil) {
+    func addReminder(userStoreId: String, title: String, sharedWith: [String]? = nil, sharedFromName: String? = nil, currentUserName: String? = nil, useSmartCategory: Bool = true) {
         guard !title.isEmpty else {
             DispatchQueue.main.async {
                 self.errorMessage = "Reminder title cannot be empty"
@@ -585,13 +586,15 @@ class ReminderViewModel: ObservableObject {
                     print("ReminderViewModel: Reminder added successfully (isShared: \(isSharedStore))")
                     #endif
                     // Trigger AI categorization for the newly added reminder once it appears
-                    // in the snapshot listener results
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                        if let newReminder = self?.reminders.first(where: {
-                            $0.title.lowercased().trimmingCharacters(in: .whitespacesAndNewlines) == title.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
-                            && $0.category == nil
-                        }) {
-                            self?.categorizeReminder(newReminder)
+                    // in the snapshot listener results (only when Smart Category is enabled)
+                    if useSmartCategory {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                            if let newReminder = self?.reminders.first(where: {
+                                $0.title.lowercased().trimmingCharacters(in: .whitespacesAndNewlines) == title.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+                                && $0.category == nil
+                            }) {
+                                self?.categorizeReminder(newReminder)
+                            }
                         }
                     }
                 }
@@ -1207,7 +1210,7 @@ class ReminderViewModel: ObservableObject {
 
     /// Finalize the autosaved reminder: update to the final title and trigger AI categorization.
     /// Called when the user presses Return or navigates away with text entered.
-    func finalizeAutosave(userStoreId: String, finalTitle: String) {
+    func finalizeAutosave(userStoreId: String, finalTitle: String, useSmartCategory: Bool = true) {
         guard let reminderId = autosavedReminderId else { return }
 
         let trimmedTitle = finalTitle.trimmingCharacters(in: .whitespaces)
@@ -1231,7 +1234,10 @@ class ReminderViewModel: ObservableObject {
 
         // Fire-and-forget AI categorization — works even after the ViewModel is deallocated
         // because it only captures the Firestore singleton and local values.
-        categorizeReminderDirectly(reminderId: reminderId, title: trimmedTitle)
+        // Only runs when Smart Category is enabled.
+        if useSmartCategory {
+            categorizeReminderDirectly(reminderId: reminderId, title: trimmedTitle)
+        }
     }
 
     /// Categorize a reminder by ID and title directly via Firestore, without depending on the ViewModel lifecycle.
