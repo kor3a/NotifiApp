@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		010405BA2F575A680057862B /* TravelTimeService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010405B92F575A680057862B /* TravelTimeService.swift */; };
+		010405BC2F575A6F0057862B /* OnMyWayNotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010405BB2F575A6F0057862B /* OnMyWayNotificationService.swift */; };
 		010B28092EB6C2E9004E828B /* AddStoreView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010B28082EB6C2E9004E828B /* AddStoreView.swift */; };
 		0119CD0D2F4CF95A00DEDEFD /* AutoDeleteSwipeRail.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0119CD0C2F4CF95A00DEDEFD /* AutoDeleteSwipeRail.swift */; };
 		0119CD0F2F4CF96000DEDEFD /* CachedLogoImage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0119CD0E2F4CF96000DEDEFD /* CachedLogoImage.swift */; };
@@ -63,8 +65,8 @@
 		82D715C62C8D6B230000D1E3 /* MapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82D715C52C8D6B230000D1E3 /* MapView.swift */; };
 		82EC11832C64755300A6CD8C /* LocationDetailsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82EC11822C64755300A6CD8C /* LocationDetailsView.swift */; };
 		AA1234560001AABB00CC0004 /* OpenAIService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0001 /* OpenAIService.swift */; };
-		AA1234560001AABB00CC0005 /* AIRecipeViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0002 /* AIRecipeViewModel.swift */; };
-		AA1234560001AABB00CC0006 /* AIRecipeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0003 /* AIRecipeView.swift */; };
+		AA1234560001AABB00CC0005 /* SmartRecipeViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0002 /* SmartRecipeViewModel.swift */; };
+		AA1234560001AABB00CC0006 /* SmartRecipeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0003 /* SmartRecipeView.swift */; };
 		AA1234560001AABB00CC0020 /* FriendRequestService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0010 /* FriendRequestService.swift */; };
 		AA1234560001AABB00CC0021 /* FriendsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0011 /* FriendsService.swift */; };
 		AA1234560001AABB00CC0023 /* LocationMonitoringManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0013 /* LocationMonitoringManager.swift */; };
@@ -76,27 +78,13 @@
 		AA1234560001AABB00CC0029 /* UserSessionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0019 /* UserSessionManager.swift */; };
 		AA1234560001AABB00CC0031 /* SubscriptionPaywallView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0030 /* SubscriptionPaywallView.swift */; };
 		C10000000001AABB00CC0041 /* SharedReminderNotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C10000000001AABB00CC0040 /* SharedReminderNotificationService.swift */; };
-		DF66A9982E24C86100C15DA9 /* User_Store.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF66A9972E24C86100C15DA9 /* User_Store.swift */; };
 		CC0200000000000000000001 /* NotifiWidgetBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC0100000000000000000001 /* NotifiWidgetBundle.swift */; };
 		CC0200000000000000000002 /* NotifiWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC0100000000000000000002 /* NotifiWidget.swift */; };
 		CC0200000000000000000003 /* NotifiWidgetViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC0100000000000000000003 /* NotifiWidgetViews.swift */; };
 		CC0200000000000000000004 /* WidgetDataStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC0100000000000000000004 /* WidgetDataStore.swift */; };
 		CC0200000000000000000005 /* NotifiWidget.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = CC0100000000000000000005 /* NotifiWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		DF66A9982E24C86100C15DA9 /* User_Store.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF66A9972E24C86100C15DA9 /* User_Store.swift */; };
 /* End PBXBuildFile section */
-
-/* Begin PBXCopyFilesBuildPhase section */
-		CC0300000000000000000004 /* Embed App Extensions */ = {
-			isa = PBXCopyFilesBuildPhase;
-			buildActionMask = 2147483647;
-			dstPath = "";
-			dstSubfolderSpec = 13;
-			files = (
-				CC0200000000000000000005 /* NotifiWidget.appex in Embed App Extensions */,
-			);
-			name = "Embed App Extensions";
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXContainerItemProxy section */
 		0176B30C2F3CE658003B9C75 /* PBXContainerItemProxy */ = {
@@ -115,7 +103,23 @@
 		};
 /* End PBXContainerItemProxy section */
 
+/* Begin PBXCopyFilesBuildPhase section */
+		CC0300000000000000000004 /* Embed App Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				CC0200000000000000000005 /* NotifiWidget.appex in Embed App Extensions */,
+			);
+			name = "Embed App Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
+		010405B92F575A680057862B /* TravelTimeService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TravelTimeService.swift; sourceTree = "<group>"; };
+		010405BB2F575A6F0057862B /* OnMyWayNotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnMyWayNotificationService.swift; sourceTree = "<group>"; };
 		010B28082EB6C2E9004E828B /* AddStoreView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddStoreView.swift; sourceTree = "<group>"; };
 		0119CD0C2F4CF95A00DEDEFD /* AutoDeleteSwipeRail.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoDeleteSwipeRail.swift; sourceTree = "<group>"; };
 		0119CD0E2F4CF96000DEDEFD /* CachedLogoImage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CachedLogoImage.swift; sourceTree = "<group>"; };
@@ -173,8 +177,8 @@
 		82D715C52C8D6B230000D1E3 /* MapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapView.swift; sourceTree = "<group>"; };
 		82EC11822C64755300A6CD8C /* LocationDetailsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationDetailsView.swift; sourceTree = "<group>"; };
 		AA1234560001AABB00CC0001 /* OpenAIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenAIService.swift; sourceTree = "<group>"; };
-		AA1234560001AABB00CC0002 /* AIRecipeViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIRecipeViewModel.swift; sourceTree = "<group>"; };
-		AA1234560001AABB00CC0003 /* AIRecipeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIRecipeView.swift; sourceTree = "<group>"; };
+		AA1234560001AABB00CC0002 /* SmartRecipeViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SmartRecipeViewModel.swift; sourceTree = "<group>"; };
+		AA1234560001AABB00CC0003 /* SmartRecipeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SmartRecipeView.swift; sourceTree = "<group>"; };
 		AA1234560001AABB00CC0010 /* FriendRequestService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FriendRequestService.swift; sourceTree = "<group>"; };
 		AA1234560001AABB00CC0011 /* FriendsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FriendsService.swift; sourceTree = "<group>"; };
 		AA1234560001AABB00CC0013 /* LocationMonitoringManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationMonitoringManager.swift; sourceTree = "<group>"; };
@@ -186,8 +190,6 @@
 		AA1234560001AABB00CC0019 /* UserSessionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserSessionManager.swift; sourceTree = "<group>"; };
 		AA1234560001AABB00CC0030 /* SubscriptionPaywallView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionPaywallView.swift; sourceTree = "<group>"; };
 		C10000000001AABB00CC0040 /* SharedReminderNotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedReminderNotificationService.swift; sourceTree = "<group>"; };
-		DF66A9972E24C86100C15DA9 /* User_Store.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = User_Store.swift; sourceTree = "<group>"; };
-		DF66A9992E24C86100C15DA9 /* Geolocation_v1.0.0.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Geolocation_v1.0.0.entitlements; sourceTree = "<group>"; };
 		CC0100000000000000000001 /* NotifiWidgetBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotifiWidgetBundle.swift; sourceTree = "<group>"; };
 		CC0100000000000000000002 /* NotifiWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotifiWidget.swift; sourceTree = "<group>"; };
 		CC0100000000000000000003 /* NotifiWidgetViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotifiWidgetViews.swift; sourceTree = "<group>"; };
@@ -195,6 +197,8 @@
 		CC0100000000000000000005 /* NotifiWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = NotifiWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		CC0100000000000000000006 /* NotifiWidget.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = NotifiWidget.entitlements; sourceTree = "<group>"; };
 		CC0100000000000000000007 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		DF66A9972E24C86100C15DA9 /* User_Store.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = User_Store.swift; sourceTree = "<group>"; };
+		DF66A9992E24C86100C15DA9 /* Geolocation_v1.0.0.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Geolocation_v1.0.0.entitlements; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -204,13 +208,6 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
-		CC0300000000000000000002 /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 		0176B3052F3CE658003B9C75 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -228,12 +225,21 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		CC0300000000000000000002 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
 		01FB27582EC2A7490038E406 /* Services */ = {
 			isa = PBXGroup;
 			children = (
+				010405BB2F575A6F0057862B /* OnMyWayNotificationService.swift */,
+				010405B92F575A680057862B /* TravelTimeService.swift */,
 				AA1234560001AABB00CC0010 /* FriendRequestService.swift */,
 				AA1234560001AABB00CC0011 /* FriendsService.swift */,
 				AA1234560001AABB00CC0013 /* LocationMonitoringManager.swift */,
@@ -305,7 +311,7 @@
 			children = (
 				0119CD0E2F4CF96000DEDEFD /* CachedLogoImage.swift */,
 				0119CD0C2F4CF95A00DEDEFD /* AutoDeleteSwipeRail.swift */,
-				AA1234560001AABB00CC0003 /* AIRecipeView.swift */,
+				AA1234560001AABB00CC0003 /* SmartRecipeView.swift */,
 				01B408342F3BECF900EA1F25 /* ShareReminderView.swift */,
 				01B408322F3BECF200EA1F25 /* MessagesView.swift */,
 				01B408302F3BECEC00EA1F25 /* FriendsView.swift */,
@@ -335,7 +341,7 @@
 		8278FE0F2C5DE5A00017EB72 /* ViewModels */ = {
 			isa = PBXGroup;
 			children = (
-				AA1234560001AABB00CC0002 /* AIRecipeViewModel.swift */,
+				AA1234560001AABB00CC0002 /* SmartRecipeViewModel.swift */,
 				01B408242F3BECB800EA1F25 /* FriendsViewModel.swift */,
 				01B408222F3BECB100EA1F25 /* MessagesViewModel.swift */,
 				011CF6062ED638F9009A31A6 /* ForgotPasswordViewModel.swift */,
@@ -517,13 +523,6 @@
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
-		CC0300000000000000000003 /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 		0176B3062F3CE658003B9C75 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -543,19 +542,16 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-/* End PBXResourcesBuildPhase section */
-
-/* Begin PBXSourcesBuildPhase section */
-		CC0300000000000000000001 /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
+		CC0300000000000000000003 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				CC0200000000000000000001 /* NotifiWidgetBundle.swift in Sources */,
-				CC0200000000000000000002 /* NotifiWidget.swift in Sources */,
-				CC0200000000000000000003 /* NotifiWidgetViews.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
 		0176B3042F3CE658003B9C75 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -585,6 +581,7 @@
 				01B408292F3BECC900EA1F25 /* FriendRequest.swift in Sources */,
 				01897B5B2EBA4AB00038A4D1 /* StoresViewModel.swift in Sources */,
 				01B4082D2F3BECD600EA1F25 /* StoreCluster.swift in Sources */,
+				010405BA2F575A680057862B /* TravelTimeService.swift in Sources */,
 				748542B52CB5378A00C58D9B /* ReminderView.swift in Sources */,
 				82D289B72C61D631009F357F /* ProfileView.swift in Sources */,
 				82916C162C914BA800F810A3 /* MapViewModel.swift in Sources */,
@@ -606,6 +603,7 @@
 				7498B0842CC2D49A0003C68F /* StoresView.swift in Sources */,
 				0138242D2EDCD05F0069F38C /* NotificationLog.swift in Sources */,
 				74A8AA3E2DEBB84B005855A0 /* AddReminderView.swift in Sources */,
+				010405BC2F575A6F0057862B /* OnMyWayNotificationService.swift in Sources */,
 				01B4082F2F3BECE600EA1F25 /* ConversationView.swift in Sources */,
 				82D289B32C61D403009F357F /* EncodableExtension.swift in Sources */,
 				8278FDF82C5DD1C90017EB72 /* Geolocation_v1_0_0App.swift in Sources */,
@@ -616,8 +614,8 @@
 				DF66A9982E24C86100C15DA9 /* User_Store.swift in Sources */,
 				82D289B52C61D52F009F357F /* MainViewModel.swift in Sources */,
 				AA1234560001AABB00CC0004 /* OpenAIService.swift in Sources */,
-				AA1234560001AABB00CC0005 /* AIRecipeViewModel.swift in Sources */,
-				AA1234560001AABB00CC0006 /* AIRecipeView.swift in Sources */,
+				AA1234560001AABB00CC0005 /* SmartRecipeViewModel.swift in Sources */,
+				AA1234560001AABB00CC0006 /* SmartRecipeView.swift in Sources */,
 				AA1234560001AABB00CC0020 /* FriendRequestService.swift in Sources */,
 				AA1234560001AABB00CC0021 /* FriendsService.swift in Sources */,
 				AA1234560001AABB00CC0023 /* LocationMonitoringManager.swift in Sources */,
@@ -630,6 +628,16 @@
 				AA1234560001AABB00CC0029 /* UserSessionManager.swift in Sources */,
 				AA1234560001AABB00CC0031 /* SubscriptionPaywallView.swift in Sources */,
 				CC0200000000000000000004 /* WidgetDataStore.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CC0300000000000000000001 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				CC0200000000000000000001 /* NotifiWidgetBundle.swift in Sources */,
+				CC0200000000000000000002 /* NotifiWidget.swift in Sources */,
+				CC0200000000000000000003 /* NotifiWidgetViews.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -883,7 +891,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.kor3a.nearbuy.widget";
+				PRODUCT_BUNDLE_IDENTIFIER = com.kor3a.nearbuy.widget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -907,7 +915,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.kor3a.nearbuy.widget";
+				PRODUCT_BUNDLE_IDENTIFIER = com.kor3a.nearbuy.widget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;

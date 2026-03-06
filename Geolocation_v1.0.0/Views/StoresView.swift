@@ -12,10 +12,10 @@ struct StoresView: View {
 
     @StateObject private var viewModel = StoresViewModel()
     @StateObject private var messagesViewModel = MessagesViewModel()
-    @StateObject private var aiRecipeViewModel = AIRecipeViewModel()
+    @StateObject private var smartRecipeViewModel = SmartRecipeViewModel()
     @ObservedObject private var sessionManager = UserSessionManager.shared
     @State private var showingAddStore = false
-    @State private var showingAIRecipe = false
+    @State private var showingSmartRecipe = false
     @State private var showingPaywall = false
     @State private var isMenuExpanded = false
     @State private var selectedStoreToShare: UserStoreItem?
@@ -189,7 +189,7 @@ struct StoresView: View {
                                             isMenuExpanded = false
                                         }
                                         if sessionManager.currentUser?.isSubscribed == true {
-                                            showingAIRecipe = true
+                                            showingSmartRecipe = true
                                         } else {
                                             showingPaywall = true
                                         }
@@ -197,7 +197,7 @@ struct StoresView: View {
                                         HStack {
                                             Image(systemName: "fork.knife.circle")
                                                 .font(.system(size: 20))
-                                            Text("AI Recipe")
+                                            Text("Smart Recipe")
                                                 .font(.headline)
                                             Spacer()
                                         }
@@ -242,8 +242,8 @@ struct StoresView: View {
         .sheet(isPresented: $showingAddStore) {
             AddStoreView(viewModel: viewModel)
         }
-        .sheet(isPresented: $showingAIRecipe) {
-            AIRecipeView(viewModel: aiRecipeViewModel, storesViewModel: viewModel)
+        .sheet(isPresented: $showingSmartRecipe) {
+            SmartRecipeView(viewModel: smartRecipeViewModel, storesViewModel: viewModel)
         }
         .sheet(isPresented: $showingPaywall) {
             SubscriptionPaywallView()
