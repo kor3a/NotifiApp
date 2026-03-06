@@ -55,6 +55,107 @@ struct ReminderView: View {
     }
 
     var body: some View {
+        coreView
+            .sheet(item: $reminderToShare) { reminder in
+                ShareReminderView(reminder: reminder, store: userStoreItem.store)
+            }
+            .sheet(item: $reminderForPhoto) { reminder in
+                ImagePicker(selectedImage: $selectedImage) { image in
+                    viewModel.uploadPhoto(for: reminder, image: image)
+                }
+            }
+            .alert("Delete Shared Reminder", isPresented: .init(
+                get: { reminderToDelete != nil },
+                set: { if !$0 { reminderToDelete = nil } }
+            )) {
+                Button("Delete for Everyone", role: .destructive) {
+                    if let reminder = reminderToDelete {
+                        stageReminderForDeletion(reminder)
+                        reminderToDelete = nil
+                    }
+                }
+                Button("Cancel", role: .cancel) {
+                    reminderToDelete = nil
+                }
+            } message: {
+                deleteSharedReminderMessage
+            }
+            .alert("Shared Reminder", isPresented: .init(
+                get: { showingSharedInfo != nil },
+                set: { if !$0 { showingSharedInfo = nil } }
+            )) {
+                Button("OK", role: .cancel) {
+                    showingSharedInfo = nil
+                }
+            } message: {
+                sharedReminderInfoMessage
+            }
+            .alert("Duplicate Reminder", isPresented: $showDuplicateAlert) {
+                Button("OK", role: .cancel) {
+                    newReminderText = ""
+                }
+            } message: {
+                Text("'\(duplicateTitle)' already exists in this store.")
+            }
+            .alert("Add Quantity", isPresented: .init(
+                get: { reminderForQuantity != nil },
+                set: { if !$0 { reminderForQuantity = nil } }
+            )) {
+                TextField("Quantity", text: $quantityText)
+                    .keyboardType(.numberPad)
+                Button("Save") {
+                    if let reminder = reminderForQuantity {
+                        let qty = Int(quantityText)
+                        viewModel.updateReminderQuantity(reminder, newQuantity: qty)
+                    }
+                    reminderForQuantity = nil
+                    quantityText = ""
+                }
+                Button("Remove", role: .destructive) {
+                    if let reminder = reminderForQuantity {
+                        viewModel.updateReminderQuantity(reminder, newQuantity: nil)
+                    }
+                    reminderForQuantity = nil
+                    quantityText = ""
+                }
+                Button("Cancel", role: .cancel) {
+                    reminderForQuantity = nil
+                    quantityText = ""
+                }
+            } message: {
+                Text("Enter quantity for this reminder item.")
+            }
+            .alert("Set Category", isPresented: .init(
+                get: { reminderForCategory != nil },
+                set: { if !$0 { reminderForCategory = nil } }
+            )) {
+                TextField("Category name", text: $customCategoryText)
+                    .textInputAutocapitalization(.words)
+                Button("Save") {
+                    if let reminder = reminderForCategory {
+                        let cat = customCategoryText.trimmingCharacters(in: .whitespaces)
+                        viewModel.updateReminderCategory(reminder, newCategory: cat.isEmpty ? nil : cat)
+                    }
+                    reminderForCategory = nil
+                    customCategoryText = ""
+                }
+                Button("Remove Category", role: .destructive) {
+                    if let reminder = reminderForCategory {
+                        viewModel.updateReminderCategory(reminder, newCategory: nil)
+                    }
+                    reminderForCategory = nil
+                    customCategoryText = ""
+                }
+                Button("Cancel", role: .cancel) {
+                    reminderForCategory = nil
+                    customCategoryText = ""
+                }
+            } message: {
+                Text("Enter a custom category for this item.")
+            }
+    }
+
+    private var coreView: some View {
         ZStack {
             if viewModel.isLoading {
                 ProgressView("Loading reminders...")
@@ -215,103 +316,6 @@ struct ReminderView: View {
                 }
                 sendPendingSharedNotificationsIfNeeded()
             }
-        }
-        .sheet(item: $reminderToShare) { reminder in
-            ShareReminderView(reminder: reminder, store: userStoreItem.store)
-        }
-        .sheet(item: $reminderForPhoto) { reminder in
-            ImagePicker(selectedImage: $selectedImage) { image in
-                viewModel.uploadPhoto(for: reminder, image: image)
-            }
-        }
-        .alert("Delete Shared Reminder", isPresented: .init(
-            get: { reminderToDelete != nil },
-            set: { if !$0 { reminderToDelete = nil } }
-        )) {
-            Button("Delete for Everyone", role: .destructive) {
-                if let reminder = reminderToDelete {
-                    stageReminderForDeletion(reminder)
-                    reminderToDelete = nil
-                }
-            }
-            Button("Cancel", role: .cancel) {
-                reminderToDelete = nil
-            }
-        } message: {
-            deleteSharedReminderMessage
-        }
-        .alert("Shared Reminder", isPresented: .init(
-            get: { showingSharedInfo != nil },
-            set: { if !$0 { showingSharedInfo = nil } }
-        )) {
-            Button("OK", role: .cancel) {
-                showingSharedInfo = nil
-            }
-        } message: {
-            sharedReminderInfoMessage
-        }
-        .alert("Duplicate Reminder", isPresented: $showDuplicateAlert) {
-            Button("OK", role: .cancel) {
-                newReminderText = ""
-            }
-        } message: {
-            Text("'\(duplicateTitle)' already exists in this store.")
-        }
-        .alert("Add Quantity", isPresented: .init(
-            get: { reminderForQuantity != nil },
-            set: { if !$0 { reminderForQuantity = nil } }
-        )) {
-            TextField("Quantity", text: $quantityText)
-                .keyboardType(.numberPad)
-            Button("Save") {
-                if let reminder = reminderForQuantity {
-                    let qty = Int(quantityText)
-                    viewModel.updateReminderQuantity(reminder, newQuantity: qty)
-                }
-                reminderForQuantity = nil
-                quantityText = ""
-            }
-            Button("Remove", role: .destructive) {
-                if let reminder = reminderForQuantity {
-                    viewModel.updateReminderQuantity(reminder, newQuantity: nil)
-                }
-                reminderForQuantity = nil
-                quantityText = ""
-            }
-            Button("Cancel", role: .cancel) {
-                reminderForQuantity = nil
-                quantityText = ""
-            }
-        } message: {
-            Text("Enter quantity for this reminder item.")
-        }
-        .alert("Set Category", isPresented: .init(
-            get: { reminderForCategory != nil },
-            set: { if !$0 { reminderForCategory = nil } }
-        )) {
-            TextField("Category name", text: $customCategoryText)
-                .textInputAutocapitalization(.words)
-            Button("Save") {
-                if let reminder = reminderForCategory {
-                    let cat = customCategoryText.trimmingCharacters(in: .whitespaces)
-                    viewModel.updateReminderCategory(reminder, newCategory: cat.isEmpty ? nil : cat)
-                }
-                reminderForCategory = nil
-                customCategoryText = ""
-            }
-            Button("Remove Category", role: .destructive) {
-                if let reminder = reminderForCategory {
-                    viewModel.updateReminderCategory(reminder, newCategory: nil)
-                }
-                reminderForCategory = nil
-                customCategoryText = ""
-            }
-            Button("Cancel", role: .cancel) {
-                reminderForCategory = nil
-                customCategoryText = ""
-            }
-        } message: {
-            Text("Enter a custom category for this item.")
         }
     }
 
