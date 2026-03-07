@@ -562,7 +562,7 @@ struct ReminderView: View {
             isFavorited: viewModel.isFavoriteTag(title: reminder.title),
             availableStores: availableStores,
             onMoveToStore: userStoreItem.permission != .view ? { targetStore in
-                viewModel.moveReminderToStore(reminder, targetUserStoreId: targetStore.reminderStoreId)
+                viewModel.moveReminderToStore(reminder, targetStore: targetStore)
             } : nil,
             onAddPhoto: userStoreItem.permission != .view ? {
                 reminderForPhoto = reminder
