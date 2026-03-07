@@ -633,14 +633,33 @@ class ReminderViewModel: ObservableObject {
     }
 
     /// Move a reminder to a different store by updating its userStoreId in Firestore
-    func moveReminderToStore(_ reminder: Reminder, targetUserStoreId: String) {
+    func moveReminderToStore(_ reminder: Reminder, targetStore: UserStoreItem) {
+        let targetUserStoreId = targetStore.reminderStoreId
         #if DEBUG
         print("ReminderViewModel: Moving reminder '\(reminder.title)' to store \(targetUserStoreId)")
         #endif
 
-        db.collection("reminders").document(reminder.id).updateData([
-            "userStoreId": targetUserStoreId
-        ]) { error in
+        // Determine if the target store has an active sharing relationship.
+        // A store is actively shared when it has accepted recipients (sharedWith non-empty),
+        // or the current user is a recipient themselves (sourceUserStoreId / sharedStoreGroupId set).
+        let targetIsActivelyShared = (targetStore.sharedWith != nil && !targetStore.sharedWith!.isEmpty)
+            || targetStore.sourceUserStoreId != nil
+            || targetStore.sharedStoreGroupId != nil
+
+        var updateData: [String: Any] = ["userStoreId": targetUserStoreId]
+
+        // If the target store has no active sharing, strip all sharing metadata so the
+        // reminder no longer shows the shared icon or stale sharing info.
+        if !targetIsActivelyShared {
+            updateData["isShared"] = FieldValue.delete()
+            updateData["sharedWith"] = FieldValue.delete()
+            updateData["sharedFrom"] = FieldValue.delete()
+            updateData["sharedFromId"] = FieldValue.delete()
+            updateData["sharedAt"] = FieldValue.delete()
+            updateData["sharedReminderId"] = FieldValue.delete()
+        }
+
+        db.collection("reminders").document(reminder.id).updateData(updateData) { error in
             if let error = error {
                 #if DEBUG
                 print("ReminderViewModel: Error moving reminder to store: \(error.localizedDescription)")
