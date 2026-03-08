@@ -20,6 +20,9 @@ class FriendsViewModel: ObservableObject {
     @Published var successMessage: String?
     @Published var pendingRequestCount = 0
 
+    /// Fresh profile picture URLs keyed by userId, fetched directly from the `users` collection.
+    @Published var friendProfilePictures: [String: String] = [:]
+
     private let friendsService = FriendsService.shared
     private var friendshipsListener: ListenerRegistration?
     private var pendingCountListener: ListenerRegistration?
@@ -49,6 +52,7 @@ class FriendsViewModel: ObservableObject {
                 switch result {
                 case .success(let friendships):
                     self.processFriendships(friendships, currentUserId: userId)
+                    self.fetchFriendProfilePictures(from: friendships, currentUserId: userId)
                 case .failure(let error):
                     self.errorMessage = error.localizedDescription
                     #if DEBUG
@@ -120,6 +124,43 @@ class FriendsViewModel: ObservableObject {
         friendshipsListener = nil
         pendingCountListener?.remove()
         pendingCountListener = nil
+    }
+
+    // MARK: - Profile Pictures
+
+    /// Fetch fresh profile picture URLs from the `users` collection for all friend user IDs.
+    private func fetchFriendProfilePictures(from friendships: [Friendship], currentUserId: String) {
+        // Collect all unique friend user IDs (requester or receiver, whichever is not us)
+        var userIds: Set<String> = []
+        for friendship in friendships {
+            let friendId = friendship.friendId(currentUserId: currentUserId)
+            userIds.insert(friendId)
+        }
+
+        guard !userIds.isEmpty else { return }
+
+        let db = Firestore.firestore()
+        let idsArray = Array(userIds)
+        // Firestore 'in' queries limited to 30 items; batch if needed
+        let batches = stride(from: 0, to: idsArray.count, by: 30).map {
+            Array(idsArray[$0..<min($0 + 30, idsArray.count)])
+        }
+
+        for batch in batches {
+            db.collection("users")
+                .whereField(FieldPath.documentID(), in: batch)
+                .getDocuments { [weak self] snapshot, error in
+                    guard let documents = snapshot?.documents else { return }
+
+                    DispatchQueue.main.async {
+                        for doc in documents {
+                            if let url = doc.data()["profilePictureURL"] as? String {
+                                self?.friendProfilePictures[doc.documentID] = url
+                            }
+                        }
+                    }
+                }
+        }
     }
 
     // MARK: - Search Users

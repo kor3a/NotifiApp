@@ -206,6 +206,7 @@ struct FriendsView: View {
                         PendingRequestCard(
                             friendship: friendship,
                             colorScheme: colorScheme,
+                            freshProfilePictureURL: viewModel.friendProfilePictures[friendship.requesterId],
                             onAccept: { viewModel.acceptRequest(friendship) },
                             onReject: { viewModel.rejectRequest(friendship) }
                         )
@@ -237,11 +238,13 @@ struct FriendsView: View {
 
             LazyVGrid(columns: gridColumns, spacing: 12) {
                 ForEach(viewModel.familyMembers) { friendship in
+                    let friendId = friendship.friendId(currentUserId: sessionManager.currentUser?.userId ?? "")
                     FriendCard(
                         friendship: friendship,
                         currentUserId: sessionManager.currentUser?.userId ?? "",
                         colorScheme: colorScheme,
                         isFamilyMember: true,
+                        freshProfilePictureURL: viewModel.friendProfilePictures[friendId],
                         onMessage: { startConversation(with: friendship) },
                         onRemove: {
                             friendshipToRemove = friendship
@@ -279,11 +282,13 @@ struct FriendsView: View {
 
             LazyVGrid(columns: gridColumns, spacing: 12) {
                 ForEach(viewModel.friends) { friendship in
+                    let friendId = friendship.friendId(currentUserId: sessionManager.currentUser?.userId ?? "")
                     FriendCard(
                         friendship: friendship,
                         currentUserId: sessionManager.currentUser?.userId ?? "",
                         colorScheme: colorScheme,
                         isFamilyMember: false,
+                        freshProfilePictureURL: viewModel.friendProfilePictures[friendId],
                         onMessage: { startConversation(with: friendship) },
                         onRemove: {
                             friendshipToRemove = friendship
@@ -319,6 +324,7 @@ struct FriendsView: View {
                             friendship: friendship,
                             currentUserId: sessionManager.currentUser?.userId ?? "",
                             colorScheme: colorScheme,
+                            freshProfilePictureURL: viewModel.friendProfilePictures[friendship.receiverId],
                             onCancel: {
                                 friendshipToCancel = friendship
                                 showingCancelAlert = true
@@ -382,6 +388,8 @@ struct FriendCard: View {
     let currentUserId: String
     let colorScheme: ColorScheme
     var isFamilyMember: Bool = false
+    /// Fresh profile picture URL fetched from the `users` collection, overriding the stale one in the friendship doc.
+    var freshProfilePictureURL: String?
     let onMessage: () -> Void
     let onRemove: () -> Void
     var onPhotoTap: (() -> Void)?
@@ -405,7 +413,7 @@ struct FriendCard: View {
     }
 
     private var friendProfilePictureURL: String? {
-        friendship.friendProfilePictureURL(currentUserId: currentUserId)
+        freshProfilePictureURL ?? friendship.friendProfilePictureURL(currentUserId: currentUserId)
     }
 
     var body: some View {
@@ -504,13 +512,18 @@ struct FriendCard: View {
 struct PendingRequestCard: View {
     let friendship: Friendship
     let colorScheme: ColorScheme
+    var freshProfilePictureURL: String?
     let onAccept: () -> Void
     let onReject: () -> Void
+
+    private var requesterPictureURL: String? {
+        freshProfilePictureURL ?? friendship.requesterProfilePictureURL
+    }
 
     var body: some View {
         VStack(spacing: 12) {
             // Avatar
-            ProfilePictureView(profilePictureURL: friendship.requesterProfilePictureURL, size: 52) {
+            ProfilePictureView(profilePictureURL: requesterPictureURL, size: 52) {
                 Circle()
                     .fill(
                         LinearGradient(
@@ -584,11 +597,16 @@ struct SentRequestChip: View {
     let friendship: Friendship
     let currentUserId: String
     let colorScheme: ColorScheme
+    var freshProfilePictureURL: String?
     let onCancel: () -> Void
+
+    private var receiverPictureURL: String? {
+        freshProfilePictureURL ?? friendship.receiverProfilePictureURL
+    }
 
     var body: some View {
         HStack(spacing: 8) {
-            ProfilePictureView(profilePictureURL: friendship.receiverProfilePictureURL, size: 32) {
+            ProfilePictureView(profilePictureURL: receiverPictureURL, size: 32) {
                 Circle()
                     .fill(Color.secondary.opacity(0.2))
                     .frame(width: 32, height: 32)
