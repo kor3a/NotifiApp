@@ -454,9 +454,80 @@ class UserSessionManager: ObservableObject {
                         self.currentUser = updatedUser
                     }
                 }
+                // Propagate profile picture change to friendship documents so the Friends tab stays current
+                self.propagateProfilePictureChange(userId: userId, url: url)
                 completion(true, nil)
             }
         }
+    }
+
+    // MARK: - Profile Picture Change Propagation
+
+    /// Update the cached profile picture URL stored inside every friendship document for this user.
+    /// This keeps the Friends tab in sync — friendship docs snapshot the URL at creation time and
+    /// are never refreshed otherwise (unlike the Messages tab which re-fetches from `users`).
+    private func propagateProfilePictureChange(userId: String, url: String) {
+        let db = Firestore.firestore()
+
+        #if DEBUG
+        print("UserSessionManager: Propagating profile picture change for userId: \(userId)")
+        #endif
+
+        // 1. Update friendships where user is the requester
+        db.collection("friends")
+            .whereField("requesterId", isEqualTo: userId)
+            .getDocuments { snapshot, error in
+                if let error = error {
+                    #if DEBUG
+                    print("UserSessionManager: Error fetching friendships as requester for picture update: \(error.localizedDescription)")
+                    #endif
+                    return
+                }
+
+                guard let documents = snapshot?.documents, !documents.isEmpty else { return }
+
+                let batch = db.batch()
+                for doc in documents {
+                    batch.updateData(["requesterProfilePictureURL": url], forDocument: doc.reference)
+                }
+                batch.commit { error in
+                    #if DEBUG
+                    if let error = error {
+                        print("UserSessionManager: Error updating requesterProfilePictureURL: \(error.localizedDescription)")
+                    } else {
+                        print("UserSessionManager: Updated requesterProfilePictureURL in \(documents.count) friendship(s)")
+                    }
+                    #endif
+                }
+            }
+
+        // 2. Update friendships where user is the receiver
+        db.collection("friends")
+            .whereField("receiverId", isEqualTo: userId)
+            .getDocuments { snapshot, error in
+                if let error = error {
+                    #if DEBUG
+                    print("UserSessionManager: Error fetching friendships as receiver for picture update: \(error.localizedDescription)")
+                    #endif
+                    return
+                }
+
+                guard let documents = snapshot?.documents, !documents.isEmpty else { return }
+
+                let batch = db.batch()
+                for doc in documents {
+                    batch.updateData(["receiverProfilePictureURL": url], forDocument: doc.reference)
+                }
+                batch.commit { error in
+                    #if DEBUG
+                    if let error = error {
+                        print("UserSessionManager: Error updating receiverProfilePictureURL: \(error.localizedDescription)")
+                    } else {
+                        print("UserSessionManager: Updated receiverProfilePictureURL in \(documents.count) friendship(s)")
+                    }
+                    #endif
+                }
+            }
     }
 
     // Add a friend to the family group
