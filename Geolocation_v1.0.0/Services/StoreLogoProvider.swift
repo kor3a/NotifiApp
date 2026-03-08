@@ -205,9 +205,10 @@ class StoreLogoProvider: ObservableObject {
         }
 
         // 3. No cache hit — trigger background download if we have any URL
-        //    (logoURL covers Firebase, domain map, suffix heuristics, and cached search results)
+        //    (logoURL covers Firebase, domain map, heuristics, and cached search results).
+        //    Pass the original store name so failed downloads can fall back to name search.
         if let urlString = logoURL(for: storeName) {
-            downloadAndCacheLogo(id: logoId, urlString: urlString)
+            downloadAndCacheLogo(id: logoId, urlString: urlString, fallbackStoreName: storeName)
         } else {
             // 4. Last resort: look up the store name via Logo.dev Brand Search API.
             //    Results are cached to UserDefaults so each store is only searched once.
@@ -218,18 +219,28 @@ class StoreLogoProvider: ObservableObject {
     }
 
     /// Downloads a logo image and writes it to both disk and memory cache.
-    private func downloadAndCacheLogo(id: String, urlString: String) {
+    /// When `fallbackStoreName` is provided and the download fails (404 / bad data),
+    /// automatically fires a Logo.dev Brand Search to find the correct domain.
+    private func downloadAndCacheLogo(id: String, urlString: String, fallbackStoreName: String? = nil) {
         guard !downloadingLogos.contains(id), let url = URL(string: urlString) else { return }
         downloadingLogos.insert(id)
 
-        URLSession.shared.dataTask(with: url) { [weak self] data, _, error in
+        URLSession.shared.dataTask(with: url) { [weak self] data, response, error in
             guard let self = self else { return }
             defer { DispatchQueue.main.async { self.downloadingLogos.remove(id) } }
 
-            guard let data = data, error == nil, let image = UIImage(data: data) else {
+            // Treat non-200 responses (redirects to placeholder, 404, etc.) as failures
+            let httpStatus = (response as? HTTPURLResponse)?.statusCode ?? 0
+            guard let data = data, error == nil, httpStatus == 200, let image = UIImage(data: data) else {
                 #if DEBUG
-                print("StoreLogoProvider: Failed to download logo for '\(id)': \(error?.localizedDescription ?? "bad data")")
+                print("StoreLogoProvider: Failed to download logo for '\(id)' (HTTP \(httpStatus)): \(error?.localizedDescription ?? "bad data")")
                 #endif
+                // Fall back to name search so wrong guesses self-correct
+                if let storeName = fallbackStoreName {
+                    DispatchQueue.main.async {
+                        self.triggerNameSearch(for: storeName, normalizedId: id)
+                    }
+                }
                 return
             }
 
@@ -466,12 +477,16 @@ class StoreLogoProvider: ObservableObject {
         return key
     }()
 
-    /// Returns a Logo.dev image URL for a store using:
+    /// Returns a Logo.dev image URL for a store using (in order):
     ///   1. Explicit domain map entry
-    ///   2. "the-" prefix strip + re-check (e.g. "the-home-depot" → "home-depot" → in map)
+    ///   2. "the-" prefix strip + re-check map
     ///   3. Prefix scan against the domain map (e.g. "walmart-supercenter" → walmart.com)
-    ///   4. Suffix-stripping heuristic (e.g. "chase-bank" → strip "-bank" → chase.com)
-    ///   5. Single-word fallback (e.g. "starbucks" → starbucks.com)
+    ///   4. Suffix-stripping + domain map re-check (e.g. "chase-bank" → "chase" → in map)
+    ///   5. Concatenated name guess (e.g. "zion-market" → zionmarket.com)
+    ///   6. Single-word fallback (e.g. "starbucks" → starbucks.com)
+    ///
+    /// If none of these produce a URL the caller should fall through to `triggerNameSearch`
+    /// which uses the Logo.dev Brand Search API (requires secret key) as the true catch-all.
     private func clearbitLogoURL(for normalizedId: String) -> String? {
         guard let token = Self.logoDevToken else {
             #if DEBUG
@@ -489,7 +504,7 @@ class StoreLogoProvider: ObservableObject {
             return logoURL(domain: domain)
         }
 
-        // 2. Strip leading "the-" then re-check map + prefix scan
+        // 2. Strip leading "the-" then re-check map
         //    "the-home-depot" → "home-depot" which is in the map
         let withoutThe = normalizedId.hasPrefix("the-") ? String(normalizedId.dropFirst(4)) : normalizedId
         if withoutThe != normalizedId {
@@ -513,8 +528,9 @@ class StoreLogoProvider: ObservableObject {
             }
         }
 
-        // 4. Suffix-stripping heuristic — remove common business-type words so
-        //    "chase-bank" → "chase" → chase.com, "whole-foods-market" → already in map, etc.
+        // 4. Suffix-stripping — strip common business-type words and ONLY match against
+        //    the domain map. Never blindly guess "{stripped}.com" since that produces wrong
+        //    logos (e.g. "zion-market" → "zion.com" is wrong — Zion ≠ Zion Market).
         let businessSuffixes = [
             "-bank", "-banks", "-credit-union", "-financial", "-insurance", "-fcu",
             "-market", "-markets", "-supermarket", "-grocery", "-foods", "-food",
@@ -528,17 +544,23 @@ class StoreLogoProvider: ObservableObject {
         for suffix in businessSuffixes {
             if normalizedId.hasSuffix(suffix) {
                 let stripped = String(normalizedId.dropLast(suffix.count))
-                if !stripped.isEmpty && !stripped.contains("-") {
-                    return logoURL(domain: "\(stripped).com")
-                }
-                // Also try the stripped name against the domain map
-                if let domain = Self.storeDomains[stripped] {
+                if !stripped.isEmpty, let domain = Self.storeDomains[stripped] {
                     return logoURL(domain: domain)
                 }
             }
         }
 
-        // 5. Single-word fallback — "starbucks" → starbucks.com
+        // 5. Concatenated name guess — join all parts into one word + ".com"
+        //    "zion-market" → "zionmarket.com", "dollar-general" → "dollargeneral.com"
+        //    This works for most businesses that use their full name as their domain.
+        //    If the guess is wrong, downloadAndCacheLogo will detect the failure and
+        //    automatically fall back to triggerNameSearch.
+        let parts = normalizedId.split(separator: "-")
+        if parts.count >= 2 && parts.count <= 4 {
+            return logoURL(domain: parts.joined() + ".com")
+        }
+
+        // 6. Single-word fallback — "starbucks" → starbucks.com
         if !normalizedId.contains("-") && !normalizedId.isEmpty {
             return logoURL(domain: "\(normalizedId).com")
         }
@@ -596,7 +618,7 @@ class StoreLogoProvider: ObservableObject {
     }
 
     /// Maps normalized store IDs to their canonical website domains so that
-    /// Clearbit can look up the right logo. Add entries here for any store whose
+    /// Logo.dev can look up the right logo. Add entries here for any store whose
     /// domain doesn't match its normalized name (e.g. "trader-joes" → traderjoes.com).
     private static let storeDomains: [String: String] = [
         // Grocery & Supermarkets
@@ -796,6 +818,28 @@ class StoreLogoProvider: ObservableObject {
         "kwik-trip": "kwiktrip.com",
         "buc-ee-s": "buc-ees.com",
         "racetrac": "racetrac.com",
+
+        // Asian & Specialty Grocery
+        "zion-market": "zionmarket.com",
+        "seafood-city": "seafoodcity.com",
+        "uwajimaya": "uwajimaya.com",
+        "lotte-plaza": "lotteplaza.com",
+        "marukai": "marukai.com",
+        "nijiya": "nijiya.com",
+        "ranch-99": "99ranch.com",
+        "super-h-mart": "hmart.com",
+        "patel-brothers": "patelbros.com",
+        "india-bazaar": "indiabazaar.com",
+        "fiesta-mart": "fiestamart.com",
+
+        // Discount / Off-Price
+        "99-cents-only": "99only.com",
+        "99-cents-only-store": "99only.com",
+        "99-cents-only-stores": "99only.com",
+        "99-cent-store": "99only.com",
+        "daiso": "daisojapan.com",
+        "miniso": "miniso.com",
+        "five-and-below": "fivebelow.com",
 
         // Online / General Retail
         "amazon": "amazon.com",
