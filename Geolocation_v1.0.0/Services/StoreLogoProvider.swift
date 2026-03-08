@@ -75,10 +75,10 @@ class StoreLogoProvider: ObservableObject {
             return storeLogos[key]
         }
 
-        // 2. Clearbit auto-logo fallback
+        // 2. Logo.dev auto-logo fallback
         if let url = clearbitLogoURL(for: normalizedId) {
             #if DEBUG
-            print("StoreLogoProvider: Using Clearbit fallback for '\(normalizedId)': \(url)")
+            print("StoreLogoProvider: Using Logo.dev fallback for '\(normalizedId)': \(url)")
             #endif
             return url
         }
@@ -426,17 +426,37 @@ class StoreLogoProvider: ObservableObject {
         }
     }
 
-    // MARK: - Clearbit Auto-Logo
+    // MARK: - Logo.dev Auto-Logo
 
-    /// Returns a Clearbit Logo API URL for a store, or nil if neither the domain
-    /// map nor a reasonable domain guess yields a supported store.
+    /// Publishable token read once from Info.plist (injected via Secrets.xcconfig).
+    /// Logo.dev publishable tokens are safe to embed in client-side code —
+    /// sign up for free at https://www.logo.dev to get yours.
+    private static let logoDevToken: String? = {
+        guard let token = Bundle.main.infoDictionary?["LOGO_DEV_TOKEN"] as? String,
+              !token.isEmpty,
+              token != "YOUR_LOGO_DEV_PUBLISHABLE_TOKEN_HERE" else {
+            return nil
+        }
+        return token
+    }()
+
+    /// Returns a Logo.dev URL for a store, or nil if no token is configured or
+    /// neither the domain map nor a single-word guess matches the store.
     ///
-    /// Clearbit's free Logo API (`https://logo.clearbit.com/{domain}`) returns a
-    /// high-quality square PNG for the company — no API key required.
+    /// Logo.dev (`https://img.logo.dev/{domain}?token=…`) is the officially
+    /// recommended replacement for the discontinued Clearbit Logo API.
+    /// Free tier: sign up at https://www.logo.dev (no credit card required).
     private func clearbitLogoURL(for normalizedId: String) -> String? {
+        guard let token = Self.logoDevToken else {
+            #if DEBUG
+            print("StoreLogoProvider: Logo.dev token not configured — add LOGO_DEV_TOKEN to Secrets.xcconfig")
+            #endif
+            return nil
+        }
+
         // 1. Explicit domain mapping (covers non-obvious domains and alternate names)
         if let domain = Self.storeDomains[normalizedId] {
-            return "https://logo.clearbit.com/\(domain)"
+            return "https://img.logo.dev/\(domain)?token=\(token)"
         }
 
         // 2. Prefix scan so "walmart-supercenter" matches "walmart" → walmart.com
@@ -449,14 +469,14 @@ class StoreLogoProvider: ObservableObject {
             }
         }
         if let match = bestMatch {
-            return "https://logo.clearbit.com/\(match.domain)"
+            return "https://img.logo.dev/\(match.domain)?token=\(token)"
         }
 
         // 3. Generic guess: strip hyphens and append .com (works for simple brand names)
         //    Only attempt this when the normalized ID looks like a single brand word
         //    (no hyphens = unlikely to be a multi-word variant like "target-express").
         if !normalizedId.contains("-") && !normalizedId.isEmpty {
-            return "https://logo.clearbit.com/\(normalizedId).com"
+            return "https://img.logo.dev/\(normalizedId).com?token=\(token)"
         }
 
         return nil
