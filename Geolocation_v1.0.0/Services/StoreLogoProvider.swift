@@ -468,9 +468,10 @@ class StoreLogoProvider: ObservableObject {
 
     /// Returns a Logo.dev image URL for a store using:
     ///   1. Explicit domain map entry
-    ///   2. Prefix scan against the domain map (e.g. "walmart-supercenter" → walmart.com)
-    ///   3. Suffix-stripping heuristic (e.g. "chase-bank" → strip "-bank" → chase.com)
-    ///   4. Single-word fallback (e.g. "starbucks" → starbucks.com)
+    ///   2. "the-" prefix strip + re-check (e.g. "the-home-depot" → "home-depot" → in map)
+    ///   3. Prefix scan against the domain map (e.g. "walmart-supercenter" → walmart.com)
+    ///   4. Suffix-stripping heuristic (e.g. "chase-bank" → strip "-bank" → chase.com)
+    ///   5. Single-word fallback (e.g. "starbucks" → starbucks.com)
     private func clearbitLogoURL(for normalizedId: String) -> String? {
         guard let token = Self.logoDevToken else {
             #if DEBUG
@@ -488,21 +489,34 @@ class StoreLogoProvider: ObservableObject {
             return logoURL(domain: domain)
         }
 
-        // 2. Prefix scan — "walmart-supercenter" matches "walmart" → walmart.com
-        var bestPrefixMatch: (key: String, domain: String)?
-        for (key, domain) in Self.storeDomains where normalizedId.hasPrefix(key) {
-            if bestPrefixMatch == nil || key.count > bestPrefixMatch!.key.count {
-                bestPrefixMatch = (key, domain)
+        // 2. Strip leading "the-" then re-check map + prefix scan
+        //    "the-home-depot" → "home-depot" which is in the map
+        let withoutThe = normalizedId.hasPrefix("the-") ? String(normalizedId.dropFirst(4)) : normalizedId
+        if withoutThe != normalizedId {
+            if let domain = Self.storeDomains[withoutThe] {
+                return logoURL(domain: domain)
             }
         }
-        if let match = bestPrefixMatch {
-            return logoURL(domain: match.domain)
+
+        // 3. Prefix scan — "walmart-supercenter" matches "walmart" → walmart.com
+        //    Also run against the "the-" stripped version
+        let candidates = withoutThe != normalizedId ? [normalizedId, withoutThe] : [normalizedId]
+        for candidate in candidates {
+            var bestPrefixMatch: (key: String, domain: String)?
+            for (key, domain) in Self.storeDomains where candidate.hasPrefix(key) {
+                if bestPrefixMatch == nil || key.count > bestPrefixMatch!.key.count {
+                    bestPrefixMatch = (key, domain)
+                }
+            }
+            if let match = bestPrefixMatch {
+                return logoURL(domain: match.domain)
+            }
         }
 
-        // 3. Suffix-stripping heuristic — remove common business-type words so
+        // 4. Suffix-stripping heuristic — remove common business-type words so
         //    "chase-bank" → "chase" → chase.com, "whole-foods-market" → already in map, etc.
         let businessSuffixes = [
-            "-bank", "-credit-union", "-financial", "-insurance",
+            "-bank", "-banks", "-credit-union", "-financial", "-insurance", "-fcu",
             "-market", "-markets", "-supermarket", "-grocery", "-foods", "-food",
             "-pharmacy", "-drug", "-health",
             "-cafe", "-coffee", "-bakery", "-restaurant", "-grill", "-kitchen",
@@ -524,7 +538,7 @@ class StoreLogoProvider: ObservableObject {
             }
         }
 
-        // 4. Single-word fallback — "starbucks" → starbucks.com
+        // 5. Single-word fallback — "starbucks" → starbucks.com
         if !normalizedId.contains("-") && !normalizedId.isEmpty {
             return logoURL(domain: "\(normalizedId).com")
         }
@@ -780,15 +794,169 @@ class StoreLogoProvider: ObservableObject {
         "circle-k": "circlek.com",
         "casey-s": "caseys.com",
         "kwik-trip": "kwiktrip.com",
+        "buc-ee-s": "buc-ees.com",
+        "racetrac": "racetrac.com",
 
         // Online / General Retail
         "amazon": "amazon.com",
+        "ebay": "ebay.com",
+        "etsy": "etsy.com",
 
-        // Coffee / Food
+        // Coffee / Food Service
         "starbucks": "starbucks.com",
         "dunkin": "dunkindonuts.com",
         "dunkin-donuts": "dunkindonuts.com",
+        "dutch-bros": "dutchbros.com",
+        "dutch-bros-coffee": "dutchbros.com",
+        "peet-s-coffee": "peets.com",
+        "philz-coffee": "philzcoffee.com",
+        "blue-bottle-coffee": "bluebottlecoffee.com",
+        "tim-hortons": "timhortons.com",
+        "coffee-bean": "coffeebean.com",
+        "the-coffee-bean": "coffeebean.com",
         "trader-joes-wine-shop": "traderjoes.com",
+
+        // Banks & Financial Institutions
+        "chase": "chase.com",
+        "chase-bank": "chase.com",
+        "bank-of-america": "bankofamerica.com",
+        "wells-fargo": "wellsfargo.com",
+        "wells-fargo-bank": "wellsfargo.com",
+        "citibank": "citi.com",
+        "citi": "citi.com",
+        "us-bank": "usbank.com",
+        "td-bank": "td.com",
+        "capital-one": "capitalone.com",
+        "pnc-bank": "pnc.com",
+        "pnc": "pnc.com",
+        "truist": "truist.com",
+        "truist-bank": "truist.com",
+        "regions-bank": "regions.com",
+        "regions": "regions.com",
+        "fifth-third-bank": "53.com",
+        "fifth-third": "53.com",
+        "key-bank": "key.com",
+        "keybank": "key.com",
+        "huntington-bank": "huntington.com",
+        "huntington": "huntington.com",
+        "citizens-bank": "citizensbank.com",
+        "ally-bank": "ally.com",
+        "ally": "ally.com",
+        "navy-federal": "navyfederal.org",
+        "navy-federal-credit-union": "navyfederal.org",
+        "usaa": "usaa.com",
+        "bank-of-the-west": "bankofthewest.com",
+        "bmo-harris": "bmoharris.com",
+        "bmo": "bmo.com",
+        "first-national-bank": "fnb-corp.com",
+        "flagstar-bank": "flagstar.com",
+        "goldman-sachs": "goldmansachs.com",
+        "morgan-stanley": "morganstanley.com",
+        "american-express": "americanexpress.com",
+        "discover": "discover.com",
+        "synchrony-bank": "synchrony.com",
+        "comerica": "comerica.com",
+        "svb": "svb.com",
+        "charles-schwab": "schwab.com",
+        "fidelity": "fidelity.com",
+        "vanguard": "vanguard.com",
+        "edward-jones": "edwardjones.com",
+
+        // Fast Food / Quick Service Restaurants
+        "mcdonalds": "mcdonalds.com",
+        "mcdonald-s": "mcdonalds.com",
+        "burger-king": "burgerking.com",
+        "wendy-s": "wendys.com",
+        "wendys": "wendys.com",
+        "subway": "subway.com",
+        "chipotle": "chipotle.com",
+        "chipotle-mexican-grill": "chipotle.com",
+        "taco-bell": "tacobell.com",
+        "pizza-hut": "pizzahut.com",
+        "domino-s": "dominos.com",
+        "dominos": "dominos.com",
+        "papa-john-s": "papajohns.com",
+        "papa-johns": "papajohns.com",
+        "little-caesars": "littlecaesars.com",
+        "kfc": "kfc.com",
+        "chick-fil-a": "chick-fil-a.com",
+        "panda-express": "pandaexpress.com",
+        "five-guys": "fiveguys.com",
+        "shake-shack": "shakeshack.com",
+        "in-n-out": "in-n-out.com",
+        "in-n-out-burger": "in-n-out.com",
+        "whataburger": "whataburger.com",
+        "sonic": "sonicdrivein.com",
+        "sonic-drive-in": "sonicdrivein.com",
+        "dairy-queen": "dairyqueen.com",
+        "jack-in-the-box": "jackinthebox.com",
+        "del-taco": "deltaco.com",
+        "carl-s-jr": "carlsjr.com",
+        "hardee-s": "hardees.com",
+        "popeyes": "popeyes.com",
+        "raising-cane-s": "raisingcanes.com",
+        "raising-canes": "raisingcanes.com",
+        "wingstop": "wingstop.com",
+        "buffalo-wild-wings": "buffalowildwings.com",
+        "cook-out": "cookout.com",
+        "smashburger": "smashburger.com",
+        "habit-burger": "habitburger.com",
+        "the-habit-burger-grill": "habitburger.com",
+
+        // Casual / Fast-Casual Dining
+        "panera": "panerabread.com",
+        "panera-bread": "panerabread.com",
+        "olive-garden": "olivegarden.com",
+        "applebee-s": "applebees.com",
+        "applebees": "applebees.com",
+        "chili-s": "chilis.com",
+        "chilis": "chilis.com",
+        "red-robin": "redrobin.com",
+        "red-lobster": "redlobster.com",
+        "outback-steakhouse": "outback.com",
+        "texas-roadhouse": "texasroadhouse.com",
+        "longhorn-steakhouse": "longhornsteakhouse.com",
+        "ihop": "ihop.com",
+        "denny-s": "dennys.com",
+        "dennys": "dennys.com",
+        "waffle-house": "wafflehouse.com",
+        "cracker-barrel": "crackerbarrel.com",
+        "bob-evans": "bobevans.com",
+        "first-watch": "firstwatch.com",
+        "the-cheesecake-factory": "thecheesecakefactory.com",
+        "cheesecake-factory": "thecheesecakefactory.com",
+        "bj-s-restaurants": "bjsrestaurants.com",
+        "sweetgreen": "sweetgreen.com",
+        "cava": "cava.com",
+        "mod-pizza": "modpizza.com",
+        "jersey-mike-s": "jerseymikes.com",
+        "jersey-mikes": "jerseymikes.com",
+        "jimmy-john-s": "jimmyjohns.com",
+        "jimmy-johns": "jimmyjohns.com",
+        "firehouse-subs": "firehousesubs.com",
+        "potbelly": "potbelly.com",
+        "jason-s-deli": "jasonsdeli.com",
+        "which-wich": "whichwich.com",
+        "einstein-bros": "einsteinbros.com",
+        "einstein-bros-bagels": "einsteinbros.com",
+        "bruegger-s-bagels": "brueggers.com",
+        "crumbl-cookies": "crumblcookies.com",
+        "crumbl": "crumblcookies.com",
+        "nothing-bundt-cakes": "nothingbundtcakes.com",
+        "jamba": "jamba.com",
+        "jamba-juice": "jamba.com",
+        "tropical-smoothie-cafe": "tropicalsmoothiecafe.com",
+        "smoothie-king": "smoothieking.com",
+        "moe-s-southwest-grill": "moes.com",
+        "qdoba": "qdoba.com",
+        "el-pollo-loco": "elpolloloco.com",
+        "bojangles": "bojangles.com",
+        "zaxby-s": "zaxbys.com",
+        "culver-s": "culvers.com",
+        "steak-n-shake": "steaknshake.com",
+        "freddy-s": "freddys.com",
+        "noodles-company": "noodles.com",
+        "pei-wei": "peiwei.com",
     ]
 
     // MARK: - Known Store Names
