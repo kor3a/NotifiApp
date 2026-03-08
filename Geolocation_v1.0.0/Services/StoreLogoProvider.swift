@@ -662,7 +662,6 @@ class StoreLogoProvider: ObservableObject {
         "west-elm": "westelm.com",
         "cb2": "cb2.com",
         "pier-1": "pier1.com",
-        "tuesday-morning": "tuesdaymorning.com",
 
         // Auto
         "autozone": "autozone.com",
