@@ -39,6 +39,8 @@ class StoreLogoProvider: ObservableObject {
     // MARK: - Image Disk Cache
 
     private static let urlCacheKey = "StoreLogoProvider.cachedURLs"
+    /// Domains discovered via Logo.dev name search, persisted so each store is only searched once.
+    private static let searchCacheKey = "StoreLogoProvider.searchedDomains"
     private let imageCache = NSCache<NSString, UIImage>()
     private let cacheDirectory: URL = {
         let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
@@ -48,11 +50,18 @@ class StoreLogoProvider: ObservableObject {
     }()
     /// Tracks which logos are currently being downloaded to avoid duplicate requests.
     private var downloadingLogos: Set<String> = []
+    /// Tracks in-flight Logo.dev name searches to avoid duplicate API calls.
+    private var searchingStores: Set<String> = []
+    /// normalizedId → domain discovered via Logo.dev Brand Search API (persisted to UserDefaults).
+    private var searchedDomains: [String: String] = [:]
 
     private init() {
         // Load cached URL mappings from UserDefaults for instant availability
         if let cached = UserDefaults.standard.dictionary(forKey: Self.urlCacheKey) as? [String: String] {
             storeLogos = cached
+        }
+        if let searched = UserDefaults.standard.dictionary(forKey: Self.searchCacheKey) as? [String: String] {
+            searchedDomains = searched
         }
         fetchStoreLogos()
     }
@@ -75,12 +84,17 @@ class StoreLogoProvider: ObservableObject {
             return storeLogos[key]
         }
 
-        // 2. Logo.dev auto-logo fallback
+        // 2. Logo.dev auto-logo — domain map + suffix-stripping heuristics
         if let url = clearbitLogoURL(for: normalizedId) {
             #if DEBUG
             print("StoreLogoProvider: Using Logo.dev fallback for '\(normalizedId)': \(url)")
             #endif
             return url
+        }
+
+        // 3. Domain previously discovered via Logo.dev Brand Search API
+        if let domain = searchedDomains[normalizedId], let token = Self.logoDevToken {
+            return "https://img.logo.dev/\(domain)?token=\(token)"
         }
 
         #if DEBUG
@@ -191,9 +205,13 @@ class StoreLogoProvider: ObservableObject {
         }
 
         // 3. No cache hit — trigger background download if we have any URL
-        //    (logoURL covers both Firebase and Clearbit fallback)
+        //    (logoURL covers Firebase, domain map, suffix heuristics, and cached search results)
         if let urlString = logoURL(for: storeName) {
             downloadAndCacheLogo(id: logoId, urlString: urlString)
+        } else {
+            // 4. Last resort: look up the store name via Logo.dev Brand Search API.
+            //    Results are cached to UserDefaults so each store is only searched once.
+            triggerNameSearch(for: storeName, normalizedId: normalizedId)
         }
 
         return nil
@@ -428,9 +446,7 @@ class StoreLogoProvider: ObservableObject {
 
     // MARK: - Logo.dev Auto-Logo
 
-    /// Publishable token read once from Info.plist (injected via Secrets.xcconfig).
-    /// Logo.dev publishable tokens are safe to embed in client-side code —
-    /// sign up for free at https://www.logo.dev to get yours.
+    /// Publishable token — safe to embed in client code; used for logo image URLs.
     private static let logoDevToken: String? = {
         guard let token = Bundle.main.infoDictionary?["LOGO_DEV_TOKEN"] as? String,
               !token.isEmpty,
@@ -440,12 +456,21 @@ class StoreLogoProvider: ObservableObject {
         return token
     }()
 
-    /// Returns a Logo.dev URL for a store, or nil if no token is configured or
-    /// neither the domain map nor a single-word guess matches the store.
-    ///
-    /// Logo.dev (`https://img.logo.dev/{domain}?token=…`) is the officially
-    /// recommended replacement for the discontinued Clearbit Logo API.
-    /// Free tier: sign up at https://www.logo.dev (no credit card required).
+    /// Secret key — used only for the Brand Search API; results cached so each store is queried once.
+    private static let logoDevSecretKey: String? = {
+        guard let key = Bundle.main.infoDictionary?["LOGO_DEV_SECRET_KEY"] as? String,
+              !key.isEmpty,
+              key != "YOUR_LOGO_DEV_SECRET_KEY_HERE" else {
+            return nil
+        }
+        return key
+    }()
+
+    /// Returns a Logo.dev image URL for a store using:
+    ///   1. Explicit domain map entry
+    ///   2. Prefix scan against the domain map (e.g. "walmart-supercenter" → walmart.com)
+    ///   3. Suffix-stripping heuristic (e.g. "chase-bank" → strip "-bank" → chase.com)
+    ///   4. Single-word fallback (e.g. "starbucks" → starbucks.com)
     private func clearbitLogoURL(for normalizedId: String) -> String? {
         guard let token = Self.logoDevToken else {
             #if DEBUG
@@ -454,32 +479,106 @@ class StoreLogoProvider: ObservableObject {
             return nil
         }
 
-        // 1. Explicit domain mapping (covers non-obvious domains and alternate names)
-        if let domain = Self.storeDomains[normalizedId] {
-            return "https://img.logo.dev/\(domain)?token=\(token)"
+        func logoURL(domain: String) -> String {
+            "https://img.logo.dev/\(domain)?token=\(token)"
         }
 
-        // 2. Prefix scan so "walmart-supercenter" matches "walmart" → walmart.com
-        var bestMatch: (key: String, domain: String)?
-        for (key, domain) in Self.storeDomains {
-            if normalizedId.hasPrefix(key) {
-                if bestMatch == nil || key.count > bestMatch!.key.count {
-                    bestMatch = (key, domain)
+        // 1. Explicit domain map
+        if let domain = Self.storeDomains[normalizedId] {
+            return logoURL(domain: domain)
+        }
+
+        // 2. Prefix scan — "walmart-supercenter" matches "walmart" → walmart.com
+        var bestPrefixMatch: (key: String, domain: String)?
+        for (key, domain) in Self.storeDomains where normalizedId.hasPrefix(key) {
+            if bestPrefixMatch == nil || key.count > bestPrefixMatch!.key.count {
+                bestPrefixMatch = (key, domain)
+            }
+        }
+        if let match = bestPrefixMatch {
+            return logoURL(domain: match.domain)
+        }
+
+        // 3. Suffix-stripping heuristic — remove common business-type words so
+        //    "chase-bank" → "chase" → chase.com, "whole-foods-market" → already in map, etc.
+        let businessSuffixes = [
+            "-bank", "-credit-union", "-financial", "-insurance",
+            "-market", "-markets", "-supermarket", "-grocery", "-foods", "-food",
+            "-pharmacy", "-drug", "-health",
+            "-cafe", "-coffee", "-bakery", "-restaurant", "-grill", "-kitchen",
+            "-bar", "-bistro", "-diner",
+            "-store", "-stores", "-shop", "-shops", "-outlet", "-outlets",
+            "-center", "-centre", "-depot", "-warehouse", "-wholesale", "-supply",
+            "-express", "-plus", "-pro", "-co", "-inc",
+        ]
+        for suffix in businessSuffixes {
+            if normalizedId.hasSuffix(suffix) {
+                let stripped = String(normalizedId.dropLast(suffix.count))
+                if !stripped.isEmpty && !stripped.contains("-") {
+                    return logoURL(domain: "\(stripped).com")
+                }
+                // Also try the stripped name against the domain map
+                if let domain = Self.storeDomains[stripped] {
+                    return logoURL(domain: domain)
                 }
             }
         }
-        if let match = bestMatch {
-            return "https://img.logo.dev/\(match.domain)?token=\(token)"
-        }
 
-        // 3. Generic guess: strip hyphens and append .com (works for simple brand names)
-        //    Only attempt this when the normalized ID looks like a single brand word
-        //    (no hyphens = unlikely to be a multi-word variant like "target-express").
+        // 4. Single-word fallback — "starbucks" → starbucks.com
         if !normalizedId.contains("-") && !normalizedId.isEmpty {
-            return "https://img.logo.dev/\(normalizedId).com?token=\(token)"
+            return logoURL(domain: "\(normalizedId).com")
         }
 
         return nil
+    }
+
+    /// Calls the Logo.dev Brand Search API to find the domain for an unknown store name,
+    /// then caches the result to UserDefaults so this only ever fires once per store.
+    private func triggerNameSearch(for storeName: String, normalizedId: String) {
+        guard let secretKey = Self.logoDevSecretKey,
+              let token = Self.logoDevToken,
+              !searchingStores.contains(normalizedId),
+              searchedDomains[normalizedId] == nil else { return }
+
+        searchingStores.insert(normalizedId)
+
+        let query = storeName.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? storeName
+        guard let url = URL(string: "https://api.logo.dev/search?q=\(query)") else { return }
+
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(secretKey)", forHTTPHeaderField: "Authorization")
+
+        URLSession.shared.dataTask(with: request) { [weak self] data, _, error in
+            guard let self else { return }
+            defer { DispatchQueue.main.async { self.searchingStores.remove(normalizedId) } }
+
+            guard let data,
+                  error == nil,
+                  let results = try? JSONDecoder().decode([LogoDevSearchResult].self, from: data),
+                  let top = results.first else {
+                #if DEBUG
+                print("StoreLogoProvider: Brand search failed for '\(storeName)': \(error?.localizedDescription ?? "no results")")
+                #endif
+                return
+            }
+
+            let logoURL = "https://img.logo.dev/\(top.domain)?token=\(token)"
+            #if DEBUG
+            print("StoreLogoProvider: Brand search found '\(top.domain)' for '\(storeName)'")
+            #endif
+
+            DispatchQueue.main.async {
+                self.searchedDomains[normalizedId] = top.domain
+                UserDefaults.standard.set(self.searchedDomains, forKey: Self.searchCacheKey)
+                self.downloadAndCacheLogo(id: normalizedId, urlString: logoURL)
+                self.objectWillChange.send()
+            }
+        }.resume()
+    }
+
+    private struct LogoDevSearchResult: Decodable {
+        let name: String
+        let domain: String
     }
 
     /// Maps normalized store IDs to their canonical website domains so that

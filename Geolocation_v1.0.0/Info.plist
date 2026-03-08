@@ -24,6 +24,8 @@
 	<string>$(OPENAI_API_KEY)</string>
 	<key>LOGO_DEV_TOKEN</key>
 	<string>$(LOGO_DEV_TOKEN)</string>
+	<key>LOGO_DEV_SECRET_KEY</key>
+	<string>$(LOGO_DEV_SECRET_KEY)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
@@ -32,8 +34,6 @@
 	<string>We need your location to show nearby stores and notify you when you're near stores with pending reminders.</string>
 	<key>NSSiriUsageDescription</key>
 	<string>NearBuy uses Siri to let you send and receive messages about your shopping reminders hands-free while driving.</string>
-	<key>OPENAI_API_KEY</key>
-	<string>$(OPENAI_API_KEY)</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
