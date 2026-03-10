@@ -12,7 +12,14 @@ import CoreLocation
 class NotificationManager: NSObject, ObservableObject {
     static let shared = NotificationManager()
 
+    enum NotificationNavigation: Equatable {
+        case store(name: String)
+        case message(conversationId: String)
+        case friendRequest
+    }
+
     @Published var isAuthorized = false
+    @Published var pendingNavigation: NotificationNavigation? = nil
     private let notificationCenter = UNUserNotificationCenter.current()
     private let logStore = NotificationLogStore.shared
 
@@ -156,6 +163,7 @@ class NotificationManager: NSObject, ObservableObject {
             content.interruptionLevel = .timeSensitive
             content.relevanceScore = 1.0 // Highest relevance for location-based reminders
             content.categoryIdentifier = "STORE_PROXIMITY"
+            content.userInfo = ["storeName": storeName]
 
             // Create a unique identifier based on store name and timestamp
             let identifier = "store_proximity_\(storeName)_\(Date().timeIntervalSince1970)"
@@ -317,6 +325,7 @@ class NotificationManager: NSObject, ObservableObject {
             content.interruptionLevel = .active
             content.relevanceScore = 0.8
             content.categoryIdentifier = "SHARED_REMINDER_CHANGE"
+            content.userInfo = ["storeName": storeName]
 
             let identifier = "shared_reminder_\(storeName)_\(Date().timeIntervalSince1970)"
             let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
@@ -368,6 +377,7 @@ class NotificationManager: NSObject, ObservableObject {
             content.interruptionLevel = .timeSensitive
             content.relevanceScore = 0.9
             content.categoryIdentifier = "ON_MY_WAY"
+            content.userInfo = ["storeName": storeName]
 
             let identifier = "on_my_way_\(storeName)_\(Date().timeIntervalSince1970)"
             let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
@@ -422,10 +432,30 @@ extension NotificationManager: UNUserNotificationCenterDelegate {
     func userNotificationCenter(_ center: UNUserNotificationCenter,
                               didReceive response: UNNotificationResponse,
                               withCompletionHandler completionHandler: @escaping () -> Void) {
-        // Handle notification tap - could navigate to store's reminders
+        let categoryIdentifier = response.notification.request.content.categoryIdentifier
+        let userInfo = response.notification.request.content.userInfo
+
         #if DEBUG
-        print("User tapped notification: \(response.notification.request.identifier)")
+        print("User tapped notification: \(response.notification.request.identifier), category: \(categoryIdentifier)")
         #endif
+
+        DispatchQueue.main.async {
+            switch categoryIdentifier {
+            case "STORE_PROXIMITY", "SHARED_REMINDER_CHANGE", "ON_MY_WAY":
+                if let storeName = userInfo["storeName"] as? String {
+                    self.pendingNavigation = .store(name: storeName)
+                }
+            case "NEW_MESSAGE":
+                if let conversationId = userInfo["conversationId"] as? String {
+                    self.pendingNavigation = .message(conversationId: conversationId)
+                }
+            case "FRIEND_REQUEST":
+                self.pendingNavigation = .friendRequest
+            default:
+                break
+            }
+        }
+
         completionHandler()
     }
 }

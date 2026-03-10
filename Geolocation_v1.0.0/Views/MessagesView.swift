@@ -9,8 +9,10 @@ import SwiftUI
 
 struct MessagesView: View {
     @ObservedObject var viewModel: MessagesViewModel
+    @Binding var pendingConversationId: String?
     @ObservedObject private var sessionManager = UserSessionManager.shared
     @State private var showNewMessage = false
+    @State private var notificationConversation: Conversation? = nil
     @Environment(\.colorScheme) var colorScheme
 
     var body: some View {
@@ -37,9 +39,30 @@ struct MessagesView: View {
         .sheet(isPresented: $showNewMessage) {
             NewMessageView(viewModel: viewModel)
         }
+        .navigationDestination(item: $notificationConversation) { conversation in
+            ConversationView(conversation: conversation, viewModel: viewModel)
+        }
         .onAppear {
             viewModel.fetchConversations()
             viewModel.fetchUnreadCount()
+        }
+        .onChange(of: pendingConversationId) { _, conversationId in
+            guard let conversationId = conversationId else { return }
+            if let conversation = viewModel.conversations.first(where: { $0.id == conversationId }) {
+                notificationConversation = conversation
+                pendingConversationId = nil
+            } else {
+                // Conversations not loaded yet — fetch and navigate when they load
+                viewModel.fetchConversations()
+            }
+        }
+        .onChange(of: viewModel.conversations) { _, conversations in
+            // Once conversations load, complete any pending notification navigation
+            guard let conversationId = pendingConversationId else { return }
+            if let conversation = conversations.first(where: { $0.id == conversationId }) {
+                notificationConversation = conversation
+                pendingConversationId = nil
+            }
         }
     }
 
@@ -320,6 +343,6 @@ struct ContactRow: View {
 
 #Preview {
     NavigationStack {
-        MessagesView(viewModel: MessagesViewModel())
+        MessagesView(viewModel: MessagesViewModel(), pendingConversationId: .constant(nil))
     }
 }

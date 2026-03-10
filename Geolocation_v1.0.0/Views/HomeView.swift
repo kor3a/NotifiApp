@@ -21,11 +21,13 @@ struct HomeView: View {
     @State private var searchQuery = ""
     @State private var hasRequestedPermissions = false
     @State private var showNotificationLog = false
+    @State private var pendingStoreName: String? = nil
+    @State private var pendingConversationId: String? = nil
 
     var body: some View {
         TabView(selection: $selectedTab) {
             NavigationStack {
-                StoresView()
+                StoresView(pendingStoreName: $pendingStoreName)
                     .navigationTitle("Hi, \(sessionManager.currentUser?.name ?? "there")")
                     .navigationBarTitleDisplayMode(.large)
                     .onAppear {
@@ -59,7 +61,7 @@ struct HomeView: View {
             .tag(0)
 
             NavigationStack {
-                MessagesView(viewModel: messagesViewModel)
+                MessagesView(viewModel: messagesViewModel, pendingConversationId: $pendingConversationId)
                     .navigationBarTitleDisplayMode(.large)
             }//:NAVIGATIONSTACK
             .tabItem {
@@ -103,7 +105,15 @@ struct HomeView: View {
         .sheet(isPresented: $showNotificationLog) {
             NotificationLogView()
         }
+        .onChange(of: notificationManager.pendingNavigation) { _, navigation in
+            guard let navigation = navigation else { return }
+            handleNotificationNavigation(navigation)
+        }
         .onAppear {
+            // Handle any notification tap that occurred before the view appeared
+            if let navigation = notificationManager.pendingNavigation {
+                handleNotificationNavigation(navigation)
+            }
             initializeLocationNotifications()
             // Fetch stores for migration
             storesViewModel.fetchUserStores()
@@ -161,6 +171,22 @@ struct HomeView: View {
                 storesViewModel.fetchUserStores()
             }
         }
+    }
+
+    // MARK: - Notification Navigation
+
+    private func handleNotificationNavigation(_ navigation: NotificationManager.NotificationNavigation) {
+        switch navigation {
+        case .store(let name):
+            selectedTab = 0
+            pendingStoreName = name
+        case .message(let conversationId):
+            selectedTab = 1
+            pendingConversationId = conversationId
+        case .friendRequest:
+            selectedTab = 2
+        }
+        notificationManager.pendingNavigation = nil
     }
 
     // MARK: - Location & Notification Setup
