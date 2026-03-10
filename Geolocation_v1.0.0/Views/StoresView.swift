@@ -412,7 +412,8 @@ struct StoresView: View {
                         .transition(.scale(scale: 0.1, anchor: .bottomTrailing).combined(with: .opacity))
                     }
 
-                    // Floating button — shrinks to a small dot or shows full + button
+                    // Floating button — hidden when menu is open (unless shrunk)
+                    if isFabShrunk || !isMenuExpanded {
                     Button(action: {
                         if isFabShrunk {
                             // Expand back from shrunk state
@@ -455,6 +456,7 @@ struct StoresView: View {
                         )
                         .animation(.spring(response: 0.5, dampingFraction: 0.75), value: isFabShrunk)
                     }
+                    } // end: if isFabShrunk || !isMenuExpanded
                 }
                 .padding(.trailing, 24)
                 .padding(.bottom, 24)
