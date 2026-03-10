@@ -17,7 +17,7 @@ struct StoreItemView: View {
             CachedLogoImage(storeName: store.name)
 
             Text(store.name)
-                .font(.headline)
+                .font(.specialElite(size: 17))
                 .foregroundColor(.primary)
 
             Spacer()

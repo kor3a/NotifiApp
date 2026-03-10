@@ -80,8 +80,7 @@ struct ReminderItemView: View {
 
                 if isEditing {
                     TextField("Reminder", text: $editText)
-                        .font(.headline)
-                        .bold()
+                        .font(.specialElite(size: 17))
                         .focused($isTextFieldFocused)
                         .onSubmit {
                             commitEdit()
@@ -100,8 +99,7 @@ struct ReminderItemView: View {
                         }
                 } else {
                     Text(item.title)
-                        .font(.headline)
-                        .bold()
+                        .font(.specialElite(size: 17))
                         .contentShape(Rectangle())
                         .onTapGesture {
                             onTextTap?()

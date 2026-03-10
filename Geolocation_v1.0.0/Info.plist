@@ -47,6 +47,10 @@
 	<array>
 		<string>location</string>
 	</array>
+	<key>UIAppFonts</key>
+	<array>
+		<string>SpecialElite-Regular.ttf</string>
+	</array>
 	<key>UILaunchScreen</key>
 	<dict/>
 	<key>UISupportedInterfaceOrientations</key>
