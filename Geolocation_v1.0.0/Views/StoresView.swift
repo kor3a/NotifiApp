@@ -10,6 +10,7 @@ import SwiftUI
 struct StoresView: View {
     // MARK: - PROPERTIES
 
+    @Binding var pendingStoreName: String?
     @StateObject private var viewModel = StoresViewModel()
     @StateObject private var messagesViewModel = MessagesViewModel()
     @StateObject private var smartRecipeViewModel = SmartRecipeViewModel()
@@ -24,11 +25,20 @@ struct StoresView: View {
     @State private var showOnMyWayConfirmation = false
     @State private var selectedOnMyWayStore: UserStoreItem?
     @State private var storeToDelete: UserStoreItem?
+    @State private var notificationDestination: UserStoreItem? = nil
     @Environment(\.colorScheme) var colorScheme
 
     var body: some View {
         NavigationStack {
             ZStack {
+                // Hidden navigation destination for notification taps
+                Color.clear
+                    .navigationDestination(item: $notificationDestination) { storeItem in
+                        ReminderView(
+                            userStoreItem: storeItem,
+                            availableStores: viewModel.userStoreItems.filter { $0.id != storeItem.id }
+                        )
+                    }
                 // Background with store list
                 if sessionManager.isLoading || viewModel.isLoading {
                     ProgressView("Loading your stores...")
@@ -324,6 +334,24 @@ struct StoresView: View {
                 }
             }
         }
+        .onChange(of: pendingStoreName) { _, storeName in
+            guard let storeName = storeName else { return }
+            if let storeItem = viewModel.userStoreItems.first(where: { $0.store.name == storeName }) {
+                notificationDestination = storeItem
+                pendingStoreName = nil
+            } else {
+                // Stores not loaded yet — trigger a fetch; navigation fires when they load
+                viewModel.fetchUserStores()
+            }
+        }
+        .onChange(of: viewModel.userStoreItems) { _, items in
+            // Once stores load, complete any pending notification navigation
+            guard let storeName = pendingStoreName else { return }
+            if let storeItem = items.first(where: { $0.store.name == storeName }) {
+                notificationDestination = storeItem
+                pendingStoreName = nil
+            }
+        }
     }//:BODY
 
     private var deleteAlertTitle: String {
@@ -367,5 +395,5 @@ struct StoresView: View {
 }
 
 #Preview {
-    StoresView()
+    StoresView(pendingStoreName: .constant(nil))
 }
