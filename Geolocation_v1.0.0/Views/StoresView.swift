@@ -218,7 +218,7 @@ struct StoresView: View {
             } else {
                 fabInactivityTimer?.invalidate()
                 withAnimation(.spring(response: 0.5, dampingFraction: 0.75)) {
-                    isFabShrunk = true
+                    isFabShrunk = false
                     isMenuExpanded = false
                 }
             }
@@ -412,19 +412,18 @@ struct StoresView: View {
                         .transition(.scale(scale: 0.1, anchor: .bottomTrailing).combined(with: .opacity))
                     }
 
-                    // Floating button — hidden when menu is open (unless shrunk)
-                    if isFabShrunk || !isMenuExpanded {
+                    // Floating button — hidden when menu is open (unless shrunk in list mode)
+                    let effectivelyShrunk = isFabShrunk && storeViewMode == .list
+                    if effectivelyShrunk || !isMenuExpanded {
                     Button(action: {
-                        if isFabShrunk {
-                            // Expand back from shrunk state
+                        if effectivelyShrunk {
+                            // Expand back from shrunk state (list mode only)
                             withAnimation(.spring(response: 0.5, dampingFraction: 0.75)) {
                                 isFabShrunk = false
                             }
-                            if storeViewMode == .list {
-                                startFabInactivityTimer()
-                            }
+                            startFabInactivityTimer()
                         } else if !isMenuExpanded {
-                            // Open menu from expanded state
+                            // Open menu
                             withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
                                 isMenuExpanded = true
                             }
@@ -438,12 +437,12 @@ struct StoresView: View {
                                 .fill(Color.blue)
                                 .shadow(
                                     color: Color.black.opacity(0.3),
-                                    radius: isFabShrunk ? 4 : 8,
+                                    radius: effectivelyShrunk ? 4 : 8,
                                     x: 0,
-                                    y: isFabShrunk ? 2 : 4
+                                    y: effectivelyShrunk ? 2 : 4
                                 )
 
-                            if !isFabShrunk {
+                            if !effectivelyShrunk {
                                 Image(systemName: "plus")
                                     .font(.system(size: 24, weight: .semibold))
                                     .foregroundColor(.white)
@@ -451,12 +450,12 @@ struct StoresView: View {
                             }
                         }
                         .frame(
-                            width: isFabShrunk ? 28 : 60,
-                            height: isFabShrunk ? 28 : 60
+                            width: effectivelyShrunk ? 28 : 60,
+                            height: effectivelyShrunk ? 28 : 60
                         )
-                        .animation(.spring(response: 0.5, dampingFraction: 0.75), value: isFabShrunk)
+                        .animation(.spring(response: 0.5, dampingFraction: 0.75), value: effectivelyShrunk)
                     }
-                    } // end: if isFabShrunk || !isMenuExpanded
+                    } // end: if effectivelyShrunk || !isMenuExpanded
                 }
                 .padding(.trailing, 24)
                 .padding(.bottom, 24)
