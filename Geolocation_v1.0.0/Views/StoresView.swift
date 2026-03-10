@@ -32,6 +32,8 @@ struct StoresView: View {
     @State private var storeToDelete: UserStoreItem?
     @State private var notificationDestination: UserStoreItem? = nil
     @State private var storeViewMode: StoreViewMode = .list
+    @State private var isFabShrunk: Bool = false
+    @State private var fabInactivityTimer: Timer? = nil
     @Environment(\.colorScheme) var colorScheme
 
     var body: some View {
@@ -66,22 +68,23 @@ struct StoresView: View {
                     }
                 }
 
-                // Transparent overlay to close FAB menu when tapped
-                if isMenuExpanded && storeViewMode == .list {
+                // Transparent overlay to close FAB menu when tapped outside
+                if isMenuExpanded {
                     Color.clear
                         .contentShape(Rectangle())
                         .ignoresSafeArea()
                         .onTapGesture {
                             withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
                                 isMenuExpanded = false
+                                if storeViewMode == .float {
+                                    isFabShrunk = true
+                                }
                             }
                         }
                 }
 
-                // Floating action button (list mode only)
-                if storeViewMode == .list {
-                    fabOverlay
-                }
+                // Floating action button (both list and float modes)
+                fabOverlay
             }
             .toolbar {
                 // Done button when reordering
@@ -197,6 +200,28 @@ struct StoresView: View {
             if sessionManager.currentUser != nil {
                 self.viewModel.fetchUserStores()
             }
+            if storeViewMode == .list {
+                startFabInactivityTimer()
+            }
+        }
+        .onDisappear {
+            fabInactivityTimer?.invalidate()
+            fabInactivityTimer = nil
+        }
+        .onChange(of: storeViewMode) { _, mode in
+            if mode == .list {
+                withAnimation(.spring(response: 0.5, dampingFraction: 0.75)) {
+                    isFabShrunk = false
+                    isMenuExpanded = false
+                }
+                startFabInactivityTimer()
+            } else {
+                fabInactivityTimer?.invalidate()
+                withAnimation(.spring(response: 0.5, dampingFraction: 0.75)) {
+                    isFabShrunk = false
+                    isMenuExpanded = false
+                }
+            }
         }
         .onChange(of: sessionManager.currentUser) { oldValue, newValue in
             if newValue != nil {
@@ -306,6 +331,16 @@ struct StoresView: View {
         .safeAreaInset(edge: .bottom) {
             Color.clear.frame(height: 90)
         }
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 10)
+                .onChanged { _ in
+                    guard !isFabShrunk else { return }
+                    fabInactivityTimer?.invalidate()
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                        isFabShrunk = true
+                    }
+                }
+        )
     }
 
     // MARK: - FAB Overlay
@@ -317,12 +352,15 @@ struct StoresView: View {
                 Spacer()
 
                 ZStack {
-                    // Expanded menu
-                    if isMenuExpanded {
+                    // Expanded menu items
+                    if isMenuExpanded && !isFabShrunk {
                         VStack(spacing: 8) {
                             Button(action: {
                                 withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
                                     isMenuExpanded = false
+                                    if storeViewMode == .float {
+                                        isFabShrunk = true
+                                    }
                                 }
                                 showingAddStore = true
                             }) {
@@ -345,6 +383,9 @@ struct StoresView: View {
                             Button(action: {
                                 withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
                                     isMenuExpanded = false
+                                    if storeViewMode == .float {
+                                        isFabShrunk = true
+                                    }
                                 }
                                 if sessionManager.currentUser?.isSubscribed == true {
                                     showingSmartRecipe = true
@@ -371,28 +412,66 @@ struct StoresView: View {
                         .transition(.scale(scale: 0.1, anchor: .bottomTrailing).combined(with: .opacity))
                     }
 
-                    // Floating + button
-                    if !isMenuExpanded {
-                        Button(action: {
+                    // Floating button — hidden when menu is open (unless shrunk in list mode)
+                    let effectivelyShrunk = isFabShrunk && storeViewMode == .list
+                    if effectivelyShrunk || !isMenuExpanded {
+                    Button(action: {
+                        if effectivelyShrunk {
+                            // Expand back from shrunk state (list mode only)
+                            withAnimation(.spring(response: 0.5, dampingFraction: 0.75)) {
+                                isFabShrunk = false
+                            }
+                            startFabInactivityTimer()
+                        } else if !isMenuExpanded {
+                            // Open menu
                             withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
                                 isMenuExpanded = true
                             }
-                        }) {
-                            Image(systemName: "plus")
-                                .font(.system(size: 24, weight: .semibold))
-                                .foregroundColor(.white)
-                                .frame(width: 60, height: 60)
-                                .background(
-                                    Circle()
-                                        .fill(Color.blue)
-                                        .shadow(color: Color.black.opacity(0.3), radius: 8, x: 0, y: 4)
-                                )
+                            if storeViewMode == .list {
+                                fabInactivityTimer?.invalidate()
+                            }
                         }
-                        .transition(.scale(scale: 0.1, anchor: .bottomTrailing).combined(with: .opacity))
+                    }) {
+                        ZStack {
+                            Circle()
+                                .fill(Color.blue)
+                                .shadow(
+                                    color: Color.black.opacity(0.3),
+                                    radius: effectivelyShrunk ? 4 : 8,
+                                    x: 0,
+                                    y: effectivelyShrunk ? 2 : 4
+                                )
+
+                            if !effectivelyShrunk {
+                                Image(systemName: "plus")
+                                    .font(.system(size: 24, weight: .semibold))
+                                    .foregroundColor(.white)
+                                    .transition(.opacity.combined(with: .scale(scale: 0.5)))
+                            }
+                        }
+                        .frame(
+                            width: effectivelyShrunk ? 28 : 60,
+                            height: effectivelyShrunk ? 28 : 60
+                        )
+                        .animation(.spring(response: 0.5, dampingFraction: 0.75), value: effectivelyShrunk)
                     }
+                    } // end: if effectivelyShrunk || !isMenuExpanded
                 }
                 .padding(.trailing, 24)
                 .padding(.bottom, 24)
+            }
+        }
+    }
+
+    // MARK: - FAB Timer Helpers
+
+    private func startFabInactivityTimer() {
+        fabInactivityTimer?.invalidate()
+        fabInactivityTimer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: false) { _ in
+            DispatchQueue.main.async {
+                withAnimation(.spring(response: 0.5, dampingFraction: 0.75)) {
+                    isFabShrunk = true
+                }
             }
         }
     }
