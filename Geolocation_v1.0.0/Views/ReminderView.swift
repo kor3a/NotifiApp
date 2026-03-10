@@ -15,7 +15,7 @@ struct ReminderView: View {
     @State private var newReminderText = ""
     @FocusState private var isNewReminderFocused: Bool
     @AppStorage("autoDeleteReminders") private var autoDeleteEnabled = false
-    @AppStorage("smartCategoryEnabled") private var smartCategoryEnabled = true
+    @State private var smartCategoryEnabled = true
     @State private var showInfoPanel = false
     @State private var fadingReminderIds: Set<String> = []
     @State private var reminderToShare: Reminder?
@@ -63,6 +63,10 @@ struct ReminderView: View {
     /// Smart Category is active only when the user is subscribed AND has the toggle enabled.
     private var effectiveSmartCategoryEnabled: Bool {
         isSubscribed && smartCategoryEnabled
+    }
+
+    private var smartCategoryKey: String {
+        "smartCategoryEnabled_\(userStoreItem.id)"
     }
 
     var body: some View {
@@ -239,6 +243,10 @@ struct ReminderView: View {
         .onAppear {
             viewModel.fetchReminders(for: userStoreItem.reminderStoreId, sharedFromName: userStoreItem.sharedFromName)
             viewModel.fetchFavoriteTags(for: userStoreItem.reminderStoreId)
+            smartCategoryEnabled = UserDefaults.standard.object(forKey: smartCategoryKey) as? Bool ?? true
+        }
+        .onChange(of: smartCategoryEnabled) { _, newValue in
+            UserDefaults.standard.set(newValue, forKey: smartCategoryKey)
         }
         .onChange(of: autoDeleteEnabled) { oldValue, newValue in
             if newValue && !oldValue {
