@@ -66,7 +66,6 @@ struct StoresView: View {
                                 notificationDestination = item
                             },
                             onStoreDelete: { item in
-                                isFloatEditMode = false
                                 storeToDelete = item
                             },
                             onReorder: { newOrder in
