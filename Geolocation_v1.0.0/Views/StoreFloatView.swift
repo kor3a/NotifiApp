@@ -108,25 +108,12 @@ struct StoreFloatView: View {
 }
 
 #Preview {
-    func makeItem(id: String, name: String, count: Int) -> UserStoreItem {
-        UserStoreItem(
-            id: id,
-            store: Store(name: name, reminderCount: count),
-            permission: .edit,
-            sharedStoreGroupId: nil,
-            sourceUserStoreId: nil,
-            sharedFromName: nil,
-            sharedFromId: nil,
-            sharedWith: nil,
-            notificationsEnabled: true
-        )
-    }
     let sampleStores: [UserStoreItem] = [
-        makeItem(id: "1", name: "Walmart", count: 3),
-        makeItem(id: "2", name: "Target", count: 0),
-        makeItem(id: "3", name: "Costco", count: 1),
-        makeItem(id: "4", name: "Trader Joe's", count: 5),
-        makeItem(id: "5", name: "Whole Foods", count: 0),
+        UserStoreItem(id: "1", store: Store(name: "Walmart", reminderCount: 3), permission: .edit, sharedStoreGroupId: nil, sourceUserStoreId: nil, sharedFromName: nil, sharedFromId: nil, sharedWith: nil, notificationsEnabled: true),
+        UserStoreItem(id: "2", store: Store(name: "Target", reminderCount: 0), permission: .edit, sharedStoreGroupId: nil, sourceUserStoreId: nil, sharedFromName: nil, sharedFromId: nil, sharedWith: nil, notificationsEnabled: true),
+        UserStoreItem(id: "3", store: Store(name: "Costco", reminderCount: 1), permission: .edit, sharedStoreGroupId: nil, sourceUserStoreId: nil, sharedFromName: nil, sharedFromId: nil, sharedWith: nil, notificationsEnabled: true),
+        UserStoreItem(id: "4", store: Store(name: "Trader Joe's", reminderCount: 5), permission: .edit, sharedStoreGroupId: nil, sourceUserStoreId: nil, sharedFromName: nil, sharedFromId: nil, sharedWith: nil, notificationsEnabled: true),
+        UserStoreItem(id: "5", store: Store(name: "Whole Foods", reminderCount: 0), permission: .edit, sharedStoreGroupId: nil, sourceUserStoreId: nil, sharedFromName: nil, sharedFromId: nil, sharedWith: nil, notificationsEnabled: true),
     ]
-    StoreFloatView(stores: sampleStores, onStoreTap: { _ in })
+    return StoreFloatView(stores: sampleStores, onStoreTap: { _ in })
 }
