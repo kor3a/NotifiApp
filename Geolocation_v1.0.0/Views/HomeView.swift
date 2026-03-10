@@ -20,7 +20,6 @@ struct HomeView: View {
     @State private var isSearchExpanded = false
     @State private var searchQuery = ""
     @State private var hasRequestedPermissions = false
-    @State private var showNotificationLog = false
     @State private var pendingStoreName: String? = nil
     @State private var pendingConversationId: String? = nil
 
@@ -42,15 +41,6 @@ struct HomeView: View {
                                 Image(systemName: "person")
                                     .imageScale(.large)
                             })
-                        }
-
-                        ToolbarItem(placement: .navigationBarTrailing) {
-                            Button(action: {
-                                showNotificationLog = true
-                            }) {
-                                Image(systemName: "bell.badge")
-                                    .imageScale(.large)
-                            }
                         }
                     }
             }//:NAVIGATIONSTACK
@@ -101,9 +91,6 @@ struct HomeView: View {
                 Text("Search")
             }
             .tag(3)
-        }
-        .sheet(isPresented: $showNotificationLog) {
-            NotificationLogView()
         }
         .onChange(of: notificationManager.pendingNavigation) { _, navigation in
             guard let navigation = navigation else { return }
