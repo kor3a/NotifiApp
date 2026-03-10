@@ -7,6 +7,11 @@
 
 import SwiftUI
 
+enum StoreViewMode {
+    case list
+    case float
+}
+
 struct StoresView: View {
     // MARK: - PROPERTIES
 
@@ -26,11 +31,16 @@ struct StoresView: View {
     @State private var selectedOnMyWayStore: UserStoreItem?
     @State private var storeToDelete: UserStoreItem?
     @State private var notificationDestination: UserStoreItem? = nil
+    @State private var storeViewMode: StoreViewMode = .list
     @Environment(\.colorScheme) var colorScheme
 
     var body: some View {
         NavigationStack {
             ZStack {
+                // Background always visible
+                Color.backgroundGradient(for: colorScheme)
+                    .ignoresSafeArea()
+
                 // Hidden navigation destination for notification taps
                 Color.clear
                     .navigationDestination(item: $notificationDestination) { storeItem in
@@ -39,119 +49,25 @@ struct StoresView: View {
                             availableStores: viewModel.userStoreItems.filter { $0.id != storeItem.id }
                         )
                     }
-                // Background with store list
+
+                // Main content
                 if sessionManager.isLoading || viewModel.isLoading {
                     ProgressView("Loading your stores...")
-                } else if viewModel.userStoreItems.isEmpty {
-                    Color.backgroundGradient(for: colorScheme)
-                        .ignoresSafeArea()
-                        .onTapGesture {
-                            if isMenuExpanded {
-                                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                                    isMenuExpanded = false
-                                }
+                } else if !viewModel.userStoreItems.isEmpty {
+                    if storeViewMode == .list {
+                        listContent
+                    } else {
+                        StoreFloatView(
+                            stores: viewModel.userStoreItems,
+                            onStoreTap: { item in
+                                notificationDestination = item
                             }
-                        }
-                } else {
-                    List {
-                        ForEach(viewModel.userStoreItems) { userStoreItem in
-                            ZStack {
-                                if editMode == .inactive {
-                                    NavigationLink(destination: ReminderView(
-                                        userStoreItem: userStoreItem,
-                                        availableStores: viewModel.userStoreItems.filter { $0.id != userStoreItem.id }
-                                    )) {
-                                        StoreItemView(store: userStoreItem.store, isShared: userStoreItem.isShared)
-                                            .contentShape(Rectangle())
-                                    }
-                                    .buttonStyle(.plain)
-                                } else {
-                                    StoreItemView(store: userStoreItem.store, isShared: userStoreItem.isShared)
-                                }
-                            }
-                            .listRowBackground(
-                                RoundedRectangle(cornerRadius: 16)
-                                    .fill(.ultraThinMaterial)
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 16)
-                                            .stroke(
-                                                Color.cardBorder(for: colorScheme),
-                                                lineWidth: 1.5
-                                            )
-                                    )
-                                    .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.3 : 0.1), radius: 8, x: 0, y: 4)
-                                    .shadow(color: Color.white.opacity(colorScheme == .dark ? 0.05 : 0.5), radius: 2, x: 0, y: -2)
-                                    .padding(.vertical, 4)
-                            )
-                            .listRowSeparator(.hidden)
-                            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                                Button(role: .destructive) {
-                                    storeToDelete = userStoreItem
-                                } label: {
-                                    if userStoreItem.permission == .view {
-                                        Label("Remove", systemImage: "xmark.circle")
-                                    } else {
-                                        Label("Delete", systemImage: "trash")
-                                    }
-                                }
-
-                                if userStoreItem.permission != .view {
-                                    Button {
-                                        selectedStoreToShare = userStoreItem
-                                    } label: {
-                                        Label("Share", systemImage: "square.and.arrow.up")
-                                    }
-                                    .tint(.blue)
-                                }
-                            }
-                            .swipeActions(edge: .leading, allowsFullSwipe: false) {
-                                if userStoreItem.isShared {
-                                    Button {
-                                        selectedOnMyWayStore = userStoreItem
-                                        showOnMyWayConfirmation = true
-                                    } label: {
-                                        Label("On My Way", systemImage: "car.fill")
-                                    }
-                                    .tint(.green)
-                                }
-                            }
-                            .simultaneousGesture(
-                                LongPressGesture(minimumDuration: 0.5)
-                                    .onEnded { _ in
-                                        withAnimation {
-                                            editMode = .active
-                                            longPressedItemId = userStoreItem.id
-                                        }
-                                    }
-                            )
-                        }
-                        .onMove(perform: moveStore)
-                    }
-                    .environment(\.editMode, $editMode)
-                    .listStyle(.plain)
-                    .scrollContentBackground(.hidden)
-                    .background(
-                        Color.backgroundGradient(for: colorScheme)
-                            .ignoresSafeArea()
-                    )
-                    .safeAreaInset(edge: .bottom) {
-                        Color.clear.frame(height: 90)
-                    }
-                    .toolbar {
-                        if editMode == .active {
-                            ToolbarItem(placement: .navigationBarLeading) {
-                                Button("Done") {
-                                    withAnimation {
-                                        editMode = .inactive
-                                    }
-                                }
-                            }
-                        }
+                        )
                     }
                 }
 
-                // Transparent overlay to close menu when tapped
-                if isMenuExpanded {
+                // Transparent overlay to close FAB menu when tapped
+                if isMenuExpanded && storeViewMode == .list {
                     Color.clear
                         .contentShape(Rectangle())
                         .ignoresSafeArea()
@@ -162,89 +78,46 @@ struct StoresView: View {
                         }
                 }
 
-                // Floating action button and menu
-                VStack {
-                    Spacer()
-                    HStack {
-                        Spacer()
-
-                        ZStack {
-                            // Expanded menu
-                            if isMenuExpanded {
-                                VStack(spacing: 8) {
-                                    Button(action: {
-                                        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                                            isMenuExpanded = false
-                                        }
-                                        showingAddStore = true
-                                    }) {
-                                        HStack {
-                                            Image(systemName: "cart.badge.plus")
-                                                .font(.system(size: 20))
-                                            Text("Add Store")
-                                                .font(.specialElite(size: 17))
-                                            Spacer()
-                                        }
-                                        .padding()
-                                        .frame(width: 200)
-                                        .background(
-                                            RoundedRectangle(cornerRadius: 16)
-                                                .fill(.ultraThinMaterial)
-                                        )
-                                        .foregroundColor(.primary)
-                                    }
-
-                                    Button(action: {
-                                        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                                            isMenuExpanded = false
-                                        }
-                                        if sessionManager.currentUser?.isSubscribed == true {
-                                            showingSmartRecipe = true
-                                        } else {
-                                            showingPaywall = true
-                                        }
-                                    }) {
-                                        HStack {
-                                            Image(systemName: "fork.knife.circle")
-                                                .font(.system(size: 20))
-                                            Text("Smart Recipe")
-                                                .font(.specialElite(size: 17))
-                                            Spacer()
-                                        }
-                                        .padding()
-                                        .frame(width: 200)
-                                        .background(
-                                            RoundedRectangle(cornerRadius: 16)
-                                                .fill(.ultraThinMaterial)
-                                        )
-                                        .foregroundColor(.primary)
-                                    }
-                                }
-                                .transition(.scale(scale: 0.1, anchor: .bottomTrailing).combined(with: .opacity))
-                            }
-
-                            // Floating + button
-                            if !isMenuExpanded {
-                                Button(action: {
-                                    withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                                        isMenuExpanded = true
-                                    }
-                                }) {
-                                    Image(systemName: "plus")
-                                        .font(.system(size: 24, weight: .semibold))
-                                        .foregroundColor(.white)
-                                        .frame(width: 60, height: 60)
-                                        .background(
-                                            Circle()
-                                                .fill(Color.blue)
-                                                .shadow(color: Color.black.opacity(0.3), radius: 8, x: 0, y: 4)
-                                        )
-                                }
-                                .transition(.scale(scale: 0.1, anchor: .bottomTrailing).combined(with: .opacity))
+                // Floating action button (list mode only)
+                if storeViewMode == .list {
+                    fabOverlay
+                }
+            }
+            .toolbar {
+                // Done button when reordering
+                if editMode == .active && storeViewMode == .list {
+                    ToolbarItem(placement: .navigationBarLeading) {
+                        Button("Done") {
+                            withAnimation {
+                                editMode = .inactive
                             }
                         }
-                        .padding(.trailing, 24)
-                        .padding(.bottom, 24)
+                    }
+                }
+
+                // View mode menu (only when stores exist)
+                if !viewModel.userStoreItems.isEmpty {
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        Menu {
+                            Button(action: {
+                                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                                    storeViewMode = .list
+                                }
+                            }) {
+                                Label("List View", systemImage: "list.bullet")
+                            }
+                            Button(action: {
+                                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                                    editMode = .inactive
+                                    storeViewMode = .float
+                                }
+                            }) {
+                                Label("Float View", systemImage: "circle.grid.3x3")
+                            }
+                        } label: {
+                            Image(systemName: "line.3.horizontal")
+                                .imageScale(.large)
+                        }
                     }
                 }
             }
@@ -321,13 +194,11 @@ struct StoresView: View {
             }
         }
         .onAppear() {
-            // Try to fetch immediately if user data is available
             if sessionManager.currentUser != nil {
                 self.viewModel.fetchUserStores()
             }
         }
         .onChange(of: sessionManager.currentUser) { oldValue, newValue in
-            // Fetch stores when user data becomes available
             if newValue != nil {
                 if viewModel.userStoreItems.isEmpty {
                     self.viewModel.fetchUserStores()
@@ -340,12 +211,10 @@ struct StoresView: View {
                 notificationDestination = storeItem
                 pendingStoreName = nil
             } else {
-                // Stores not loaded yet — trigger a fetch; navigation fires when they load
                 viewModel.fetchUserStores()
             }
         }
         .onChange(of: viewModel.userStoreItems) { _, items in
-            // Once stores load, complete any pending notification navigation
             guard let storeName = pendingStoreName else { return }
             if let storeItem = items.first(where: { $0.store.name == storeName }) {
                 notificationDestination = storeItem
@@ -353,6 +222,182 @@ struct StoresView: View {
             }
         }
     }//:BODY
+
+    // MARK: - List Content
+
+    private var listContent: some View {
+        List {
+            ForEach(viewModel.userStoreItems) { userStoreItem in
+                ZStack {
+                    if editMode == .inactive {
+                        NavigationLink(destination: ReminderView(
+                            userStoreItem: userStoreItem,
+                            availableStores: viewModel.userStoreItems.filter { $0.id != userStoreItem.id }
+                        )) {
+                            StoreItemView(store: userStoreItem.store, isShared: userStoreItem.isShared)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                    } else {
+                        StoreItemView(store: userStoreItem.store, isShared: userStoreItem.isShared)
+                    }
+                }
+                .listRowBackground(
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(.ultraThinMaterial)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 16)
+                                .stroke(
+                                    Color.cardBorder(for: colorScheme),
+                                    lineWidth: 1.5
+                                )
+                        )
+                        .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.3 : 0.1), radius: 8, x: 0, y: 4)
+                        .shadow(color: Color.white.opacity(colorScheme == .dark ? 0.05 : 0.5), radius: 2, x: 0, y: -2)
+                        .padding(.vertical, 4)
+                )
+                .listRowSeparator(.hidden)
+                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                    Button(role: .destructive) {
+                        storeToDelete = userStoreItem
+                    } label: {
+                        if userStoreItem.permission == .view {
+                            Label("Remove", systemImage: "xmark.circle")
+                        } else {
+                            Label("Delete", systemImage: "trash")
+                        }
+                    }
+
+                    if userStoreItem.permission != .view {
+                        Button {
+                            selectedStoreToShare = userStoreItem
+                        } label: {
+                            Label("Share", systemImage: "square.and.arrow.up")
+                        }
+                        .tint(.blue)
+                    }
+                }
+                .swipeActions(edge: .leading, allowsFullSwipe: false) {
+                    if userStoreItem.isShared {
+                        Button {
+                            selectedOnMyWayStore = userStoreItem
+                            showOnMyWayConfirmation = true
+                        } label: {
+                            Label("On My Way", systemImage: "car.fill")
+                        }
+                        .tint(.green)
+                    }
+                }
+                .simultaneousGesture(
+                    LongPressGesture(minimumDuration: 0.5)
+                        .onEnded { _ in
+                            withAnimation {
+                                editMode = .active
+                                longPressedItemId = userStoreItem.id
+                            }
+                        }
+                )
+            }
+            .onMove(perform: moveStore)
+        }
+        .environment(\.editMode, $editMode)
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
+        .safeAreaInset(edge: .bottom) {
+            Color.clear.frame(height: 90)
+        }
+    }
+
+    // MARK: - FAB Overlay
+
+    private var fabOverlay: some View {
+        VStack {
+            Spacer()
+            HStack {
+                Spacer()
+
+                ZStack {
+                    // Expanded menu
+                    if isMenuExpanded {
+                        VStack(spacing: 8) {
+                            Button(action: {
+                                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                                    isMenuExpanded = false
+                                }
+                                showingAddStore = true
+                            }) {
+                                HStack {
+                                    Image(systemName: "cart.badge.plus")
+                                        .font(.system(size: 20))
+                                    Text("Add Store")
+                                        .font(.specialElite(size: 17))
+                                    Spacer()
+                                }
+                                .padding()
+                                .frame(width: 200)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 16)
+                                        .fill(.ultraThinMaterial)
+                                )
+                                .foregroundColor(.primary)
+                            }
+
+                            Button(action: {
+                                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                                    isMenuExpanded = false
+                                }
+                                if sessionManager.currentUser?.isSubscribed == true {
+                                    showingSmartRecipe = true
+                                } else {
+                                    showingPaywall = true
+                                }
+                            }) {
+                                HStack {
+                                    Image(systemName: "fork.knife.circle")
+                                        .font(.system(size: 20))
+                                    Text("Smart Recipe")
+                                        .font(.specialElite(size: 17))
+                                    Spacer()
+                                }
+                                .padding()
+                                .frame(width: 200)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 16)
+                                        .fill(.ultraThinMaterial)
+                                )
+                                .foregroundColor(.primary)
+                            }
+                        }
+                        .transition(.scale(scale: 0.1, anchor: .bottomTrailing).combined(with: .opacity))
+                    }
+
+                    // Floating + button
+                    if !isMenuExpanded {
+                        Button(action: {
+                            withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                                isMenuExpanded = true
+                            }
+                        }) {
+                            Image(systemName: "plus")
+                                .font(.system(size: 24, weight: .semibold))
+                                .foregroundColor(.white)
+                                .frame(width: 60, height: 60)
+                                .background(
+                                    Circle()
+                                        .fill(Color.blue)
+                                        .shadow(color: Color.black.opacity(0.3), radius: 8, x: 0, y: 4)
+                                )
+                        }
+                        .transition(.scale(scale: 0.1, anchor: .bottomTrailing).combined(with: .opacity))
+                    }
+                }
+                .padding(.trailing, 24)
+                .padding(.bottom, 24)
+            }
+        }
+    }
+
+    // MARK: - Helpers
 
     private var deleteAlertTitle: String {
         guard let store = storeToDelete else { return "Delete Store?" }
