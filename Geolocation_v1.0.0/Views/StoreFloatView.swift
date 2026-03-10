@@ -10,12 +10,20 @@ import SwiftUI
 struct StoreFloatView: View {
     let stores: [UserStoreItem]
     let onStoreTap: (UserStoreItem) -> Void
+    let onStoreDelete: (UserStoreItem) -> Void
+    let onReorder: ([UserStoreItem]) -> Void
+    @Binding var isEditMode: Bool
 
     @State private var appeared = false
+    @State private var wiggleAngle: Double = 0
+    @State private var localStores: [UserStoreItem] = []
+    @State private var draggingId: String? = nil
+    @State private var dragOffset: CGSize = .zero
+    @State private var containerSize: CGSize = .zero
 
     private let circleSize: CGFloat = 58
-    private let hSpacing: CGFloat = 14   // horizontal gap between icon edges
-    private let vSpacing: CGFloat = 10   // vertical gap between row edges
+    private let hSpacing: CGFloat = 14
+    private let vSpacing: CGFloat = 10
 
     var body: some View {
         GeometryReader { geo in
@@ -23,30 +31,40 @@ struct StoreFloatView: View {
             let center = CGPoint(x: geo.size.width / 2, y: geo.size.height / 2)
 
             ZStack {
-                ForEach(Array(stores.enumerated()), id: \.element.id) { index, item in
-                    let target = index < positions.count ? positions[index] : center
+                // Background tap area to exit edit mode
+                if isEditMode {
+                    Color.clear
+                        .contentShape(Rectangle())
+                        .ignoresSafeArea()
+                        .onTapGesture {
+                            exitEditMode()
+                        }
+                }
 
-                    Button { onStoreTap(item) } label: {
-                        storeCircle(for: item)
-                    }
-                    .buttonStyle(.plain)
-                    // All icons burst from the screen centre, then settle into position.
-                    .position(
-                        x: appeared ? target.x : center.x,
-                        y: appeared ? target.y : center.y
-                    )
-                    .scaleEffect(appeared ? 1.0 : 0.1)
-                    .opacity(appeared ? 1.0 : 0.0)
-                    .animation(
-                        .spring(response: 0.55, dampingFraction: 0.70)
-                            .delay(Double(index) * 0.06),
-                        value: appeared
+                ForEach(Array(localStores.enumerated()), id: \.element.id) { index, item in
+                    let target = index < positions.count ? positions[index] : center
+                    let isDragging = draggingId == item.id
+
+                    storeIconView(
+                        item: item,
+                        index: index,
+                        target: target,
+                        center: center,
+                        isDragging: isDragging,
+                        allPositions: positions
                     )
                 }
             }
             .frame(width: geo.size.width, height: geo.size.height)
+            .onChange(of: geo.size) { _, size in
+                containerSize = size
+            }
+            .onAppear {
+                containerSize = geo.size
+            }
         }
         .onAppear {
+            localStores = stores
             appeared = false
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
                 appeared = true
@@ -54,6 +72,172 @@ struct StoreFloatView: View {
         }
         .onDisappear {
             appeared = false
+            exitEditMode()
+        }
+        .onChange(of: stores) { _, newStores in
+            // Only sync from parent when not actively dragging
+            if draggingId == nil {
+                localStores = newStores
+            }
+        }
+        .onChange(of: isEditMode) { _, editing in
+            if editing {
+                startWiggle()
+            } else {
+                stopWiggle()
+            }
+        }
+    }
+
+    // MARK: - Icon View
+
+    @ViewBuilder
+    private func storeIconView(
+        item: UserStoreItem,
+        index: Int,
+        target: CGPoint,
+        center: CGPoint,
+        isDragging: Bool,
+        allPositions: [CGPoint]
+    ) -> some View {
+        // Alternate phase so adjacent icons jiggle in opposite directions
+        let phaseSign: Double = (index % 2 == 0) ? 1 : -1
+        let currentWiggle = isEditMode && !isDragging ? wiggleAngle * phaseSign : 0
+
+        ZStack(alignment: .topLeading) {
+            // Store circle — tap to open (normal) or no-op (edit mode)
+            Button {
+                if !isEditMode {
+                    onStoreTap(item)
+                }
+            } label: {
+                storeCircle(for: item)
+            }
+            .buttonStyle(.plain)
+            .allowsHitTesting(!isEditMode || isDragging)
+
+            // Delete badge — top-leading corner
+            if isEditMode {
+                Button {
+                    onStoreDelete(item)
+                } label: {
+                    ZStack {
+                        Circle()
+                            .fill(Color.red)
+                            .frame(width: 22, height: 22)
+                        Image(systemName: "minus")
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundColor(.white)
+                    }
+                }
+                .buttonStyle(.plain)
+                .offset(x: -6, y: -6)
+                .zIndex(2)
+            }
+        }
+        .frame(width: circleSize, height: circleSize)
+        .rotationEffect(.degrees(currentWiggle))
+        // Burst-from-centre entry animation; dragging icon follows finger
+        .position(
+            x: isDragging ? target.x + dragOffset.width : (appeared ? target.x : center.x),
+            y: isDragging ? target.y + dragOffset.height : (appeared ? target.y : center.y)
+        )
+        .scaleEffect(isDragging ? 1.12 : (appeared ? 1.0 : 0.1))
+        .opacity(appeared ? 1.0 : 0.0)
+        .animation(
+            isDragging ? nil : .spring(response: 0.55, dampingFraction: 0.70)
+                .delay(Double(index) * 0.06),
+            value: appeared
+        )
+        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isDragging)
+        .zIndex(isDragging ? 10 : 0)
+        // Long-press anywhere on an icon enters edit mode
+        .gesture(
+            LongPressGesture(minimumDuration: 0.5)
+                .onEnded { _ in
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                        isEditMode = true
+                    }
+                }
+        )
+        // Drag-to-reorder (only active in edit mode)
+        .simultaneousGesture(
+            isEditMode ?
+            DragGesture(minimumDistance: 4)
+                .onChanged { value in
+                    if draggingId == nil {
+                        draggingId = item.id
+                    }
+                    guard draggingId == item.id else { return }
+                    dragOffset = value.translation
+
+                    // Swap with nearest icon when centres overlap
+                    let dragCenter = CGPoint(
+                        x: target.x + value.translation.width,
+                        y: target.y + value.translation.height
+                    )
+                    swapIfNeeded(
+                        draggingIndex: index,
+                        dragCenter: dragCenter,
+                        positions: allPositions
+                    )
+                }
+                .onEnded { _ in
+                    let wasSwapped = draggingId != nil
+                    draggingId = nil
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
+                        dragOffset = .zero
+                    }
+                    if wasSwapped {
+                        onReorder(localStores)
+                    }
+                }
+            : nil
+        )
+    }
+
+    // MARK: - Drag Swap
+
+    private func swapIfNeeded(draggingIndex: Int, dragCenter: CGPoint, positions: [CGPoint]) {
+        var closestIndex = -1
+        var closestDistance = circleSize * 0.85  // swap threshold
+
+        for (i, pos) in positions.enumerated() {
+            guard i != draggingIndex, i < localStores.count else { continue }
+            let dx = dragCenter.x - pos.x
+            let dy = dragCenter.y - pos.y
+            let distance = sqrt(dx * dx + dy * dy)
+            if distance < closestDistance {
+                closestDistance = distance
+                closestIndex = i
+            }
+        }
+
+        if closestIndex >= 0 {
+            withAnimation(.spring(response: 0.28, dampingFraction: 0.70)) {
+                localStores.swapAt(draggingIndex, closestIndex)
+            }
+        }
+    }
+
+    // MARK: - Wiggle
+
+    private func startWiggle() {
+        wiggleAngle = -3
+        withAnimation(.easeInOut(duration: 0.14).repeatForever(autoreverses: true)) {
+            wiggleAngle = 3
+        }
+    }
+
+    private func stopWiggle() {
+        withAnimation(.spring(response: 0.2)) {
+            wiggleAngle = 0
+        }
+    }
+
+    private func exitEditMode() {
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+            isEditMode = false
         }
     }
 
@@ -67,7 +251,7 @@ struct StoreFloatView: View {
     ///
     /// Rows are stacked bottom-to-top and the whole block is centred vertically.
     private func layoutPositions(in size: CGSize) -> [CGPoint] {
-        guard !stores.isEmpty else { return [] }
+        guard !localStores.isEmpty else { return [] }
 
         let sidePadding: CGFloat = 24
         let xStep = circleSize + hSpacing   // centre-to-centre horizontal distance
@@ -86,24 +270,22 @@ struct StoreFloatView: View {
         var placed = 0
         var rowIdx = 0
 
-        while placed < stores.count {
+        while placed < localStores.count {
             let isWide   = (rowIdx % 2 == 0)
             let capacity = isWide ? iconsPerRow : iconsPerRow - 1
-            let count    = min(capacity, stores.count - placed)
+            let count    = min(capacity, localStores.count - placed)
 
             // If the last row has fewer icons than its capacity, centre them
             // within the slot their row type would normally occupy.
             let slotSpan   = CGFloat(capacity - 1) * xStep
             let actualSpan = CGFloat(count - 1) * xStep
-            let centreAdj  = (slotSpan - actualSpan) / 2   // shifts partial row to centre
+            let centreAdj  = (slotSpan - actualSpan) / 2
 
             // Base X for the first icon in this row
             let baseX: CGFloat
             if isWide {
                 baseX = rowCenterX - fullSpan / 2 + centreAdj
             } else {
-                // Narrow row: shift right by half a step so each icon sits
-                // between the two icons directly below it in the wide row
                 baseX = rowCenterX - fullSpan / 2 + xStep / 2 + centreAdj
             }
 
@@ -115,7 +297,6 @@ struct StoreFloatView: View {
         }
 
         // --- Assign Y coordinates, centred vertically on screen ---
-        // rowData[0] = bottom row (largest Y), rowData[last] = top row (smallest Y)
         let totalRows   = rowData.count
         let totalHeight = CGFloat(totalRows - 1) * yStep + circleSize
         let topY        = (size.height - totalHeight) / 2 + circleSize / 2
@@ -174,5 +355,13 @@ struct StoreFloatView: View {
         UserStoreItem(id: "11", store: Store(name: "Chipotle",       reminderCount: 0), permission: .edit, sharedStoreGroupId: nil, sourceUserStoreId: nil, sharedFromName: nil, sharedFromId: nil, sharedWith: nil, notificationsEnabled: true),
         UserStoreItem(id: "12", store: Store(name: "Safeway",        reminderCount: 0), permission: .edit, sharedStoreGroupId: nil, sourceUserStoreId: nil, sharedFromName: nil, sharedFromId: nil, sharedWith: nil, notificationsEnabled: true),
     ]
-    return StoreFloatView(stores: sampleStores, onStoreTap: { _ in })
+
+    @State var editMode = false
+    return StoreFloatView(
+        stores: sampleStores,
+        onStoreTap: { _ in },
+        onStoreDelete: { _ in },
+        onReorder: { _ in },
+        isEditMode: $editMode
+    )
 }

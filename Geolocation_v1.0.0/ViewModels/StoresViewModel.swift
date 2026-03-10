@@ -1134,6 +1134,32 @@ class StoresViewModel: ObservableObject {
         }
     }
 
+    /// Reorder stores using a fully-specified new order (used by Float view drag-to-reorder)
+    func reorderStores(newOrder: [UserStoreItem]) {
+        isManuallyReordering = true
+        userStoreItems = newOrder
+        WidgetDataStore.shared.updateWidgetData(from: userStoreItems)
+
+        let batch = db.batch()
+        for (index, item) in newOrder.enumerated() {
+            let docRef = db.collection("user_stores").document(item.id)
+            batch.updateData(["sortOrder": index], forDocument: docRef)
+        }
+
+        batch.commit { [weak self] error in
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                self?.isManuallyReordering = false
+            }
+            #if DEBUG
+            if let error = error {
+                print("StoresViewModel: Error updating sort order (float): \(error.localizedDescription)")
+            } else {
+                print("StoresViewModel: Float sort order updated successfully")
+            }
+            #endif
+        }
+    }
+
     /// Reorder stores when user drags and drops
     func moveStore(from source: IndexSet, to destination: Int) {
         // Set flag to prevent listener from overwriting during reorder

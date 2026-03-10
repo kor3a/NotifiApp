@@ -32,6 +32,7 @@ struct StoresView: View {
     @State private var storeToDelete: UserStoreItem?
     @State private var notificationDestination: UserStoreItem? = nil
     @State private var storeViewMode: StoreViewMode = .list
+    @State private var isFloatEditMode: Bool = false
     @State private var isFabShrunk: Bool = false
     @State private var fabInactivityTimer: Timer? = nil
     @Environment(\.colorScheme) var colorScheme
@@ -63,7 +64,15 @@ struct StoresView: View {
                             stores: viewModel.userStoreItems,
                             onStoreTap: { item in
                                 notificationDestination = item
-                            }
+                            },
+                            onStoreDelete: { item in
+                                isFloatEditMode = false
+                                storeToDelete = item
+                            },
+                            onReorder: { newOrder in
+                                viewModel.reorderStores(newOrder: newOrder)
+                            },
+                            isEditMode: $isFloatEditMode
                         )
                     }
                 }
@@ -87,12 +96,23 @@ struct StoresView: View {
                 fabOverlay
             }
             .toolbar {
-                // Done button when reordering
+                // Done button when reordering in list mode
                 if editMode == .active && storeViewMode == .list {
                     ToolbarItem(placement: .navigationBarLeading) {
                         Button("Done") {
                             withAnimation {
                                 editMode = .inactive
+                            }
+                        }
+                    }
+                }
+
+                // Done button when in float edit mode
+                if isFloatEditMode && storeViewMode == .float {
+                    ToolbarItem(placement: .navigationBarLeading) {
+                        Button("Done") {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                                isFloatEditMode = false
                             }
                         }
                     }
@@ -107,6 +127,7 @@ struct StoresView: View {
                                     editMode = .inactive
                                     storeViewMode = .float
                                 } else {
+                                    isFloatEditMode = false
                                     storeViewMode = .list
                                 }
                             }
