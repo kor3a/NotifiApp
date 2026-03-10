@@ -10,6 +10,7 @@
 		010405BA2F575A680057862B /* TravelTimeService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010405B92F575A680057862B /* TravelTimeService.swift */; };
 		010405BC2F575A6F0057862B /* OnMyWayNotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010405BB2F575A6F0057862B /* OnMyWayNotificationService.swift */; };
 		010B28092EB6C2E9004E828B /* AddStoreView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010B28082EB6C2E9004E828B /* AddStoreView.swift */; };
+		011077602F609A1500E76A67 /* StoreFloatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0110775F2F609A1500E76A67 /* StoreFloatView.swift */; };
 		0119CD0D2F4CF95A00DEDEFD /* AutoDeleteSwipeRail.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0119CD0C2F4CF95A00DEDEFD /* AutoDeleteSwipeRail.swift */; };
 		0119CD0F2F4CF96000DEDEFD /* CachedLogoImage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0119CD0E2F4CF96000DEDEFD /* CachedLogoImage.swift */; };
 		011CF5FE2ED638D6009A31A6 /* ForgotPasswordView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 011CF5FD2ED638D6009A31A6 /* ForgotPasswordView.swift */; };
@@ -122,6 +123,7 @@
 		010405B92F575A680057862B /* TravelTimeService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TravelTimeService.swift; sourceTree = "<group>"; };
 		010405BB2F575A6F0057862B /* OnMyWayNotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnMyWayNotificationService.swift; sourceTree = "<group>"; };
 		010B28082EB6C2E9004E828B /* AddStoreView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddStoreView.swift; sourceTree = "<group>"; };
+		0110775F2F609A1500E76A67 /* StoreFloatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoreFloatView.swift; sourceTree = "<group>"; };
 		0119CD0C2F4CF95A00DEDEFD /* AutoDeleteSwipeRail.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoDeleteSwipeRail.swift; sourceTree = "<group>"; };
 		0119CD0E2F4CF96000DEDEFD /* CachedLogoImage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CachedLogoImage.swift; sourceTree = "<group>"; };
 		011CF5FD2ED638D6009A31A6 /* ForgotPasswordView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForgotPasswordView.swift; sourceTree = "<group>"; };
@@ -135,7 +137,6 @@
 		0176B3082F3CE658003B9C75 /* Geolocation_v1_0_0Tests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = Geolocation_v1_0_0Tests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		01897B5A2EBA4AB00038A4D1 /* StoresViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoresViewModel.swift; sourceTree = "<group>"; };
 		018D77DF2ED7C43C00E767D6 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		FF0100000001AABB00CC0001 /* SpecialElite-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "SpecialElite-Regular.ttf"; sourceTree = "<group>"; };
 		01B408212F3BEC7F00EA1F25 /* Secrets.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Secrets.xcconfig; sourceTree = "<group>"; };
 		01B408222F3BECB100EA1F25 /* MessagesViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessagesViewModel.swift; sourceTree = "<group>"; };
 		01B408242F3BECB800EA1F25 /* FriendsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FriendsViewModel.swift; sourceTree = "<group>"; };
@@ -201,6 +202,7 @@
 		CC0100000000000000000007 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		DF66A9972E24C86100C15DA9 /* User_Store.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = User_Store.swift; sourceTree = "<group>"; };
 		DF66A9992E24C86100C15DA9 /* Geolocation_v1.0.0.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Geolocation_v1.0.0.entitlements; sourceTree = "<group>"; };
+		FF0100000001AABB00CC0001 /* SpecialElite-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "SpecialElite-Regular.ttf"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -301,14 +303,6 @@
 			path = Geolocation_v1.0.0;
 			sourceTree = "<group>";
 		};
-		FF0300000001AABB00CC0001 /* Fonts */ = {
-			isa = PBXGroup;
-			children = (
-				FF0100000001AABB00CC0001 /* SpecialElite-Regular.ttf */,
-			);
-			path = Fonts;
-			sourceTree = "<group>";
-		};
 		8278FDFD2C5DD1CB0017EB72 /* Preview Content */ = {
 			isa = PBXGroup;
 			children = (
@@ -320,6 +314,7 @@
 		8278FE0E2C5DE5930017EB72 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				0110775F2F609A1500E76A67 /* StoreFloatView.swift */,
 				0119CD0E2F4CF96000DEDEFD /* CachedLogoImage.swift */,
 				0119CD0C2F4CF95A00DEDEFD /* AutoDeleteSwipeRail.swift */,
 				AA1234560001AABB00CC0003 /* SmartRecipeView.swift */,
@@ -414,6 +409,14 @@
 				CC0100000000000000000003 /* NotifiWidgetViews.swift */,
 			);
 			path = NotifiWidget;
+			sourceTree = "<group>";
+		};
+		FF0300000001AABB00CC0001 /* Fonts */ = {
+			isa = PBXGroup;
+			children = (
+				FF0100000001AABB00CC0001 /* SpecialElite-Regular.ttf */,
+			);
+			path = Fonts;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -586,6 +589,7 @@
 				0119CD0D2F4CF95A00DEDEFD /* AutoDeleteSwipeRail.swift in Sources */,
 				01B4082B2F3BECCF00EA1F25 /* Message.swift in Sources */,
 				0119CD0F2F4CF96000DEDEFD /* CachedLogoImage.swift in Sources */,
+				011077602F609A1500E76A67 /* StoreFloatView.swift in Sources */,
 				011CF6072ED638F9009A31A6 /* ForgotPasswordViewModel.swift in Sources */,
 				74A79E7F2CBDAB2A00713F0E /* ReminderItemView.swift in Sources */,
 				82D289AA2C61CA71009F357F /* SignupView.swift in Sources */,
