@@ -98,27 +98,20 @@ struct StoresView: View {
                     }
                 }
 
-                // View mode menu (only when stores exist)
+                // View mode toggle (only when stores exist)
                 if !viewModel.userStoreItems.isEmpty {
                     ToolbarItem(placement: .navigationBarTrailing) {
-                        Menu {
-                            Button(action: {
-                                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                                    storeViewMode = .list
-                                }
-                            }) {
-                                Label("List View", systemImage: "list.bullet")
-                            }
-                            Button(action: {
-                                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                        Button(action: {
+                            withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                                if storeViewMode == .list {
                                     editMode = .inactive
                                     storeViewMode = .float
+                                } else {
+                                    storeViewMode = .list
                                 }
-                            }) {
-                                Label("Float View", systemImage: "circle.grid.3x3")
                             }
-                        } label: {
-                            Image(systemName: "line.3.horizontal")
+                        }) {
+                            Image(systemName: storeViewMode == .list ? "circle.grid.3x3" : "list.bullet")
                                 .imageScale(.large)
                         }
                     }
