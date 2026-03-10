@@ -105,16 +105,9 @@ struct StoreFloatView: View {
         let currentWiggle = isEditMode && !isDragging ? wiggleAngle * phaseSign : 0
 
         ZStack(alignment: .topLeading) {
-            // Store circle — tap to open (normal) or no-op (edit mode)
-            Button {
-                if !isEditMode {
-                    onStoreTap(item)
-                }
-            } label: {
-                storeCircle(for: item)
-            }
-            .buttonStyle(.plain)
-            .allowsHitTesting(!isEditMode || isDragging)
+            // Store circle — using onTapGesture instead of Button so that
+            // onLongPressGesture can fire while the finger is still held down.
+            storeCircle(for: item)
 
             // Delete badge — top-leading corner
             if isEditMode {
@@ -136,6 +129,7 @@ struct StoreFloatView: View {
             }
         }
         .frame(width: circleSize, height: circleSize)
+        .contentShape(Circle())
         .rotationEffect(.degrees(currentWiggle))
         // Burst-from-centre entry animation; dragging icon follows finger
         .position(
@@ -151,15 +145,19 @@ struct StoreFloatView: View {
         )
         .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isDragging)
         .zIndex(isDragging ? 10 : 0)
-        // Long-press anywhere on an icon enters edit mode
-        .gesture(
-            LongPressGesture(minimumDuration: 0.5)
-                .onEnded { _ in
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                        isEditMode = true
-                    }
-                }
-        )
+        // Tap to open store (only when not in edit mode)
+        .onTapGesture {
+            guard !isEditMode else { return }
+            onStoreTap(item)
+        }
+        // Long-press enters edit mode while the finger is still held down.
+        // onLongPressGesture's perform closure fires after minimumDuration
+        // without requiring the user to lift their finger.
+        .onLongPressGesture(minimumDuration: 0.5) {
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                isEditMode = true
+            }
+        }
         // Drag-to-reorder (only active in edit mode)
         .simultaneousGesture(
             isEditMode ?
