@@ -9,6 +9,7 @@ import Foundation
 import Firebase
 import FirebaseAuth
 import FirebaseFirestore
+import FirebaseStorage
 import Combine
 
 class UserSessionManager: ObservableObject {
@@ -585,6 +586,150 @@ class UserSessionManager: ObservableObject {
                         self.currentUser = updatedUser
                     }
                 }
+                completion(true, nil)
+            }
+        }
+    }
+
+    // MARK: - Account Deletion
+
+    /// Permanently deletes the user's account and all associated data.
+    /// Deletes Firestore documents, Storage files, and the Firebase Auth user.
+    func deleteAccount(completion: @escaping (Bool, String?) -> Void) {
+        guard let user = currentUser,
+              let authUser = Auth.auth().currentUser else {
+            completion(false, "No authenticated user found")
+            return
+        }
+
+        let userId = user.userId
+        let db = Firestore.firestore()
+        let group = DispatchGroup()
+        var deletionErrors: [String] = []
+
+        // 1. Delete user Firestore document
+        group.enter()
+        db.collection("users").document(userId).delete { error in
+            if let error = error {
+                deletionErrors.append("user doc: \(error.localizedDescription)")
+            }
+            group.leave()
+        }
+
+        // 2. Delete user's reminders
+        group.enter()
+        db.collection("reminders").whereField("userId", isEqualTo: userId)
+            .getDocuments { snapshot, error in
+                if let docs = snapshot?.documents, !docs.isEmpty {
+                    let batch = db.batch()
+                    docs.forEach { batch.deleteDocument($0.reference) }
+                    batch.commit { _ in group.leave() }
+                } else {
+                    group.leave()
+                }
+            }
+
+        // 3. Delete user's user_stores
+        group.enter()
+        db.collection("user_stores").whereField("userId", isEqualTo: userId)
+            .getDocuments { snapshot, error in
+                if let docs = snapshot?.documents, !docs.isEmpty {
+                    let batch = db.batch()
+                    docs.forEach { batch.deleteDocument($0.reference) }
+                    batch.commit { _ in group.leave() }
+                } else {
+                    group.leave()
+                }
+            }
+
+        // 4. Delete friend connections where user is requester
+        group.enter()
+        db.collection("friends").whereField("requesterId", isEqualTo: userId)
+            .getDocuments { snapshot, error in
+                if let docs = snapshot?.documents, !docs.isEmpty {
+                    let batch = db.batch()
+                    docs.forEach { batch.deleteDocument($0.reference) }
+                    batch.commit { _ in group.leave() }
+                } else {
+                    group.leave()
+                }
+            }
+
+        // 5. Delete friend connections where user is receiver
+        group.enter()
+        db.collection("friends").whereField("receiverId", isEqualTo: userId)
+            .getDocuments { snapshot, error in
+                if let docs = snapshot?.documents, !docs.isEmpty {
+                    let batch = db.batch()
+                    docs.forEach { batch.deleteDocument($0.reference) }
+                    batch.commit { _ in group.leave() }
+                } else {
+                    group.leave()
+                }
+            }
+
+        // 6. Delete pending friend requests sent by user
+        group.enter()
+        db.collection("friend_requests").whereField("requesterId", isEqualTo: userId)
+            .getDocuments { snapshot, error in
+                if let docs = snapshot?.documents, !docs.isEmpty {
+                    let batch = db.batch()
+                    docs.forEach { batch.deleteDocument($0.reference) }
+                    batch.commit { _ in group.leave() }
+                } else {
+                    group.leave()
+                }
+            }
+
+        // 7. Delete pending friend requests received by user
+        group.enter()
+        db.collection("friend_requests").whereField("receiverId", isEqualTo: userId)
+            .getDocuments { snapshot, error in
+                if let docs = snapshot?.documents, !docs.isEmpty {
+                    let batch = db.batch()
+                    docs.forEach { batch.deleteDocument($0.reference) }
+                    batch.commit { _ in group.leave() }
+                } else {
+                    group.leave()
+                }
+            }
+
+        // 8. Delete favorite tags
+        group.enter()
+        db.collection("favorite_tags").whereField("userId", isEqualTo: userId)
+            .getDocuments { snapshot, error in
+                if let docs = snapshot?.documents, !docs.isEmpty {
+                    let batch = db.batch()
+                    docs.forEach { batch.deleteDocument($0.reference) }
+                    batch.commit { _ in group.leave() }
+                } else {
+                    group.leave()
+                }
+            }
+
+        // 9. Delete profile picture from Storage
+        if user.profilePictureURL != nil {
+            group.enter()
+            let storageRef = Storage.storage().reference()
+            storageRef.child("profile_pictures/\(userId).jpg").delete { error in
+                // Ignore not-found errors; the file may not exist
+                group.leave()
+            }
+        }
+
+        group.notify(queue: .global(qos: .userInitiated)) {
+            // 10. Delete Firebase Auth user (must be last)
+            authUser.delete { error in
+                if let error = error {
+                    let nsError = error as NSError
+                    if nsError.code == AuthErrorCode.requiresRecentLogin.rawValue {
+                        completion(false, "For security, please sign out and sign back in before deleting your account.")
+                    } else {
+                        completion(false, "Failed to delete account: \(error.localizedDescription)")
+                    }
+                    return
+                }
+                // Auth listener in MainViewModel will call clearSession automatically
                 completion(true, nil)
             }
         }

@@ -14,6 +14,7 @@ struct ProfileView: View {
     @ObservedObject private var sessionManager = UserSessionManager.shared
     @State private var showImagePicker = false
     @State private var selectedImage: UIImage?
+    @State private var showDeleteAccountAlert = false
 
     var body: some View {
         if sessionManager.isLoading || viewModel.isLoading {
@@ -186,7 +187,23 @@ struct ProfileView: View {
                 .buttonStyle(SecondaryButtonStyle(color: .red))
                 .padding(.horizontal)
                 .padding(.top, 10)
+
+                // Delete Account Button
+                Button("Delete Account") {
+                    showDeleteAccountAlert = true
+                }
+                .buttonStyle(SecondaryButtonStyle(color: .red))
+                .padding(.horizontal)
+                .padding(.top, 4)
                 .padding(.bottom, 30)
+                .alert("Delete Account", isPresented: $showDeleteAccountAlert) {
+                    Button("Delete", role: .destructive) {
+                        viewModel.deleteAccount()
+                    }
+                    Button("Cancel", role: .cancel) { }
+                } message: {
+                    Text("This will permanently delete your account and all associated data. This action cannot be undone.")
+                }
             }
         }
         .onAppear {
