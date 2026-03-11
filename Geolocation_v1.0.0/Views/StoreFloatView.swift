@@ -19,6 +19,7 @@ struct StoreFloatView: View {
     @State private var localStores: [UserStoreItem] = []
     @State private var draggingId: String? = nil
     @State private var dragOffset: CGSize = .zero
+    @State private var dragStartTargetPos: CGPoint = .zero
     @State private var containerSize: CGSize = .zero
 
     private let circleSize: CGFloat = 58
@@ -165,15 +166,25 @@ struct StoreFloatView: View {
                 .onChanged { value in
                     if draggingId == nil {
                         draggingId = item.id
+                        // Record the icon's grid position at the moment the drag begins.
+                        // This anchors all subsequent offset calculations so that swapping
+                        // the icon into a different slot doesn't change where it appears
+                        // on screen — it stays directly under the finger.
+                        dragStartTargetPos = target
                     }
                     guard draggingId == item.id else { return }
-                    dragOffset = value.translation
 
-                    // Swap with nearest icon when centres overlap
-                    let dragCenter = CGPoint(
-                        x: target.x + value.translation.width,
-                        y: target.y + value.translation.height
-                    )
+                    // Absolute finger position = original anchor + cumulative translation.
+                    // This remains correct even after `target` changes due to a swap.
+                    let fingerX = dragStartTargetPos.x + value.translation.width
+                    let fingerY = dragStartTargetPos.y + value.translation.height
+
+                    // Express the finger position as an offset from the *current* target
+                    // so the icon always renders exactly under the finger.
+                    dragOffset = CGSize(width: fingerX - target.x, height: fingerY - target.y)
+
+                    // Use the true finger position for swap detection too
+                    let dragCenter = CGPoint(x: fingerX, y: fingerY)
                     swapIfNeeded(
                         draggingIndex: index,
                         dragCenter: dragCenter,
