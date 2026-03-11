@@ -42,6 +42,7 @@ struct MapView: View {
     @State private var storeLocations: [StoreLocation] = []
     @State private var storeSearchTask: Task<Void, Never>?
     @State private var selectedStoreLocation: StoreLocation?
+    @State private var storeItemForReminders: UserStoreItem?
 
     var body: some View {
         Map(position: $cameraPosition, selection: $mapSelection, scope: mapScope){
@@ -151,12 +152,23 @@ struct MapView: View {
             LocationDetailsView(
                 mapSelection: effectiveMapSelectionBinding,
                 show: $showDetails,
-                viewModel: storesViewModel
+                viewModel: storesViewModel,
+                onViewReminders: { userStoreItem in
+                    storeItemForReminders = userStoreItem
+                }
             )
             .presentationDetents([.height(340)])
             .presentationBackgroundInteraction(.enabled(upThrough: .height(340)))
             .presentationCornerRadius(25)
         })
+        .sheet(item: $storeItemForReminders) { userStoreItem in
+            NavigationStack {
+                ReminderView(
+                    userStoreItem: userStoreItem,
+                    availableStores: storesViewModel.userStoreItems.filter { $0.id != userStoreItem.id }
+                )
+            }
+        }
         .onChange(of: searchQuery) { oldValue, newValue in
             searchText = newValue
 
