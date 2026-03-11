@@ -34,6 +34,7 @@ struct StoresView: View {
     @State private var storeViewMode: StoreViewMode = .list
     @State private var isFloatEditMode: Bool = false
     @State private var isFabShrunk: Bool = false
+    @State private var isAtScrollBottom: Bool = false
     @State private var fabInactivityTimer: Timer? = nil
     @Environment(\.colorScheme) var colorScheme
 
@@ -337,6 +338,21 @@ struct StoresView: View {
                 )
             }
             .onMove(perform: moveStore)
+
+        Color.clear
+            .frame(height: 1)
+            .listRowBackground(Color.clear)
+            .listRowSeparator(.hidden)
+            .listRowInsets(EdgeInsets())
+            .onAppear {
+                isAtScrollBottom = true
+                withAnimation(.spring(response: 0.5, dampingFraction: 0.75)) {
+                    isFabShrunk = false
+                }
+            }
+            .onDisappear {
+                isAtScrollBottom = false
+            }
         }
         .environment(\.editMode, $editMode)
         .listStyle(.plain)
@@ -347,7 +363,7 @@ struct StoresView: View {
         .simultaneousGesture(
             DragGesture(minimumDistance: 10)
                 .onChanged { _ in
-                    guard !isFabShrunk else { return }
+                    guard !isFabShrunk, !isAtScrollBottom else { return }
                     fabInactivityTimer?.invalidate()
                     withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
                         isFabShrunk = true
