@@ -73,7 +73,7 @@ struct StoreWidgetProvider: TimelineProvider {
         else {
             return []
         }
-        return stores
+        return stores.sorted { $0.reminderCount > $1.reminderCount }
     }
 }
 
