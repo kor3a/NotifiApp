@@ -44,13 +44,15 @@ final class WidgetDataStore {
     /// Encodes `userStoreItems` and pushes it to the widget.
     /// Triggers an immediate widget refresh in addition to the 15-minute schedule.
     func updateWidgetData(from userStoreItems: [UserStoreItem]) {
-        let payload = userStoreItems.map {
-            WidgetStoreData(
-                storeName: $0.store.name,
-                reminderCount: $0.store.reminderCount,
-                imageURL: $0.store.imageURL
-            )
-        }
+        let payload = userStoreItems
+            .sorted { $0.store.reminderCount > $1.store.reminderCount }
+            .map {
+                WidgetStoreData(
+                    storeName: $0.store.name,
+                    reminderCount: $0.store.reminderCount,
+                    imageURL: $0.store.imageURL
+                )
+            }
 
         guard let encoded = try? JSONEncoder().encode(payload) else { return }
         sharedDefaults?.set(encoded, forKey: Self.storesKey)
