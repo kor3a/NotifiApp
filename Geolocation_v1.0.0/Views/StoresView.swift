@@ -439,6 +439,7 @@ struct StoresView: View {
                             // Open menu
                             withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
                                 isMenuExpanded = true
+                                isFabShrunk = false
                             }
                             if storeViewMode == .list {
                                 fabInactivityTimer?.invalidate()
