@@ -13,18 +13,22 @@ struct LocationDetailsView: View {
     @Binding var mapSelection: MKMapItem?
     @Binding var show: Bool
     @ObservedObject var viewModel: StoresViewModel
+    var onViewReminders: ((UserStoreItem) -> Void)? = nil
     @ObservedObject private var logoProvider = StoreLogoProvider.shared
 
-    // Check if the currently selected store is already in user's list (by normalized name)
-    private var isStoreAlreadyAdded: Bool {
-        guard let mapSelection = mapSelection else { return false }
+    // Find the matching UserStoreItem for the currently selected store (by normalized name)
+    private var matchingUserStoreItem: UserStoreItem? {
+        guard let mapSelection = mapSelection else { return nil }
         let storeName = mapSelection.name ?? ""
         let normalizedId = Store.normalizedId(from: storeName)
 
-        // Check if any user store matches this store name
-        return viewModel.userStoreItems.contains { userStoreItem in
+        return viewModel.userStoreItems.first { userStoreItem in
             Store.normalizedId(from: userStoreItem.store.name) == normalizedId
         }
+    }
+
+    private var isStoreAlreadyAdded: Bool {
+        matchingUserStoreItem != nil
     }
 
     private var storeName: String {
@@ -94,28 +98,39 @@ struct LocationDetailsView: View {
                     .padding(.horizontal)
 
 
-                    /// Add Button
-                    Button(action: {
-                        guard let selectedItem = mapSelection else { return }
+                    /// Add / View Reminders Button
+                    if let existingItem = matchingUserStoreItem {
+                        Button(action: {
+                            show = false
+                            mapSelection = nil
+                            onViewReminders?(existingItem)
+                        }) {
+                            Text("View Reminders")
+                        }//:BUTTON
+                        .buttonStyle(PrimaryButtonStyle(color: .blue))
+                        .padding(.horizontal)
+                    } else {
+                        Button(action: {
+                            guard let selectedItem = mapSelection else { return }
 
-                        // Create a Store object from the MKMapItem (name-based, no address/coords stored)
-                        let store = Store(
-                            name: selectedItem.name ?? "Unknown Store",
-                            imageURL: logoProvider.logoURL(for: selectedItem.name ?? "")
-                        )
+                            // Create a Store object from the MKMapItem (name-based, no address/coords stored)
+                            let store = Store(
+                                name: selectedItem.name ?? "Unknown Store",
+                                imageURL: logoProvider.logoURL(for: selectedItem.name ?? "")
+                            )
 
-                        // Add store to user's list
-                        viewModel.addStoreToUser(store: store)
+                            // Add store to user's list
+                            viewModel.addStoreToUser(store: store)
 
-                        // Close the detail view
-                        show = false
-                        mapSelection = nil
-                    }) {
-                        Text(isStoreAlreadyAdded ? "Added" : "Add")
-                    }//:BUTTON
-                    .buttonStyle(PrimaryButtonStyle(color: isStoreAlreadyAdded ? .gray : .blue))
-                    .disabled(isStoreAlreadyAdded)
-                    .padding(.horizontal)
+                            // Close the detail view
+                            show = false
+                            mapSelection = nil
+                        }) {
+                            Text("Add")
+                        }//:BUTTON
+                        .buttonStyle(PrimaryButtonStyle(color: .blue))
+                        .padding(.horizontal)
+                    }
 
                 }//:VSTACK
 
