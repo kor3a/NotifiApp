@@ -49,6 +49,21 @@ class ProfileViewModel: ObservableObject {
         }
     }
 
+    func deleteAccount() {
+        isLoading = true
+        errorMessage = ""
+        sessionManager.deleteAccount { [weak self] success, errorMsg in
+            guard let self = self else { return }
+            DispatchQueue.main.async {
+                self.isLoading = false
+                if !success {
+                    self.errorMessage = errorMsg ?? "Failed to delete account"
+                }
+                // On success the auth listener signs the user out automatically
+            }
+        }
+    }
+
     // Upload profile picture to Firebase Storage
     func uploadProfilePicture(image: UIImage) {
         guard let userId = user?.userId else {
