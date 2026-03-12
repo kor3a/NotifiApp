@@ -24,6 +24,7 @@ struct HomeView: View {
     @State private var pendingStoreName: String? = nil
     @State private var pendingConversationId: String? = nil
     @State private var showCarPlayAlert = false
+    @State private var showNotificationsDeniedAlert = false
 
     var body: some View {
         TabView(selection: $selectedTab) {
@@ -102,6 +103,16 @@ struct HomeView: View {
             if notificationManager.isAuthorized && !enabled {
                 showCarPlayAlert = true
             }
+        }
+        .alert("Notifications Are Disabled", isPresented: $showNotificationsDeniedAlert) {
+            Button("Open Settings") {
+                if let url = URL(string: UIApplication.openSettingsURLString) {
+                    UIApplication.shared.open(url)
+                }
+            }
+            Button("Dismiss", role: .cancel) {}
+        } message: {
+            Text("Allim needs notifications to alert you about nearby stores and messages. Go to Settings > Notifications > Allim and turn on Allow Notifications.")
         }
         .alert("Enable CarPlay Notifications", isPresented: $showCarPlayAlert) {
             Button("Open Settings") {
@@ -225,8 +236,11 @@ struct HomeView: View {
             // Debug: Print detailed notification settings
             notificationManager.debugNotificationSettings()
 
-            // Warn user if CarPlay notifications are disabled or not yet registered
-            if notificationGranted && notificationManager._carPlaySetting != .enabled {
+            if !notificationGranted {
+                // Permission is denied — iOS won't re-prompt, user must go to Settings manually
+                showNotificationsDeniedAlert = true
+            } else if notificationManager._carPlaySetting != .enabled {
+                // Notifications authorized but CarPlay specifically is off/unsupported
                 showCarPlayAlert = true
             }
         }
