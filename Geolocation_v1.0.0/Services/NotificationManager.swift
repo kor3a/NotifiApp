@@ -103,15 +103,10 @@ class NotificationManager: NSObject, ObservableObject {
     }
 
     enum CarPlayNotificationStatus {
-        case enabled
-        case disabled   // Toggle exists in Settings but is turned off
-        case notSupported  // Toggle never appeared — need to reset notification permissions
-    }
-
-    var carPlayNotificationStatus: CarPlayNotificationStatus {
-        // Computed synchronously from cached settings; use checkAuthorizationStatus() to refresh.
-        // isCarPlayEnabled only covers .enabled; we need the raw notSupported distinction.
-        return _carPlaySetting
+        case enabled    // Explicit per-app CarPlay toggle exists and is ON
+        case disabled   // Per-app CarPlay toggle exists but is OFF
+        case notSupported  // No per-app toggle — normal for apps without CarPlay entitlement;
+                           // notifications still route to CarPlay via .allowInCarPlay category option
     }
 
     @Published private(set) var _carPlaySetting: CarPlayNotificationStatus = .notSupported
@@ -141,11 +136,11 @@ class NotificationManager: NSObject, ObservableObject {
             let carPlayStatus: String
             switch settings.carPlaySetting {
             case .enabled:
-                carPlayStatus = "✅ ENABLED"
+                carPlayStatus = "✅ ENABLED (per-app toggle is on)"
             case .disabled:
                 carPlayStatus = "❌ DISABLED — Go to Settings > Notifications > [App] > CarPlay and turn it on"
             case .notSupported:
-                carPlayStatus = "⚠️ NOT SUPPORTED (rawValue=\(settings.carPlaySetting.rawValue)) — Reset app notification permissions: Settings > Notifications > [App] > toggle Notifications off then on"
+                carPlayStatus = "ℹ️ notSupported (expected for apps without CarPlay entitlement — notifications route via .allowInCarPlay category option)"
             @unknown default:
                 carPlayStatus = "❓ UNKNOWN (rawValue=\(settings.carPlaySetting.rawValue))"
             }

@@ -99,11 +99,6 @@ struct HomeView: View {
             guard let navigation = navigation else { return }
             handleNotificationNavigation(navigation)
         }
-        .onChange(of: notificationManager.isCarPlayEnabled) { _, enabled in
-            if notificationManager.isAuthorized && !enabled {
-                showCarPlayAlert = true
-            }
-        }
         .alert("Notifications Are Disabled", isPresented: $showNotificationsDeniedAlert) {
             Button("Open Settings") {
                 if let url = URL(string: UIApplication.openSettingsURLString) {
@@ -122,14 +117,7 @@ struct HomeView: View {
             }
             Button("Dismiss", role: .cancel) {}
         } message: {
-            switch notificationManager._carPlaySetting {
-            case .disabled:
-                Text("Notifications won't appear on your CarPlay screen. Go to Settings > Notifications > Allim and turn on CarPlay.")
-            case .notSupported:
-                Text("CarPlay notifications aren't registered for this app yet. Go to Settings > Notifications > Allim, toggle Notifications off and back on, then relaunch the app.")
-            case .enabled:
-                Text("CarPlay notifications are enabled.")
-            }
+            Text("Notifications won't appear on your CarPlay screen. Go to Settings > Notifications > Allim and turn on CarPlay.")
         }
         .onAppear {
             // Handle any notification tap that occurred before the view appeared
@@ -239,10 +227,11 @@ struct HomeView: View {
             if !notificationGranted {
                 // Permission is denied — iOS won't re-prompt, user must go to Settings manually
                 showNotificationsDeniedAlert = true
-            } else if notificationManager._carPlaySetting != .enabled {
-                // Notifications authorized but CarPlay specifically is off/unsupported
+            } else if notificationManager._carPlaySetting == .disabled {
+                // Per-app CarPlay toggle exists but is explicitly turned off
                 showCarPlayAlert = true
             }
+            // .notSupported is normal for apps without a CarPlay entitlement — not an error
         }
 
         // Request location permission and start monitoring
