@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import UIKit
 
 struct HomeView: View {
     @ObservedObject private var sessionManager = UserSessionManager.shared
@@ -22,6 +23,7 @@ struct HomeView: View {
     @State private var hasRequestedPermissions = false
     @State private var pendingStoreName: String? = nil
     @State private var pendingConversationId: String? = nil
+    @State private var showCarPlayAlert = false
 
     var body: some View {
         TabView(selection: $selectedTab) {
@@ -95,6 +97,21 @@ struct HomeView: View {
         .onChange(of: notificationManager.pendingNavigation) { _, navigation in
             guard let navigation = navigation else { return }
             handleNotificationNavigation(navigation)
+        }
+        .onChange(of: notificationManager.isCarPlayEnabled) { _, enabled in
+            if notificationManager.isAuthorized && !enabled {
+                showCarPlayAlert = true
+            }
+        }
+        .alert("Enable CarPlay Notifications", isPresented: $showCarPlayAlert) {
+            Button("Open Settings") {
+                if let url = URL(string: UIApplication.openSettingsURLString) {
+                    UIApplication.shared.open(url)
+                }
+            }
+            Button("Dismiss", role: .cancel) {}
+        } message: {
+            Text("Notifications won't appear on your CarPlay screen. To fix this, go to Settings > Notifications > Allim > and turn on CarPlay.")
         }
         .onAppear {
             // Handle any notification tap that occurred before the view appeared
@@ -200,6 +217,11 @@ struct HomeView: View {
 
             // Debug: Print detailed notification settings
             notificationManager.debugNotificationSettings()
+
+            // Warn user if CarPlay notifications are disabled in Settings
+            if notificationGranted && !notificationManager.isCarPlayEnabled {
+                showCarPlayAlert = true
+            }
         }
 
         // Request location permission and start monitoring
