@@ -111,7 +111,14 @@ struct HomeView: View {
             }
             Button("Dismiss", role: .cancel) {}
         } message: {
-            Text("Notifications won't appear on your CarPlay screen. To fix this, go to Settings > Notifications > Allim > and turn on CarPlay.")
+            switch notificationManager._carPlaySetting {
+            case .disabled:
+                Text("Notifications won't appear on your CarPlay screen. Go to Settings > Notifications > Allim and turn on CarPlay.")
+            case .notSupported:
+                Text("CarPlay notifications aren't registered for this app yet. Go to Settings > Notifications > Allim, toggle Notifications off and back on, then relaunch the app.")
+            case .enabled:
+                Text("CarPlay notifications are enabled.")
+            }
         }
         .onAppear {
             // Handle any notification tap that occurred before the view appeared
@@ -218,8 +225,8 @@ struct HomeView: View {
             // Debug: Print detailed notification settings
             notificationManager.debugNotificationSettings()
 
-            // Warn user if CarPlay notifications are disabled in Settings
-            if notificationGranted && !notificationManager.isCarPlayEnabled {
+            // Warn user if CarPlay notifications are disabled or not yet registered
+            if notificationGranted && notificationManager._carPlaySetting != .enabled {
                 showCarPlayAlert = true
             }
         }

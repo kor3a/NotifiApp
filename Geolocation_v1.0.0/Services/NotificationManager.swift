@@ -102,11 +102,33 @@ class NotificationManager: NSObject, ObservableObject {
         }
     }
 
+    enum CarPlayNotificationStatus {
+        case enabled
+        case disabled   // Toggle exists in Settings but is turned off
+        case notSupported  // Toggle never appeared — need to reset notification permissions
+    }
+
+    var carPlayNotificationStatus: CarPlayNotificationStatus {
+        // Computed synchronously from cached settings; use checkAuthorizationStatus() to refresh.
+        // isCarPlayEnabled only covers .enabled; we need the raw notSupported distinction.
+        return _carPlaySetting
+    }
+
+    @Published private(set) var _carPlaySetting: CarPlayNotificationStatus = .notSupported
+
     func checkAuthorizationStatus() {
         notificationCenter.getNotificationSettings { settings in
+            let carPlayStatus: CarPlayNotificationStatus
+            switch settings.carPlaySetting {
+            case .enabled:      carPlayStatus = .enabled
+            case .disabled:     carPlayStatus = .disabled
+            case .notSupported: carPlayStatus = .notSupported
+            @unknown default:   carPlayStatus = .notSupported
+            }
             DispatchQueue.main.async {
                 self.isAuthorized = settings.authorizationStatus == .authorized
                 self.isCarPlayEnabled = settings.carPlaySetting == .enabled
+                self._carPlaySetting = carPlayStatus
             }
         }
     }
@@ -116,7 +138,17 @@ class NotificationManager: NSObject, ObservableObject {
     func debugNotificationSettings() {
         notificationCenter.getNotificationSettings { settings in
             #if DEBUG
-            let carPlayStatus = settings.carPlaySetting == .enabled ? "✅ ENABLED" : "❌ DISABLED — Go to Settings > Notifications > [App] > CarPlay"
+            let carPlayStatus: String
+            switch settings.carPlaySetting {
+            case .enabled:
+                carPlayStatus = "✅ ENABLED"
+            case .disabled:
+                carPlayStatus = "❌ DISABLED — Go to Settings > Notifications > [App] > CarPlay and turn it on"
+            case .notSupported:
+                carPlayStatus = "⚠️ NOT SUPPORTED (rawValue=\(settings.carPlaySetting.rawValue)) — Reset app notification permissions: Settings > Notifications > [App] > toggle Notifications off then on"
+            @unknown default:
+                carPlayStatus = "❓ UNKNOWN (rawValue=\(settings.carPlaySetting.rawValue))"
+            }
             print("=== NOTIFICATION SETTINGS DEBUG ===")
             print("Authorization: \(settings.authorizationStatus.rawValue)")
             print("Alert: \(settings.alertSetting.rawValue)")
