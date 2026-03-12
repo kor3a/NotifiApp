@@ -19,6 +19,7 @@ class NotificationManager: NSObject, ObservableObject {
     }
 
     @Published var isAuthorized = false
+    @Published var isCarPlayEnabled = false
     @Published var pendingNavigation: NotificationNavigation? = nil
     private let notificationCenter = UNUserNotificationCenter.current()
     private let logStore = NotificationLogStore.shared
@@ -105,6 +106,7 @@ class NotificationManager: NSObject, ObservableObject {
         notificationCenter.getNotificationSettings { settings in
             DispatchQueue.main.async {
                 self.isAuthorized = settings.authorizationStatus == .authorized
+                self.isCarPlayEnabled = settings.carPlaySetting == .enabled
             }
         }
     }
@@ -114,12 +116,13 @@ class NotificationManager: NSObject, ObservableObject {
     func debugNotificationSettings() {
         notificationCenter.getNotificationSettings { settings in
             #if DEBUG
+            let carPlayStatus = settings.carPlaySetting == .enabled ? "✅ ENABLED" : "❌ DISABLED — Go to Settings > Notifications > [App] > CarPlay"
             print("=== NOTIFICATION SETTINGS DEBUG ===")
             print("Authorization: \(settings.authorizationStatus.rawValue)")
             print("Alert: \(settings.alertSetting.rawValue)")
             print("Sound: \(settings.soundSetting.rawValue)")
             print("Badge: \(settings.badgeSetting.rawValue)")
-            print("CarPlay: \(settings.carPlaySetting.rawValue)")
+            print("CarPlay: \(carPlayStatus)")
             print("Critical Alert: \(settings.criticalAlertSetting.rawValue)")
             print("TimeSensitive: \(settings.timeSensitiveSetting.rawValue)")
             print("Announcement: \(settings.announcementSetting.rawValue)")
