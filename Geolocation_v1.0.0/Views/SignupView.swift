@@ -48,6 +48,11 @@ struct SignupView: View {
                             .font(.subheadline)
                             .multilineTextAlignment(.center)
                             .foregroundColor(.secondary)
+
+                        Text("Can't find it? Be sure to check your spam or junk folder.")
+                            .font(.caption)
+                            .multilineTextAlignment(.center)
+                            .foregroundColor(.secondary)
                     }
                     .padding()
                     .background(
