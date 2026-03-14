@@ -503,7 +503,7 @@ struct StoresView: View {
                     }
 
                     // Floating button — hidden when menu is open (unless shrunk in list mode)
-                    let effectivelyShrunk = isFabShrunk && storeViewMode == .list
+                    let effectivelyShrunk = isFabShrunk && storeViewMode == .list && !viewModel.userStoreItems.isEmpty
                     if effectivelyShrunk || !isMenuExpanded {
                     Button(action: {
                         if effectivelyShrunk {
