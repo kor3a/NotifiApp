@@ -18,13 +18,6 @@ struct Geolocation_v1_0_0App: App {
     init() {
         FirebaseApp.configure()
 
-        // Apply Special Elite font to all navigation bar titles
-        if let specialEliteLarge = UIFont(name: "SpecialElite-Regular", size: 34),
-           let specialEliteInline = UIFont(name: "SpecialElite-Regular", size: 17) {
-            UINavigationBar.appearance().largeTitleTextAttributes = [.font: specialEliteLarge]
-            UINavigationBar.appearance().titleTextAttributes = [.font: specialEliteInline]
-        }
-
         // Initialize LocationMonitoringManager so it's ready to handle background location events
         // This ensures the app can respond to geofence events even when launched in the background
         _ = LocationMonitoringManager.shared

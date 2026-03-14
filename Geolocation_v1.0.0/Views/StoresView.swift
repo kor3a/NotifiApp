@@ -397,7 +397,7 @@ struct StoresView: View {
                                     Image(systemName: "cart.badge.plus")
                                         .font(.system(size: 20))
                                     Text("Add Store")
-                                        .font(.specialElite(size: 17))
+                                        .font(.system(size: 17))
                                     Spacer()
                                 }
                                 .padding()
@@ -426,7 +426,7 @@ struct StoresView: View {
                                     Image(systemName: "fork.knife.circle")
                                         .font(.system(size: 20))
                                     Text("Smart Recipe")
-                                        .font(.specialElite(size: 17))
+                                        .font(.system(size: 17))
                                     Spacer()
                                 }
                                 .padding()
