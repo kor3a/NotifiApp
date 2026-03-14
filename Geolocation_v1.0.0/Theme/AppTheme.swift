@@ -7,13 +7,6 @@
 
 import SwiftUI
 
-// MARK: - Custom Fonts
-extension Font {
-    static func specialElite(size: CGFloat) -> Font {
-        .custom("SpecialElite-Regular", size: size)
-    }
-}
-
 // MARK: - App Theme
 extension Color {
     // MARK: - Text Colors
@@ -107,7 +100,7 @@ struct PrimaryButtonStyle: ButtonStyle {
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.specialElite(size: 17))
+            .font(.system(size: 17))
             .foregroundColor(.white)
             .frame(maxWidth: .infinity)
             .frame(height: 50)
@@ -125,7 +118,7 @@ struct SecondaryButtonStyle: ButtonStyle {
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.specialElite(size: 17))
+            .font(.system(size: 17))
             .foregroundColor(color)
             .frame(maxWidth: .infinity)
             .frame(height: 50)
