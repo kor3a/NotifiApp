@@ -57,7 +57,9 @@ struct StoresView: View {
                 // Main content
                 if sessionManager.isLoading || viewModel.isLoading {
                     ProgressView("Loading your stores...")
-                } else if !viewModel.userStoreItems.isEmpty {
+                } else if viewModel.userStoreItems.isEmpty {
+                    emptyStateView
+                } else {
                     if storeViewMode == .list {
                         listContent
                     } else {
@@ -262,6 +264,65 @@ struct StoresView: View {
         }
     }//:BODY
 
+    // MARK: - Empty State
+
+    private var emptyStateView: some View {
+        VStack(spacing: 0) {
+            Spacer()
+
+            VStack(spacing: 24) {
+                // Icon
+                ZStack {
+                    Circle()
+                        .fill(LinearGradient(
+                            colors: [Color.blue.opacity(0.15), Color.purple.opacity(0.15)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ))
+                        .frame(width: 120, height: 120)
+
+                    Image(systemName: "cart.badge.plus")
+                        .font(.system(size: 52, weight: .light))
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: [.blue, .purple],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                }
+
+                // Title & description
+                VStack(spacing: 10) {
+                    Text("No Stores Yet")
+                        .font(.title2)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.primary)
+
+                    Text("Add your favourite grocery stores\nto start managing your shopping reminders.")
+                        .font(.body)
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                        .lineSpacing(2)
+                }
+
+                // Step-by-step hint
+                VStack(spacing: 12) {
+                    EmptyStateStep(number: 1, text: "Tap the  +  button below")
+                    EmptyStateStep(number: 2, text: "Choose \"Add Store\" and search nearby")
+                    EmptyStateStep(number: 3, text: "Set reminders for items you need")
+                }
+                .padding(.horizontal, 32)
+                .padding(.top, 4)
+            }
+            .padding(.horizontal, 24)
+
+            Spacer()
+            // Reserve space for the FAB so content stays visually centred
+            Color.clear.frame(height: 100)
+        }
+    }
+
     // MARK: - List Content
 
     private var listContent: some View {
@@ -442,7 +503,7 @@ struct StoresView: View {
                     }
 
                     // Floating button — hidden when menu is open (unless shrunk in list mode)
-                    let effectivelyShrunk = isFabShrunk && storeViewMode == .list
+                    let effectivelyShrunk = isFabShrunk && storeViewMode == .list && !viewModel.userStoreItems.isEmpty
                     if effectivelyShrunk || !isMenuExpanded {
                     Button(action: {
                         if effectivelyShrunk {
@@ -544,6 +605,30 @@ struct StoresView: View {
             withAnimation {
                 editMode = .inactive
             }
+        }
+    }
+}
+
+// MARK: - Empty State Step
+
+private struct EmptyStateStep: View {
+    let number: Int
+    let text: String
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 14) {
+            ZStack {
+                Circle()
+                    .fill(Color.blue.opacity(0.15))
+                    .frame(width: 28, height: 28)
+                Text("\(number)")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(.blue)
+            }
+            Text(text)
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 }
