@@ -94,6 +94,11 @@ struct StoresView: View {
                         }
                 }
 
+                // Sticky banner ad at the bottom (list mode only)
+                if storeViewMode == .list && !viewModel.userStoreItems.isEmpty {
+                    bannerAdOverlay
+                }
+
                 // Floating action button (both list and float modes)
                 fabOverlay
             }
@@ -419,7 +424,8 @@ struct StoresView: View {
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
         .safeAreaInset(edge: .bottom) {
-            Color.clear.frame(height: 90)
+            // Extra 50 pt reserves space for the sticky banner ad above the FAB area
+            Color.clear.frame(height: 90 + 50)
         }
         .simultaneousGesture(
             DragGesture(minimumDistance: 10)
@@ -552,6 +558,18 @@ struct StoresView: View {
                 .padding(.bottom, 24)
             }
         }
+    }
+
+    // MARK: - Banner Ad Overlay
+
+    private var bannerAdOverlay: some View {
+        VStack(spacing: 0) {
+            Spacer()
+            BannerAdView(adUnitID: kBannerAdUnitID)
+                .frame(height: 50)
+                .background(Color(.systemBackground).opacity(0.95))
+        }
+        .ignoresSafeArea(edges: .bottom)
     }
 
     // MARK: - FAB Timer Helpers
