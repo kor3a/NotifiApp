@@ -457,6 +457,17 @@ struct ReminderView: View {
                     }
                 }
             }
+            // Re-scroll after the keyboard has fully animated in so the
+            // input row is visible above the keyboard (not hidden behind it).
+            .onChange(of: isNewReminderFocused) { _, focused in
+                if focused {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                        withAnimation {
+                            proxy.scrollTo("inlineAddRow", anchor: .bottom)
+                        }
+                    }
+                }
+            }
         }
     }
 
