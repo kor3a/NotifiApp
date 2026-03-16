@@ -29,9 +29,9 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>We need your location to notify you when you're near stores with pending reminders, even when the app is in the background.</string>
+	<string>We need your location to notify you when you&apos;re near stores with pending reminders, even when the app is in the background.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>We need your location to show nearby stores and notify you when you're near stores with pending reminders.</string>
+	<string>We need your location to show nearby stores and notify you when you&apos;re near stores with pending reminders.</string>
 	<key>NSSiriUsageDescription</key>
 	<string>NearBuy uses Siri to let you send and receive messages about your shopping reminders hands-free while driving.</string>
 	<key>UIApplicationSceneManifest</key>
@@ -43,14 +43,12 @@
 	</dict>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
-<key>UIAppFonts</key>
+	<key>UIAppFonts</key>
 	<array>
 		<string>SpecialElite-Regular.ttf</string>
 	</array>
-	<!-- Google AdMob: Replace with your real App ID from https://admob.google.com -->
 	<key>GADApplicationIdentifier</key>
-	<string>ca-app-pub-3940256099942544~1458002511</string>
-	<!-- SKAdNetwork identifiers required by Google Mobile Ads -->
+	<string>ca-app-pub-8737217052158435~1949619568</string>
 	<key>SKAdNetworkItems</key>
 	<array>
 		<dict>
