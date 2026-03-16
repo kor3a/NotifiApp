@@ -424,8 +424,8 @@ struct StoresView: View {
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
         .safeAreaInset(edge: .bottom) {
-            // Reserve space for banner ad (50pt) above the FAB area (90pt)
-            Color.clear.frame(height: 90 + 50 + 16)
+            // Reserve space for FAB (60pt) above ad (50pt) with gaps
+            Color.clear.frame(height: 74 + 60 + 16)
         }
         .simultaneousGesture(
             DragGesture(minimumDistance: 10)
@@ -555,7 +555,7 @@ struct StoresView: View {
                     } // end: if effectivelyShrunk || !isMenuExpanded
                 }
                 .padding(.trailing, 24)
-                .padding(.bottom, 24)
+                .padding(.bottom, 74) // 50pt ad + 24pt gap
             }
         }
     }
@@ -568,7 +568,6 @@ struct StoresView: View {
             BannerAdView(adUnitID: kBannerAdUnitID)
                 .frame(height: 50)
                 .background(Color(.systemBackground).opacity(0.95))
-                .padding(.bottom, 90) // Sit above the FAB area
         }
     }
 
