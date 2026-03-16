@@ -429,8 +429,13 @@ struct StoresView: View {
         }
         .simultaneousGesture(
             DragGesture(minimumDistance: 10)
-                .onChanged { _ in
-                    guard !isFabShrunk, !isAtScrollBottom else { return }
+                .onChanged { value in
+                    guard !isFabShrunk else { return }
+                    // When scrolling down (finger moving up) at the bottom, keep FAB expanded.
+                    // When scrolling up (finger moving down, positive height), shrink immediately
+                    // regardless of scroll position so it stops blocking the list.
+                    let isScrollingDown = value.translation.height < 0
+                    if isScrollingDown && isAtScrollBottom { return }
                     fabInactivityTimer?.invalidate()
                     withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
                         isFabShrunk = true
