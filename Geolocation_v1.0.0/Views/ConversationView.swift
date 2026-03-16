@@ -11,6 +11,7 @@ struct ConversationView: View {
     let conversation: Conversation
     @ObservedObject var viewModel: MessagesViewModel
     @ObservedObject private var sessionManager = UserSessionManager.shared
+    @ObservedObject private var subscriptionManager = SubscriptionManager.shared
     @State private var messageText = ""
     @State private var scrolledToTopMessageId: String?
     @FocusState private var isInputFocused: Bool
@@ -41,7 +42,7 @@ struct ConversationView: View {
                             .id(message.id)
 
                             // Insert a banner ad after every 5th message (hidden for subscribers)
-                            if (index + 1) % 5 == 0 && sessionManager.currentUser?.isSubscribed != true {
+                            if (index + 1) % 5 == 0 && !subscriptionManager.isSubscribed {
                                 BannerAdView(adUnitID: kBannerAdUnitID)
                                     .frame(height: 50)
                                     .background(Color(.systemBackground).opacity(0.95))
@@ -73,7 +74,7 @@ struct ConversationView: View {
             }
 
             // Banner ad above input bar (hidden for subscribers)
-            if sessionManager.currentUser?.isSubscribed != true {
+            if !subscriptionManager.isSubscribed {
                 BannerAdView(adUnitID: kBannerAdUnitID)
                     .frame(height: 50)
                     .background(Color(.systemBackground).opacity(0.95))

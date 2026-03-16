@@ -98,19 +98,31 @@ class SubscriptionManager: ObservableObject {
     // MARK: - Subscription Status
 
     func refreshSubscriptionStatus() async {
-        var hasActiveSubscription = false
+        var hasStoreKitSubscription = false
 
         for await result in Transaction.currentEntitlements {
             guard case .verified(let transaction) = result else { continue }
             if transaction.productID == Self.monthlyProductID,
                transaction.revocationDate == nil {
-                hasActiveSubscription = true
+                hasStoreKitSubscription = true
                 break
             }
         }
 
-        isSubscribed = hasActiveSubscription
-        syncSubscriptionStatus(isSubscribed: hasActiveSubscription)
+        // adminSubscribed is set manually in Firestore and never overwritten by the app.
+        // This lets you grant free access to yourself or testers without Apple payment.
+        let hasAdminOverride = UserSessionManager.shared.currentUser?.adminSubscribed == true
+
+        isSubscribed = hasStoreKitSubscription || hasAdminOverride
+
+        // Only sync StoreKit-derived status to Firestore.
+        // Never touch adminSubscribed — it's managed manually.
+        if hasStoreKitSubscription {
+            syncStoreKitStatus(isSubscribed: true)
+        } else if !hasAdminOverride {
+            // Only write false when there's no admin override protecting the field
+            syncStoreKitStatus(isSubscribed: false)
+        }
     }
 
     // MARK: - Transaction Listener
@@ -145,7 +157,9 @@ class SubscriptionManager: ObservableObject {
 
     // MARK: - Firebase Sync
 
-    private func syncSubscriptionStatus(isSubscribed: Bool) {
+    /// Syncs StoreKit-derived subscription status to Firestore.
+    /// Never touches `adminSubscribed` — that field is managed manually in the Firebase console.
+    private func syncStoreKitStatus(isSubscribed: Bool) {
         guard let userId = UserSessionManager.shared.currentUser?.userId else { return }
 
         let db = Firestore.firestore()

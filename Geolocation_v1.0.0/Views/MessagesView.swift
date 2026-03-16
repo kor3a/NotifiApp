@@ -11,6 +11,7 @@ struct MessagesView: View {
     @ObservedObject var viewModel: MessagesViewModel
     @Binding var pendingConversationId: String?
     @ObservedObject private var sessionManager = UserSessionManager.shared
+    @ObservedObject private var subscriptionManager = SubscriptionManager.shared
     @State private var showNewMessage = false
     @State private var notificationConversation: Conversation? = nil
     @Environment(\.colorScheme) var colorScheme
@@ -29,7 +30,7 @@ struct MessagesView: View {
             }
 
             // Sticky banner ad above tab bar (hidden for subscribers)
-            if sessionManager.currentUser?.isSubscribed != true {
+            if !subscriptionManager.isSubscribed {
                 VStack(spacing: 0) {
                     Spacer()
                     BannerAdView(adUnitID: kBannerAdUnitID)

@@ -15,4 +15,6 @@ struct User: Codable, Equatable {
     var profilePictureURL: String?
     var familyMemberIds: [String]?
     var isSubscribed: Bool?
+    /// Manually set in Firestore to grant free access. Never overwritten by the app.
+    var adminSubscribed: Bool?
 }

@@ -104,7 +104,7 @@ struct StoresView: View {
                 }
 
                 // Sticky banner ad at the bottom (list and float modes, hidden for subscribers)
-                if !viewModel.userStoreItems.isEmpty && sessionManager.currentUser?.isSubscribed != true {
+                if !viewModel.userStoreItems.isEmpty && !subscriptionManager.isSubscribed {
                     bannerAdOverlay
                 }
 
