@@ -22,6 +22,7 @@
 		0125A7A32F68345D0089F321 /* GoogleMobileAds in Frameworks */ = {isa = PBXBuildFile; productRef = 0125A7A22F68345D0089F321 /* GoogleMobileAds */; };
 		0138242D2EDCD05F0069F38C /* NotificationLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0138242C2EDCD05F0069F38C /* NotificationLog.swift */; };
 		0138242F2EDCD08C0069F38C /* NotificationLogView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0138242E2EDCD08C0069F38C /* NotificationLogView.swift */; };
+		0138D8752F68BB95007CC1E4 /* SubscriptionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0138D8742F68BB95007CC1E4 /* SubscriptionManager.swift */; };
 		0188F8592F68568C007953B2 /* BannerAdView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0188F8582F68568C007953B2 /* BannerAdView.swift */; };
 		01897B5B2EBA4AB00038A4D1 /* StoresViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01897B5A2EBA4AB00038A4D1 /* StoresViewModel.swift */; };
 		01B408232F3BECB100EA1F25 /* MessagesViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01B408222F3BECB100EA1F25 /* MessagesViewModel.swift */; };
@@ -136,6 +137,7 @@
 		011CF60C2ED63A69009A31A6 /* NotifiApp.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = NotifiApp.icon; sourceTree = "<group>"; };
 		0138242C2EDCD05F0069F38C /* NotificationLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationLog.swift; sourceTree = "<group>"; };
 		0138242E2EDCD08C0069F38C /* NotificationLogView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationLogView.swift; sourceTree = "<group>"; };
+		0138D8742F68BB95007CC1E4 /* SubscriptionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionManager.swift; sourceTree = "<group>"; };
 		0176B3082F3CE658003B9C75 /* Geolocation_v1_0_0Tests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = Geolocation_v1_0_0Tests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		0188F8582F68568C007953B2 /* BannerAdView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BannerAdView.swift; sourceTree = "<group>"; };
 		01897B5A2EBA4AB00038A4D1 /* StoresViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoresViewModel.swift; sourceTree = "<group>"; };
@@ -246,6 +248,7 @@
 		01FB27582EC2A7490038E406 /* Services */ = {
 			isa = PBXGroup;
 			children = (
+				0138D8742F68BB95007CC1E4 /* SubscriptionManager.swift */,
 				010405BB2F575A6F0057862B /* OnMyWayNotificationService.swift */,
 				010405B92F575A680057862B /* TravelTimeService.swift */,
 				AA1234560001AABB00CC0010 /* FriendRequestService.swift */,
@@ -640,6 +643,7 @@
 				AA1234560001AABB00CC0004 /* OpenAIService.swift in Sources */,
 				AA1234560001AABB00CC0005 /* SmartRecipeViewModel.swift in Sources */,
 				AA1234560001AABB00CC0006 /* SmartRecipeView.swift in Sources */,
+				0138D8752F68BB95007CC1E4 /* SubscriptionManager.swift in Sources */,
 				AA1234560001AABB00CC0020 /* FriendRequestService.swift in Sources */,
 				AA1234560001AABB00CC0021 /* FriendsService.swift in Sources */,
 				AA1234560001AABB00CC0023 /* LocationMonitoringManager.swift in Sources */,
@@ -852,7 +856,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = Geolocation_v1.0.0/Geolocation_v1.0.0.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"Geolocation_v1.0.0/Preview Content\"";
 				DEVELOPMENT_TEAM = XT28W79782;
 				ENABLE_PREVIEWS = YES;
@@ -863,7 +867,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.2;
+				MARKETING_VERSION = 1.3;
 				PRODUCT_BUNDLE_IDENTIFIER = com.kor3a.nearbuy;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -882,7 +886,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = Geolocation_v1.0.0/Geolocation_v1.0.0.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 1;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_ASSET_PATHS = "\"Geolocation_v1.0.0/Preview Content\"";
 				DEVELOPMENT_TEAM = XT28W79782;
@@ -894,7 +898,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.2;
+				MARKETING_VERSION = 1.3;
 				PRODUCT_BUNDLE_IDENTIFIER = com.kor3a.nearbuy;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
