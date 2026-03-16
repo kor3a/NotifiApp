@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import UIKit
 
 struct HomeView: View {
     @ObservedObject private var sessionManager = UserSessionManager.shared
@@ -22,6 +23,8 @@ struct HomeView: View {
     @State private var hasRequestedPermissions = false
     @State private var pendingStoreName: String? = nil
     @State private var pendingConversationId: String? = nil
+    @State private var showCarPlayAlert = false
+    @State private var showNotificationsDeniedAlert = false
 
     var body: some View {
         TabView(selection: $selectedTab) {
@@ -95,6 +98,26 @@ struct HomeView: View {
         .onChange(of: notificationManager.pendingNavigation) { _, navigation in
             guard let navigation = navigation else { return }
             handleNotificationNavigation(navigation)
+        }
+        .alert("Notifications Are Disabled", isPresented: $showNotificationsDeniedAlert) {
+            Button("Open Settings") {
+                if let url = URL(string: UIApplication.openSettingsURLString) {
+                    UIApplication.shared.open(url)
+                }
+            }
+            Button("Dismiss", role: .cancel) {}
+        } message: {
+            Text("Allim needs notifications to alert you about nearby stores and messages. Go to Settings > Notifications > Allim and turn on Allow Notifications.")
+        }
+        .alert("Enable CarPlay Notifications", isPresented: $showCarPlayAlert) {
+            Button("Open Settings") {
+                if let url = URL(string: UIApplication.openSettingsURLString) {
+                    UIApplication.shared.open(url)
+                }
+            }
+            Button("Dismiss", role: .cancel) {}
+        } message: {
+            Text("Notifications won't appear on your CarPlay screen. Go to Settings > Notifications > Allim and turn on CarPlay.")
         }
         .onAppear {
             // Handle any notification tap that occurred before the view appeared
@@ -200,6 +223,15 @@ struct HomeView: View {
 
             // Debug: Print detailed notification settings
             notificationManager.debugNotificationSettings()
+
+            if !notificationGranted {
+                // Permission is denied — iOS won't re-prompt, user must go to Settings manually
+                showNotificationsDeniedAlert = true
+            } else if notificationManager._carPlaySetting == .disabled {
+                // Per-app CarPlay toggle exists but is explicitly turned off
+                showCarPlayAlert = true
+            }
+            // .notSupported is normal for apps without a CarPlay entitlement — not an error
         }
 
         // Request location permission and start monitoring

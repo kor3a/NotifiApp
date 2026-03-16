@@ -8,6 +8,7 @@
 import Foundation
 import UserNotifications
 import CoreLocation
+import Intents
 
 class NotificationManager: NSObject, ObservableObject {
     static let shared = NotificationManager()
@@ -19,6 +20,7 @@ class NotificationManager: NSObject, ObservableObject {
     }
 
     @Published var isAuthorized = false
+    @Published var isCarPlayEnabled = false
     @Published var pendingNavigation: NotificationNavigation? = nil
     private let notificationCenter = UNUserNotificationCenter.current()
     private let logStore = NotificationLogStore.shared
@@ -101,10 +103,28 @@ class NotificationManager: NSObject, ObservableObject {
         }
     }
 
+    enum CarPlayNotificationStatus {
+        case enabled    // Explicit per-app CarPlay toggle exists and is ON
+        case disabled   // Per-app CarPlay toggle exists but is OFF
+        case notSupported  // No per-app toggle — normal for apps without CarPlay entitlement;
+                           // notifications still route to CarPlay via .allowInCarPlay category option
+    }
+
+    @Published private(set) var _carPlaySetting: CarPlayNotificationStatus = .notSupported
+
     func checkAuthorizationStatus() {
         notificationCenter.getNotificationSettings { settings in
+            let carPlayStatus: CarPlayNotificationStatus
+            switch settings.carPlaySetting {
+            case .enabled:      carPlayStatus = .enabled
+            case .disabled:     carPlayStatus = .disabled
+            case .notSupported: carPlayStatus = .notSupported
+            @unknown default:   carPlayStatus = .notSupported
+            }
             DispatchQueue.main.async {
                 self.isAuthorized = settings.authorizationStatus == .authorized
+                self.isCarPlayEnabled = settings.carPlaySetting == .enabled
+                self._carPlaySetting = carPlayStatus
             }
         }
     }
@@ -114,17 +134,89 @@ class NotificationManager: NSObject, ObservableObject {
     func debugNotificationSettings() {
         notificationCenter.getNotificationSettings { settings in
             #if DEBUG
+            let carPlayStatus: String
+            switch settings.carPlaySetting {
+            case .enabled:
+                carPlayStatus = "✅ ENABLED (per-app toggle is on)"
+            case .disabled:
+                carPlayStatus = "❌ DISABLED — Go to Settings > Notifications > [App] > CarPlay and turn it on"
+            case .notSupported:
+                carPlayStatus = "ℹ️ notSupported (expected for apps without CarPlay entitlement — notifications route via .allowInCarPlay category option)"
+            @unknown default:
+                carPlayStatus = "❓ UNKNOWN (rawValue=\(settings.carPlaySetting.rawValue))"
+            }
             print("=== NOTIFICATION SETTINGS DEBUG ===")
             print("Authorization: \(settings.authorizationStatus.rawValue)")
             print("Alert: \(settings.alertSetting.rawValue)")
             print("Sound: \(settings.soundSetting.rawValue)")
             print("Badge: \(settings.badgeSetting.rawValue)")
-            print("CarPlay: \(settings.carPlaySetting.rawValue)")
+            print("CarPlay: \(carPlayStatus)")
             print("Critical Alert: \(settings.criticalAlertSetting.rawValue)")
             print("TimeSensitive: \(settings.timeSensitiveSetting.rawValue)")
             print("Announcement: \(settings.announcementSetting.rawValue)")
             print("==================================")
             #endif
+        }
+    }
+
+    // MARK: - CarPlay-Compatible Scheduling
+
+    /// Wraps a notification in an INSendMessageIntent so iOS treats it as a communication
+    /// notification. This is required for reliable CarPlay banner display on apps without
+    /// a CarPlay entitlement — generic local notifications are not guaranteed to appear
+    /// on the CarPlay screen, but communication notifications are.
+    private func scheduleAsCommunicationNotification(
+        content: UNMutableNotificationContent,
+        identifier: String,
+        trigger: UNTimeIntervalNotificationTrigger,
+        senderDisplayName: String,
+        conversationIdentifier: String,
+        onScheduled: (() -> Void)? = nil
+    ) {
+        let sender = INPerson(
+            personHandle: INPersonHandle(value: conversationIdentifier, type: .unknown),
+            nameComponents: nil,
+            displayName: senderDisplayName,
+            image: nil,
+            contactIdentifier: nil,
+            customIdentifier: conversationIdentifier
+        )
+
+        let intent = INSendMessageIntent(
+            recipients: nil,
+            outgoingMessageType: .outgoingMessageText,
+            content: content.body,
+            speakableGroupName: INSpeakableString(spokenPhrase: senderDisplayName),
+            conversationIdentifier: conversationIdentifier,
+            serviceName: "Allim",
+            sender: sender,
+            attachments: nil
+        )
+
+        let interaction = INInteraction(intent: intent, response: nil)
+        interaction.direction = .incoming
+
+        interaction.donate { [weak self] error in
+            guard let self else { return }
+
+            let finalContent: UNNotificationContent
+            if error == nil, let updated = try? content.updating(from: intent) {
+                finalContent = updated
+            } else {
+                finalContent = content
+            }
+
+            let request = UNNotificationRequest(identifier: identifier, content: finalContent, trigger: trigger)
+            self.notificationCenter.add(request) { addError in
+                #if DEBUG
+                if let addError {
+                    print("   ❌ Error scheduling notification: \(addError)")
+                } else {
+                    print("   ✅ Scheduled notification")
+                    onScheduled?()
+                }
+                #endif
+            }
         }
     }
 
@@ -165,27 +257,19 @@ class NotificationManager: NSObject, ObservableObject {
             content.categoryIdentifier = "STORE_PROXIMITY"
             content.userInfo = ["storeName": storeName]
 
-            // Create a unique identifier based on store name and timestamp
             let identifier = "store_proximity_\(storeName)_\(Date().timeIntervalSince1970)"
-
-            // Trigger immediately (for location-based notifications)
             let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
 
-            let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
-
-            self.notificationCenter.add(request) { error in
-                if let error = error {
-                    #if DEBUG
-                    print("   ❌ Error scheduling notification: \(error)")
-                    #endif
-                } else {
-                    #if DEBUG
-                    print("   ✅ Successfully scheduled notification for \(storeName)")
-                    #endif
-                    // Log the notification event
+            self.scheduleAsCommunicationNotification(
+                content: content,
+                identifier: identifier,
+                trigger: trigger,
+                senderDisplayName: "Allim",
+                conversationIdentifier: "store-proximity-\(storeName)",
+                onScheduled: {
                     self.logStore.addEntry(storeName: storeName, reminderCount: reminderCount)
                 }
-            }
+            )
         }
     }
 
@@ -215,25 +299,16 @@ class NotificationManager: NSObject, ObservableObject {
             content.relevanceScore = 0.9
             content.categoryIdentifier = "FRIEND_REQUEST"
 
-            // Create a unique identifier based on user name and timestamp
             let identifier = "friend_request_\(fromUserName)_\(Date().timeIntervalSince1970)"
-
-            // Trigger immediately
             let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
 
-            let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
-
-            self.notificationCenter.add(request) { error in
-                if let error = error {
-                    #if DEBUG
-                    print("   ❌ Error scheduling friend request notification: \(error)")
-                    #endif
-                } else {
-                    #if DEBUG
-                    print("   ✅ Successfully scheduled friend request notification from \(fromUserName)")
-                    #endif
-                }
-            }
+            self.scheduleAsCommunicationNotification(
+                content: content,
+                identifier: identifier,
+                trigger: trigger,
+                senderDisplayName: fromUserName,
+                conversationIdentifier: "friend-request-\(fromUserName)"
+            )
         }
     }
 
@@ -272,25 +347,16 @@ class NotificationManager: NSObject, ObservableObject {
             // Add conversation ID to userInfo for navigation on tap
             content.userInfo = ["conversationId": conversationId]
 
-            // Create a unique identifier based on sender and timestamp
             let identifier = "new_message_\(conversationId)_\(Date().timeIntervalSince1970)"
-
-            // Trigger immediately
             let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
 
-            let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
-
-            self.notificationCenter.add(request) { error in
-                if let error = error {
-                    #if DEBUG
-                    print("   ❌ Error scheduling new message notification: \(error)")
-                    #endif
-                } else {
-                    #if DEBUG
-                    print("   ✅ Successfully scheduled new message notification from \(fromUserName)")
-                    #endif
-                }
-            }
+            self.scheduleAsCommunicationNotification(
+                content: content,
+                identifier: identifier,
+                trigger: trigger,
+                senderDisplayName: fromUserName,
+                conversationIdentifier: conversationId
+            )
         }
     }
 
@@ -322,26 +388,21 @@ class NotificationManager: NSObject, ObservableObject {
             }
 
             content.sound = .default
-            content.interruptionLevel = .active
+            content.interruptionLevel = .timeSensitive
             content.relevanceScore = 0.8
             content.categoryIdentifier = "SHARED_REMINDER_CHANGE"
             content.userInfo = ["storeName": storeName]
 
             let identifier = "shared_reminder_\(storeName)_\(Date().timeIntervalSince1970)"
             let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
-            let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
 
-            self.notificationCenter.add(request) { error in
-                if let error = error {
-                    #if DEBUG
-                    print("   ❌ Error scheduling shared reminder notification: \(error)")
-                    #endif
-                } else {
-                    #if DEBUG
-                    print("   ✅ Scheduled shared reminder notification from \(senderName) for \(storeName)")
-                    #endif
-                }
-            }
+            self.scheduleAsCommunicationNotification(
+                content: content,
+                identifier: identifier,
+                trigger: trigger,
+                senderDisplayName: senderName,
+                conversationIdentifier: "shared-reminder-\(storeName)"
+            )
         }
     }
 
@@ -381,17 +442,14 @@ class NotificationManager: NSObject, ObservableObject {
 
             let identifier = "on_my_way_\(storeName)_\(Date().timeIntervalSince1970)"
             let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
-            let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
 
-            self.notificationCenter.add(request) { error in
-                #if DEBUG
-                if let error = error {
-                    print("   ❌ Error scheduling on-my-way notification: \(error)")
-                } else {
-                    print("   ✅ Scheduled on-my-way notification from \(senderName) for \(storeName)")
-                }
-                #endif
-            }
+            self.scheduleAsCommunicationNotification(
+                content: content,
+                identifier: identifier,
+                trigger: trigger,
+                senderDisplayName: senderName,
+                conversationIdentifier: "on-my-way-\(storeName)"
+            )
         }
     }
 

@@ -94,6 +94,11 @@ struct StoresView: View {
                         }
                 }
 
+                // Sticky banner ad at the bottom (list and float modes)
+                if !viewModel.userStoreItems.isEmpty {
+                    bannerAdOverlay
+                }
+
                 // Floating action button (both list and float modes)
                 fabOverlay
             }
@@ -419,7 +424,8 @@ struct StoresView: View {
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
         .safeAreaInset(edge: .bottom) {
-            Color.clear.frame(height: 90)
+            // Reserve space for FAB (60pt) above ad (50pt) with gaps
+            Color.clear.frame(height: 74 + 60 + 16)
         }
         .simultaneousGesture(
             DragGesture(minimumDistance: 10)
@@ -549,8 +555,19 @@ struct StoresView: View {
                     } // end: if effectivelyShrunk || !isMenuExpanded
                 }
                 .padding(.trailing, 24)
-                .padding(.bottom, 24)
+                .padding(.bottom, 74) // 50pt ad + 24pt gap
             }
+        }
+    }
+
+    // MARK: - Banner Ad Overlay
+
+    private var bannerAdOverlay: some View {
+        VStack(spacing: 0) {
+            Spacer()
+            BannerAdView(adUnitID: kBannerAdUnitID)
+                .frame(height: 50)
+                .background(Color(.systemBackground).opacity(0.95))
         }
     }
 

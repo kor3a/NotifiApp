@@ -237,6 +237,14 @@ struct ReminderView: View {
                     .transition(.opacity.combined(with: .scale(scale: 0.95, anchor: .topTrailing)))
                     .zIndex(10)
             }
+
+            // Sticky banner ad above tab bar
+            VStack(spacing: 0) {
+                Spacer()
+                BannerAdView(adUnitID: kBannerAdUnitID)
+                    .frame(height: 50)
+                    .background(Color(.systemBackground).opacity(0.95))
+            }
         }
         .navigationTitle(userStoreItem.store.name)
         .toolbar { toolbarContent }
@@ -431,6 +439,9 @@ struct ReminderView: View {
             }
             .listStyle(.plain)
             .scrollContentBackground(.hidden)
+            .safeAreaInset(edge: .bottom) {
+                Color.clear.frame(height: 50)
+            }
             .environment(\.editMode, editMode)
             .background(
                 Color.backgroundGradient(for: colorScheme)
