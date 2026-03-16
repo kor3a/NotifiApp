@@ -38,12 +38,14 @@ struct FriendsView: View {
                 mainContent
             }
 
-            // Sticky banner ad above tab bar
-            VStack(spacing: 0) {
-                Spacer()
-                BannerAdView(adUnitID: kBannerAdUnitID)
-                    .frame(height: 50)
-                    .background(Color(.systemBackground).opacity(0.95))
+            // Sticky banner ad above tab bar (hidden for subscribers)
+            if sessionManager.currentUser?.isSubscribed != true {
+                VStack(spacing: 0) {
+                    Spacer()
+                    BannerAdView(adUnitID: kBannerAdUnitID)
+                        .frame(height: 50)
+                        .background(Color(.systemBackground).opacity(0.95))
+                }
             }
         }
         .navigationTitle("Friends")

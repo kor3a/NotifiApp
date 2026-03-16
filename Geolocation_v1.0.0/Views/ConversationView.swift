@@ -40,8 +40,8 @@ struct ConversationView: View {
                             )
                             .id(message.id)
 
-                            // Insert a banner ad after every 5th message
-                            if (index + 1) % 5 == 0 {
+                            // Insert a banner ad after every 5th message (hidden for subscribers)
+                            if (index + 1) % 5 == 0 && sessionManager.currentUser?.isSubscribed != true {
                                 BannerAdView(adUnitID: kBannerAdUnitID)
                                     .frame(height: 50)
                                     .background(Color(.systemBackground).opacity(0.95))
@@ -72,10 +72,12 @@ struct ConversationView: View {
                 }
             }
 
-            // Banner ad above input bar
-            BannerAdView(adUnitID: kBannerAdUnitID)
-                .frame(height: 50)
-                .background(Color(.systemBackground).opacity(0.95))
+            // Banner ad above input bar (hidden for subscribers)
+            if sessionManager.currentUser?.isSubscribed != true {
+                BannerAdView(adUnitID: kBannerAdUnitID)
+                    .frame(height: 50)
+                    .background(Color(.systemBackground).opacity(0.95))
+            }
 
             // Input bar
             inputBar

@@ -20,6 +20,7 @@ struct StoresView: View {
     @StateObject private var messagesViewModel = MessagesViewModel()
     @StateObject private var smartRecipeViewModel = SmartRecipeViewModel()
     @ObservedObject private var sessionManager = UserSessionManager.shared
+    @ObservedObject private var subscriptionManager = SubscriptionManager.shared
     @State private var showingAddStore = false
     @State private var showingSmartRecipe = false
     @State private var showingPaywall = false
@@ -102,8 +103,8 @@ struct StoresView: View {
                         }
                 }
 
-                // Sticky banner ad at the bottom (list and float modes)
-                if !viewModel.userStoreItems.isEmpty {
+                // Sticky banner ad at the bottom (list and float modes, hidden for subscribers)
+                if !viewModel.userStoreItems.isEmpty && sessionManager.currentUser?.isSubscribed != true {
                     bannerAdOverlay
                 }
 
@@ -511,7 +512,7 @@ struct StoresView: View {
                                         isFabShrunk = true
                                     }
                                 }
-                                if sessionManager.currentUser?.isSubscribed == true {
+                                if subscriptionManager.isSubscribed {
                                     showingSmartRecipe = true
                                 } else {
                                     showingPaywall = true

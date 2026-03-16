@@ -56,8 +56,10 @@ struct ReminderView: View {
         )
     }
 
+    @ObservedObject private var subscriptionManager = SubscriptionManager.shared
+
     private var isSubscribed: Bool {
-        UserSessionManager.shared.currentUser?.isSubscribed == true
+        subscriptionManager.isSubscribed
     }
 
     /// Smart Category is active only when the user is subscribed AND has the toggle enabled.
@@ -238,12 +240,14 @@ struct ReminderView: View {
                     .zIndex(10)
             }
 
-            // Sticky banner ad above tab bar
-            VStack(spacing: 0) {
-                Spacer()
-                BannerAdView(adUnitID: kBannerAdUnitID)
-                    .frame(height: 50)
-                    .background(Color(.systemBackground).opacity(0.95))
+            // Sticky banner ad above tab bar (hidden for subscribers)
+            if !isSubscribed {
+                VStack(spacing: 0) {
+                    Spacer()
+                    BannerAdView(adUnitID: kBannerAdUnitID)
+                        .frame(height: 50)
+                        .background(Color(.systemBackground).opacity(0.95))
+                }
             }
         }
         .navigationTitle(userStoreItem.store.name)
