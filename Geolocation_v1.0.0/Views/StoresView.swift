@@ -94,8 +94,8 @@ struct StoresView: View {
                         }
                 }
 
-                // Sticky banner ad at the bottom (list mode only)
-                if storeViewMode == .list && !viewModel.userStoreItems.isEmpty {
+                // Sticky banner ad at the bottom (list and float modes)
+                if !viewModel.userStoreItems.isEmpty {
                     bannerAdOverlay
                 }
 
