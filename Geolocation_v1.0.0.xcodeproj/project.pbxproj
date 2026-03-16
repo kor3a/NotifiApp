@@ -19,8 +19,10 @@
 		011CF6072ED638F9009A31A6 /* ForgotPasswordViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 011CF6062ED638F9009A31A6 /* ForgotPasswordViewModel.swift */; };
 		011CF6092ED63945009A31A6 /* Notifi.icon in Resources */ = {isa = PBXBuildFile; fileRef = 011CF6082ED63945009A31A6 /* Notifi.icon */; };
 		011CF60D2ED63A69009A31A6 /* NotifiApp.icon in Resources */ = {isa = PBXBuildFile; fileRef = 011CF60C2ED63A69009A31A6 /* NotifiApp.icon */; };
+		0125A7A32F68345D0089F321 /* GoogleMobileAds in Frameworks */ = {isa = PBXBuildFile; productRef = 0125A7A22F68345D0089F321 /* GoogleMobileAds */; };
 		0138242D2EDCD05F0069F38C /* NotificationLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0138242C2EDCD05F0069F38C /* NotificationLog.swift */; };
 		0138242F2EDCD08C0069F38C /* NotificationLogView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0138242E2EDCD08C0069F38C /* NotificationLogView.swift */; };
+		0188F8592F68568C007953B2 /* BannerAdView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0188F8582F68568C007953B2 /* BannerAdView.swift */; };
 		01897B5B2EBA4AB00038A4D1 /* StoresViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01897B5A2EBA4AB00038A4D1 /* StoresViewModel.swift */; };
 		01B408232F3BECB100EA1F25 /* MessagesViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01B408222F3BECB100EA1F25 /* MessagesViewModel.swift */; };
 		01B408252F3BECB800EA1F25 /* FriendsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01B408242F3BECB800EA1F25 /* FriendsViewModel.swift */; };
@@ -135,6 +137,7 @@
 		0138242C2EDCD05F0069F38C /* NotificationLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationLog.swift; sourceTree = "<group>"; };
 		0138242E2EDCD08C0069F38C /* NotificationLogView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationLogView.swift; sourceTree = "<group>"; };
 		0176B3082F3CE658003B9C75 /* Geolocation_v1_0_0Tests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = Geolocation_v1_0_0Tests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		0188F8582F68568C007953B2 /* BannerAdView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BannerAdView.swift; sourceTree = "<group>"; };
 		01897B5A2EBA4AB00038A4D1 /* StoresViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoresViewModel.swift; sourceTree = "<group>"; };
 		018D77DF2ED7C43C00E767D6 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		01B408212F3BEC7F00EA1F25 /* Secrets.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Secrets.xcconfig; sourceTree = "<group>"; };
@@ -223,6 +226,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				0125A7A32F68345D0089F321 /* GoogleMobileAds in Frameworks */,
 				8278FE072C5DD4310017EB72 /* FirebaseAuth in Frameworks */,
 				8278FE092C5DD4310017EB72 /* FirebaseFirestore in Frameworks */,
 				8278FE0B2C5DD4310017EB72 /* FirebaseStorage in Frameworks */,
@@ -314,6 +318,7 @@
 		8278FE0E2C5DE5930017EB72 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				0188F8582F68568C007953B2 /* BannerAdView.swift */,
 				0110775F2F609A1500E76A67 /* StoreFloatView.swift */,
 				0119CD0E2F4CF96000DEDEFD /* CachedLogoImage.swift */,
 				0119CD0C2F4CF95A00DEDEFD /* AutoDeleteSwipeRail.swift */,
@@ -467,6 +472,7 @@
 				8278FE062C5DD4310017EB72 /* FirebaseAuth */,
 				8278FE082C5DD4310017EB72 /* FirebaseFirestore */,
 				8278FE0A2C5DD4310017EB72 /* FirebaseStorage */,
+				0125A7A22F68345D0089F321 /* GoogleMobileAds */,
 			);
 			productName = Geolocation_v1.0.0;
 			productReference = 8278FDF42C5DD1C90017EB72 /* Allim.app */;
@@ -524,6 +530,7 @@
 			mainGroup = 8278FDEB2C5DD1C80017EB72;
 			packageReferences = (
 				8278FE052C5DD4310017EB72 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
+				0125A7A12F68345D0089F321 /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */,
 			);
 			productRefGroup = 8278FDF52C5DD1C90017EB72 /* Products */;
 			projectDirPath = "";
@@ -581,6 +588,7 @@
 				74A79E852CBDACB800713F0E /* Store.swift in Sources */,
 				74A79E7D2CBDAA4E00713F0E /* Reminder.swift in Sources */,
 				01B408332F3BECF200EA1F25 /* MessagesView.swift in Sources */,
+				0188F8592F68568C007953B2 /* BannerAdView.swift in Sources */,
 				0138242F2EDCD08C0069F38C /* NotificationLogView.swift in Sources */,
 				82D289AE2C61CEBD009F357F /* SignupViewModel.swift in Sources */,
 				748542B32CB5307000C58D9B /* HomeView.swift in Sources */,
@@ -844,7 +852,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = Geolocation_v1.0.0/Geolocation_v1.0.0.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 4;
 				DEVELOPMENT_ASSET_PATHS = "\"Geolocation_v1.0.0/Preview Content\"";
 				DEVELOPMENT_TEAM = XT28W79782;
 				ENABLE_PREVIEWS = YES;
@@ -855,7 +863,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.2;
 				PRODUCT_BUNDLE_IDENTIFIER = com.kor3a.nearbuy;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -874,7 +882,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = Geolocation_v1.0.0/Geolocation_v1.0.0.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 4;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_ASSET_PATHS = "\"Geolocation_v1.0.0/Preview Content\"";
 				DEVELOPMENT_TEAM = XT28W79782;
@@ -886,7 +894,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.2;
 				PRODUCT_BUNDLE_IDENTIFIER = com.kor3a.nearbuy;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -988,6 +996,14 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		0125A7A12F68345D0089F321 /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/googleads/swift-package-manager-google-mobile-ads";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 13.1.0;
+			};
+		};
 		8278FE052C5DD4310017EB72 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/firebase/firebase-ios-sdk";
@@ -999,6 +1015,11 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		0125A7A22F68345D0089F321 /* GoogleMobileAds */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 0125A7A12F68345D0089F321 /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */;
+			productName = GoogleMobileAds;
+		};
 		8278FE062C5DD4310017EB72 /* FirebaseAuth */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 8278FE052C5DD4310017EB72 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;

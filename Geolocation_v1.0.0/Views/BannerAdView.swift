@@ -23,27 +23,27 @@ struct BannerAdView: UIViewRepresentable {
         Coordinator()
     }
 
-    func makeUIView(context: Context) -> GADBannerView {
-        let bannerView = GADBannerView(adSize: GADAdSizeBanner)
+    func makeUIView(context: Context) -> BannerView {
+        let bannerView = BannerView(adSize: AdSizeBanner)
         bannerView.adUnitID = adUnitID
         bannerView.delegate = context.coordinator
         bannerView.rootViewController = topViewController()
-        bannerView.load(GADRequest())
+        bannerView.load(Request())
         return bannerView
     }
 
-    func updateUIView(_ uiView: GADBannerView, context: Context) {}
+    func updateUIView(_ uiView: BannerView, context: Context) {}
 
     // MARK: - Coordinator
 
-    class Coordinator: NSObject, GADBannerViewDelegate {
-        func bannerViewDidReceiveAd(_ bannerView: GADBannerView) {
+    class Coordinator: NSObject, BannerViewDelegate {
+        func bannerViewDidReceiveAd(_ bannerView: BannerView) {
             #if DEBUG
             print("✅ AdMob: Banner ad loaded successfully.")
             #endif
         }
 
-        func bannerView(_ bannerView: GADBannerView, didFailToReceiveAdWithError error: Error) {
+        func bannerView(_ bannerView: BannerView, didFailToReceiveAdWithError error: Error) {
             #if DEBUG
             print("❌ AdMob: Banner ad failed to load — \(error.localizedDescription)")
             #endif
