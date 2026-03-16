@@ -36,7 +36,15 @@ struct StoresView: View {
     @State private var isFabShrunk: Bool = false
     @State private var isAtScrollBottom: Bool = false
     @State private var fabInactivityTimer: Timer? = nil
+    @State private var isSortedByReminderCount: Bool = false
     @Environment(\.colorScheme) var colorScheme
+
+    private var displayedStoreItems: [UserStoreItem] {
+        if isSortedByReminderCount {
+            return viewModel.userStoreItems.sorted { $0.store.reminderCount > $1.store.reminderCount }
+        }
+        return viewModel.userStoreItems
+    }
 
     var body: some View {
         NavigationStack {
@@ -64,7 +72,7 @@ struct StoresView: View {
                         listContent
                     } else {
                         StoreFloatView(
-                            stores: viewModel.userStoreItems,
+                            stores: displayedStoreItems,
                             onStoreTap: { item in
                                 notificationDestination = item
                             },
@@ -125,9 +133,23 @@ struct StoresView: View {
                     }
                 }
 
-                // View mode toggle (only when stores exist)
+                // Sort + view mode toggle (only when stores exist)
                 if !viewModel.userStoreItems.isEmpty {
-                    ToolbarItem(placement: .navigationBarTrailing) {
+                    ToolbarItemGroup(placement: .navigationBarTrailing) {
+                        // Sort by reminder count
+                        Button(action: {
+                            withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                                isSortedByReminderCount.toggle()
+                                if isSortedByReminderCount {
+                                    editMode = .inactive
+                                }
+                            }
+                        }) {
+                            Image(systemName: isSortedByReminderCount ? "arrow.up.arrow.down.circle.fill" : "arrow.up.arrow.down.circle")
+                                .imageScale(.large)
+                        }
+
+                        // List / float view toggle
                         Button(action: {
                             withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
                                 if storeViewMode == .list {
@@ -332,12 +354,12 @@ struct StoresView: View {
 
     private var listContent: some View {
         List {
-            ForEach(viewModel.userStoreItems) { userStoreItem in
+            ForEach(displayedStoreItems) { userStoreItem in
                 ZStack {
                     if editMode == .inactive {
                         NavigationLink(destination: ReminderView(
                             userStoreItem: userStoreItem,
-                            availableStores: viewModel.userStoreItems.filter { $0.id != userStoreItem.id }
+                            availableStores: displayedStoreItems.filter { $0.id != userStoreItem.id }
                         )) {
                             StoreItemView(store: userStoreItem.store, isShared: userStoreItem.isShared)
                                 .contentShape(Rectangle())
@@ -396,6 +418,7 @@ struct StoresView: View {
                 .simultaneousGesture(
                     LongPressGesture(minimumDuration: 0.5)
                         .onEnded { _ in
+                            guard !isSortedByReminderCount else { return }
                             withAnimation {
                                 editMode = .active
                                 longPressedItemId = userStoreItem.id
@@ -403,7 +426,7 @@ struct StoresView: View {
                         }
                 )
             }
-            .onMove(perform: moveStore)
+            .onMove(perform: isSortedByReminderCount ? nil : moveStore)
 
         Color.clear
             .frame(height: 1)
