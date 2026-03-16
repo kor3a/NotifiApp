@@ -424,8 +424,8 @@ struct StoresView: View {
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
         .safeAreaInset(edge: .bottom) {
-            // Extra 50 pt reserves space for the sticky banner ad above the FAB area
-            Color.clear.frame(height: 90 + 50)
+            // Reserve space for banner ad (50pt) above the FAB area (90pt)
+            Color.clear.frame(height: 90 + 50 + 16)
         }
         .simultaneousGesture(
             DragGesture(minimumDistance: 10)
@@ -568,8 +568,8 @@ struct StoresView: View {
             BannerAdView(adUnitID: kBannerAdUnitID)
                 .frame(height: 50)
                 .background(Color(.systemBackground).opacity(0.95))
+                .padding(.bottom, 90) // Sit above the FAB area
         }
-        .ignoresSafeArea(edges: .bottom)
     }
 
     // MARK: - FAB Timer Helpers
