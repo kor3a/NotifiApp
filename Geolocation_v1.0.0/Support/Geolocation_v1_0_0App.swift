@@ -20,7 +20,7 @@ struct Geolocation_v1_0_0App: App {
         FirebaseApp.configure()
 
         // Initialize Google Mobile Ads SDK
-        GADMobileAds.sharedInstance().start(completionHandler: nil)
+        MobileAds.shared.start(completionHandler: nil)
 
         // Initialize LocationMonitoringManager so it's ready to handle background location events
         // This ensures the app can respond to geofence events even when launched in the background
