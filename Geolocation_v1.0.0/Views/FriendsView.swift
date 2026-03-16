@@ -37,6 +37,14 @@ struct FriendsView: View {
             } else {
                 mainContent
             }
+
+            // Sticky banner ad above tab bar
+            VStack(spacing: 0) {
+                Spacer()
+                BannerAdView(adUnitID: kBannerAdUnitID)
+                    .frame(height: 50)
+                    .background(Color(.systemBackground).opacity(0.95))
+            }
         }
         .navigationTitle("Friends")
         .toolbar {
@@ -176,6 +184,9 @@ struct FriendsView: View {
             }
             .padding(.top, 8)
             .padding(.bottom, 20)
+        }
+        .safeAreaInset(edge: .bottom) {
+            Color.clear.frame(height: 50)
         }
     }
 

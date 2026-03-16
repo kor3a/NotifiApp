@@ -27,6 +27,14 @@ struct MessagesView: View {
             } else {
                 conversationsList
             }
+
+            // Sticky banner ad above tab bar
+            VStack(spacing: 0) {
+                Spacer()
+                BannerAdView(adUnitID: kBannerAdUnitID)
+                    .frame(height: 50)
+                    .background(Color(.systemBackground).opacity(0.95))
+            }
         }
         .navigationTitle("Messages")
         .toolbar {
@@ -128,6 +136,9 @@ struct MessagesView: View {
         }
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
+        .safeAreaInset(edge: .bottom) {
+            Color.clear.frame(height: 50)
+        }
     }
 }
 

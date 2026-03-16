@@ -32,13 +32,22 @@ struct ConversationView: View {
                                 .id("loadMore")
                         }
 
-                        ForEach(viewModel.messages) { message in
+                        ForEach(Array(viewModel.messages.enumerated()), id: \.element.id) { index, message in
                             MessageBubble(
                                 message: message,
                                 isFromCurrentUser: viewModel.isCurrentUser(message.senderId),
                                 viewModel: viewModel
                             )
                             .id(message.id)
+
+                            // Insert a banner ad after every 5th message
+                            if (index + 1) % 5 == 0 {
+                                BannerAdView(adUnitID: kBannerAdUnitID)
+                                    .frame(height: 50)
+                                    .background(Color(.systemBackground).opacity(0.95))
+                                    .cornerRadius(8)
+                                    .padding(.vertical, 4)
+                            }
                         }
                     }
                     .padding()
@@ -62,6 +71,11 @@ struct ConversationView: View {
                     }
                 }
             }
+
+            // Banner ad above input bar
+            BannerAdView(adUnitID: kBannerAdUnitID)
+                .frame(height: 50)
+                .background(Color(.systemBackground).opacity(0.95))
 
             // Input bar
             inputBar
