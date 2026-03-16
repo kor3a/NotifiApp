@@ -8,6 +8,7 @@
 import Foundation
 import StoreKit
 import FirebaseFirestore
+import Combine
 
 @MainActor
 class SubscriptionManager: ObservableObject {
@@ -23,6 +24,7 @@ class SubscriptionManager: ObservableObject {
     @Published var errorMessage: String? = nil
 
     private var updateListenerTask: Task<Void, Never>? = nil
+    private var userCancellable: AnyCancellable? = nil
 
     private init() {
         updateListenerTask = listenForTransactionUpdates()
@@ -30,10 +32,25 @@ class SubscriptionManager: ObservableObject {
             await loadProducts()
             await refreshSubscriptionStatus()
         }
+
+        // Re-check status whenever the user loads or changes.
+        // This is critical for the adminSubscribed override: on app launch
+        // currentUser is nil when SubscriptionManager first runs, so the
+        // admin check would be missed without this observer.
+        userCancellable = UserSessionManager.shared.$currentUser
+            .dropFirst()                      // skip the initial nil
+            .removeDuplicates { $0?.userId == $1?.userId }
+            .sink { [weak self] user in
+                guard user != nil else { return }
+                Task { [weak self] in
+                    await self?.refreshSubscriptionStatus()
+                }
+            }
     }
 
     deinit {
         updateListenerTask?.cancel()
+        userCancellable?.cancel()
     }
 
     // MARK: - Load Products
