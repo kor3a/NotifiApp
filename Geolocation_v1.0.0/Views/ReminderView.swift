@@ -223,23 +223,6 @@ struct ReminderView: View {
                     .zIndex(3)
             }
 
-            // Info panel — tap outside to dismiss
-            if showInfoPanel {
-                Color.clear
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        withAnimation(.easeInOut(duration: 0.18)) {
-                            showInfoPanel = false
-                        }
-                    }
-                    .ignoresSafeArea()
-                    .zIndex(9)
-
-                infoPanelOverlay
-                    .transition(.opacity.combined(with: .scale(scale: 0.95, anchor: .topTrailing)))
-                    .zIndex(10)
-            }
-
             // Sticky banner ad above tab bar (hidden for subscribers)
             if !isSubscribed {
                 VStack(spacing: 0) {
@@ -890,14 +873,16 @@ struct ReminderView: View {
         ToolbarItem(placement: .navigationBarTrailing) {
             if !isReorderMode {
                 Button {
-                    withAnimation(.easeInOut(duration: 0.18)) {
-                        showInfoPanel.toggle()
-                    }
+                    showInfoPanel.toggle()
                 } label: {
                     Image(systemName: showInfoPanel ? "info.circle.fill" : "info.circle")
                         .frame(width: 22, height: 22)
                 }
                 .frame(width: 44, height: 44)
+                .popover(isPresented: $showInfoPanel) {
+                    infoPanelContent
+                        .presentationCompactAdaptation(.none)
+                }
             }
         }
     }
@@ -1192,76 +1177,62 @@ struct ReminderView: View {
 
     // MARK: - Info Panel
 
-    private var infoPanelOverlay: some View {
-        VStack(spacing: 0) {
-            HStack(alignment: .top) {
-                Spacer()
-                VStack(alignment: .leading, spacing: 0) {
-                    // Auto Delete row
-                    HStack(spacing: 12) {
-                        Image(systemName: autoDeleteEnabled ? "trash.fill" : "trash")
-                            .font(.body)
-                            .foregroundColor(autoDeleteEnabled ? .red : .primary)
-                            .frame(width: 24)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Auto Delete")
-                                .font(.subheadline)
-                                .fontWeight(.medium)
-                            Text("Delete checked items automatically")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        Spacer()
-                        Toggle("", isOn: $autoDeleteEnabled)
-                            .labelsHidden()
-                            .disabled(userStoreItem.permission == .view)
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 12)
-
-                    Divider()
-                        .padding(.horizontal, 16)
-
-                    // Smart Category row
-                    HStack(spacing: 12) {
-                        Image(systemName: "sparkles")
-                            .font(.body)
-                            .foregroundColor(isSubscribed ? Color.appAccent : .secondary)
-                            .frame(width: 24)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Smart Category")
-                                .font(.subheadline)
-                                .fontWeight(.medium)
-                                .foregroundStyle(isSubscribed ? Color.primary : Color.secondary)
-                            Text(isSubscribed ? "AI auto-categorizes new items" : "Available for subscribers")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        Spacer()
-                        if isSubscribed {
-                            Toggle("", isOn: $smartCategoryEnabled)
-                                .labelsHidden()
-                        } else {
-                            Image(systemName: "lock.fill")
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 12)
+    private var infoPanelContent: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // Auto Delete row
+            HStack(spacing: 12) {
+                Image(systemName: autoDeleteEnabled ? "trash.fill" : "trash")
+                    .font(.body)
+                    .foregroundColor(autoDeleteEnabled ? .red : .primary)
+                    .frame(width: 24)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Auto Delete")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                    Text("Delete checked items automatically")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
-                .background(
-                    RoundedRectangle(cornerRadius: 16)
-                        .fill(.regularMaterial)
-                        .shadow(color: .black.opacity(0.2), radius: 16, x: 0, y: 8)
-                )
-                .frame(width: 290)
-                .padding(.trailing, 12)
+                Spacer()
+                Toggle("", isOn: $autoDeleteEnabled)
+                    .labelsHidden()
+                    .disabled(userStoreItem.permission == .view)
             }
-            Spacer()
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+
+            Divider()
+                .padding(.horizontal, 16)
+
+            // Smart Category row
+            HStack(spacing: 12) {
+                Image(systemName: "sparkles")
+                    .font(.body)
+                    .foregroundColor(isSubscribed ? Color.appAccent : .secondary)
+                    .frame(width: 24)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Smart Category")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                        .foregroundStyle(isSubscribed ? Color.primary : Color.secondary)
+                    Text(isSubscribed ? "AI auto-categorizes new items" : "Available for subscribers")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                if isSubscribed {
+                    Toggle("", isOn: $smartCategoryEnabled)
+                        .labelsHidden()
+                } else {
+                    Image(systemName: "lock.fill")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
         }
-        .padding(.top, 8)
-        .allowsHitTesting(true)
+        .frame(width: 290)
     }
 
     /// Send shared store notifications if the store is shared and changes were made.
