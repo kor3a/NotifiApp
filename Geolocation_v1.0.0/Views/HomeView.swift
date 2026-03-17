@@ -136,6 +136,13 @@ struct HomeView: View {
             if let userId = sessionManager.currentUser?.userId {
                 friendRequestService.listenForIncomingRequests(userId: userId)
                 messagingService.startListeningForIncomingMessages(userId: userId)
+                // Save any FCM token that arrived before the session loaded
+                if let pendingToken = UserDefaults.standard.string(forKey: "pendingFCMToken") {
+                    FCMTokenService.shared.saveToken(pendingToken, for: userId)
+                    UserDefaults.standard.removeObject(forKey: "pendingFCMToken")
+                } else {
+                    FCMTokenService.shared.refreshAndSave(userId: userId)
+                }
             }
             if let userEmail = sessionManager.currentUser?.email {
                 SharedReminderNotificationService.shared.startListening(userEmail: userEmail)
@@ -153,6 +160,14 @@ struct HomeView: View {
 
                 // Start listening for incoming messages
                 messagingService.startListeningForIncomingMessages(userId: userId)
+
+                // Save any FCM token that arrived before user data loaded
+                if let pendingToken = UserDefaults.standard.string(forKey: "pendingFCMToken") {
+                    FCMTokenService.shared.saveToken(pendingToken, for: userId)
+                    UserDefaults.standard.removeObject(forKey: "pendingFCMToken")
+                } else {
+                    FCMTokenService.shared.refreshAndSave(userId: userId)
+                }
 
                 // Start listening for shared reminder change and on-my-way notifications
                 if let userEmail = newUser?.email {

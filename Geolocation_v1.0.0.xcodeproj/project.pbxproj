@@ -56,6 +56,9 @@
 		8278FE072C5DD4310017EB72 /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = 8278FE062C5DD4310017EB72 /* FirebaseAuth */; };
 		8278FE092C5DD4310017EB72 /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = 8278FE082C5DD4310017EB72 /* FirebaseFirestore */; };
 		8278FE0B2C5DD4310017EB72 /* FirebaseStorage in Frameworks */ = {isa = PBXBuildFile; productRef = 8278FE0A2C5DD4310017EB72 /* FirebaseStorage */; };
+		FF1234560001AABB00CC0002 /* FirebaseMessaging in Frameworks */ = {isa = PBXBuildFile; productRef = FF1234560001AABB00CC0001 /* FirebaseMessaging */; };
+		FF1234560001AABB00CC0004 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF1234560001AABB00CC0003 /* AppDelegate.swift */; };
+		FF1234560001AABB00CC0006 /* FCMTokenService.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF1234560001AABB00CC0005 /* FCMTokenService.swift */; };
 		8278FE0D2C5DD6DE0017EB72 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 8278FE0C2C5DD6DE0017EB72 /* GoogleService-Info.plist */; };
 		8278FE132C5F23010017EB72 /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8278FE122C5F23010017EB72 /* LoginView.swift */; };
 		82916C162C914BA800F810A3 /* MapViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82916C152C914BA800F810A3 /* MapViewModel.swift */; };
@@ -198,6 +201,8 @@
 		AA1234560001AABB00CC0019 /* UserSessionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserSessionManager.swift; sourceTree = "<group>"; };
 		AA1234560001AABB00CC0030 /* SubscriptionPaywallView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionPaywallView.swift; sourceTree = "<group>"; };
 		C10000000001AABB00CC0040 /* SharedReminderNotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedReminderNotificationService.swift; sourceTree = "<group>"; };
+		FF1234560001AABB00CC0003 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		FF1234560001AABB00CC0005 /* FCMTokenService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FCMTokenService.swift; sourceTree = "<group>"; };
 		CC0100000000000000000001 /* NotifiWidgetBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotifiWidgetBundle.swift; sourceTree = "<group>"; };
 		CC0100000000000000000002 /* NotifiWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotifiWidget.swift; sourceTree = "<group>"; };
 		CC0100000000000000000003 /* NotifiWidgetViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotifiWidgetViews.swift; sourceTree = "<group>"; };
@@ -232,6 +237,7 @@
 				8278FE072C5DD4310017EB72 /* FirebaseAuth in Frameworks */,
 				8278FE092C5DD4310017EB72 /* FirebaseFirestore in Frameworks */,
 				8278FE0B2C5DD4310017EB72 /* FirebaseStorage in Frameworks */,
+				FF1234560001AABB00CC0002 /* FirebaseMessaging in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -248,6 +254,7 @@
 		01FB27582EC2A7490038E406 /* Services */ = {
 			isa = PBXGroup;
 			children = (
+				FF1234560001AABB00CC0005 /* FCMTokenService.swift */,
 				0138D8742F68BB95007CC1E4 /* SubscriptionManager.swift */,
 				010405BB2F575A6F0057862B /* OnMyWayNotificationService.swift */,
 				010405B92F575A680057862B /* TravelTimeService.swift */,
@@ -395,6 +402,7 @@
 			children = (
 				8278FE0C2C5DD6DE0017EB72 /* GoogleService-Info.plist */,
 				8278FDF72C5DD1C90017EB72 /* Geolocation_v1_0_0App.swift */,
+				FF1234560001AABB00CC0003 /* AppDelegate.swift */,
 			);
 			path = Support;
 			sourceTree = "<group>";
@@ -475,6 +483,7 @@
 				8278FE062C5DD4310017EB72 /* FirebaseAuth */,
 				8278FE082C5DD4310017EB72 /* FirebaseFirestore */,
 				8278FE0A2C5DD4310017EB72 /* FirebaseStorage */,
+				FF1234560001AABB00CC0001 /* FirebaseMessaging */,
 				0125A7A22F68345D0089F321 /* GoogleMobileAds */,
 			);
 			productName = Geolocation_v1.0.0;
@@ -652,6 +661,8 @@
 				AA1234560001AABB00CC0026 /* NotificationLogStore.swift in Sources */,
 				AA1234560001AABB00CC0027 /* NotificationManager.swift in Sources */,
 				C10000000001AABB00CC0041 /* SharedReminderNotificationService.swift in Sources */,
+				FF1234560001AABB00CC0004 /* AppDelegate.swift in Sources */,
+				FF1234560001AABB00CC0006 /* FCMTokenService.swift in Sources */,
 				AA1234560001AABB00CC0028 /* StoreLogoProvider.swift in Sources */,
 				AA1234560001AABB00CC0029 /* UserSessionManager.swift in Sources */,
 				AA1234560001AABB00CC0031 /* SubscriptionPaywallView.swift in Sources */,
@@ -1038,6 +1049,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 8278FE052C5DD4310017EB72 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
 			productName = FirebaseStorage;
+		};
+		FF1234560001AABB00CC0001 /* FirebaseMessaging */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 8278FE052C5DD4310017EB72 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseMessaging;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

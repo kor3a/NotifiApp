@@ -481,8 +481,16 @@ extension NotificationManager: UNUserNotificationCenterDelegate {
     func userNotificationCenter(_ center: UNUserNotificationCenter,
                               willPresent notification: UNNotification,
                               withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
-        // Show notification even when app is in foreground
-        // .list ensures it appears in Notification Center and lock screen
+        let userInfo = notification.request.content.userInfo
+        // Suppress FCM push notifications while the app is in the foreground.
+        // The Firestore listener already scheduled a local notification for the
+        // same event (source == "fcm" is set by the Cloud Function).
+        if let source = userInfo["source"] as? String, source == "fcm" {
+            completionHandler([])
+            return
+        }
+        // Show local notifications even when app is in foreground.
+        // .list ensures it appears in Notification Center and lock screen.
         completionHandler([.banner, .list, .sound, .badge])
     }
 

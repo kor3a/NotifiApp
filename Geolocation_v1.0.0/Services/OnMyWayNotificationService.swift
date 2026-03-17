@@ -14,6 +14,10 @@ class OnMyWayNotificationService {
 
     private let db = Firestore.firestore()
     private var listener: ListenerRegistration?
+    /// Unix timestamp recorded when startListening() is called.
+    /// Filters to docs created AFTER this time so the client does not
+    /// re-process notifications already delivered by FCM while app was closed.
+    private var listenerStartTime: Double = 0
 
     private init() {}
 
@@ -176,13 +180,15 @@ class OnMyWayNotificationService {
     /// Start listening for "on my way" notifications addressed to the current user.
     func startListening(userEmail: String) {
         listener?.remove()
+        listenerStartTime = Date().timeIntervalSince1970
 
         #if DEBUG
-        print("🚗 OnMyWayNotificationService: Starting listener for email: \(userEmail)")
+        print("🚗 OnMyWayNotificationService: Starting listener for email: \(userEmail), startTime: \(listenerStartTime)")
         #endif
 
         listener = db.collection("on_my_way_notifications")
             .whereField("recipientEmail", isEqualTo: userEmail)
+            .whereField("createdAt", isGreaterThan: listenerStartTime)
             .addSnapshotListener { snapshot, error in
                 if let error = error {
                     #if DEBUG

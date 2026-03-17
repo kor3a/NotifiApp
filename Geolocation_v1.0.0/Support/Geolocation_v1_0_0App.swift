@@ -14,6 +14,7 @@ import GoogleMobileAds
 @main
 struct Geolocation_v1_0_0App: App {
 
+    @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @Environment(\.scenePhase) private var scenePhase
 
     init() {
