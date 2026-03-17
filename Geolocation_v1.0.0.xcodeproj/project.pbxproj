@@ -56,9 +56,6 @@
 		8278FE072C5DD4310017EB72 /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = 8278FE062C5DD4310017EB72 /* FirebaseAuth */; };
 		8278FE092C5DD4310017EB72 /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = 8278FE082C5DD4310017EB72 /* FirebaseFirestore */; };
 		8278FE0B2C5DD4310017EB72 /* FirebaseStorage in Frameworks */ = {isa = PBXBuildFile; productRef = 8278FE0A2C5DD4310017EB72 /* FirebaseStorage */; };
-		FF1234560001AABB00CC0002 /* FirebaseMessaging in Frameworks */ = {isa = PBXBuildFile; productRef = FF1234560001AABB00CC0001 /* FirebaseMessaging */; };
-		FF1234560001AABB00CC0004 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF1234560001AABB00CC0003 /* AppDelegate.swift */; };
-		FF1234560001AABB00CC0006 /* FCMTokenService.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF1234560001AABB00CC0005 /* FCMTokenService.swift */; };
 		8278FE0D2C5DD6DE0017EB72 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 8278FE0C2C5DD6DE0017EB72 /* GoogleService-Info.plist */; };
 		8278FE132C5F23010017EB72 /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8278FE122C5F23010017EB72 /* LoginView.swift */; };
 		82916C162C914BA800F810A3 /* MapViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82916C152C914BA800F810A3 /* MapViewModel.swift */; };
@@ -92,6 +89,9 @@
 		CC0200000000000000000005 /* NotifiWidget.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = CC0100000000000000000005 /* NotifiWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		DF66A9982E24C86100C15DA9 /* User_Store.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF66A9972E24C86100C15DA9 /* User_Store.swift */; };
 		FF0200000001AABB00CC0001 /* SpecialElite-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FF0100000001AABB00CC0001 /* SpecialElite-Regular.ttf */; };
+		FF1234560001AABB00CC0002 /* FirebaseMessaging in Frameworks */ = {isa = PBXBuildFile; productRef = FF1234560001AABB00CC0001 /* FirebaseMessaging */; };
+		FF1234560001AABB00CC0004 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF1234560001AABB00CC0003 /* AppDelegate.swift */; };
+		FF1234560001AABB00CC0006 /* FCMTokenService.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF1234560001AABB00CC0005 /* FCMTokenService.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -130,6 +130,7 @@
 		010405BB2F575A6F0057862B /* OnMyWayNotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnMyWayNotificationService.swift; sourceTree = "<group>"; };
 		010B28082EB6C2E9004E828B /* AddStoreView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddStoreView.swift; sourceTree = "<group>"; };
 		0110775F2F609A1500E76A67 /* StoreFloatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoreFloatView.swift; sourceTree = "<group>"; };
+		0115738A2F69BC1B00963138 /* AllimRelease.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = AllimRelease.entitlements; sourceTree = "<group>"; };
 		0119CD0C2F4CF95A00DEDEFD /* AutoDeleteSwipeRail.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoDeleteSwipeRail.swift; sourceTree = "<group>"; };
 		0119CD0E2F4CF96000DEDEFD /* CachedLogoImage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CachedLogoImage.swift; sourceTree = "<group>"; };
 		011CF5FD2ED638D6009A31A6 /* ForgotPasswordView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForgotPasswordView.swift; sourceTree = "<group>"; };
@@ -201,8 +202,6 @@
 		AA1234560001AABB00CC0019 /* UserSessionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserSessionManager.swift; sourceTree = "<group>"; };
 		AA1234560001AABB00CC0030 /* SubscriptionPaywallView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionPaywallView.swift; sourceTree = "<group>"; };
 		C10000000001AABB00CC0040 /* SharedReminderNotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedReminderNotificationService.swift; sourceTree = "<group>"; };
-		FF1234560001AABB00CC0003 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
-		FF1234560001AABB00CC0005 /* FCMTokenService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FCMTokenService.swift; sourceTree = "<group>"; };
 		CC0100000000000000000001 /* NotifiWidgetBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotifiWidgetBundle.swift; sourceTree = "<group>"; };
 		CC0100000000000000000002 /* NotifiWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotifiWidget.swift; sourceTree = "<group>"; };
 		CC0100000000000000000003 /* NotifiWidgetViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotifiWidgetViews.swift; sourceTree = "<group>"; };
@@ -213,6 +212,8 @@
 		DF66A9972E24C86100C15DA9 /* User_Store.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = User_Store.swift; sourceTree = "<group>"; };
 		DF66A9992E24C86100C15DA9 /* Geolocation_v1.0.0.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Geolocation_v1.0.0.entitlements; sourceTree = "<group>"; };
 		FF0100000001AABB00CC0001 /* SpecialElite-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "SpecialElite-Regular.ttf"; sourceTree = "<group>"; };
+		FF1234560001AABB00CC0003 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		FF1234560001AABB00CC0005 /* FCMTokenService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FCMTokenService.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -277,6 +278,7 @@
 		8278FDEB2C5DD1C80017EB72 = {
 			isa = PBXGroup;
 			children = (
+				0115738A2F69BC1B00963138 /* AllimRelease.entitlements */,
 				8278FDF62C5DD1C90017EB72 /* Geolocation_v1.0.0 */,
 				CC0400000000000000000001 /* NotifiWidget */,
 				0176B3092F3CE658003B9C75 /* Geolocation_v1_0_0Tests */,
@@ -895,7 +897,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = NotifiApp;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = Geolocation_v1.0.0/Geolocation_v1.0.0.entitlements;
+				CODE_SIGN_ENTITLEMENTS = AllimRelease.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
