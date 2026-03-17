@@ -20,6 +20,7 @@ struct StoresView: View {
     @StateObject private var messagesViewModel = MessagesViewModel()
     @StateObject private var smartRecipeViewModel = SmartRecipeViewModel()
     @ObservedObject private var sessionManager = UserSessionManager.shared
+    @ObservedObject private var subscriptionManager = SubscriptionManager.shared
     @State private var showingAddStore = false
     @State private var showingSmartRecipe = false
     @State private var showingPaywall = false
@@ -102,8 +103,8 @@ struct StoresView: View {
                         }
                 }
 
-                // Sticky banner ad at the bottom (list and float modes)
-                if !viewModel.userStoreItems.isEmpty {
+                // Sticky banner ad at the bottom (list and float modes, hidden for subscribers)
+                if !viewModel.userStoreItems.isEmpty && !subscriptionManager.isSubscribed {
                     bannerAdOverlay
                 }
 
@@ -447,8 +448,9 @@ struct StoresView: View {
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
         .safeAreaInset(edge: .bottom) {
-            // Reserve space for FAB (60pt) above ad (50pt) with gaps
-            Color.clear.frame(height: 74 + 60 + 16)
+            // Reserve space for FAB (60pt) + ad (50pt when visible) + gaps
+            let adHeight: CGFloat = subscriptionManager.isSubscribed ? 0 : 50
+            Color.clear.frame(height: adHeight + 24 + 60 + 16)
         }
         .simultaneousGesture(
             DragGesture(minimumDistance: 10)
@@ -511,7 +513,7 @@ struct StoresView: View {
                                         isFabShrunk = true
                                     }
                                 }
-                                if sessionManager.currentUser?.isSubscribed == true {
+                                if subscriptionManager.isSubscribed {
                                     showingSmartRecipe = true
                                 } else {
                                     showingPaywall = true
@@ -583,7 +585,7 @@ struct StoresView: View {
                     } // end: if effectivelyShrunk || !isMenuExpanded
                 }
                 .padding(.trailing, 24)
-                .padding(.bottom, 74) // 50pt ad + 24pt gap
+                .padding(.bottom, subscriptionManager.isSubscribed ? 24 : 74) // 24pt gap, +50pt for ad
             }
         }
     }

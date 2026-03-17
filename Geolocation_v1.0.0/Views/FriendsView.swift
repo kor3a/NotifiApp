@@ -11,6 +11,7 @@ struct FriendsView: View {
     @StateObject private var viewModel = FriendsViewModel()
     @ObservedObject var messagesViewModel: MessagesViewModel
     @ObservedObject private var sessionManager = UserSessionManager.shared
+    @ObservedObject private var subscriptionManager = SubscriptionManager.shared
     @State private var showAddFriend = false
     @State private var selectedFriendForMessage: Contact?
     @State private var selectedConversation: Conversation?
@@ -38,12 +39,14 @@ struct FriendsView: View {
                 mainContent
             }
 
-            // Sticky banner ad above tab bar
-            VStack(spacing: 0) {
-                Spacer()
-                BannerAdView(adUnitID: kBannerAdUnitID)
-                    .frame(height: 50)
-                    .background(Color(.systemBackground).opacity(0.95))
+            // Sticky banner ad above tab bar (hidden for subscribers)
+            if !subscriptionManager.isSubscribed {
+                VStack(spacing: 0) {
+                    Spacer()
+                    BannerAdView(adUnitID: kBannerAdUnitID)
+                        .frame(height: 50)
+                        .background(Color(.systemBackground).opacity(0.95))
+                }
             }
         }
         .navigationTitle("Friends")
