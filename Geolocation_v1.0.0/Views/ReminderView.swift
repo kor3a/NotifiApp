@@ -251,6 +251,7 @@ struct ReminderView: View {
             }
         }
         .navigationTitle(userStoreItem.store.name)
+        .navigationBarTitleDisplayMode(.inline)
         .toolbar { toolbarContent }
         .onAppear {
             viewModel.fetchReminders(for: userStoreItem.reminderStoreId, sharedFromName: userStoreItem.sharedFromName)
