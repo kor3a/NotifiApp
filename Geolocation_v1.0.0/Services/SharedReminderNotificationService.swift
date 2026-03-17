@@ -329,14 +329,9 @@ class SharedReminderNotificationService {
                     print("📥   Notification: \(senderName) changed '\(storeName)' (added: \(addedCount), other: \(otherChangeCount))")
                     #endif
 
-                    // Schedule a local notification on this device
-                    NotificationManager.shared.scheduleSharedReminderNotification(
-                        senderName: senderName,
-                        storeName: storeName,
-                        addedCount: addedCount,
-                        otherChangeCount: otherChangeCount,
-                        notificationId: docId
-                    )
+                    // Local notification is intentionally omitted here — the Cloud Function
+                    // already sends an FCM push ("📝 Reminder Updated") when the document is
+                    // created, so scheduling a second local notification would be a duplicate.
 
                     // Delete the document after processing
                     change.document.reference.delete { error in
