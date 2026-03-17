@@ -56,8 +56,14 @@ async function getFCMToken(userId) {
         .where('userId', '==', userId)
         .limit(1)
         .get();
-    if (snap.empty) return null;
+    if (snap.empty) {
+        console.warn(`getFCMToken: no user document for userId="${userId}"`);
+        return null;
+    }
     const token = snap.docs[0].data().fcmToken;
+    if (!token) {
+        console.warn(`getFCMToken: user "${userId}" has no fcmToken field in Firestore`);
+    }
     return token || null;
 }
 
@@ -88,9 +94,14 @@ async function sendFCM(token, title, body, data = {}) {
     };
 
     try {
-        await getMessaging().send(message);
+        const response = await getMessaging().send(message);
+        console.log(`FCM sent OK — messageId: ${response}, token: …${token.slice(-8)}`);
     } catch (err) {
-        console.error(`FCM send failed for token …${token.slice(-6)}:`, err.message);
+        console.error(`FCM send FAILED — token: …${token.slice(-8)}, code: ${err.code}, message: ${err.message}`);
+        // Common error codes:
+        //   messaging/registration-token-not-registered → stale token, app was uninstalled
+        //   messaging/invalid-argument → APNs key not uploaded to Firebase Console
+        //   messaging/authentication-error → APNs credentials missing/expired in Firebase Console
     }
 }
 
@@ -105,10 +116,11 @@ exports.onMyWayNotification = onDocumentCreated(
         if (!data) return;
 
         const { recipientUserId, senderName, storeName, travelTimeMinutes } = data;
-        if (!recipientUserId) return;
+        console.log(`onMyWayNotification fired — docId=${event.params.docId}, recipientUserId=${recipientUserId}`);
+        if (!recipientUserId) { console.warn('onMyWayNotification: missing recipientUserId, skipping'); return; }
 
         const token = await getFCMToken(recipientUserId);
-        if (!token) return;
+        if (!token) { console.warn(`onMyWayNotification: no token for ${recipientUserId}, skipping`); return; }
 
         const mins = travelTimeMinutes || 0;
         const body =
@@ -134,10 +146,11 @@ exports.sharedReminderNotification = onDocumentCreated(
         if (!data) return;
 
         const { recipientUserId, senderName, storeName, addedCount } = data;
-        if (!recipientUserId) return;
+        console.log(`sharedReminderNotification fired — docId=${event.params.docId}, recipientUserId=${recipientUserId}`);
+        if (!recipientUserId) { console.warn('sharedReminderNotification: missing recipientUserId, skipping'); return; }
 
         const token = await getFCMToken(recipientUserId);
-        if (!token) return;
+        if (!token) { console.warn(`sharedReminderNotification: no token for ${recipientUserId}, skipping`); return; }
 
         const added = addedCount || 0;
         const body =
@@ -164,6 +177,7 @@ exports.newMessageNotification = onDocumentCreated(
         if (!data) return;
 
         const { conversationId, senderId, senderName, content } = data;
+        console.log(`newMessageNotification fired — docId=${event.params.docId}, conversationId=${conversationId}, senderId=${senderId}`);
         if (!conversationId || !senderId) return;
 
         // Fetch conversation to find all participants except the sender
@@ -202,10 +216,11 @@ exports.friendRequestNotification = onDocumentCreated(
         if (!data || data.status !== 'pending') return;
 
         const { receiverId, requesterName } = data;
-        if (!receiverId) return;
+        console.log(`friendRequestNotification fired — docId=${event.params.docId}, receiverId=${receiverId}`);
+        if (!receiverId) { console.warn('friendRequestNotification: missing receiverId, skipping'); return; }
 
         const token = await getFCMToken(receiverId);
-        if (!token) return;
+        if (!token) { console.warn(`friendRequestNotification: no token for ${receiverId}, skipping`); return; }
 
         await sendFCM(
             token,
