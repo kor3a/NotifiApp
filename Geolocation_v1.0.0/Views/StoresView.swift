@@ -448,10 +448,11 @@ struct StoresView: View {
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
         .safeAreaInset(edge: .bottom) {
-            // Reserve space for: ad + FAB (60pt) + 24pt gap below FAB + 24pt gap above FAB - 34pt system safe area
-            // This makes the gap above FAB equal the 24pt gap between FAB bottom and ad top
+            // Reserve just enough space so the FAB doesn't cover the last store item.
+            // The TabView tab bar (~83pt) is already part of the safe area, so only
+            // the ad height + 24pt desired gap is needed on top of that.
             let adHeight: CGFloat = subscriptionManager.isSubscribed ? 0 : 50
-            Color.clear.frame(height: adHeight + 74)
+            Color.clear.frame(height: adHeight + 24)
         }
         .simultaneousGesture(
             DragGesture(minimumDistance: 10)
