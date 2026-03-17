@@ -92,6 +92,11 @@
 			<string>cp8zw746q7.skadnetwork</string>
 		</dict>
 	</array>
+	<key>UIBackgroundModes</key>
+	<array>
+		<!-- Required for APNs/FCM push notifications to wake the app in background -->
+		<string>remote-notification</string>
+	</array>
 	<key>UILaunchScreen</key>
 	<dict/>
 	<key>UISupportedInterfaceOrientations</key>

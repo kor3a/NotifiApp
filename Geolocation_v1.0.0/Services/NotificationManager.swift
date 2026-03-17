@@ -273,7 +273,7 @@ class NotificationManager: NSObject, ObservableObject {
         }
     }
 
-    func scheduleFriendRequestNotification(fromUserName: String) {
+    func scheduleFriendRequestNotification(fromUserName: String, notificationId: String) {
         #if DEBUG
         print("🔔 NotificationManager: Attempting to schedule friend request notification from \(fromUserName)")
         #endif
@@ -299,7 +299,7 @@ class NotificationManager: NSObject, ObservableObject {
             content.relevanceScore = 0.9
             content.categoryIdentifier = "FRIEND_REQUEST"
 
-            let identifier = "friend_request_\(fromUserName)_\(Date().timeIntervalSince1970)"
+            let identifier = "fr_\(notificationId)"
             let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
 
             self.scheduleAsCommunicationNotification(
@@ -312,7 +312,7 @@ class NotificationManager: NSObject, ObservableObject {
         }
     }
 
-    func scheduleNewMessageNotification(fromUserName: String, messageContent: String, conversationId: String) {
+    func scheduleNewMessageNotification(fromUserName: String, messageContent: String, conversationId: String, notificationId: String) {
         #if DEBUG
         print("🔔 NotificationManager: Attempting to schedule new message notification from \(fromUserName)")
         #endif
@@ -347,7 +347,7 @@ class NotificationManager: NSObject, ObservableObject {
             // Add conversation ID to userInfo for navigation on tap
             content.userInfo = ["conversationId": conversationId]
 
-            let identifier = "new_message_\(conversationId)_\(Date().timeIntervalSince1970)"
+            let identifier = "msg_\(notificationId)"
             let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
 
             self.scheduleAsCommunicationNotification(
@@ -360,7 +360,7 @@ class NotificationManager: NSObject, ObservableObject {
         }
     }
 
-    func scheduleSharedReminderNotification(senderName: String, storeName: String, addedCount: Int, otherChangeCount: Int) {
+    func scheduleSharedReminderNotification(senderName: String, storeName: String, addedCount: Int, otherChangeCount: Int, notificationId: String) {
         #if DEBUG
         print("🔔 NotificationManager: Scheduling shared reminder notification from \(senderName) for \(storeName)")
         #endif
@@ -393,7 +393,7 @@ class NotificationManager: NSObject, ObservableObject {
             content.categoryIdentifier = "SHARED_REMINDER_CHANGE"
             content.userInfo = ["storeName": storeName]
 
-            let identifier = "shared_reminder_\(storeName)_\(Date().timeIntervalSince1970)"
+            let identifier = "shr_\(notificationId)"
             let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
 
             self.scheduleAsCommunicationNotification(
@@ -406,7 +406,7 @@ class NotificationManager: NSObject, ObservableObject {
         }
     }
 
-    func scheduleOnMyWayNotification(senderName: String, storeName: String, travelTimeMinutes: Int) {
+    func scheduleOnMyWayNotification(senderName: String, storeName: String, travelTimeMinutes: Int, notificationId: String) {
         #if DEBUG
         print("🔔 NotificationManager: Scheduling on-my-way notification from \(senderName) for \(storeName)")
         #endif
@@ -440,7 +440,7 @@ class NotificationManager: NSObject, ObservableObject {
             content.categoryIdentifier = "ON_MY_WAY"
             content.userInfo = ["storeName": storeName]
 
-            let identifier = "on_my_way_\(storeName)_\(Date().timeIntervalSince1970)"
+            let identifier = "omw_\(notificationId)"
             let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
 
             self.scheduleAsCommunicationNotification(

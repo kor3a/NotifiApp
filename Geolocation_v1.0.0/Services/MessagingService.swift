@@ -14,8 +14,13 @@ class MessagingService: ObservableObject {
 
     private let db = Firestore.firestore()
 
-    // Track incoming message listener
+    // Track incoming message listeners.
+    // conversationListener must be stored so it can be removed when restarting —
+    // failing to remove it causes the listener to leak, and every conversation
+    // update would then call setupMessageListener() N times (once per leaked listener).
+    private var conversationListener: ListenerRegistration?
     private var incomingMessageListener: ListenerRegistration?
+    private var activeListeningUserId: String?
     private var listenerStartTime: TimeInterval = 0
     private var notifiedMessageIds: Set<String> = []
 
@@ -1462,8 +1467,20 @@ class MessagingService: ObservableObject {
 
     /// Start listening for incoming messages to trigger notifications
     func startListeningForIncomingMessages(userId: String) {
+        // Idempotency guard: don't tear down and recreate listeners if we're already
+        // listening for the same user. This prevents duplicate notifications when
+        // both HomeView.onAppear and onChange(of: currentUser) call this method.
+        guard userId != activeListeningUserId else {
+            #if DEBUG
+            print("📬 MessagingService: Already listening for \(userId), skipping restart")
+            #endif
+            return
+        }
+
         // Stop any existing listener
         stopListeningForIncomingMessages()
+
+        activeListeningUserId = userId
 
         // Record the time we start listening to avoid notifying for old messages
         listenerStartTime = Date().timeIntervalSince1970
@@ -1472,8 +1489,13 @@ class MessagingService: ObservableObject {
         print("📬 MessagingService: Starting to listen for incoming messages for user: \(userId)")
         #endif
 
-        // First, get all conversations the user is part of
-        db.collection("conversations")
+        // First, get all conversations the user is part of.
+        // Store the registration so it can be removed in stopListeningForIncomingMessages().
+        // Previously this was not stored, causing listener leaks: every call to
+        // startListeningForIncomingMessages() would add another conversation listener that
+        // was never removed, so N calls → N listeners all firing on every conversation
+        // update → N rapid setupMessageListener() cycles.
+        conversationListener = db.collection("conversations")
             .whereField("participantIds", arrayContains: userId)
             .addSnapshotListener { [weak self] conversationsSnapshot, error in
                 guard let self = self else { return }
@@ -1575,14 +1597,16 @@ class MessagingService: ObservableObject {
                         notificationContent = "Shared a store: \(storeName)"
                     }
 
-                    // Schedule the notification
+                    // Schedule the notification, keyed on the Firestore message document ID
+                    // so UNUserNotificationCenter deduplicates if scheduling is called twice.
                     #if DEBUG
                     print("📬 MessagingService: New message from \(senderName): \(notificationContent.prefix(50))...")
                     #endif
                     NotificationManager.shared.scheduleNewMessageNotification(
                         fromUserName: senderName,
                         messageContent: notificationContent,
-                        conversationId: conversationId
+                        conversationId: conversationId,
+                        notificationId: messageId
                     )
                 }
             }
@@ -1590,9 +1614,14 @@ class MessagingService: ObservableObject {
 
     /// Stop listening for incoming messages
     func stopListeningForIncomingMessages() {
+        conversationListener?.remove()
+        conversationListener = nil
         incomingMessageListener?.remove()
         incomingMessageListener = nil
-        notifiedMessageIds.removeAll()
+        activeListeningUserId = nil
+        // Keep notifiedMessageIds — clearing it would let already-notified messages
+        // fire again if the listener is restarted. The listenerStartTime filter handles
+        // time-based deduplication; notifiedMessageIds adds an in-session safety net.
         #if DEBUG
         print("📬 MessagingService: Stopped listening for incoming messages")
         #endif

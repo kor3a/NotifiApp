@@ -14,6 +14,12 @@ class OnMyWayNotificationService {
 
     private let db = Firestore.firestore()
     private var listener: ListenerRegistration?
+    private var activeEmail: String?
+    /// Tracks Firestore document IDs already processed this session.
+    /// Prevents duplicate notifications when startListening() is called twice quickly
+    /// (e.g. from both HomeView.onAppear and onChange(of: currentUser)) — both listeners
+    /// see the same document as .added before the first listener's delete propagates.
+    private var processedDocIds: Set<String> = []
 
     private init() {}
 
@@ -175,6 +181,18 @@ class OnMyWayNotificationService {
 
     /// Start listening for "on my way" notifications addressed to the current user.
     func startListening(userEmail: String) {
+        // Idempotency guard: skip if we're already listening for the same email.
+        // This prevents the race condition where onAppear AND onChange(of: currentUser)
+        // both call startListening() in quick succession, creating two listeners that
+        // each see the same Firestore document as .added before the first delete lands.
+        guard userEmail != activeEmail else {
+            #if DEBUG
+            print("🚗 OnMyWayNotificationService: Already listening for \(userEmail), skipping restart")
+            #endif
+            return
+        }
+
+        activeEmail = userEmail
         listener?.remove()
 
         #if DEBUG
@@ -183,7 +201,9 @@ class OnMyWayNotificationService {
 
         listener = db.collection("on_my_way_notifications")
             .whereField("recipientEmail", isEqualTo: userEmail)
-            .addSnapshotListener { snapshot, error in
+            .addSnapshotListener { [weak self] snapshot, error in
+                guard let self else { return }
+
                 if let error = error {
                     #if DEBUG
                     print("🚗 OnMyWayNotificationService: ❌ Listener error: \(error.localizedDescription)")
@@ -196,6 +216,13 @@ class OnMyWayNotificationService {
                 let newDocs = snapshot.documentChanges.filter { $0.type == .added }
 
                 for change in newDocs {
+                    let docId = change.document.documentID
+
+                    // Skip if already processed (guards against rare double-delivery
+                    // when the listener reconnects before a pending delete is confirmed).
+                    guard !self.processedDocIds.contains(docId) else { continue }
+                    self.processedDocIds.insert(docId)
+
                     let data = change.document.data()
                     let senderName = data["senderName"] as? String ?? "Someone"
                     let storeName = data["storeName"] as? String ?? "a store"
@@ -208,7 +235,8 @@ class OnMyWayNotificationService {
                     NotificationManager.shared.scheduleOnMyWayNotification(
                         senderName: senderName,
                         storeName: storeName,
-                        travelTimeMinutes: travelTimeMinutes
+                        travelTimeMinutes: travelTimeMinutes,
+                        notificationId: docId
                     )
 
                     // Delete the document after processing
@@ -221,6 +249,8 @@ class OnMyWayNotificationService {
     func stopListening() {
         listener?.remove()
         listener = nil
+        activeEmail = nil
+        processedDocIds.removeAll()
     }
 
     deinit {

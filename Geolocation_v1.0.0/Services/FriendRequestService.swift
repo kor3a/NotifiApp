@@ -368,7 +368,8 @@ class FriendRequestService: ObservableObject {
                         print("FriendRequestService: NEW friend request detected from \(fromUserName), scheduling notification...")
                         #endif
                         NotificationManager.shared.scheduleFriendRequestNotification(
-                            fromUserName: fromUserName
+                            fromUserName: fromUserName,
+                            notificationId: requestId
                         )
                     }
                 }

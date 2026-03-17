@@ -14,6 +14,10 @@ class SharedReminderNotificationService {
 
     private let db = Firestore.firestore()
     private var listener: ListenerRegistration?
+    private var activeEmail: String?
+    /// Tracks Firestore document IDs already processed this session.
+    /// Prevents duplicate notifications when startListening() is called twice quickly.
+    private var processedDocIds: Set<String> = []
 
     private init() {}
 
@@ -265,6 +269,15 @@ class SharedReminderNotificationService {
     /// Start listening for shared reminder notifications addressed to the current user.
     /// Uses email for matching since userId is the app username, not the Firebase Auth UID.
     func startListening(userEmail: String) {
+        // Idempotency guard: skip if already listening for the same email.
+        guard userEmail != activeEmail else {
+            #if DEBUG
+            print("📥 SharedReminderNotificationService: Already listening for \(userEmail), skipping restart")
+            #endif
+            return
+        }
+
+        activeEmail = userEmail
         listener?.remove()
 
         #if DEBUG
@@ -273,7 +286,9 @@ class SharedReminderNotificationService {
 
         listener = db.collection("reminder_change_notifications")
             .whereField("recipientEmail", isEqualTo: userEmail)
-            .addSnapshotListener { snapshot, error in
+            .addSnapshotListener { [weak self] snapshot, error in
+                guard let self else { return }
+
                 if let error = error {
                     #if DEBUG
                     print("📥 SharedReminderNotificationService: ❌ Listener error: \(error.localizedDescription)")
@@ -298,6 +313,12 @@ class SharedReminderNotificationService {
                 #endif
 
                 for change in newDocs {
+                    let docId = change.document.documentID
+
+                    // Skip if already processed this session
+                    guard !self.processedDocIds.contains(docId) else { continue }
+                    self.processedDocIds.insert(docId)
+
                     let data = change.document.data()
                     let senderName = data["senderName"] as? String ?? "Someone"
                     let storeName = data["storeName"] as? String ?? "a store"
@@ -313,7 +334,8 @@ class SharedReminderNotificationService {
                         senderName: senderName,
                         storeName: storeName,
                         addedCount: addedCount,
-                        otherChangeCount: otherChangeCount
+                        otherChangeCount: otherChangeCount,
+                        notificationId: docId
                     )
 
                     // Delete the document after processing
@@ -334,6 +356,8 @@ class SharedReminderNotificationService {
     func stopListening() {
         listener?.remove()
         listener = nil
+        activeEmail = nil
+        processedDocIds.removeAll()
     }
 
     deinit {

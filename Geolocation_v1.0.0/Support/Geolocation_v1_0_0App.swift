@@ -14,6 +14,11 @@ import GoogleMobileAds
 @main
 struct Geolocation_v1_0_0App: App {
 
+    // Wire up UIKit's UIApplicationDelegate so APNs tokens reach FirebaseMessaging.
+    // AppDelegate sets Messaging.messaging().delegate, which in turn calls
+    // FCMTokenManager to persist the FCM token to Firestore.
+    @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+
     @Environment(\.scenePhase) private var scenePhase
 
     init() {
