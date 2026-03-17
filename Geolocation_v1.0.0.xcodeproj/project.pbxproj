@@ -130,7 +130,6 @@
 		010405BB2F575A6F0057862B /* OnMyWayNotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnMyWayNotificationService.swift; sourceTree = "<group>"; };
 		010B28082EB6C2E9004E828B /* AddStoreView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddStoreView.swift; sourceTree = "<group>"; };
 		0110775F2F609A1500E76A67 /* StoreFloatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoreFloatView.swift; sourceTree = "<group>"; };
-		0115738A2F69BC1B00963138 /* AllimRelease.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = AllimRelease.entitlements; sourceTree = "<group>"; };
 		0119CD0C2F4CF95A00DEDEFD /* AutoDeleteSwipeRail.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoDeleteSwipeRail.swift; sourceTree = "<group>"; };
 		0119CD0E2F4CF96000DEDEFD /* CachedLogoImage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CachedLogoImage.swift; sourceTree = "<group>"; };
 		011CF5FD2ED638D6009A31A6 /* ForgotPasswordView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForgotPasswordView.swift; sourceTree = "<group>"; };
@@ -278,7 +277,6 @@
 		8278FDEB2C5DD1C80017EB72 = {
 			isa = PBXGroup;
 			children = (
-				0115738A2F69BC1B00963138 /* AllimRelease.entitlements */,
 				8278FDF62C5DD1C90017EB72 /* Geolocation_v1.0.0 */,
 				CC0400000000000000000001 /* NotifiWidget */,
 				0176B3092F3CE658003B9C75 /* Geolocation_v1_0_0Tests */,
