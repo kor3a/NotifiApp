@@ -481,16 +481,8 @@ extension NotificationManager: UNUserNotificationCenterDelegate {
     func userNotificationCenter(_ center: UNUserNotificationCenter,
                               willPresent notification: UNNotification,
                               withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
-        // Push notifications (UNPushNotificationTrigger) come from the Cloud Functions
-        // that fire while the app is suspended. When the app IS in the foreground the
-        // Firestore listeners are alive and schedule local notifications for the same
-        // events, so we suppress the duplicate push banner here.
-        if notification.request.trigger is UNPushNotificationTrigger {
-            completionHandler([])
-            return
-        }
-        // Show local notifications even when the app is in the foreground.
-        // .list ensures they also appear in Notification Center and on the lock screen.
+        // Show notification even when app is in foreground
+        // .list ensures it appears in Notification Center and lock screen
         completionHandler([.banner, .list, .sound, .badge])
     }
 

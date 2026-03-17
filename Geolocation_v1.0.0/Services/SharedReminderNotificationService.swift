@@ -15,11 +15,6 @@ class SharedReminderNotificationService {
     private let db = Firestore.firestore()
     private var listener: ListenerRegistration?
     private var activeEmail: String?
-    /// Time at which the current listener session started. Documents with
-    /// createdAt < listenerStartTime were created while the app was suspended;
-    /// the Cloud Function already sent a push notification for them, so we skip
-    /// the local notification to prevent a push + local duplicate.
-    private var listenerStartTime: TimeInterval = 0
     /// Tracks Firestore document IDs already processed this session.
     /// Prevents duplicate notifications when startListening() is called twice quickly.
     private var processedDocIds: Set<String> = []
@@ -283,11 +278,6 @@ class SharedReminderNotificationService {
         }
 
         activeEmail = userEmail
-        // Record start time BEFORE attaching the listener. Documents with
-        // createdAt < listenerStartTime were created while the app was suspended;
-        // the Cloud Function already pushed them via APNs — fire local notification
-        // only for documents created after we started listening (app was active).
-        listenerStartTime = Date().timeIntervalSince1970
         listener?.remove()
 
         #if DEBUG
@@ -296,7 +286,6 @@ class SharedReminderNotificationService {
 
         listener = db.collection("reminder_change_notifications")
             .whereField("recipientEmail", isEqualTo: userEmail)
-            .whereField("createdAt", isGreaterThan: listenerStartTime)
             .addSnapshotListener { [weak self] snapshot, error in
                 guard let self else { return }
 
@@ -368,7 +357,6 @@ class SharedReminderNotificationService {
         listener?.remove()
         listener = nil
         activeEmail = nil
-        listenerStartTime = 0
         processedDocIds.removeAll()
     }
 
