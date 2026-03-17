@@ -14,11 +14,6 @@ class SharedReminderNotificationService {
 
     private let db = Firestore.firestore()
     private var listener: ListenerRegistration?
-    /// Unix timestamp recorded when startListening() is called.
-    /// The Firestore query filters to docs created AFTER this time so that
-    /// the client does not re-process notifications that the Cloud Function
-    /// already delivered via FCM while the app was closed.
-    private var listenerStartTime: Double = 0
 
     private init() {}
 
@@ -271,15 +266,13 @@ class SharedReminderNotificationService {
     /// Uses email for matching since userId is the app username, not the Firebase Auth UID.
     func startListening(userEmail: String) {
         listener?.remove()
-        listenerStartTime = Date().timeIntervalSince1970
 
         #if DEBUG
-        print("📥 SharedReminderNotificationService: Starting listener for email: \(userEmail), startTime: \(listenerStartTime)")
+        print("📥 SharedReminderNotificationService: Starting listener for email: \(userEmail)")
         #endif
 
         listener = db.collection("reminder_change_notifications")
             .whereField("recipientEmail", isEqualTo: userEmail)
-            .whereField("createdAt", isGreaterThan: listenerStartTime)
             .addSnapshotListener { snapshot, error in
                 if let error = error {
                     #if DEBUG

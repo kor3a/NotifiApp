@@ -33,10 +33,11 @@ async function getFcmTokenByUserId(userId) {
 
 /**
  * Send an FCM notification to a single token.
- * Silently ignores unregistered / invalid tokens.
+ * Returns true if the message was accepted by FCM, false otherwise.
+ * Silently ignores unregistered / invalid tokens (returns false).
  */
 async function sendFcmNotification(token, title, body, data = {}) {
-  if (!token) return;
+  if (!token) return false;
   try {
     await getMessaging().send({
       token,
@@ -57,13 +58,16 @@ async function sendFcmNotification(token, title, body, data = {}) {
         notification: { sound: "default" },
       },
       // Custom data so the iOS app can suppress a duplicate local notification
-      // when the app is in the foreground (see AppDelegate.swift).
+      // when the app is in the foreground (see NotificationManager.swift).
       data: { source: "fcm", ...data },
     });
+    return true;
   } catch (err) {
     // "registration-token-not-registered" means the device uninstalled the app.
-    // Log but don't re-throw so one bad token doesn't break the whole function.
+    // Log but return false so callers know FCM delivery was not confirmed,
+    // and can leave the Firestore doc intact as a fallback for the client listener.
     console.error("FCM send error:", err.code || err.message);
+    return false;
   }
 }
 
@@ -96,8 +100,9 @@ exports.onReminderNotificationCreated = onDocumentCreated(
 
     const token = await getFcmTokenByEmail(recipientEmail);
     if (!token) {
-      console.log(`No FCM token for ${recipientEmail}`);
-      await event.data.ref.delete();
+      // No FCM token – leave the doc so the client Firestore listener can
+      // pick it up as a fallback when the app next opens.
+      console.log(`No FCM token for ${recipientEmail} – leaving doc for client fallback`);
       return;
     }
 
@@ -111,11 +116,16 @@ exports.onReminderNotificationCreated = onDocumentCreated(
       body = `Made ${otherChangeCount} change${otherChangeCount > 1 ? "s" : ""} to ${storeName}`;
     }
 
-    await sendFcmNotification(token, senderName, body, { type: "reminder_change", storeName });
+    const sent = await sendFcmNotification(token, senderName, body, { type: "reminder_change", storeName });
 
-    // Delete the doc so the client listener (if it starts later) doesn't
-    // show a duplicate notification.
-    await event.data.ref.delete();
+    // Only delete the doc when FCM delivery was confirmed.  If delivery failed
+    // (bad APNs config, expired token, etc.) leave the doc so the client
+    // Firestore listener can deliver it as a fallback when the app next opens.
+    if (sent) {
+      await event.data.ref.delete();
+    } else {
+      console.log("FCM delivery not confirmed – leaving doc for client fallback");
+    }
   }
 );
 
@@ -138,8 +148,9 @@ exports.onOnMyWayNotificationCreated = onDocumentCreated(
 
     const token = await getFcmTokenByEmail(recipientEmail);
     if (!token) {
-      console.log(`No FCM token for ${recipientEmail}`);
-      await event.data.ref.delete();
+      // No FCM token – leave the doc so the client Firestore listener can
+      // pick it up as a fallback when the app next opens.
+      console.log(`No FCM token for ${recipientEmail} – leaving doc for client fallback`);
       return;
     }
 
@@ -148,8 +159,14 @@ exports.onOnMyWayNotificationCreated = onDocumentCreated(
       ? `Heading to ${storeName} – arriving in about ${travelTimeMinutes} min`
       : `Heading to ${storeName}`;
 
-    await sendFcmNotification(token, title, body, { type: "on_my_way", storeName });
-    await event.data.ref.delete();
+    const sent = await sendFcmNotification(token, title, body, { type: "on_my_way", storeName });
+
+    // Only delete when FCM delivery was confirmed; otherwise leave for client fallback.
+    if (sent) {
+      await event.data.ref.delete();
+    } else {
+      console.log("FCM delivery not confirmed – leaving doc for client fallback");
+    }
   }
 );
 
