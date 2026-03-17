@@ -448,9 +448,10 @@ struct StoresView: View {
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
         .safeAreaInset(edge: .bottom) {
-            // Reserve space for FAB (60pt) + ad (50pt when visible) + gaps
+            // Reserve space for: ad + FAB (60pt) + 24pt gap below FAB + 24pt gap above FAB - 34pt system safe area
+            // This makes the gap above FAB equal the 24pt gap between FAB bottom and ad top
             let adHeight: CGFloat = subscriptionManager.isSubscribed ? 0 : 50
-            Color.clear.frame(height: adHeight + 12 + 60 + 8)
+            Color.clear.frame(height: adHeight + 74)
         }
         .simultaneousGesture(
             DragGesture(minimumDistance: 10)
