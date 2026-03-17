@@ -450,7 +450,7 @@ struct StoresView: View {
         .safeAreaInset(edge: .bottom) {
             // Reserve space for FAB (60pt) + ad (50pt when visible) + gaps
             let adHeight: CGFloat = subscriptionManager.isSubscribed ? 0 : 50
-            Color.clear.frame(height: adHeight + 24 + 60 + 16)
+            Color.clear.frame(height: adHeight + 24 + 60 + 8)
         }
         .simultaneousGesture(
             DragGesture(minimumDistance: 10)
