@@ -55,6 +55,7 @@ struct FriendsView: View {
                 Button(action: { showAddFriend = true }) {
                     Image(systemName: "person.badge.plus")
                 }
+                .tutorialHighlight(id: "tutorial_addFriend")
             }
         }
         .sheet(isPresented: $showAddFriend) {

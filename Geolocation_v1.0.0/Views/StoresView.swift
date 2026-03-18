@@ -21,6 +21,7 @@ struct StoresView: View {
     @StateObject private var smartRecipeViewModel = SmartRecipeViewModel()
     @ObservedObject private var sessionManager = UserSessionManager.shared
     @ObservedObject private var subscriptionManager = SubscriptionManager.shared
+    @ObservedObject private var tutorialManager = TutorialManager.shared
     @State private var showingAddStore = false
     @State private var showingSmartRecipe = false
     @State private var showingPaywall = false
@@ -134,37 +135,40 @@ struct StoresView: View {
                     }
                 }
 
-                // Sort + view mode toggle (only when stores exist)
-                if !viewModel.userStoreItems.isEmpty {
-                    ToolbarItemGroup(placement: .navigationBarTrailing) {
-                        // Sort by reminder count
-                        Button(action: {
-                            withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                                isSortedByReminderCount.toggle()
-                                if isSortedByReminderCount {
-                                    editMode = .inactive
+                // Sort + view mode toggle (shown when stores exist, or during tutorial to highlight the icons)
+                if !viewModel.userStoreItems.isEmpty || tutorialManager.isActive {
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        HStack(spacing: 4) {
+                            // Sort by reminder count
+                            Button(action: {
+                                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                                    isSortedByReminderCount.toggle()
+                                    if isSortedByReminderCount {
+                                        editMode = .inactive
+                                    }
                                 }
+                            }) {
+                                Image(systemName: isSortedByReminderCount ? "arrow.up.arrow.down.circle.fill" : "arrow.up.arrow.down.circle")
+                                    .imageScale(.large)
                             }
-                        }) {
-                            Image(systemName: isSortedByReminderCount ? "arrow.up.arrow.down.circle.fill" : "arrow.up.arrow.down.circle")
-                                .imageScale(.large)
-                        }
 
-                        // List / float view toggle
-                        Button(action: {
-                            withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                                if storeViewMode == .list {
-                                    editMode = .inactive
-                                    storeViewMode = .float
-                                } else {
-                                    isFloatEditMode = false
-                                    storeViewMode = .list
+                            // List / float view toggle
+                            Button(action: {
+                                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                                    if storeViewMode == .list {
+                                        editMode = .inactive
+                                        storeViewMode = .float
+                                    } else {
+                                        isFloatEditMode = false
+                                        storeViewMode = .list
+                                    }
                                 }
+                            }) {
+                                Image(systemName: storeViewMode == .list ? "circle.grid.3x3" : "list.bullet")
+                                    .imageScale(.large)
                             }
-                        }) {
-                            Image(systemName: storeViewMode == .list ? "circle.grid.3x3" : "list.bullet")
-                                .imageScale(.large)
                         }
+                        .tutorialHighlight(id: "tutorial_toolbar")
                     }
                 }
             }
@@ -583,6 +587,7 @@ struct StoresView: View {
                             height: effectivelyShrunk ? 28 : 60
                         )
                         .animation(.spring(response: 0.5, dampingFraction: 0.75), value: effectivelyShrunk)
+                        .tutorialHighlight(id: "tutorial_fab")
                     }
                     } // end: if effectivelyShrunk || !isMenuExpanded
                 }

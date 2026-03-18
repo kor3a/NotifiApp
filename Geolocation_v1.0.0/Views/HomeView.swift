@@ -17,6 +17,7 @@ struct HomeView: View {
     @ObservedObject private var messagingService = MessagingService.shared
     @StateObject private var messagesViewModel = MessagesViewModel()
     @StateObject private var friendsViewModel = FriendsViewModel()
+    @ObservedObject private var tutorialManager = TutorialManager.shared
     @State private var selectedTab = 0
     @State private var isSearchExpanded = false
     @State private var searchQuery = ""
@@ -27,74 +28,83 @@ struct HomeView: View {
     @State private var showNotificationsDeniedAlert = false
 
     var body: some View {
-        TabView(selection: $selectedTab) {
-            NavigationStack {
-                StoresView(pendingStoreName: $pendingStoreName)
-                    .navigationTitle("Hi, \(sessionManager.currentUser?.name ?? "there")")
-                    .navigationBarTitleDisplayMode(.large)
-                    .onAppear {
-                        // Fetch user data if not already loaded
-                        if sessionManager.currentUser == nil && !sessionManager.isLoading {
-                            sessionManager.fetchUser()
+        ZStack {
+            TabView(selection: $selectedTab) {
+                NavigationStack {
+                    StoresView(pendingStoreName: $pendingStoreName)
+                        .navigationTitle("Hi, \(sessionManager.currentUser?.name ?? "there")")
+                        .navigationBarTitleDisplayMode(.large)
+                        .onAppear {
+                            // Fetch user data if not already loaded
+                            if sessionManager.currentUser == nil && !sessionManager.isLoading {
+                                sessionManager.fetchUser()
+                            }
                         }
-                    }
-                    .toolbar {
-                        ToolbarItem(placement: .navigationBarLeading) {
-                            NavigationLink(destination: ProfileView(), label: {
-                                Image(systemName: "person")
-                                    .imageScale(.large)
-                            })
+                        .toolbar {
+                            ToolbarItem(placement: .navigationBarLeading) {
+                                NavigationLink(destination: ProfileView(), label: {
+                                    Image(systemName: "person")
+                                        .imageScale(.large)
+                                })
+                            }
                         }
-                    }
-            }//:NAVIGATIONSTACK
-            .tabItem {
-                Image(systemName: "storefront")
-                Text("Stores")
-            }
-            .tag(0)
+                }//:NAVIGATIONSTACK
+                .tabItem {
+                    Image(systemName: "storefront")
+                    Text("Stores")
+                }
+                .tag(0)
 
-            NavigationStack {
-                MessagesView(viewModel: messagesViewModel, pendingConversationId: $pendingConversationId)
-                    .navigationBarTitleDisplayMode(.large)
-            }//:NAVIGATIONSTACK
-            .tabItem {
-                Image(systemName: "message")
-                Text("Messages")
-            }
-            .badge(messagesViewModel.totalUnreadCount)
-            .onChange(of: messagesViewModel.totalUnreadCount) { oldValue, newValue in
-                #if DEBUG
-                print("📱 HomeView: Badge count changed from \(oldValue) to \(newValue)")
-                #endif
-            }
-            .tag(1)
+                NavigationStack {
+                    MessagesView(viewModel: messagesViewModel, pendingConversationId: $pendingConversationId)
+                        .navigationBarTitleDisplayMode(.large)
+                }//:NAVIGATIONSTACK
+                .tabItem {
+                    Image(systemName: "message")
+                    Text("Messages")
+                }
+                .badge(messagesViewModel.totalUnreadCount)
+                .onChange(of: messagesViewModel.totalUnreadCount) { oldValue, newValue in
+                    #if DEBUG
+                    print("📱 HomeView: Badge count changed from \(oldValue) to \(newValue)")
+                    #endif
+                }
+                .tag(1)
 
-            NavigationStack {
-                FriendsView(messagesViewModel: messagesViewModel)
-                    .navigationBarTitleDisplayMode(.large)
-            }//:NAVIGATIONSTACK
-            .tabItem {
-                Image(systemName: "person.2")
-                Text("Friends")
-            }
-            .badge(friendsViewModel.pendingRequestCount)
-            .tag(2)
+                NavigationStack {
+                    FriendsView(messagesViewModel: messagesViewModel)
+                        .navigationBarTitleDisplayMode(.large)
+                }//:NAVIGATIONSTACK
+                .tabItem {
+                    Image(systemName: "person.2")
+                    Text("Friends")
+                }
+                .badge(friendsViewModel.pendingRequestCount)
+                .tag(2)
 
-            NavigationStack {
-                MapView(
-                    selectedTab: $selectedTab,
-                    isSearchExpanded: $isSearchExpanded,
-                    searchQuery: $searchQuery,
-                    messagesViewModel: messagesViewModel
-                )
-                .toolbar(.hidden, for: .tabBar)
-            }//:NAVIGATIONSTACK
-            .tabItem {
-                Image(systemName: "map")
-                Text("Search")
+                NavigationStack {
+                    MapView(
+                        selectedTab: $selectedTab,
+                        isSearchExpanded: $isSearchExpanded,
+                        searchQuery: $searchQuery,
+                        messagesViewModel: messagesViewModel
+                    )
+                    .toolbar(.hidden, for: .tabBar)
+                }//:NAVIGATIONSTACK
+                .tabItem {
+                    Image(systemName: "map")
+                    Text("Search")
+                }
+                .tag(3)
+            }//:TABVIEW
+
+            // Tutorial overlay — rendered above the TabView (including tab bar)
+            if tutorialManager.isActive {
+                TutorialOverlayView()
+                    .ignoresSafeArea()
+                    .allowsHitTesting(true)
             }
-            .tag(3)
-        }
+        }//:ZSTACK
         .onChange(of: notificationManager.pendingNavigation) { _, navigation in
             guard let navigation = navigation else { return }
             handleNotificationNavigation(navigation)
@@ -141,6 +151,18 @@ struct HomeView: View {
                 SharedReminderNotificationService.shared.startListening(userEmail: userEmail)
                 OnMyWayNotificationService.shared.startListening(userEmail: userEmail)
             }
+
+            // Start onboarding tutorial for new users (slight delay so views have laid out)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+                tutorialManager.startIfNeeded()
+            }
+        }
+        .onChange(of: tutorialManager.pendingTabSwitch) { _, tab in
+            guard let tab = tab else { return }
+            withAnimation(.easeInOut(duration: 0.3)) {
+                selectedTab = tab
+            }
+            tutorialManager.pendingTabSwitch = nil
         }
         .onChange(of: sessionManager.currentUser) { oldUser, newUser in
             // Fetch unread message count whenever user data becomes available
