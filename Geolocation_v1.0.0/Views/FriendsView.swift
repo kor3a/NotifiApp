@@ -434,54 +434,79 @@ struct FriendCard: View {
             }
             .buttonStyle(.plain)
             .popover(isPresented: $showFamilyPopover, attachmentAnchor: .rect(.bounds), arrowEdge: .bottom) {
-                VStack(spacing: 0) {
-                    Text(isFamilyMember ? "Remove \(friendName) from Family?" : "Add \(friendName) to Family?")
-                        .font(.footnote)
-                        .foregroundColor(.secondary)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 16)
-                        .padding(.top, 14)
-                        .padding(.bottom, 10)
+                VStack(spacing: 16) {
+                    // Icon + title
+                    VStack(spacing: 8) {
+                        Image(systemName: "house.fill")
+                            .font(.title2)
+                            .foregroundStyle(
+                                LinearGradient(
+                                    colors: [.blue, .purple],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                        Text(isFamilyMember ? "Remove \(friendName)\nfrom Family?" : "Add \(friendName)\nto Family?")
+                            .font(.subheadline.weight(.semibold))
+                            .multilineTextAlignment(.center)
+                            .foregroundColor(.primary)
+                    }
+                    .padding(.top, 4)
 
-                    Divider()
-
+                    // Action button
                     if isFamilyMember {
-                        Button(role: .destructive) {
+                        Button {
                             onRemoveFromFamily?()
                             showFamilyPopover = false
                         } label: {
-                            Text("Remove from Family")
-                                .font(.body)
+                            Label("Remove from Family", systemImage: "house.slash.fill")
+                                .font(.subheadline.weight(.medium))
+                                .foregroundColor(.white)
                                 .frame(maxWidth: .infinity)
-                                .frame(height: 57)
-                                .contentShape(Rectangle())
+                                .frame(height: 44)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 10)
+                                        .fill(Color.red)
+                                )
                         }
+                        .buttonStyle(.plain)
                     } else {
                         Button {
                             onAddToFamily?()
                             showFamilyPopover = false
                         } label: {
-                            Text("Add to Family")
-                                .font(.body)
+                            Label("Add to Family", systemImage: "house.fill")
+                                .font(.subheadline.weight(.medium))
+                                .foregroundColor(.white)
                                 .frame(maxWidth: .infinity)
-                                .frame(height: 57)
-                                .contentShape(Rectangle())
+                                .frame(height: 44)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 10)
+                                        .fill(
+                                            LinearGradient(
+                                                colors: [.blue, .purple],
+                                                startPoint: .leading,
+                                                endPoint: .trailing
+                                            )
+                                        )
+                                )
                         }
+                        .buttonStyle(.plain)
                     }
 
-                    Divider()
-
+                    // Cancel
                     Button {
                         showFamilyPopover = false
                     } label: {
                         Text("Cancel")
-                            .font(.body.bold())
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
                             .frame(maxWidth: .infinity)
-                            .frame(height: 57)
-                            .contentShape(Rectangle())
                     }
+                    .buttonStyle(.plain)
                 }
-                .frame(minWidth: 220)
+                .padding(20)
+                .frame(minWidth: 240)
                 .presentationCompactAdaptation(.popover)
             }
 
