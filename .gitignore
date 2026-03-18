@@ -25,4 +25,5 @@ Pods/
 
 # Website
 website/node_modules/
+website/package-lock.json
 website/dist/
