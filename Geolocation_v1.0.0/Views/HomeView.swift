@@ -65,6 +65,7 @@ struct HomeView: View {
                 }
                 .badge(messagesViewModel.totalUnreadCount)
                 .onChange(of: messagesViewModel.totalUnreadCount) { oldValue, newValue in
+                    UIApplication.shared.applicationIconBadgeNumber = newValue
                     #if DEBUG
                     print("📱 HomeView: Badge count changed from \(oldValue) to \(newValue)")
                     #endif
