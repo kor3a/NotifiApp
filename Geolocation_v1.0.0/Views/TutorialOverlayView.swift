@@ -41,6 +41,11 @@ struct TutorialOverlayView: View {
                     highlightBorder(rect: rect)
                 }
 
+                // Family action popover — shown anchored to the friend card
+                if step == .friendsFamily, let rect = paddedRect {
+                    familyActionPopover(anchoredTo: rect, in: geo)
+                }
+
                 // Callout card (above or below the highlight)
                 calloutCard(in: geo)
             }
@@ -243,6 +248,68 @@ struct TutorialOverlayView: View {
             // Not enough space — center below with overlap allowed
             return rect.maxY + padding + cardHeight / 2
         }
+    }
+
+    // MARK: - Family Action Popover
+
+    /// An iOS-style action sheet popover pinned above (or below) the highlighted friend card.
+    private func familyActionPopover(anchoredTo rect: CGRect, in geo: GeometryProxy) -> some View {
+        let popoverWidth: CGFloat = 260
+        let popoverHeight: CGFloat = 138
+        let gap: CGFloat = 10
+
+        // Prefer above the card; fall back to below if there isn't enough room.
+        let spaceAbove = rect.minY - gap
+        let fitsAbove = spaceAbove >= popoverHeight
+
+        let popoverY: CGFloat = fitsAbove
+            ? rect.minY - gap - popoverHeight / 2
+            : rect.maxY + gap + popoverHeight / 2
+
+        // Clamp horizontally so it never bleeds off screen.
+        let rawX = rect.midX
+        let popoverX = min(max(rawX, popoverWidth / 2 + 12), geo.size.width - popoverWidth / 2 - 12)
+
+        return VStack(spacing: 0) {
+            // Title row
+            Text("Add Alex to Family?")
+                .font(.system(size: 13))
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+
+            Divider()
+
+            // Primary action
+            Text("Add to Family")
+                .font(.system(size: 17))
+                .foregroundColor(.blue)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 14)
+
+            Divider()
+
+            // Cancel
+            Text("Cancel")
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundColor(.blue)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 14)
+        }
+        .frame(width: popoverWidth)
+        .background(
+            RoundedRectangle(cornerRadius: 14)
+                .fill(Color(UIColor.systemBackground).opacity(0.97))
+                .shadow(color: Color.black.opacity(0.25), radius: 20, x: 0, y: 8)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 14)
+                .strokeBorder(Color.white.opacity(0.15), lineWidth: 1)
+        )
+        .position(x: popoverX, y: popoverY)
+        .transition(.scale(scale: 0.85, anchor: fitsAbove ? .bottom : .top).combined(with: .opacity))
+        .animation(.spring(response: 0.35, dampingFraction: 0.8), value: step)
     }
 
     // MARK: - Pulse Animation

@@ -72,11 +72,6 @@ struct FriendsView: View {
         .onDisappear {
             viewModel.stopListening()
         }
-        .onChange(of: tutorialManager.currentStep) { _, step in
-            if step == .friendsFamily {
-                openFamilyActionSheetForTutorial()
-            }
-        }
         .alert("Success", isPresented: .init(
             get: { viewModel.successMessage != nil },
             set: { if !$0 { viewModel.clearMessages() } }
@@ -388,15 +383,6 @@ struct FriendsView: View {
     }
 
     // MARK: - Actions
-
-    private func openFamilyActionSheetForTutorial() {
-        guard let firstFriend = viewModel.friends.first else { return }
-        // Short delay so the tutorial card animation finishes before the sheet pops up
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            friendshipForFamilyAction = firstFriend
-            showingFamilyActionSheet = true
-        }
-    }
 
     private func startConversation(with friendship: Friendship) {
         guard let userId = sessionManager.currentUser?.userId,
