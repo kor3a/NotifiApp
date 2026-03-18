@@ -35,7 +35,7 @@ enum TutorialStep: Int, CaseIterable {
         switch self {
         case .welcome, .complete: return nil
         case .storesFAB: return "tutorial_fab"
-        case .storesSwipeShare: return "tutorial_storeRow"
+        case .storesSwipeShare: return nil
         case .storesToolbar: return "tutorial_toolbar"
         case .messagesCompose: return "tutorial_compose"
         case .friendsAddFriend: return "tutorial_addFriend"
