@@ -296,7 +296,7 @@ struct FriendsView: View {
             .padding(.horizontal)
 
             LazyVGrid(columns: gridColumns, spacing: 12) {
-                ForEach(viewModel.friends) { friendship in
+                ForEach(Array(viewModel.friends.enumerated()), id: \.element.id) { index, friendship in
                     let friendId = friendship.friendId(currentUserId: sessionManager.currentUser?.userId ?? "")
                     FriendCard(
                         friendship: friendship,
@@ -314,6 +314,7 @@ struct FriendsView: View {
                             showingFamilyActionSheet = true
                         }
                     )
+                    .tutorialHighlight(id: index == 0 ? "tutorial_friendCard" : "noop_friend_\(index)")
                 }
             }
             .padding(.horizontal)

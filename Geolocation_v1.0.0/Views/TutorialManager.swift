@@ -16,6 +16,7 @@ enum TutorialStep: Int, CaseIterable {
     case storesToolbar
     case messagesCompose
     case friendsAddFriend
+    case friendsFamily
     case mapSearch
     case complete
 
@@ -24,7 +25,7 @@ enum TutorialStep: Int, CaseIterable {
         switch self {
         case .welcome, .storesFAB, .storesToolbar: return 0
         case .messagesCompose: return 1
-        case .friendsAddFriend: return 2
+        case .friendsAddFriend, .friendsFamily: return 2
         case .mapSearch: return 3
         case .complete: return 0
         }
@@ -38,6 +39,7 @@ enum TutorialStep: Int, CaseIterable {
         case .storesToolbar: return "tutorial_toolbar"
         case .messagesCompose: return "tutorial_compose"
         case .friendsAddFriend: return "tutorial_addFriend"
+        case .friendsFamily: return "tutorial_friendCard"
         case .mapSearch: return "tutorial_mapSearch"
         }
     }
@@ -49,6 +51,7 @@ enum TutorialStep: Int, CaseIterable {
         case .storesToolbar: return "Organize Your Stores"
         case .messagesCompose: return "Message Friends"
         case .friendsAddFriend: return "Add Friends"
+        case .friendsFamily: return "Add to Family"
         case .mapSearch: return "Find Stores Nearby"
         case .complete: return "You're All Set!"
         }
@@ -66,6 +69,8 @@ enum TutorialStep: Int, CaseIterable {
             return "Tap the compose button to start a conversation. Share stores and reminders directly with friends."
         case .friendsAddFriend:
             return "Tap the person+ button to find and add friends. Collaborate on shared shopping lists together."
+        case .friendsFamily:
+            return "Tap a friend's profile picture to bring up the menu. From there you can add them to your Family group for priority sharing."
         case .mapSearch:
             return "Use the search button to find stores near you on the map. Tap any pin to view or add reminders."
         case .complete:
