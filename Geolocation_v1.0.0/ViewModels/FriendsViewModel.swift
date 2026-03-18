@@ -7,6 +7,7 @@
 
 import Foundation
 import FirebaseFirestore
+import Combine
 
 class FriendsViewModel: ObservableObject {
     @Published var friends: [Friendship] = []
@@ -26,9 +27,46 @@ class FriendsViewModel: ObservableObject {
     private let friendsService = FriendsService.shared
     private var friendshipsListener: ListenerRegistration?
     private var pendingCountListener: ListenerRegistration?
+    private var cancellables = Set<AnyCancellable>()
 
     private var currentUserId: String? {
         UserSessionManager.shared.currentUser?.userId
+    }
+
+    init() {
+        TutorialManager.shared.$isActive
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] isActive in
+                if isActive {
+                    self?.loadTutorialMockData()
+                } else {
+                    self?.clearTutorialMockData()
+                    self?.fetchFriendships()
+                }
+            }
+            .store(in: &cancellables)
+    }
+
+    // MARK: - Tutorial Mock Data
+
+    private func loadTutorialMockData() {
+        friendshipsListener?.remove()
+        friendshipsListener = nil
+        isLoading = false
+        // Bypass processFriendships — directly assign family and friends sections
+        familyMembers = TutorialMockData.familyFriendships
+        friends = TutorialMockData.friendFriendships
+        pendingRequests = []
+        sentRequests = []
+    }
+
+    private func clearTutorialMockData() {
+        friendshipsListener?.remove()
+        friendshipsListener = nil
+        familyMembers = []
+        friends = []
+        pendingRequests = []
+        sentRequests = []
     }
 
     deinit {
@@ -38,6 +76,10 @@ class FriendsViewModel: ObservableObject {
     // MARK: - Fetch Data
 
     func fetchFriendships() {
+        guard !TutorialManager.shared.isActive else {
+            loadTutorialMockData()
+            return
+        }
         guard let userId = currentUserId else { return }
         isLoading = true
 
@@ -207,6 +249,7 @@ class FriendsViewModel: ObservableObject {
     // MARK: - Friend Actions
 
     func sendFriendRequest(to contact: Contact) {
+        guard !TutorialManager.shared.isActive else { return }
         guard let user = UserSessionManager.shared.currentUser else {
             errorMessage = "User not logged in"
             return
@@ -269,6 +312,7 @@ class FriendsViewModel: ObservableObject {
     }
 
     func removeFriend(_ friendship: Friendship) {
+        guard !TutorialManager.shared.isActive else { return }
         guard let userId = currentUserId,
               let currentUserName = UserSessionManager.shared.currentUser?.name else {
             #if DEBUG
@@ -339,6 +383,7 @@ class FriendsViewModel: ObservableObject {
     // MARK: - Family Management
 
     func addToFamily(_ friendship: Friendship) {
+        guard !TutorialManager.shared.isActive else { return }
         guard let userId = currentUserId else { return }
         let friendId = friendship.friendId(currentUserId: userId)
         let friendName = friendship.friendName(currentUserId: userId)
@@ -356,6 +401,7 @@ class FriendsViewModel: ObservableObject {
     }
 
     func removeFromFamily(_ friendship: Friendship) {
+        guard !TutorialManager.shared.isActive else { return }
         guard let userId = currentUserId else { return }
         let friendId = friendship.friendId(currentUserId: userId)
         let friendName = friendship.friendName(currentUserId: userId)

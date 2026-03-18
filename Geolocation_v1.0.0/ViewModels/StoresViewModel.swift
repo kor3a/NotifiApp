@@ -4,6 +4,7 @@
 import Foundation
 import FirebaseFirestore
 import FirebaseAuth
+import Combine
 
 class StoresViewModel: ObservableObject {
     private let db = Firestore.firestore()
@@ -26,8 +27,48 @@ class StoresViewModel: ObservableObject {
     // Flag to prevent listener from overwriting during manual sort
     private var isManuallyReordering = false
 
+    private var cancellables = Set<AnyCancellable>()
+
+    init() {
+        TutorialManager.shared.$isActive
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] isActive in
+                if isActive {
+                    self?.loadTutorialMockData()
+                } else {
+                    self?.clearTutorialMockData()
+                    self?.fetchUserStores()
+                }
+            }
+            .store(in: &cancellables)
+    }
+
+    // MARK: - Tutorial Mock Data
+
+    private func loadTutorialMockData() {
+        storesListener?.remove()
+        storesListener = nil
+        removeAllReminderCountListeners()
+        removeAllSharedStatusListeners()
+        isLoading = false
+        userStoreItems = TutorialMockData.stores
+    }
+
+    private func clearTutorialMockData() {
+        storesListener?.remove()
+        storesListener = nil
+        removeAllReminderCountListeners()
+        removeAllSharedStatusListeners()
+        userStoreItems = []
+    }
+
     /// Fetch only stores that the current user has added to their list
     func fetchUserStores() {
+        guard !TutorialManager.shared.isActive else {
+            loadTutorialMockData()
+            return
+        }
+
         guard let userId = sessionManager.currentUser?.userId else {
             #if DEBUG
             print("StoresViewModel: No user data available in session, waiting...")
@@ -520,6 +561,7 @@ class StoresViewModel: ObservableObject {
     /// Add a store to the current user's list
     /// Stores are identified by name - adding "Walmart" tracks all Walmart locations
     func addStoreToUser(store: Store) {
+        guard !TutorialManager.shared.isActive else { return }
         guard let userId = sessionManager.currentUser?.userId,
               let userEmail = sessionManager.currentUser?.email else {
             DispatchQueue.main.async {
@@ -582,6 +624,7 @@ class StoresViewModel: ObservableObject {
 
     /// Remove a store from the current user's list
     func removeStoreFromUser(userStoreItem: UserStoreItem) {
+        guard !TutorialManager.shared.isActive else { return }
         #if DEBUG
         print("StoresViewModel: Removing user_store document: \(userStoreItem.id)")
         #endif
