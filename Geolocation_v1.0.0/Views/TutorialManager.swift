@@ -136,6 +136,15 @@ final class TutorialManager: ObservableObject {
         hasCompletedTutorial = true
     }
 
+    /// Resets the tutorial so it will show again on next app launch or call to startIfNeeded().
+    /// Intended for debug/testing only.
+    func resetTutorial() {
+        hasCompletedTutorial = false
+        isActive = false
+        currentStep = .welcome
+        elementFrames = [:]
+    }
+
     func registerFrame(id: String, frame: CGRect) {
         // Only update if meaningfully different to avoid layout loops
         guard frame.width > 0 && frame.height > 0 else { return }

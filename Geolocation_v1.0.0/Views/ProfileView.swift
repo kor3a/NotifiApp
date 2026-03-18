@@ -195,7 +195,6 @@ struct ProfileView: View {
                 .buttonStyle(SecondaryButtonStyle(color: .red))
                 .padding(.horizontal)
                 .padding(.top, 4)
-                .padding(.bottom, 30)
                 .alert("Delete Account", isPresented: $showDeleteAccountAlert) {
                     Button("Delete", role: .destructive) {
                         viewModel.deleteAccount()
@@ -204,6 +203,20 @@ struct ProfileView: View {
                 } message: {
                     Text("This will permanently delete your account and all associated data. This action cannot be undone.")
                 }
+
+                #if DEBUG
+                Button("Replay Tutorial") {
+                    TutorialManager.shared.resetTutorial()
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        TutorialManager.shared.startIfNeeded()
+                    }
+                }
+                .buttonStyle(SecondaryButtonStyle(color: .orange))
+                .padding(.horizontal)
+                .padding(.top, 4)
+                #endif
+
+                Spacer().frame(height: 30)
             }
         }
         .onAppear {
