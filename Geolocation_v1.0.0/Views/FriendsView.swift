@@ -20,8 +20,6 @@ struct FriendsView: View {
     @State private var showingRemoveAlert = false
     @State private var friendshipToCancel: Friendship?
     @State private var showingCancelAlert = false
-    @State private var friendshipForFamilyAction: Friendship?
-    @State private var showingFamilyActionSheet = false
     @Environment(\.colorScheme) var colorScheme
 
     private let gridColumns = [
@@ -121,38 +119,6 @@ struct FriendsView: View {
             } else {
                 Text("Cancel this friend request?")
             }
-        }
-        .confirmationDialog(
-            familyActionTitle,
-            isPresented: $showingFamilyActionSheet,
-            titleVisibility: .visible
-        ) {
-            if let friendship = friendshipForFamilyAction {
-                if viewModel.isFamilyMember(friendship) {
-                    Button("Remove from Family", role: .destructive) {
-                        viewModel.removeFromFamily(friendship)
-                        friendshipForFamilyAction = nil
-                    }
-                } else {
-                    Button("Add to Family") {
-                        viewModel.addToFamily(friendship)
-                        friendshipForFamilyAction = nil
-                    }
-                }
-            }
-            Button("Cancel", role: .cancel) {
-                friendshipForFamilyAction = nil
-            }
-        }
-    }
-
-    private var familyActionTitle: String {
-        guard let friendship = friendshipForFamilyAction else { return "" }
-        let name = friendship.friendName(currentUserId: sessionManager.currentUser?.userId ?? "")
-        if viewModel.isFamilyMember(friendship) {
-            return "Remove \(name) from Family?"
-        } else {
-            return "Add \(name) to Family?"
         }
     }
 
@@ -266,10 +232,8 @@ struct FriendsView: View {
                             friendshipToRemove = friendship
                             showingRemoveAlert = true
                         },
-                        onPhotoTap: {
-                            friendshipForFamilyAction = friendship
-                            showingFamilyActionSheet = true
-                        }
+                        onAddToFamily: { viewModel.addToFamily(friendship) },
+                        onRemoveFromFamily: { viewModel.removeFromFamily(friendship) }
                     )
                 }
             }
@@ -310,10 +274,8 @@ struct FriendsView: View {
                             friendshipToRemove = friendship
                             showingRemoveAlert = true
                         },
-                        onPhotoTap: {
-                            friendshipForFamilyAction = friendship
-                            showingFamilyActionSheet = true
-                        }
+                        onAddToFamily: { viewModel.addToFamily(friendship) },
+                        onRemoveFromFamily: { viewModel.removeFromFamily(friendship) }
                     )
                     .tutorialHighlight(id: index == 0 ? "tutorial_friendCard" : "noop_friend_\(index)")
                 }
@@ -409,7 +371,10 @@ struct FriendCard: View {
     var freshProfilePictureURL: String?
     let onMessage: () -> Void
     let onRemove: () -> Void
-    var onPhotoTap: (() -> Void)?
+    var onAddToFamily: (() -> Void)?
+    var onRemoveFromFamily: (() -> Void)?
+
+    @State private var showFamilyPopover = false
 
     private var friendName: String {
         friendship.friendName(currentUserId: currentUserId)
@@ -436,7 +401,7 @@ struct FriendCard: View {
     var body: some View {
         VStack(spacing: 12) {
             // Avatar - tappable for family action
-            Button(action: { onPhotoTap?() }) {
+            Button(action: { showFamilyPopover = true }) {
                 ZStack(alignment: .bottomTrailing) {
                     ProfilePictureView(profilePictureURL: friendProfilePictureURL, size: 64) {
                         Circle()
@@ -468,6 +433,54 @@ struct FriendCard: View {
                 }
             }
             .buttonStyle(.plain)
+            .popover(isPresented: $showFamilyPopover, attachmentAnchor: .rect(.bounds), arrowEdge: .bottom) {
+                VStack(spacing: 0) {
+                    Text(isFamilyMember ? "Remove \(friendName) from Family?" : "Add \(friendName) to Family?")
+                        .font(.footnote)
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 12)
+
+                    Divider()
+
+                    if isFamilyMember {
+                        Button(role: .destructive) {
+                            onRemoveFromFamily?()
+                            showFamilyPopover = false
+                        } label: {
+                            Text("Remove from Family")
+                                .frame(maxWidth: .infinity)
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 12)
+                        }
+                    } else {
+                        Button {
+                            onAddToFamily?()
+                            showFamilyPopover = false
+                        } label: {
+                            Text("Add to Family")
+                                .frame(maxWidth: .infinity)
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 12)
+                        }
+                    }
+
+                    Divider()
+
+                    Button {
+                        showFamilyPopover = false
+                    } label: {
+                        Text("Cancel")
+                            .frame(maxWidth: .infinity)
+                            .foregroundColor(.secondary)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 12)
+                    }
+                }
+                .frame(minWidth: 200)
+                .presentationCompactAdaptation(.popover)
+            }
 
             // Name & UserId
             VStack(spacing: 2) {
