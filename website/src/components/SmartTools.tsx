@@ -1,8 +1,14 @@
-import { ChefHat, Sparkles, Tag, Zap } from "lucide-react";
+import { Sparkles, Tag, Zap } from "lucide-react";
+import PhoneFrame from "./PhoneFrame";
+import SmartRecipeScreen from "./screens/SmartRecipeScreen";
+import ReminderScreen from "./screens/ReminderScreen";
 
 export default function SmartTools() {
   return (
-    <section id="smart" className="relative bg-allim-dark py-32 overflow-hidden">
+    <section
+      id="smart"
+      className="relative bg-allim-dark py-32 overflow-hidden"
+    >
       {/* Background accent */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-allim-purple/10 rounded-full blur-[200px]" />
 
@@ -24,113 +30,83 @@ export default function SmartTools() {
           </p>
         </div>
 
-        <div className="grid lg:grid-cols-2 gap-8">
-          {/* Smart Recipe Card */}
-          <div className="relative rounded-3xl bg-gradient-to-br from-allim-purple/10 to-pink-500/10 border border-allim-purple/20 p-8 lg:p-10 overflow-hidden">
-            <div className="absolute top-0 right-0 w-48 h-48 bg-allim-purple/10 rounded-full blur-[80px]" />
-            <div className="relative">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-allim-purple to-pink-500 flex items-center justify-center mb-6 shadow-lg shadow-allim-purple/20">
-                <ChefHat size={28} className="text-white" />
-              </div>
-              <h3 className="text-2xl font-bold text-white mb-3">
-                Smart Recipe
-              </h3>
-              <p className="text-allim-muted leading-relaxed mb-8">
-                Ask for any recipe and Allim's AI assistant will provide
-                step-by-step instructions. The best part? Add all the
-                ingredients directly to your store lists with a single tap.
-              </p>
-
-              {/* Recipe mockup */}
-              <div className="bg-white/[0.05] rounded-2xl p-5 border border-white/[0.08]">
-                <div className="flex items-start gap-3 mb-4">
-                  <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-allim-purple to-pink-500 flex items-center justify-center shrink-0">
-                    <Sparkles size={14} className="text-white" />
-                  </div>
-                  <div className="bg-white/[0.05] rounded-xl rounded-tl-none p-3 text-left">
-                    <p className="text-white text-sm font-medium mb-2">
-                      Quick Weeknight Pasta Dinner
-                    </p>
-                    <p className="text-allim-muted text-xs leading-relaxed">
-                      Here's a simple garlic butter pasta recipe! Ready in 20
-                      minutes with just a few ingredients...
-                    </p>
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  <div className="flex-1 bg-allim-purple/20 rounded-xl px-3 py-2 text-center">
-                    <p className="text-allim-purple text-xs font-medium">
-                      Add 6 ingredients to store
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
+        {/* Smart Recipe */}
+        <div className="grid lg:grid-cols-2 gap-12 items-center mb-24">
+          {/* Phone mockup */}
+          <div className="flex justify-center order-2 lg:order-1">
+            <PhoneFrame>
+              <SmartRecipeScreen />
+            </PhoneFrame>
           </div>
 
-          {/* Smart Category Card */}
-          <div className="relative rounded-3xl bg-gradient-to-br from-allim-blue/10 to-cyan-500/10 border border-allim-blue/20 p-8 lg:p-10 overflow-hidden">
-            <div className="absolute top-0 right-0 w-48 h-48 bg-allim-blue/10 rounded-full blur-[80px]" />
-            <div className="relative">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-allim-blue to-cyan-400 flex items-center justify-center mb-6 shadow-lg shadow-allim-blue/20">
-                <Tag size={28} className="text-white" />
-              </div>
-              <h3 className="text-2xl font-bold text-white mb-3">
-                Smart Category
-              </h3>
-              <p className="text-allim-muted leading-relaxed mb-8">
-                Stop wasting time organizing your list. Allim's AI
-                automatically categorizes every item you add into store aisle
-                categories, so your trip is planned before you even arrive.
-              </p>
-
-              {/* Category mockup */}
-              <div className="bg-white/[0.05] rounded-2xl p-5 border border-white/[0.08]">
-                <div className="space-y-2.5">
-                  {[
-                    {
-                      category: "Produce",
-                      items: ["Bananas", "Spinach", "Avocados"],
-                      color: "text-green-400 bg-green-400/10",
-                    },
-                    {
-                      category: "Dairy",
-                      items: ["Whole Milk", "Greek Yogurt"],
-                      color: "text-blue-400 bg-blue-400/10",
-                    },
-                    {
-                      category: "Bakery",
-                      items: ["Sourdough Bread"],
-                      color: "text-amber-400 bg-amber-400/10",
-                    },
-                  ].map((cat) => (
-                    <div key={cat.category} className="flex items-center gap-3">
-                      <span
-                        className={`text-[10px] font-semibold px-2 py-0.5 rounded-md ${cat.color} uppercase tracking-wider shrink-0 w-16 text-center`}
-                      >
-                        {cat.category}
-                      </span>
-                      <div className="flex gap-1.5 flex-wrap">
-                        {cat.items.map((item) => (
-                          <span
-                            key={item}
-                            className="text-white/80 text-xs bg-white/[0.06] px-2.5 py-1 rounded-lg"
-                          >
-                            {item}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <div className="mt-4 flex items-center gap-2 text-allim-blue text-xs">
-                  <Zap size={12} />
-                  <span className="font-medium">
-                    Auto-categorized by AI
-                  </span>
-                </div>
-              </div>
+          {/* Description */}
+          <div className="order-1 lg:order-2">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-allim-purple to-pink-500 flex items-center justify-center mb-6 shadow-lg shadow-allim-purple/20">
+              <span className="text-2xl">🍳</span>
             </div>
+            <h3 className="text-3xl font-bold text-white mb-4">
+              Smart Recipe
+            </h3>
+            <p className="text-allim-muted leading-relaxed text-lg mb-6">
+              Ask for any recipe and Allim's AI assistant will provide
+              step-by-step instructions. Add all the ingredients directly to
+              your store lists with a single tap.
+            </p>
+            <ul className="space-y-3">
+              {[
+                "Get recipe ideas for any meal or occasion",
+                "Step-by-step cooking instructions",
+                "Ingredient substitution suggestions",
+                "One-tap to add all ingredients to your store",
+              ].map((item) => (
+                <li key={item} className="flex items-start gap-3">
+                  <div className="w-5 h-5 rounded-full bg-allim-purple/20 flex items-center justify-center shrink-0 mt-0.5">
+                    <Sparkles size={10} className="text-allim-purple" />
+                  </div>
+                  <span className="text-allim-muted text-sm">{item}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+
+        {/* Smart Category */}
+        <div className="grid lg:grid-cols-2 gap-12 items-center">
+          {/* Description */}
+          <div>
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-allim-blue to-cyan-400 flex items-center justify-center mb-6 shadow-lg shadow-allim-blue/20">
+              <Tag size={28} className="text-white" />
+            </div>
+            <h3 className="text-3xl font-bold text-white mb-4">
+              Smart Category
+            </h3>
+            <p className="text-allim-muted leading-relaxed text-lg mb-6">
+              Stop wasting time organizing your list. Allim's AI automatically
+              categorizes every item you add into store aisle categories, so
+              your trip is planned before you arrive.
+            </p>
+            <ul className="space-y-3">
+              {[
+                "Automatic aisle-based categorization",
+                "Works when adding items or importing recipes",
+                "Per-store toggle in settings",
+                "Items neatly grouped for faster shopping",
+              ].map((item) => (
+                <li key={item} className="flex items-start gap-3">
+                  <div className="w-5 h-5 rounded-full bg-allim-blue/20 flex items-center justify-center shrink-0 mt-0.5">
+                    <Zap size={10} className="text-allim-blue" />
+                  </div>
+                  <span className="text-allim-muted text-sm">{item}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Phone mockup */}
+          <div className="flex justify-center">
+            <PhoneFrame>
+              <ReminderScreen />
+            </PhoneFrame>
           </div>
         </div>
       </div>

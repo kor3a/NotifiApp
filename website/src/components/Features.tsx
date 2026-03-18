@@ -1,4 +1,6 @@
 import { MapPin, Users, Bell, Share2 } from "lucide-react";
+import PhoneFrame from "./PhoneFrame";
+import NotificationScreen from "./screens/NotificationScreen";
 
 const features = [
   {
@@ -52,25 +54,35 @@ export default function Features() {
           </p>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-6">
-          {features.map((feature) => (
-            <div
-              key={feature.title}
-              className="group relative rounded-3xl bg-white/[0.03] border border-white/[0.06] p-8 hover:bg-white/[0.06] transition-all duration-300"
-            >
+        <div className="grid lg:grid-cols-[1fr_auto] gap-12 items-center">
+          {/* Feature cards */}
+          <div className="grid sm:grid-cols-2 gap-6">
+            {features.map((feature) => (
               <div
-                className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${feature.gradient} flex items-center justify-center mb-6 shadow-lg`}
+                key={feature.title}
+                className="group relative rounded-3xl bg-white/[0.03] border border-white/[0.06] p-8 hover:bg-white/[0.06] transition-all duration-300"
               >
-                <feature.icon size={24} className="text-white" />
+                <div
+                  className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${feature.gradient} flex items-center justify-center mb-6 shadow-lg`}
+                >
+                  <feature.icon size={24} className="text-white" />
+                </div>
+                <h3 className="text-xl font-semibold text-white mb-3">
+                  {feature.title}
+                </h3>
+                <p className="text-allim-muted leading-relaxed text-sm">
+                  {feature.description}
+                </p>
               </div>
-              <h3 className="text-xl font-semibold text-white mb-3">
-                {feature.title}
-              </h3>
-              <p className="text-allim-muted leading-relaxed">
-                {feature.description}
-              </p>
-            </div>
-          ))}
+            ))}
+          </div>
+
+          {/* Phone showing notification */}
+          <div className="hidden lg:flex justify-center">
+            <PhoneFrame>
+              <NotificationScreen />
+            </PhoneFrame>
+          </div>
         </div>
       </div>
     </section>
