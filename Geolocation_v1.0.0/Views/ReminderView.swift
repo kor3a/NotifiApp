@@ -747,6 +747,11 @@ struct ReminderView: View {
             .listRowBackground(cardRowBackground)
             .listRowSeparator(.hidden)
             .id("inlineAddRow")
+            .onAppear {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    isNewReminderFocused = true
+                }
+            }
         } else {
             Button {
                 isAddingNewReminder = true
