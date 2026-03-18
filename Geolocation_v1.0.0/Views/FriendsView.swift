@@ -12,6 +12,7 @@ struct FriendsView: View {
     @ObservedObject var messagesViewModel: MessagesViewModel
     @ObservedObject private var sessionManager = UserSessionManager.shared
     @ObservedObject private var subscriptionManager = SubscriptionManager.shared
+    @ObservedObject private var tutorialManager = TutorialManager.shared
     @State private var showAddFriend = false
     @State private var selectedFriendForMessage: Contact?
     @State private var selectedConversation: Conversation?
@@ -70,6 +71,11 @@ struct FriendsView: View {
         }
         .onDisappear {
             viewModel.stopListening()
+        }
+        .onChange(of: tutorialManager.currentStep) { _, step in
+            if step == .friendsFamily {
+                openFamilyActionSheetForTutorial()
+            }
         }
         .alert("Success", isPresented: .init(
             get: { viewModel.successMessage != nil },
@@ -382,6 +388,15 @@ struct FriendsView: View {
     }
 
     // MARK: - Actions
+
+    private func openFamilyActionSheetForTutorial() {
+        guard let firstFriend = viewModel.friends.first else { return }
+        // Short delay so the tutorial card animation finishes before the sheet pops up
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            friendshipForFamilyAction = firstFriend
+            showingFamilyActionSheet = true
+        }
+    }
 
     private func startConversation(with friendship: Friendship) {
         guard let userId = sessionManager.currentUser?.userId,
