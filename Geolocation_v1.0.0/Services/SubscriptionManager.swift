@@ -69,8 +69,13 @@ class SubscriptionManager: ObservableObject {
     // MARK: - Purchase
 
     func purchase() async {
+        // If product didn't load on launch (e.g. slow network), try once more before failing.
+        if product == nil {
+            await loadProducts()
+        }
+
         guard let product = product else {
-            errorMessage = "Product not available. Please check your connection and try again."
+            errorMessage = "Subscription unavailable. Please check your internet connection and try again. If the issue persists, the subscription may still be under review."
             return
         }
 
