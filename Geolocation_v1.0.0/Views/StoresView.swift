@@ -441,6 +441,7 @@ struct StoresView: View {
             .listRowInsets(EdgeInsets())
             .onAppear {
                 isAtScrollBottom = true
+                fabInactivityTimer?.invalidate()
                 withAnimation(.spring(response: 0.5, dampingFraction: 0.75)) {
                     isFabShrunk = false
                 }
