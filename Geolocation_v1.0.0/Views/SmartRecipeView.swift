@@ -364,19 +364,28 @@ struct MessageBubbleView: View {
             }
 
             VStack(alignment: message.role == .user ? .trailing : .leading, spacing: 4) {
-                Text(message.content)
-                    .font(.body)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 10)
-                    .background(
-                        RoundedRectangle(cornerRadius: 16)
-                            .fill(message.role == .user
-                                ? Color.blue
-                                : (colorScheme == .dark
+                if message.role == .assistant {
+                    MarkdownTextView(text: message.content)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 10)
+                        .background(
+                            RoundedRectangle(cornerRadius: 16)
+                                .fill(colorScheme == .dark
                                     ? Color(white: 0.2)
-                                    : Color(white: 0.92)))
-                    )
-                    .foregroundColor(message.role == .user ? .white : .primary)
+                                    : Color(white: 0.92))
+                        )
+                        .foregroundColor(.primary)
+                } else {
+                    Text(message.content)
+                        .font(.body)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 10)
+                        .background(
+                            RoundedRectangle(cornerRadius: 16)
+                                .fill(Color.blue)
+                        )
+                        .foregroundColor(.white)
+                }
             }
 
             if message.role == .assistant {
@@ -384,6 +393,121 @@ struct MessageBubbleView: View {
             }
         }
         .padding(.horizontal)
+    }
+}
+
+// MARK: - Markdown Text View
+
+struct MarkdownTextView: View {
+    let text: String
+
+    private enum Block {
+        case h1(String), h2(String), h3(String)
+        case bullet(String)
+        case numbered(Int, String)
+        case paragraph(String)
+        case spacer
+    }
+
+    private var blocks: [Block] {
+        var result: [Block] = []
+        var lastWasSpacer = true
+
+        for line in text.components(separatedBy: "\n") {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            if trimmed.isEmpty {
+                if !lastWasSpacer {
+                    result.append(.spacer)
+                    lastWasSpacer = true
+                }
+            } else if trimmed.hasPrefix("### ") {
+                result.append(.h3(String(trimmed.dropFirst(4))))
+                lastWasSpacer = false
+            } else if trimmed.hasPrefix("## ") {
+                result.append(.h2(String(trimmed.dropFirst(3))))
+                lastWasSpacer = false
+            } else if trimmed.hasPrefix("# ") {
+                result.append(.h1(String(trimmed.dropFirst(2))))
+                lastWasSpacer = false
+            } else if trimmed.hasPrefix("- ") || trimmed.hasPrefix("* ") {
+                result.append(.bullet(String(trimmed.dropFirst(2))))
+                lastWasSpacer = false
+            } else if let parsed = parseNumbered(trimmed) {
+                result.append(.numbered(parsed.0, parsed.1))
+                lastWasSpacer = false
+            } else {
+                result.append(.paragraph(trimmed))
+                lastWasSpacer = false
+            }
+        }
+
+        if case .spacer = result.last { result.removeLast() }
+        return result
+    }
+
+    private func parseNumbered(_ text: String) -> (Int, String)? {
+        guard let dotIndex = text.firstIndex(of: ".") else { return nil }
+        guard let num = Int(String(text[text.startIndex..<dotIndex])) else { return nil }
+        let content = String(text[text.index(after: dotIndex)...]).trimmingCharacters(in: .whitespaces)
+        guard !content.isEmpty else { return nil }
+        return (num, content)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            ForEach(Array(blocks.enumerated()), id: \.offset) { _, block in
+                blockView(for: block)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func blockView(for block: Block) -> some View {
+        switch block {
+        case .h1(let content):
+            inlineText(content)
+                .font(.title3).fontWeight(.bold)
+                .padding(.top, 6)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        case .h2(let content):
+            inlineText(content)
+                .font(.headline).fontWeight(.bold)
+                .padding(.top, 4)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        case .h3(let content):
+            inlineText(content)
+                .font(.subheadline).fontWeight(.semibold)
+                .padding(.top, 4)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        case .bullet(let content):
+            HStack(alignment: .top, spacing: 6) {
+                Text("•").font(.body)
+                inlineText(content).font(.body)
+                Spacer(minLength: 0)
+            }
+        case .numbered(let num, let content):
+            HStack(alignment: .top, spacing: 4) {
+                Text("\(num).").font(.body)
+                    .frame(minWidth: 24, alignment: .leading)
+                inlineText(content).font(.body)
+                Spacer(minLength: 0)
+            }
+        case .paragraph(let content):
+            inlineText(content).font(.body)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        case .spacer:
+            Color.clear.frame(height: 4)
+        }
+    }
+
+    private func inlineText(_ string: String) -> Text {
+        if let attributed = try? AttributedString(
+            markdown: string,
+            options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)
+        ) {
+            return Text(attributed)
+        }
+        return Text(string)
     }
 }
 
