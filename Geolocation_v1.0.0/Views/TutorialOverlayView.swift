@@ -12,8 +12,9 @@ import SwiftUI
 
 struct TutorialOverlayView: View {
     @ObservedObject private var tutorialManager = TutorialManager.shared
-    @State private var pulseScale: CGFloat = 1.0
-    @State private var glowOpacity: Double = 0.6
+    @State private var borderOpacity: Double = 1.0
+    @State private var glowOpacity: Double = 0.5
+    @State private var glowRadius: CGFloat = 8
     @State private var appeared: Bool = false
 
     private var step: TutorialStep { tutorialManager.currentStep }
@@ -54,8 +55,9 @@ struct TutorialOverlayView: View {
         }
         .onChange(of: step) { _, _ in
             // Reset pulse on step change
-            pulseScale = 1.0
-            glowOpacity = 0.6
+            borderOpacity = 1.0
+            glowOpacity = 0.5
+            glowRadius = 8
             startPulseAnimation()
         }
     }
@@ -105,9 +107,11 @@ struct TutorialOverlayView: View {
             )
             .frame(width: rect.width, height: rect.height)
             .position(x: rect.midX, y: rect.midY)
-            .scaleEffect(pulseScale)
-            .shadow(color: Color.blue.opacity(glowOpacity), radius: 12, x: 0, y: 0)
-            .shadow(color: Color.white.opacity(0.4), radius: 6, x: 0, y: 0)
+            // Pulse via opacity and glow only — no scaleEffect so the border
+            // never moves outside the cutout hole regardless of element size.
+            .opacity(borderOpacity)
+            .shadow(color: Color.blue.opacity(glowOpacity), radius: glowRadius, x: 0, y: 0)
+            .shadow(color: Color.white.opacity(glowOpacity * 0.5), radius: glowRadius * 0.5, x: 0, y: 0)
     }
 
     // MARK: - Callout Card
@@ -245,11 +249,12 @@ struct TutorialOverlayView: View {
 
     private func startPulseAnimation() {
         withAnimation(
-            .easeInOut(duration: 1.2)
+            .easeInOut(duration: 1.1)
             .repeatForever(autoreverses: true)
         ) {
-            pulseScale = 1.04
+            borderOpacity = 0.55
             glowOpacity = 1.0
+            glowRadius = 18
         }
     }
 }
