@@ -13,6 +13,7 @@ import Combine
 enum TutorialStep: Int, CaseIterable {
     case welcome = 0
     case storesFAB
+    case storesSwipeShare
     case storesToolbar
     case messagesCompose
     case friendsAddFriend
@@ -20,10 +21,9 @@ enum TutorialStep: Int, CaseIterable {
     case mapSearch
     case complete
 
-    // The tab index to switch to when entering this step (nil = stay on current)
     var targetTab: Int? {
         switch self {
-        case .welcome, .storesFAB, .storesToolbar: return 0
+        case .welcome, .storesFAB, .storesSwipeShare, .storesToolbar: return 0
         case .messagesCompose: return 1
         case .friendsAddFriend, .friendsFamily: return 2
         case .mapSearch: return 3
@@ -31,11 +31,11 @@ enum TutorialStep: Int, CaseIterable {
         }
     }
 
-    // The element ID whose frame to highlight (nil = no specific highlight)
     var elementId: String? {
         switch self {
         case .welcome, .complete: return nil
         case .storesFAB: return "tutorial_fab"
+        case .storesSwipeShare: return "tutorial_storeRow"
         case .storesToolbar: return "tutorial_toolbar"
         case .messagesCompose: return "tutorial_compose"
         case .friendsAddFriend: return "tutorial_addFriend"
@@ -48,6 +48,7 @@ enum TutorialStep: Int, CaseIterable {
         switch self {
         case .welcome: return "Welcome to Allim!"
         case .storesFAB: return "Add Your First Store"
+        case .storesSwipeShare: return "Share a Store"
         case .storesToolbar: return "Organize Your Stores"
         case .messagesCompose: return "Message Friends"
         case .friendsAddFriend: return "Add Friends"
@@ -63,6 +64,8 @@ enum TutorialStep: Int, CaseIterable {
             return "Let's take a quick tour of the key features so you can get the most out of your shopping experience."
         case .storesFAB:
             return "Tap the blue + button to add your favorite grocery stores and start managing shopping reminders."
+        case .storesSwipeShare:
+            return "Swipe left on any store to reveal options. Tap Share to invite a friend — they'll see your reminders and can add their own."
         case .storesToolbar:
             return "Sort your stores by reminder count, or switch between list and grid view using these toolbar icons."
         case .messagesCompose:

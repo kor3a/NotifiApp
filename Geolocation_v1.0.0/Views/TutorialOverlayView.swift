@@ -16,6 +16,8 @@ struct TutorialOverlayView: View {
     @State private var glowOpacity: Double = 0.5
     @State private var glowRadius: CGFloat = 8
     @State private var appeared: Bool = false
+    @State private var swipeArrowOffset: CGFloat = 0
+    @State private var swipeArrowOpacity: Double = 1
 
     private var step: TutorialStep { tutorialManager.currentStep }
 
@@ -41,6 +43,11 @@ struct TutorialOverlayView: View {
                     highlightBorder(rect: rect)
                 }
 
+                // Swipe-reveal panel — shown over the first store row
+                if step == .storesSwipeShare, let rect = paddedRect {
+                    storesSwipePanel(anchoredTo: rect, in: geo)
+                }
+
                 // Family action popover — shown anchored to the friend card
                 if step == .friendsFamily, let rect = paddedRect {
                     familyActionPopover(anchoredTo: rect, in: geo)
@@ -57,13 +64,18 @@ struct TutorialOverlayView: View {
                 appeared = true
             }
             startPulseAnimation()
+            if step == .storesSwipeShare { startSwipeHintAnimation() }
         }
-        .onChange(of: step) { _, _ in
-            // Reset pulse on step change
+        .onChange(of: step) { _, newStep in
             borderOpacity = 1.0
             glowOpacity = 0.5
             glowRadius = 8
             startPulseAnimation()
+            if newStep == .storesSwipeShare {
+                swipeArrowOffset = 0
+                swipeArrowOpacity = 1
+                startSwipeHintAnimation()
+            }
         }
     }
 
@@ -247,6 +259,87 @@ struct TutorialOverlayView: View {
         } else {
             // Not enough space — center below with overlap allowed
             return rect.maxY + padding + cardHeight / 2
+        }
+    }
+
+    // MARK: - Stores Swipe Panel
+
+    /// Simulates the swipe-left reveal for the first store row: shows the Share and Delete
+    /// action buttons overlaid on the right side of the highlighted row, plus an animated
+    /// left-pointing arrow to indicate the swipe direction.
+    private func storesSwipePanel(anchoredTo rect: CGRect, in geo: GeometryProxy) -> some View {
+        let shareWidth: CGFloat = 72
+        let deleteWidth: CGFloat = 68
+        let panelWidth = shareWidth + deleteWidth
+        let panelHeight = rect.height - 8
+
+        // Panel sits flush against the row's right edge (overlapping the right portion)
+        let panelX = rect.maxX - panelWidth / 2
+        let panelY = rect.midY
+
+        // Swipe-arrow hint: three left-pointing chevrons centred in the left 2/3 of the row
+        let arrowX = rect.minX + (rect.width - panelWidth) * 0.45
+        let arrowY = rect.midY
+
+        return ZStack {
+            // ── Swipe-left arrow hint ──────────────────────────────────────
+            HStack(spacing: 4) {
+                ForEach(0..<3, id: \.self) { i in
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(.white.opacity(0.9 - Double(i) * 0.25))
+                }
+            }
+            .opacity(swipeArrowOpacity)
+            .offset(x: swipeArrowOffset)
+            .position(x: arrowX, y: arrowY)
+
+            // ── Simulated swipe-action buttons ────────────────────────────
+            HStack(spacing: 0) {
+                // Share (blue) — highlighted
+                VStack(spacing: 4) {
+                    Image(systemName: "square.and.arrow.up")
+                        .font(.system(size: 16, weight: .semibold))
+                    Text("Share")
+                        .font(.system(size: 12, weight: .semibold))
+                }
+                .foregroundColor(.white)
+                .frame(width: shareWidth, height: panelHeight)
+                .background(Color.blue)
+                .overlay(
+                    // Pulsing white border on just the share button
+                    RoundedRectangle(cornerRadius: 0)
+                        .strokeBorder(Color.white.opacity(borderOpacity * 0.85), lineWidth: 2.5)
+                )
+
+                // Delete (red)
+                VStack(spacing: 4) {
+                    Image(systemName: "trash")
+                        .font(.system(size: 16, weight: .semibold))
+                    Text("Delete")
+                        .font(.system(size: 12, weight: .medium))
+                }
+                .foregroundColor(.white)
+                .frame(width: deleteWidth, height: panelHeight)
+                .background(Color.red)
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .shadow(color: Color.black.opacity(0.3), radius: 10, x: 0, y: 4)
+            .position(x: panelX, y: panelY)
+            .transition(.move(edge: .trailing).combined(with: .opacity))
+            .animation(.spring(response: 0.4, dampingFraction: 0.8), value: step)
+        }
+    }
+
+    // MARK: - Swipe Hint Animation
+
+    private func startSwipeHintAnimation() {
+        withAnimation(
+            .easeInOut(duration: 0.7)
+            .repeatForever(autoreverses: true)
+        ) {
+            swipeArrowOffset = -14
+            swipeArrowOpacity = 0.4
         }
     }
 

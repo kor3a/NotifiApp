@@ -359,7 +359,7 @@ struct StoresView: View {
 
     private var listContent: some View {
         List {
-            ForEach(displayedStoreItems) { userStoreItem in
+            ForEach(Array(displayedStoreItems.enumerated()), id: \.element.id) { index, userStoreItem in
                 ZStack {
                     if editMode == .inactive {
                         NavigationLink(destination: ReminderView(
@@ -374,6 +374,7 @@ struct StoresView: View {
                         StoreItemView(store: userStoreItem.store, isShared: userStoreItem.isShared)
                     }
                 }
+                .tutorialHighlight(id: index == 0 ? "tutorial_storeRow" : "noop_store_\(index)")
                 .listRowBackground(
                     RoundedRectangle(cornerRadius: 16)
                         .fill(.ultraThinMaterial)
