@@ -10,6 +10,7 @@ import FirebaseAuth
 
 struct ProfileView: View {
 
+    @Environment(\.dismiss) private var dismiss
     @StateObject private var viewModel = ProfileViewModel()
     @ObservedObject private var sessionManager = UserSessionManager.shared
     @State private var showImagePicker = false
@@ -207,7 +208,9 @@ struct ProfileView: View {
                 #if DEBUG
                 Button("Replay Tutorial") {
                     TutorialManager.shared.resetTutorial()
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    dismiss()
+                    TutorialManager.shared.pendingTabSwitch = 0
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                         TutorialManager.shared.startIfNeeded()
                     }
                 }
