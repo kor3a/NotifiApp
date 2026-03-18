@@ -434,25 +434,7 @@ struct FriendCard: View {
             }
             .buttonStyle(.plain)
             .popover(isPresented: $showFamilyPopover, attachmentAnchor: .rect(.bounds), arrowEdge: .bottom) {
-                VStack(spacing: 16) {
-                    // Icon + title
-                    VStack(spacing: 8) {
-                        Image(systemName: "house.fill")
-                            .font(.title2)
-                            .foregroundStyle(
-                                LinearGradient(
-                                    colors: [.blue, .purple],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
-                        Text(isFamilyMember ? "Remove \(friendName)\nfrom Family?" : "Add \(friendName)\nto Family?")
-                            .font(.subheadline.weight(.semibold))
-                            .multilineTextAlignment(.center)
-                            .foregroundColor(.primary)
-                    }
-                    .padding(.top, 4)
-
+                VStack(spacing: 12) {
                     // Action button
                     if isFamilyMember {
                         Button {
@@ -505,8 +487,8 @@ struct FriendCard: View {
                     }
                     .buttonStyle(.plain)
                 }
-                .padding(20)
-                .frame(minWidth: 240)
+                .padding(16)
+                .frame(minWidth: 220)
                 .presentationCompactAdaptation(.popover)
             }
 
