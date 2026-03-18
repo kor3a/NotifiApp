@@ -545,7 +545,8 @@ struct StoresView: View {
                     }
 
                     // Floating button — hidden when menu is open (unless shrunk in list mode)
-                    let effectivelyShrunk = isFabShrunk && storeViewMode == .list && !viewModel.userStoreItems.isEmpty
+                    // Never shrink during the tutorial so the highlight and context are clear.
+                    let effectivelyShrunk = isFabShrunk && storeViewMode == .list && !viewModel.userStoreItems.isEmpty && !tutorialManager.isActive
                     if effectivelyShrunk || !isMenuExpanded {
                     Button(action: {
                         if effectivelyShrunk {
