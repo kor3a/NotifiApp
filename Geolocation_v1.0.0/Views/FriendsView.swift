@@ -440,7 +440,8 @@ struct FriendCard: View {
                         .foregroundColor(.secondary)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 16)
-                        .padding(.vertical, 12)
+                        .padding(.top, 14)
+                        .padding(.bottom, 10)
 
                     Divider()
 
@@ -450,9 +451,10 @@ struct FriendCard: View {
                             showFamilyPopover = false
                         } label: {
                             Text("Remove from Family")
+                                .font(.body)
                                 .frame(maxWidth: .infinity)
-                                .padding(.horizontal, 16)
-                                .padding(.vertical, 12)
+                                .frame(height: 57)
+                                .contentShape(Rectangle())
                         }
                     } else {
                         Button {
@@ -460,9 +462,10 @@ struct FriendCard: View {
                             showFamilyPopover = false
                         } label: {
                             Text("Add to Family")
+                                .font(.body)
                                 .frame(maxWidth: .infinity)
-                                .padding(.horizontal, 16)
-                                .padding(.vertical, 12)
+                                .frame(height: 57)
+                                .contentShape(Rectangle())
                         }
                     }
 
@@ -472,13 +475,13 @@ struct FriendCard: View {
                         showFamilyPopover = false
                     } label: {
                         Text("Cancel")
+                            .font(.body.bold())
                             .frame(maxWidth: .infinity)
-                            .foregroundColor(.secondary)
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 12)
+                            .frame(height: 57)
+                            .contentShape(Rectangle())
                     }
                 }
-                .frame(minWidth: 200)
+                .frame(minWidth: 220)
                 .presentationCompactAdaptation(.popover)
             }
 
