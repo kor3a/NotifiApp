@@ -12,6 +12,7 @@ struct FriendsView: View {
     @ObservedObject var messagesViewModel: MessagesViewModel
     @ObservedObject private var sessionManager = UserSessionManager.shared
     @ObservedObject private var subscriptionManager = SubscriptionManager.shared
+    @ObservedObject private var tutorialManager = TutorialManager.shared
     @State private var showAddFriend = false
     @State private var selectedFriendForMessage: Contact?
     @State private var selectedConversation: Conversation?
@@ -55,6 +56,7 @@ struct FriendsView: View {
                 Button(action: { showAddFriend = true }) {
                     Image(systemName: "person.badge.plus")
                 }
+                .tutorialHighlight(id: "tutorial_addFriend")
             }
         }
         .sheet(isPresented: $showAddFriend) {
@@ -295,7 +297,7 @@ struct FriendsView: View {
             .padding(.horizontal)
 
             LazyVGrid(columns: gridColumns, spacing: 12) {
-                ForEach(viewModel.friends) { friendship in
+                ForEach(Array(viewModel.friends.enumerated()), id: \.element.id) { index, friendship in
                     let friendId = friendship.friendId(currentUserId: sessionManager.currentUser?.userId ?? "")
                     FriendCard(
                         friendship: friendship,
@@ -313,6 +315,7 @@ struct FriendsView: View {
                             showingFamilyActionSheet = true
                         }
                     )
+                    .tutorialHighlight(id: index == 0 ? "tutorial_friendCard" : "noop_friend_\(index)")
                 }
             }
             .padding(.horizontal)

@@ -8,6 +8,7 @@
 import Foundation
 import FirebaseAuth
 import FirebaseFirestore
+import Combine
 
 class MessagesViewModel: ObservableObject {
     @Published var conversations: [Conversation] = []
@@ -30,10 +31,39 @@ class MessagesViewModel: ObservableObject {
     private let messagingService = MessagingService.shared
     private var newMessagesListener: ListenerRegistration?
     private var currentConversationId: String?
+    private var cancellables = Set<AnyCancellable>()
 
     // Use the userId from user profile (stored in Firestore), NOT Auth UID
     private var currentUserId: String? {
         UserSessionManager.shared.currentUser?.userId
+    }
+
+    init() {
+        TutorialManager.shared.$isActive
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] isActive in
+                if isActive {
+                    self?.loadTutorialMockData()
+                } else {
+                    self?.clearTutorialMockData()
+                    self?.fetchConversations()
+                }
+            }
+            .store(in: &cancellables)
+    }
+
+    // MARK: - Tutorial Mock Data
+
+    private func loadTutorialMockData() {
+        let userId = currentUserId ?? "tutorial_self"
+        isLoading = false
+        conversations = TutorialMockData.conversations(currentUserId: userId)
+        totalUnreadCount = 1
+    }
+
+    private func clearTutorialMockData() {
+        conversations = []
+        totalUnreadCount = 0
     }
 
     deinit {
@@ -43,6 +73,10 @@ class MessagesViewModel: ObservableObject {
     // MARK: - Conversations
 
     func fetchConversations() {
+        guard !TutorialManager.shared.isActive else {
+            loadTutorialMockData()
+            return
+        }
         guard let userId = currentUserId else { return }
         isLoading = true
 
@@ -89,6 +123,7 @@ class MessagesViewModel: ObservableObject {
 
     /// Delete a conversation and all its messages
     func deleteConversation(_ conversation: Conversation) {
+        guard !TutorialManager.shared.isActive else { return }
         messagingService.deleteConversation(conversationId: conversation.id) { [weak self] result in
             DispatchQueue.main.async {
                 switch result {
@@ -230,6 +265,7 @@ class MessagesViewModel: ObservableObject {
         linkedReminder: LinkedReminder? = nil,
         senderName: String
     ) {
+        guard !TutorialManager.shared.isActive else { return }
         guard let userId = currentUserId else { return }
 
         messagingService.sendMessage(

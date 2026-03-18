@@ -374,6 +374,7 @@ struct MapView: View {
                         .foregroundColor(.primary)
                         .frame(width: 44, height: 44)
                 }
+                .tutorialHighlight(id: "tutorial_mapSearch")
             }
             .background(.ultraThinMaterial)
             .clipShape(RoundedRectangle(cornerRadius: 25))

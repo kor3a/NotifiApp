@@ -45,6 +45,7 @@ struct MessagesView: View {
                 Button(action: { showNewMessage = true }) {
                     Image(systemName: "square.and.pencil")
                 }
+                .tutorialHighlight(id: "tutorial_compose")
             }
         }
         .sheet(isPresented: $showNewMessage) {

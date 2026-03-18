@@ -21,6 +21,7 @@ struct StoresView: View {
     @StateObject private var smartRecipeViewModel = SmartRecipeViewModel()
     @ObservedObject private var sessionManager = UserSessionManager.shared
     @ObservedObject private var subscriptionManager = SubscriptionManager.shared
+    @ObservedObject private var tutorialManager = TutorialManager.shared
     @State private var showingAddStore = false
     @State private var showingSmartRecipe = false
     @State private var showingPaywall = false
@@ -134,37 +135,40 @@ struct StoresView: View {
                     }
                 }
 
-                // Sort + view mode toggle (only when stores exist)
-                if !viewModel.userStoreItems.isEmpty {
-                    ToolbarItemGroup(placement: .navigationBarTrailing) {
-                        // Sort by reminder count
-                        Button(action: {
-                            withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                                isSortedByReminderCount.toggle()
-                                if isSortedByReminderCount {
-                                    editMode = .inactive
+                // Sort + view mode toggle (shown when stores exist, or during tutorial to highlight the icons)
+                if !viewModel.userStoreItems.isEmpty || tutorialManager.isActive {
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        HStack(spacing: 4) {
+                            // Sort by reminder count
+                            Button(action: {
+                                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                                    isSortedByReminderCount.toggle()
+                                    if isSortedByReminderCount {
+                                        editMode = .inactive
+                                    }
                                 }
+                            }) {
+                                Image(systemName: isSortedByReminderCount ? "arrow.up.arrow.down.circle.fill" : "arrow.up.arrow.down.circle")
+                                    .imageScale(.large)
                             }
-                        }) {
-                            Image(systemName: isSortedByReminderCount ? "arrow.up.arrow.down.circle.fill" : "arrow.up.arrow.down.circle")
-                                .imageScale(.large)
-                        }
 
-                        // List / float view toggle
-                        Button(action: {
-                            withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                                if storeViewMode == .list {
-                                    editMode = .inactive
-                                    storeViewMode = .float
-                                } else {
-                                    isFloatEditMode = false
-                                    storeViewMode = .list
+                            // List / float view toggle
+                            Button(action: {
+                                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                                    if storeViewMode == .list {
+                                        editMode = .inactive
+                                        storeViewMode = .float
+                                    } else {
+                                        isFloatEditMode = false
+                                        storeViewMode = .list
+                                    }
                                 }
+                            }) {
+                                Image(systemName: storeViewMode == .list ? "circle.grid.3x3" : "list.bullet")
+                                    .imageScale(.large)
                             }
-                        }) {
-                            Image(systemName: storeViewMode == .list ? "circle.grid.3x3" : "list.bullet")
-                                .imageScale(.large)
                         }
+                        .tutorialHighlight(id: "tutorial_toolbar")
                     }
                 }
             }
@@ -355,7 +359,7 @@ struct StoresView: View {
 
     private var listContent: some View {
         List {
-            ForEach(displayedStoreItems) { userStoreItem in
+            ForEach(Array(displayedStoreItems.enumerated()), id: \.element.id) { index, userStoreItem in
                 ZStack {
                     if editMode == .inactive {
                         NavigationLink(destination: ReminderView(
@@ -370,6 +374,7 @@ struct StoresView: View {
                         StoreItemView(store: userStoreItem.store, isShared: userStoreItem.isShared)
                     }
                 }
+                .tutorialHighlight(id: index == 0 ? "tutorial_storeRow" : "noop_store_\(index)")
                 .listRowBackground(
                     RoundedRectangle(cornerRadius: 16)
                         .fill(.ultraThinMaterial)
@@ -541,7 +546,8 @@ struct StoresView: View {
                     }
 
                     // Floating button — hidden when menu is open (unless shrunk in list mode)
-                    let effectivelyShrunk = isFabShrunk && storeViewMode == .list && !viewModel.userStoreItems.isEmpty
+                    // Never shrink during the tutorial so the highlight and context are clear.
+                    let effectivelyShrunk = isFabShrunk && storeViewMode == .list && !viewModel.userStoreItems.isEmpty && !tutorialManager.isActive
                     if effectivelyShrunk || !isMenuExpanded {
                     Button(action: {
                         if effectivelyShrunk {
@@ -583,6 +589,7 @@ struct StoresView: View {
                             height: effectivelyShrunk ? 28 : 60
                         )
                         .animation(.spring(response: 0.5, dampingFraction: 0.75), value: effectivelyShrunk)
+                        .tutorialHighlight(id: "tutorial_fab")
                     }
                     } // end: if effectivelyShrunk || !isMenuExpanded
                 }
