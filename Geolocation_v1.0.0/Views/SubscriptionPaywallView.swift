@@ -10,8 +10,7 @@ struct SubscriptionPaywallView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) var colorScheme
     @StateObject private var subscriptionManager = SubscriptionManager.shared
-    @State private var generatedImageURL: URL? = nil
-    @State private var isLoadingImage: Bool = false
+    @State private var showError = false
 
     var body: some View {
         NavigationStack {
@@ -19,8 +18,14 @@ struct SubscriptionPaywallView: View {
                 VStack(spacing: 28) {
                     Spacer(minLength: 16)
 
-                    // Hero image (AI-generated) or fallback crown icon
-                    heroImage
+                    // Hero icon
+                    Image(systemName: "crown.fill")
+                        .font(.system(size: 56))
+                        .foregroundStyle(.linearGradient(
+                            colors: [.yellow, .orange],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ))
 
                     // Title
                     VStack(spacing: 6) {
@@ -158,70 +163,6 @@ struct SubscriptionPaywallView: View {
             } message: {
                 Text(subscriptionManager.errorMessage ?? "")
             }
-            .task {
-                await fetchSubscriptionImage()
-            }
-        }
-    }
-
-    // MARK: - Hero Image
-
-    @ViewBuilder
-    private var heroImage: some View {
-        if let imageURL = generatedImageURL {
-            AsyncImage(url: imageURL) { phase in
-                switch phase {
-                case .success(let image):
-                    image
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: 200, height: 200)
-                        .clipShape(RoundedRectangle(cornerRadius: 24))
-                        .shadow(color: .purple.opacity(0.4), radius: 12, x: 0, y: 6)
-                case .failure:
-                    crownFallback
-                case .empty:
-                    ProgressView()
-                        .frame(width: 200, height: 200)
-                @unknown default:
-                    crownFallback
-                }
-            }
-        } else if isLoadingImage {
-            ProgressView()
-                .frame(width: 200, height: 200)
-        } else {
-            crownFallback
-        }
-    }
-
-    private var crownFallback: some View {
-        Image(systemName: "crown.fill")
-            .font(.system(size: 56))
-            .foregroundStyle(.linearGradient(
-                colors: [.yellow, .orange],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            ))
-    }
-
-    // MARK: - Image Generation
-
-    private func fetchSubscriptionImage() async {
-        guard generatedImageURL == nil else { return }
-        isLoadingImage = true
-        defer { isLoadingImage = false }
-
-        do {
-            let urlString = try await OpenAIService.shared.generateSubscriptionImage()
-            if let url = URL(string: urlString) {
-                generatedImageURL = url
-            }
-        } catch {
-            // Falls back to the crown icon — no user-facing error needed here.
-            #if DEBUG
-            print("SubscriptionPaywallView: Image generation failed — \(error.localizedDescription)")
-            #endif
         }
     }
 

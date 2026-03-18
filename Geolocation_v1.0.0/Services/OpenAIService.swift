@@ -173,52 +173,6 @@ class OpenAIService {
         return mapping
     }
 
-    /// Generate a subscription hero image using DALL-E 3.
-    /// Returns a URL string pointing to the generated image.
-    func generateSubscriptionImage() async throws -> String {
-        let imageURL = "https://api.openai.com/v1/images/generations"
-        guard let url = URL(string: imageURL) else {
-            throw OpenAIError.invalidURL
-        }
-
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.addValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
-        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
-
-        let prompt = """
-        A premium mobile app subscription illustration. A golden crown glowing with light sits \
-        above a stylized shopping cart filled with fresh groceries, surrounded by sparkles and \
-        small floating map location pins. The background is a smooth gradient from deep blue to \
-        vibrant purple. Modern, clean, flat illustration style, no text.
-        """
-
-        let body: [String: Any] = [
-            "model": "dall-e-3",
-            "prompt": prompt,
-            "n": 1,
-            "size": "1024x1024",
-            "quality": "standard"
-        ]
-
-        request.httpBody = try JSONSerialization.data(withJSONObject: body)
-
-        let (data, response) = try await URLSession.shared.data(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
-            throw OpenAIError.invalidResponse
-        }
-
-        let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
-        guard let dataArray = json?["data"] as? [[String: Any]],
-              let firstItem = dataArray.first,
-              let generatedURL = firstItem["url"] as? String else {
-            throw OpenAIError.invalidResponse
-        }
-
-        return generatedURL
-    }
-
     func sendMessage(messages: [ChatMessage]) async throws -> String {
         guard let url = URL(string: baseURL) else {
             throw OpenAIError.invalidURL
