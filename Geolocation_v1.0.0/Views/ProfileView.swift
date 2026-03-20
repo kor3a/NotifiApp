@@ -210,8 +210,10 @@ struct ProfileView: View {
                     TutorialManager.shared.resetTutorial()
                     dismiss()
                     TutorialManager.shared.pendingTabSwitch = 0
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                        TutorialManager.shared.startIfNeeded()
+                    if let userId = sessionManager.currentUser?.userId {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                            TutorialManager.shared.startIfNeeded(userId: userId)
+                        }
                     }
                 }
                 .buttonStyle(SecondaryButtonStyle(color: .orange))
