@@ -109,8 +109,12 @@ struct ConversationView: View {
             }
         }
         .onAppear {
+            messageText = viewModel.draftMessages[conversation.id] ?? ""
             viewModel.fetchMessages(for: conversation.id)
             viewModel.markAsRead(conversationId: conversation.id)
+        }
+        .onChange(of: messageText) { _, newValue in
+            viewModel.draftMessages[conversation.id] = newValue
         }
         .onDisappear {
             viewModel.markAsRead(conversationId: conversation.id)
@@ -186,6 +190,7 @@ struct ConversationView: View {
         )
 
         messageText = ""
+        viewModel.draftMessages[conversation.id] = nil
     }
 }
 
