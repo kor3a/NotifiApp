@@ -66,6 +66,14 @@ struct ConversationView: View {
                     // Reset the scroll tracking after processing
                     scrolledToTopMessageId = nil
                 }
+                .onChange(of: isInputFocused) { _, focused in
+                    // When keyboard appears, scroll to the latest message
+                    if focused, let lastMessage = viewModel.messages.last {
+                        withAnimation {
+                            proxy.scrollTo(lastMessage.id, anchor: .bottom)
+                        }
+                    }
+                }
                 .onAppear {
                     if let lastMessage = viewModel.messages.last {
                         proxy.scrollTo(lastMessage.id, anchor: .bottom)
