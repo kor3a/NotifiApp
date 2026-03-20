@@ -222,8 +222,21 @@ exports.newMessageNotification = onDocumentCreated(
 //      - profile_pictures/{uid}.jpg  from Cloud Storage
 // ---------------------------------------------------------------------------
 exports.cleanupDeletedUser = functions.auth.user().onDelete(async (user) => {
-    const uid = user.uid;
-    console.log(`cleanupDeletedUser: starting cleanup for uid=${uid}`);
+    const authUid = user.uid;
+    const email = user.email;
+    console.log(`cleanupDeletedUser: starting cleanup for authUid=${authUid}, email=${email}`);
+
+    // Firestore documents are keyed by username (the userId field), NOT the Firebase Auth UID.
+    // The Auth UID is never stored in Firestore, so we must look up the user document by email.
+    const userSnap = await db.collection('users').where('email', '==', email).limit(1).get();
+    if (userSnap.empty) {
+        console.warn(`cleanupDeletedUser: no Firestore user document found for email=${email} — nothing to clean up`);
+        return;
+    }
+
+    const userDocRef = userSnap.docs[0].ref;
+    const userId = userSnap.docs[0].data().userId; // username used as key in all collections
+    console.log(`cleanupDeletedUser: found Firestore userId="${userId}", proceeding with deletion`);
 
     /**
      * Delete all documents returned by a Firestore Query using batched writes.
@@ -242,30 +255,30 @@ exports.cleanupDeletedUser = functions.auth.user().onDelete(async (user) => {
     }
 
     const tasks = [
-        // User document
-        db.collection('users').doc(uid).delete(),
+        // User document (document ID is the username, not the Auth UID)
+        userDocRef.delete(),
 
-        // Subcollections / related documents
-        deleteQueryResults(db.collection('reminders').where('userId', '==', uid)),
-        deleteQueryResults(db.collection('user_stores').where('userId', '==', uid)),
-        deleteQueryResults(db.collection('friends').where('requesterId', '==', uid)),
-        deleteQueryResults(db.collection('friends').where('receiverId', '==', uid)),
-        deleteQueryResults(db.collection('friend_requests').where('requesterId', '==', uid)),
-        deleteQueryResults(db.collection('friend_requests').where('receiverId', '==', uid)),
-        deleteQueryResults(db.collection('favorite_tags').where('userId', '==', uid)),
+        // Related documents that reference userId (the username)
+        deleteQueryResults(db.collection('reminders').where('userId', '==', userId)),
+        deleteQueryResults(db.collection('user_stores').where('userId', '==', userId)),
+        deleteQueryResults(db.collection('friends').where('requesterId', '==', userId)),
+        deleteQueryResults(db.collection('friends').where('receiverId', '==', userId)),
+        deleteQueryResults(db.collection('friend_requests').where('requesterId', '==', userId)),
+        deleteQueryResults(db.collection('friend_requests').where('receiverId', '==', userId)),
+        deleteQueryResults(db.collection('favorite_tags').where('userId', '==', userId)),
     ];
 
     // Profile picture — ignore "not found" errors; the file may not exist
     const profilePicTask = getStorage()
         .bucket()
-        .file(`profile_pictures/${uid}.jpg`)
+        .file(`profile_pictures/${userId}.jpg`)
         .delete()
         .catch((err) => {
-            if (err.code !== 404) console.warn(`cleanupDeletedUser: storage delete error for uid=${uid}:`, err.message);
+            if (err.code !== 404) console.warn(`cleanupDeletedUser: storage delete error for userId=${userId}:`, err.message);
         });
 
     await Promise.all([...tasks, profilePicTask]);
-    console.log(`cleanupDeletedUser: cleanup complete for uid=${uid}`);
+    console.log(`cleanupDeletedUser: cleanup complete for userId="${userId}"`);
 });
 
 // ---------------------------------------------------------------------------
