@@ -34,9 +34,11 @@
  */
 
 const { onDocumentCreated } = require('firebase-functions/v2/firestore');
+const functions = require('firebase-functions');
 const { initializeApp } = require('firebase-admin/app');
 const { getFirestore } = require('firebase-admin/firestore');
 const { getMessaging } = require('firebase-admin/messaging');
+const { getStorage } = require('firebase-admin/storage');
 
 initializeApp();
 
@@ -203,6 +205,68 @@ exports.newMessageNotification = onDocumentCreated(
         );
     }
 );
+
+// ---------------------------------------------------------------------------
+// 5. User account cleanup
+//    Triggered when a Firebase Auth user is deleted (from the app, Firebase
+//    Console, or any other means).  The admin SDK bypasses Firestore security
+//    rules, so this works even after the auth token is gone.
+//
+//    Deletes:
+//      - users/{uid}  document
+//      - reminders    where userId == uid
+//      - user_stores  where userId == uid
+//      - friends      where requesterId == uid  OR  receiverId == uid
+//      - friend_requests where requesterId == uid  OR  receiverId == uid
+//      - favorite_tags   where userId == uid
+//      - profile_pictures/{uid}.jpg  from Cloud Storage
+// ---------------------------------------------------------------------------
+exports.cleanupDeletedUser = functions.auth.user().onDelete(async (user) => {
+    const uid = user.uid;
+    console.log(`cleanupDeletedUser: starting cleanup for uid=${uid}`);
+
+    /**
+     * Delete all documents returned by a Firestore Query using batched writes.
+     * Batches are capped at 500 operations each (Firestore limit).
+     */
+    async function deleteQueryResults(query) {
+        const snap = await query.get();
+        if (snap.empty) return;
+
+        const BATCH_SIZE = 500;
+        for (let i = 0; i < snap.docs.length; i += BATCH_SIZE) {
+            const batch = db.batch();
+            snap.docs.slice(i, i + BATCH_SIZE).forEach((doc) => batch.delete(doc.ref));
+            await batch.commit();
+        }
+    }
+
+    const tasks = [
+        // User document
+        db.collection('users').doc(uid).delete(),
+
+        // Subcollections / related documents
+        deleteQueryResults(db.collection('reminders').where('userId', '==', uid)),
+        deleteQueryResults(db.collection('user_stores').where('userId', '==', uid)),
+        deleteQueryResults(db.collection('friends').where('requesterId', '==', uid)),
+        deleteQueryResults(db.collection('friends').where('receiverId', '==', uid)),
+        deleteQueryResults(db.collection('friend_requests').where('requesterId', '==', uid)),
+        deleteQueryResults(db.collection('friend_requests').where('receiverId', '==', uid)),
+        deleteQueryResults(db.collection('favorite_tags').where('userId', '==', uid)),
+    ];
+
+    // Profile picture — ignore "not found" errors; the file may not exist
+    const profilePicTask = getStorage()
+        .bucket()
+        .file(`profile_pictures/${uid}.jpg`)
+        .delete()
+        .catch((err) => {
+            if (err.code !== 404) console.warn(`cleanupDeletedUser: storage delete error for uid=${uid}:`, err.message);
+        });
+
+    await Promise.all([...tasks, profilePicTask]);
+    console.log(`cleanupDeletedUser: cleanup complete for uid=${uid}`);
+});
 
 // ---------------------------------------------------------------------------
 // 4. Friend request notifications
