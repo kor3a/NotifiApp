@@ -18,6 +18,8 @@ struct LoginView: View {
     @State private var isSignup: Bool = false
     @State private var isForgotPassword: Bool = false
     @State private var currentNonce: String?
+    @State private var showSignupConfirmation: Bool = false
+    @State private var signupConfirmationEmail: String = ""
     @Environment(\.colorScheme) var colorScheme
 
     @StateObject private var viewModel = LoginViewModel()
@@ -39,6 +41,47 @@ struct LoginView: View {
                             )
                         )
                         .padding(.bottom, 8)
+
+                    if showSignupConfirmation {
+                        VStack(spacing: 8) {
+                            Image(systemName: "envelope.badge.shield.half.filled")
+                                .font(.system(size: 36))
+                                .foregroundStyle(
+                                    LinearGradient(
+                                        colors: [.blue, .purple],
+                                        startPoint: .leading,
+                                        endPoint: .trailing
+                                    )
+                                )
+
+                            Text("A confirmation email has been sent to \(signupConfirmationEmail). Please click on the link to complete the sign up.")
+                                .font(.subheadline)
+                                .multilineTextAlignment(.center)
+                                .foregroundColor(.secondary)
+
+                            Text("Can't find it? Be sure to check your spam or junk folder.")
+                                .font(.caption)
+                                .multilineTextAlignment(.center)
+                                .foregroundColor(.secondary)
+                        }
+                        .padding()
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(.ultraThinMaterial)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .stroke(
+                                            LinearGradient(
+                                                colors: [.blue, .purple],
+                                                startPoint: .leading,
+                                                endPoint: .trailing
+                                            ),
+                                            lineWidth: 1
+                                        )
+                                )
+                        )
+                        .padding(.horizontal, 20)
+                    }
 
                     if !viewModel.errorMessage.isEmpty {
                         Text(viewModel.errorMessage)
@@ -182,7 +225,13 @@ struct LoginView: View {
                     showAlert = true
                 }
             })
-            .navigationDestination(isPresented: $isSignup) { SignupView() }
+            .navigationDestination(isPresented: $isSignup) {
+                SignupView(onSignupComplete: { email in
+                    signupConfirmationEmail = email
+                    isSignup = false
+                    showSignupConfirmation = true
+                })
+            }
             .navigationDestination(isPresented: $isForgotPassword) { ForgotPasswordView() }
         }//:NAVIGATIONVIEW
 
