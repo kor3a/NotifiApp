@@ -34,9 +34,11 @@
  */
 
 const { onDocumentCreated } = require('firebase-functions/v2/firestore');
+const functions = require('firebase-functions');
 const { initializeApp } = require('firebase-admin/app');
 const { getFirestore } = require('firebase-admin/firestore');
 const { getMessaging } = require('firebase-admin/messaging');
+const { getStorage } = require('firebase-admin/storage');
 
 initializeApp();
 
@@ -203,6 +205,81 @@ exports.newMessageNotification = onDocumentCreated(
         );
     }
 );
+
+// ---------------------------------------------------------------------------
+// 5. User account cleanup
+//    Triggered when a Firebase Auth user is deleted (from the app, Firebase
+//    Console, or any other means).  The admin SDK bypasses Firestore security
+//    rules, so this works even after the auth token is gone.
+//
+//    Deletes:
+//      - users/{uid}  document
+//      - reminders    where userId == uid
+//      - user_stores  where userId == uid
+//      - friends      where requesterId == uid  OR  receiverId == uid
+//      - friend_requests where requesterId == uid  OR  receiverId == uid
+//      - favorite_tags   where userId == uid
+//      - profile_pictures/{uid}.jpg  from Cloud Storage
+// ---------------------------------------------------------------------------
+exports.cleanupDeletedUser = functions.auth.user().onDelete(async (user) => {
+    const authUid = user.uid;
+    const email = user.email;
+    console.log(`cleanupDeletedUser: starting cleanup for authUid=${authUid}, email=${email}`);
+
+    // Firestore documents are keyed by username (the userId field), NOT the Firebase Auth UID.
+    // The Auth UID is never stored in Firestore, so we must look up the user document by email.
+    const userSnap = await db.collection('users').where('email', '==', email).limit(1).get();
+    if (userSnap.empty) {
+        console.warn(`cleanupDeletedUser: no Firestore user document found for email=${email} — nothing to clean up`);
+        return;
+    }
+
+    const userDocRef = userSnap.docs[0].ref;
+    const userId = userSnap.docs[0].data().userId; // username used as key in all collections
+    console.log(`cleanupDeletedUser: found Firestore userId="${userId}", proceeding with deletion`);
+
+    /**
+     * Delete all documents returned by a Firestore Query using batched writes.
+     * Batches are capped at 500 operations each (Firestore limit).
+     */
+    async function deleteQueryResults(query) {
+        const snap = await query.get();
+        if (snap.empty) return;
+
+        const BATCH_SIZE = 500;
+        for (let i = 0; i < snap.docs.length; i += BATCH_SIZE) {
+            const batch = db.batch();
+            snap.docs.slice(i, i + BATCH_SIZE).forEach((doc) => batch.delete(doc.ref));
+            await batch.commit();
+        }
+    }
+
+    const tasks = [
+        // User document (document ID is the username, not the Auth UID)
+        userDocRef.delete(),
+
+        // Related documents that reference userId (the username)
+        deleteQueryResults(db.collection('reminders').where('userId', '==', userId)),
+        deleteQueryResults(db.collection('user_stores').where('userId', '==', userId)),
+        deleteQueryResults(db.collection('friends').where('requesterId', '==', userId)),
+        deleteQueryResults(db.collection('friends').where('receiverId', '==', userId)),
+        deleteQueryResults(db.collection('friend_requests').where('requesterId', '==', userId)),
+        deleteQueryResults(db.collection('friend_requests').where('receiverId', '==', userId)),
+        deleteQueryResults(db.collection('favorite_tags').where('userId', '==', userId)),
+    ];
+
+    // Profile picture — ignore "not found" errors; the file may not exist
+    const profilePicTask = getStorage()
+        .bucket()
+        .file(`profile_pictures/${userId}.jpg`)
+        .delete()
+        .catch((err) => {
+            if (err.code !== 404) console.warn(`cleanupDeletedUser: storage delete error for userId=${userId}:`, err.message);
+        });
+
+    await Promise.all([...tasks, profilePicTask]);
+    console.log(`cleanupDeletedUser: cleanup complete for userId="${userId}"`);
+});
 
 // ---------------------------------------------------------------------------
 // 4. Friend request notifications
