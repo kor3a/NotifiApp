@@ -481,8 +481,17 @@ extension NotificationManager: UNUserNotificationCenterDelegate {
     func userNotificationCenter(_ center: UNUserNotificationCenter,
                               willPresent notification: UNNotification,
                               withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
-        // Show notification even when app is in foreground
-        // .list ensures it appears in Notification Center and lock screen
+        // Cloud Functions always include a "type" key in the FCM data payload
+        // (e.g. "message", "friend_request", "on_my_way", "reminder_change").
+        // Local notifications scheduled by the Firestore listeners never carry
+        // this key.  When the app is active both paths would fire for the same
+        // event, so we suppress the remote copy and let the local one show.
+        if notification.request.content.userInfo["type"] != nil {
+            completionHandler([])
+            return
+        }
+        // Show local notifications even when app is in foreground.
+        // .list ensures it appears in Notification Center and lock screen.
         completionHandler([.banner, .list, .sound, .badge])
     }
 

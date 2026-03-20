@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import UIKit
 import FirebaseFirestore
 import FirebaseAuth
 
@@ -358,11 +359,18 @@ class FriendRequestService: ObservableObject {
                 for doc in documents {
                     let requestId = doc.documentID
                     if !self.knownRequestIds.contains(requestId) {
-                        // This is a new request, trigger notification
+                        // Track the ID first so that if the listener delivers this
+                        // document again on reconnect we don't fire a second time.
                         self.knownRequestIds.insert(requestId)
 
                         let data = doc.data()
                         let fromUserName = data["requesterName"] as? String ?? "Someone"
+
+                        // Only schedule a local notification while the app is active.
+                        // When backgrounded the Cloud Function already sends an FCM
+                        // push for the same friend request, so firing a local one
+                        // too would produce a visible duplicate.
+                        guard UIApplication.shared.applicationState == .active else { continue }
 
                         #if DEBUG
                         print("FriendRequestService: NEW friend request detected from \(fromUserName), scheduling notification...")

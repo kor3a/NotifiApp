@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import UIKit
 import FirebaseFirestore
 
 class OnMyWayNotificationService {
@@ -232,14 +233,21 @@ class OnMyWayNotificationService {
                     print("🚗 OnMyWayNotificationService: Received notification - \(senderName) is on their way to \(storeName) (\(travelTimeMinutes) min)")
                     #endif
 
-                    NotificationManager.shared.scheduleOnMyWayNotification(
-                        senderName: senderName,
-                        storeName: storeName,
-                        travelTimeMinutes: travelTimeMinutes,
-                        notificationId: docId
-                    )
+                    // Only schedule a local notification while the app is active.
+                    // When backgrounded the Cloud Function already sends an FCM
+                    // push for the same event — firing a local one too produces
+                    // a visible duplicate.
+                    if UIApplication.shared.applicationState == .active {
+                        NotificationManager.shared.scheduleOnMyWayNotification(
+                            senderName: senderName,
+                            storeName: storeName,
+                            travelTimeMinutes: travelTimeMinutes,
+                            notificationId: docId
+                        )
+                    }
 
-                    // Delete the document after processing
+                    // Always delete the document regardless of app state so the
+                    // Cloud Function's push is the only delivery path when backgrounded.
                     change.document.reference.delete()
                 }
             }

@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import UIKit
 import FirebaseFirestore
 import FirebaseAuth
 
@@ -1582,8 +1583,17 @@ class MessagingService: ObservableObject {
                     // Only notify for messages created after we started listening
                     guard createdAt > self.listenerStartTime else { continue }
 
-                    // Mark as notified
+                    // Mark as notified before the applicationState check so that
+                    // if the listener fires again on reconnect (e.g. after the app
+                    // returns to the foreground) we don't show a belated local
+                    // notification for a message the FCM push already delivered.
                     self.notifiedMessageIds.insert(messageId)
+
+                    // Only schedule local notifications while the app is active.
+                    // When backgrounded the Cloud Function sends an FCM push for
+                    // the same event, so firing a local notification too would
+                    // produce a visible duplicate.
+                    guard UIApplication.shared.applicationState == .active else { continue }
 
                     // Determine notification content based on message type
                     var notificationContent = content

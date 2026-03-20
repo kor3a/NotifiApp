@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import UIKit
 import FirebaseFirestore
 
 class SharedReminderNotificationService {
@@ -329,9 +330,21 @@ class SharedReminderNotificationService {
                     print("📥   Notification: \(senderName) changed '\(storeName)' (added: \(addedCount), other: \(otherChangeCount))")
                     #endif
 
-                    // Local notification is intentionally omitted here — the Cloud Function
-                    // already sends an FCM push ("📝 Reminder Updated") when the document is
-                    // created, so scheduling a second local notification would be a duplicate.
+                    // Only schedule a local notification while the app is active.
+                    // When backgrounded the Cloud Function already sends an FCM
+                    // push for the same event — firing a local one too produces
+                    // a visible duplicate.  willPresent in NotificationManager
+                    // suppresses the FCM push when the app is active, so only
+                    // one notification is ever shown.
+                    if UIApplication.shared.applicationState == .active {
+                        NotificationManager.shared.scheduleSharedReminderNotification(
+                            senderName: senderName,
+                            storeName: storeName,
+                            addedCount: addedCount,
+                            otherChangeCount: otherChangeCount,
+                            notificationId: docId
+                        )
+                    }
 
                     // Delete the document after processing
                     change.document.reference.delete { error in
