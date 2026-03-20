@@ -53,6 +53,7 @@ struct ConversationView: View {
                     }
                     .padding()
                 }
+                .scrollDismissesKeyboard(.interactively)
                 .onChange(of: viewModel.messages.count) { oldCount, newCount in
                     // Only auto-scroll if new messages were added (not when loading older)
                     if newCount > oldCount, let lastMessage = viewModel.messages.last {
@@ -65,6 +66,14 @@ struct ConversationView: View {
                     }
                     // Reset the scroll tracking after processing
                     scrolledToTopMessageId = nil
+                }
+                .onChange(of: isInputFocused) { _, focused in
+                    // When keyboard appears, scroll to the latest message
+                    if focused, let lastMessage = viewModel.messages.last {
+                        withAnimation {
+                            proxy.scrollTo(lastMessage.id, anchor: .bottom)
+                        }
+                    }
                 }
                 .onAppear {
                     if let lastMessage = viewModel.messages.last {
