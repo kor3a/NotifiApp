@@ -53,6 +53,7 @@ struct ConversationView: View {
                     }
                     .padding()
                 }
+                .scrollDismissesKeyboard(.interactively)
                 .onChange(of: viewModel.messages.count) { oldCount, newCount in
                     // Only auto-scroll if new messages were added (not when loading older)
                     if newCount > oldCount, let lastMessage = viewModel.messages.last {
