@@ -50,8 +50,10 @@ class LoginViewModel: ObservableObject {
                 return
             }
 
-            // Email is verified - fetch user data
-            UserSessionManager.shared.fetchUser()
+            // Email is verified - fetch user data (must run on main thread)
+            DispatchQueue.main.async {
+                UserSessionManager.shared.fetchUser()
+            }
         }
     }
 

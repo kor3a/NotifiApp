@@ -153,12 +153,6 @@ struct HomeView: View {
                 OnMyWayNotificationService.shared.startListening(userEmail: userEmail)
             }
 
-            // Start onboarding tutorial for new users (slight delay so views have laid out)
-            if let userId = sessionManager.currentUser?.userId {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
-                    tutorialManager.startIfNeeded(userId: userId)
-                }
-            }
         }
         .onChange(of: tutorialManager.pendingTabSwitch) { _, tab in
             guard let tab = tab else { return }
@@ -167,14 +161,16 @@ struct HomeView: View {
             }
             tutorialManager.pendingTabSwitch = nil
         }
+        // Start onboarding tutorial for new users. Using task(id:) ensures this fires
+        // both when the view first appears with a user already loaded AND whenever
+        // the active user changes (e.g. after async Firestore fetch completes).
+        .task(id: sessionManager.currentUser?.userId) {
+            guard let userId = sessionManager.currentUser?.userId else { return }
+            // Slight delay so views have finished laying out before the overlay appears
+            try? await Task.sleep(for: .seconds(0.8))
+            tutorialManager.startIfNeeded(userId: userId)
+        }
         .onChange(of: sessionManager.currentUser) { oldUser, newUser in
-            // Start tutorial when a new account becomes active
-            if let userId = newUser?.userId, oldUser?.userId != newUser?.userId {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
-                    tutorialManager.startIfNeeded(userId: userId)
-                }
-            }
-
             // Fetch unread message count whenever user data becomes available
             if let userId = newUser?.userId {
                 messagesViewModel.fetchUnreadCount()
