@@ -13,10 +13,12 @@ struct MainView: View {
     @StateObject private var viewModel:MainViewModel = .init()
     
     var body: some View {
-
-        if viewModel.isSignedIn, !viewModel.currentUserId.isEmpty {
+        if viewModel.isLoading {
+            Color(.systemBackground)
+                .ignoresSafeArea()
+        } else if viewModel.isSignedIn, !viewModel.currentUserId.isEmpty {
             HomeView()
-        }else {
+        } else {
             LoginView()
         }
     }
