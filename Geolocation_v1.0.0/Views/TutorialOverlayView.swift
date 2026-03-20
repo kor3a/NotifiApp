@@ -333,6 +333,7 @@ struct TutorialOverlayView: View {
         TutorialOverlayView()
     }
     .onAppear {
-        TutorialManager.shared.startIfNeeded()
+        TutorialManager.shared.currentStep = .welcome
+        TutorialManager.shared.isActive = true
     }
 }

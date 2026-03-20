@@ -98,12 +98,23 @@ final class TutorialManager: ObservableObject {
     @Published var elementFrames: [String: CGRect] = [:]
     @Published var pendingTabSwitch: Int? = nil
 
-    @AppStorage("hasCompletedTutorial") private(set) var hasCompletedTutorial: Bool = false
+    private(set) var currentUserId: String?
+
+    private var tutorialKey: String {
+        guard let userId = currentUserId else { return "hasCompletedTutorial" }
+        return "hasCompletedTutorial_\(userId)"
+    }
+
+    var hasCompletedTutorial: Bool {
+        get { UserDefaults.standard.bool(forKey: tutorialKey) }
+        set { UserDefaults.standard.set(newValue, forKey: tutorialKey) }
+    }
 
     private init() {}
 
-    func startIfNeeded() {
-        guard !hasCompletedTutorial else { return }
+    func startIfNeeded(userId: String) {
+        currentUserId = userId
+        guard !hasCompletedTutorial, !isActive else { return }
         currentStep = .welcome
         isActive = true
     }

@@ -154,8 +154,10 @@ struct HomeView: View {
             }
 
             // Start onboarding tutorial for new users (slight delay so views have laid out)
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
-                tutorialManager.startIfNeeded()
+            if let userId = sessionManager.currentUser?.userId {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+                    tutorialManager.startIfNeeded(userId: userId)
+                }
             }
         }
         .onChange(of: tutorialManager.pendingTabSwitch) { _, tab in
@@ -166,6 +168,13 @@ struct HomeView: View {
             tutorialManager.pendingTabSwitch = nil
         }
         .onChange(of: sessionManager.currentUser) { oldUser, newUser in
+            // Start tutorial when a new account becomes active
+            if let userId = newUser?.userId, oldUser?.userId != newUser?.userId {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+                    tutorialManager.startIfNeeded(userId: userId)
+                }
+            }
+
             // Fetch unread message count whenever user data becomes available
             if let userId = newUser?.userId {
                 messagesViewModel.fetchUnreadCount()
