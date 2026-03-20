@@ -229,6 +229,7 @@ struct MessageBubble: View {
 
                 // Message content
                 Text(message.content)
+                    .textSelection(.enabled)
                     .padding(.horizontal, 14)
                     .padding(.vertical, 10)
                     .background(
