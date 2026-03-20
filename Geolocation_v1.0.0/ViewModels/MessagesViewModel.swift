@@ -28,6 +28,9 @@ class MessagesViewModel: ObservableObject {
     @Published var participantProfilePictures: [String: String] = [:]
     private var fetchedParticipantIds: Set<String> = []
 
+    // Draft (unsent) message text per conversation
+    var draftMessages: [String: String] = [:]
+
     private let messagingService = MessagingService.shared
     private var newMessagesListener: ListenerRegistration?
     private var currentConversationId: String?
