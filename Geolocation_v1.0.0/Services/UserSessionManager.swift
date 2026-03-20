@@ -595,7 +595,7 @@ class UserSessionManager: ObservableObject {
     // MARK: - Account Deletion
 
     /// Permanently deletes the user's account and all associated data.
-    /// Deletes Firestore documents, Storage files, and the Firebase Auth user.
+    /// Deletes Firebase Auth user first, then Firestore documents and Storage files.
     func deleteAccount(completion: @escaping (Bool, String?) -> Void) {
         guard let user = currentUser,
               let authUser = Auth.auth().currentUser else {
@@ -604,133 +604,131 @@ class UserSessionManager: ObservableObject {
         }
 
         let userId = user.userId
-        let db = Firestore.firestore()
-        let group = DispatchGroup()
-        var deletionErrors: [String] = []
 
-        // 1. Delete user Firestore document
-        group.enter()
-        db.collection("users").document(userId).delete { error in
+        // 1. Delete Firebase Auth user first — if this fails (e.g. requiresRecentLogin),
+        //    no Firestore data has been touched yet, so the account remains intact.
+        authUser.delete { error in
             if let error = error {
-                deletionErrors.append("user doc: \(error.localizedDescription)")
-            }
-            group.leave()
-        }
-
-        // 2. Delete user's reminders
-        group.enter()
-        db.collection("reminders").whereField("userId", isEqualTo: userId)
-            .getDocuments { snapshot, error in
-                if let docs = snapshot?.documents, !docs.isEmpty {
-                    let batch = db.batch()
-                    docs.forEach { batch.deleteDocument($0.reference) }
-                    batch.commit { _ in group.leave() }
+                let nsError = error as NSError
+                if nsError.code == AuthErrorCode.requiresRecentLogin.rawValue {
+                    completion(false, "For security, please sign out and sign back in before deleting your account.")
                 } else {
-                    group.leave()
+                    completion(false, "Failed to delete account: \(error.localizedDescription)")
                 }
+                return
             }
 
-        // 3. Delete user's user_stores
-        group.enter()
-        db.collection("user_stores").whereField("userId", isEqualTo: userId)
-            .getDocuments { snapshot, error in
-                if let docs = snapshot?.documents, !docs.isEmpty {
-                    let batch = db.batch()
-                    docs.forEach { batch.deleteDocument($0.reference) }
-                    batch.commit { _ in group.leave() }
-                } else {
-                    group.leave()
-                }
-            }
+            // Auth deletion succeeded — now clean up all associated data.
+            // Auth listener in MainViewModel will call clearSession automatically.
+            let db = Firestore.firestore()
+            let group = DispatchGroup()
 
-        // 4. Delete friend connections where user is requester
-        group.enter()
-        db.collection("friends").whereField("requesterId", isEqualTo: userId)
-            .getDocuments { snapshot, error in
-                if let docs = snapshot?.documents, !docs.isEmpty {
-                    let batch = db.batch()
-                    docs.forEach { batch.deleteDocument($0.reference) }
-                    batch.commit { _ in group.leave() }
-                } else {
-                    group.leave()
-                }
-            }
-
-        // 5. Delete friend connections where user is receiver
-        group.enter()
-        db.collection("friends").whereField("receiverId", isEqualTo: userId)
-            .getDocuments { snapshot, error in
-                if let docs = snapshot?.documents, !docs.isEmpty {
-                    let batch = db.batch()
-                    docs.forEach { batch.deleteDocument($0.reference) }
-                    batch.commit { _ in group.leave() }
-                } else {
-                    group.leave()
-                }
-            }
-
-        // 6. Delete pending friend requests sent by user
-        group.enter()
-        db.collection("friend_requests").whereField("requesterId", isEqualTo: userId)
-            .getDocuments { snapshot, error in
-                if let docs = snapshot?.documents, !docs.isEmpty {
-                    let batch = db.batch()
-                    docs.forEach { batch.deleteDocument($0.reference) }
-                    batch.commit { _ in group.leave() }
-                } else {
-                    group.leave()
-                }
-            }
-
-        // 7. Delete pending friend requests received by user
-        group.enter()
-        db.collection("friend_requests").whereField("receiverId", isEqualTo: userId)
-            .getDocuments { snapshot, error in
-                if let docs = snapshot?.documents, !docs.isEmpty {
-                    let batch = db.batch()
-                    docs.forEach { batch.deleteDocument($0.reference) }
-                    batch.commit { _ in group.leave() }
-                } else {
-                    group.leave()
-                }
-            }
-
-        // 8. Delete favorite tags
-        group.enter()
-        db.collection("favorite_tags").whereField("userId", isEqualTo: userId)
-            .getDocuments { snapshot, error in
-                if let docs = snapshot?.documents, !docs.isEmpty {
-                    let batch = db.batch()
-                    docs.forEach { batch.deleteDocument($0.reference) }
-                    batch.commit { _ in group.leave() }
-                } else {
-                    group.leave()
-                }
-            }
-
-        // 9. Delete profile picture from Storage
-        if user.profilePictureURL != nil {
+            // 2. Delete user Firestore document
             group.enter()
-            let storageRef = Storage.storage().reference()
-            storageRef.child("profile_pictures/\(userId).jpg").delete { error in
-                // Ignore not-found errors; the file may not exist
-                group.leave()
-            }
-        }
+            db.collection("users").document(userId).delete { _ in group.leave() }
 
-        group.notify(queue: .global(qos: .userInitiated)) {
-            // 10. Delete Firebase Auth user (must be last)
-            authUser.delete { error in
-                if let error = error {
-                    let nsError = error as NSError
-                    if nsError.code == AuthErrorCode.requiresRecentLogin.rawValue {
-                        completion(false, "For security, please sign out and sign back in before deleting your account.")
+            // 3. Delete user's reminders
+            group.enter()
+            db.collection("reminders").whereField("userId", isEqualTo: userId)
+                .getDocuments { snapshot, _ in
+                    if let docs = snapshot?.documents, !docs.isEmpty {
+                        let batch = db.batch()
+                        docs.forEach { batch.deleteDocument($0.reference) }
+                        batch.commit { _ in group.leave() }
                     } else {
-                        completion(false, "Failed to delete account: \(error.localizedDescription)")
+                        group.leave()
                     }
-                    return
                 }
-                // Auth listener in MainViewModel will call clearSession automatically
+
+            // 4. Delete user's user_stores
+            group.enter()
+            db.collection("user_stores").whereField("userId", isEqualTo: userId)
+                .getDocuments { snapshot, _ in
+                    if let docs = snapshot?.documents, !docs.isEmpty {
+                        let batch = db.batch()
+                        docs.forEach { batch.deleteDocument($0.reference) }
+                        batch.commit { _ in group.leave() }
+                    } else {
+                        group.leave()
+                    }
+                }
+
+            // 5. Delete friend connections where user is requester
+            group.enter()
+            db.collection("friends").whereField("requesterId", isEqualTo: userId)
+                .getDocuments { snapshot, _ in
+                    if let docs = snapshot?.documents, !docs.isEmpty {
+                        let batch = db.batch()
+                        docs.forEach { batch.deleteDocument($0.reference) }
+                        batch.commit { _ in group.leave() }
+                    } else {
+                        group.leave()
+                    }
+                }
+
+            // 6. Delete friend connections where user is receiver
+            group.enter()
+            db.collection("friends").whereField("receiverId", isEqualTo: userId)
+                .getDocuments { snapshot, _ in
+                    if let docs = snapshot?.documents, !docs.isEmpty {
+                        let batch = db.batch()
+                        docs.forEach { batch.deleteDocument($0.reference) }
+                        batch.commit { _ in group.leave() }
+                    } else {
+                        group.leave()
+                    }
+                }
+
+            // 7. Delete pending friend requests sent by user
+            group.enter()
+            db.collection("friend_requests").whereField("requesterId", isEqualTo: userId)
+                .getDocuments { snapshot, _ in
+                    if let docs = snapshot?.documents, !docs.isEmpty {
+                        let batch = db.batch()
+                        docs.forEach { batch.deleteDocument($0.reference) }
+                        batch.commit { _ in group.leave() }
+                    } else {
+                        group.leave()
+                    }
+                }
+
+            // 8. Delete pending friend requests received by user
+            group.enter()
+            db.collection("friend_requests").whereField("receiverId", isEqualTo: userId)
+                .getDocuments { snapshot, _ in
+                    if let docs = snapshot?.documents, !docs.isEmpty {
+                        let batch = db.batch()
+                        docs.forEach { batch.deleteDocument($0.reference) }
+                        batch.commit { _ in group.leave() }
+                    } else {
+                        group.leave()
+                    }
+                }
+
+            // 9. Delete favorite tags
+            group.enter()
+            db.collection("favorite_tags").whereField("userId", isEqualTo: userId)
+                .getDocuments { snapshot, _ in
+                    if let docs = snapshot?.documents, !docs.isEmpty {
+                        let batch = db.batch()
+                        docs.forEach { batch.deleteDocument($0.reference) }
+                        batch.commit { _ in group.leave() }
+                    } else {
+                        group.leave()
+                    }
+                }
+
+            // 10. Delete profile picture from Storage
+            if user.profilePictureURL != nil {
+                group.enter()
+                let storageRef = Storage.storage().reference()
+                storageRef.child("profile_pictures/\(userId).jpg").delete { _ in
+                    // Ignore errors; file may not exist
+                    group.leave()
+                }
+            }
+
+            group.notify(queue: .main) {
                 completion(true, nil)
             }
         }
