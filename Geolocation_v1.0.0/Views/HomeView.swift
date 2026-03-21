@@ -27,7 +27,6 @@ struct HomeView: View {
     @State private var pendingConversationId: String? = nil
     @State private var showCarPlayAlert = false
     @State private var showNotificationsDeniedAlert = false
-    @State private var hasTutorialBeenTriggered = false
 
     var body: some View {
         ZStack {
@@ -155,8 +154,9 @@ struct HomeView: View {
                 OnMyWayNotificationService.shared.startListening(userEmail: userEmail)
             }
 
-            // Tutorial start is handled by .onReceive(sessionManager.$currentUser)
-            // to avoid race conditions when currentUser is still nil at this point.
+            // Tutorial start is handled by TutorialManager's own Combine
+            // subscription on UserSessionManager.$currentUser, so it works
+            // reliably even when permission dialogs disrupt HomeView's lifecycle.
             #if DEBUG
             print("🎓 HomeView.onAppear: currentUser=\(sessionManager.currentUser?.userId ?? "nil"), isLoading=\(sessionManager.isLoading)")
             #endif
@@ -168,37 +168,7 @@ struct HomeView: View {
             }
             tutorialManager.pendingTabSwitch = nil
         }
-        .onReceive(sessionManager.$currentUser) { user in
-            // Use onReceive instead of onAppear/onChange to reliably start the tutorial.
-            // onReceive fires immediately with the current value AND on every change,
-            // so it avoids the race condition where currentUser is still nil in onAppear
-            // and onChange misses the nil→User transition.
-            #if DEBUG
-            print("🎓 HomeView.onReceive: currentUser = \(user?.userId ?? "nil"), hasTutorialBeenTriggered = \(hasTutorialBeenTriggered), tutorialManager.isActive = \(tutorialManager.isActive), hasCompleted = \(tutorialManager.hasCompletedTutorial)")
-            #endif
-            guard let userId = user?.userId, !userId.isEmpty,
-                  !hasTutorialBeenTriggered else {
-                #if DEBUG
-                print("🎓 HomeView.onReceive: SKIPPED — userId=\(user?.userId ?? "nil"), isEmpty=\(user?.userId.isEmpty ?? true), hasTutorialBeenTriggered=\(hasTutorialBeenTriggered)")
-                #endif
-                return
-            }
-            hasTutorialBeenTriggered = true
-            #if DEBUG
-            print("🎓 HomeView.onReceive: WILL START tutorial for userId=\(userId) in 0.8s")
-            #endif
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
-                #if DEBUG
-                print("🎓 HomeView.onReceive: FIRING startIfNeeded for userId=\(userId), isActive=\(tutorialManager.isActive), hasCompleted=\(tutorialManager.hasCompletedTutorial)")
-                #endif
-                tutorialManager.startIfNeeded(userId: userId)
-                #if DEBUG
-                print("🎓 HomeView.onReceive: AFTER startIfNeeded — isActive=\(tutorialManager.isActive)")
-                #endif
-            }
-        }
         .onChange(of: sessionManager.currentUser) { oldUser, newUser in
-            // Tutorial start is handled by .onReceive(sessionManager.$currentUser).
 
             // Fetch unread message count whenever user data becomes available
             if let userId = newUser?.userId {

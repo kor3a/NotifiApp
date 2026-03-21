@@ -99,6 +99,7 @@ final class TutorialManager: ObservableObject {
     @Published var pendingTabSwitch: Int? = nil
 
     private(set) var currentUserId: String?
+    private var cancellable: AnyCancellable?
 
     private var tutorialKey: String {
         guard let userId = currentUserId else { return "hasCompletedTutorial" }
@@ -110,7 +111,24 @@ final class TutorialManager: ObservableObject {
         set { UserDefaults.standard.set(newValue, forKey: tutorialKey) }
     }
 
-    private init() {}
+    private init() {
+        // Subscribe to UserSessionManager.currentUser so the tutorial starts
+        // reliably regardless of HomeView's lifecycle (permission dialogs on
+        // physical devices can tear down / recreate the view and reset @State).
+        cancellable = UserSessionManager.shared.$currentUser
+            .compactMap { $0 }                       // wait until non-nil
+            .map(\.userId)
+            .filter { !$0.isEmpty }
+            .first()                                 // only react once
+            .delay(for: .seconds(0.8), scheduler: DispatchQueue.main)
+            .sink { [weak self] userId in
+                guard let self else { return }
+                #if DEBUG
+                print("🎓 TutorialManager: Combine auto-start for userId=\(userId)")
+                #endif
+                self.startIfNeeded(userId: userId)
+            }
+    }
 
     func startIfNeeded(userId: String) {
         currentUserId = userId
