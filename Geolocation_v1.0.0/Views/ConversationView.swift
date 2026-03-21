@@ -63,18 +63,22 @@ struct ConversationView: View {
                 .onChange(of: viewModel.messages.count) { oldCount, newCount in
                     if newCount > oldCount {
                         if let anchorId = scrolledToTopMessageId {
-                            // Earlier messages were loaded — scroll back to where the list started
-                            withAnimation {
+                            // Earlier messages were loaded — defer scroll so the new items are
+                            // laid out first, then snap back to the previously-top message
+                            scrolledToTopMessageId = nil
+                            DispatchQueue.main.async {
                                 proxy.scrollTo(anchorId, anchor: .top)
                             }
                         } else if let lastMessage = viewModel.messages.last {
                             // New message received — scroll to bottom
+                            scrolledToTopMessageId = nil
                             withAnimation {
                                 proxy.scrollTo(lastMessage.id, anchor: .bottom)
                             }
                         }
+                    } else {
+                        scrolledToTopMessageId = nil
                     }
-                    scrolledToTopMessageId = nil
                 }
                 .onChange(of: isInputFocused) { _, focused in
                     // When keyboard appears, scroll to the latest message
