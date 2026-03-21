@@ -179,7 +179,7 @@ struct HomeView: View {
             guard let userId = user?.userId, !userId.isEmpty,
                   !hasTutorialBeenTriggered else {
                 #if DEBUG
-                print("🎓 HomeView.onReceive: SKIPPED — userId=\(user?.userId ?? "nil"), isEmpty=\(user?.userId?.isEmpty ?? true), hasTutorialBeenTriggered=\(hasTutorialBeenTriggered)")
+                print("🎓 HomeView.onReceive: SKIPPED — userId=\(user?.userId ?? "nil"), isEmpty=\(user?.userId.isEmpty ?? true), hasTutorialBeenTriggered=\(hasTutorialBeenTriggered)")
                 #endif
                 return
             }
