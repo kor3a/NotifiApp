@@ -7,6 +7,7 @@
 
 import SwiftUI
 import UIKit
+import Combine
 
 struct HomeView: View {
     @ObservedObject private var sessionManager = UserSessionManager.shared
@@ -26,6 +27,7 @@ struct HomeView: View {
     @State private var pendingConversationId: String? = nil
     @State private var showCarPlayAlert = false
     @State private var showNotificationsDeniedAlert = false
+    @State private var hasTutorialBeenTriggered = false
 
     var body: some View {
         ZStack {
@@ -153,6 +155,8 @@ struct HomeView: View {
                 OnMyWayNotificationService.shared.startListening(userEmail: userEmail)
             }
 
+            // Tutorial start is handled by .onReceive(sessionManager.$currentUser)
+            // to avoid race conditions when currentUser is still nil at this point.
         }
         .onChange(of: tutorialManager.pendingTabSwitch) { _, tab in
             guard let tab = tab else { return }
@@ -161,16 +165,21 @@ struct HomeView: View {
             }
             tutorialManager.pendingTabSwitch = nil
         }
-        // Start onboarding tutorial for new users. Using task(id:) ensures this fires
-        // both when the view first appears with a user already loaded AND whenever
-        // the active user changes (e.g. after async Firestore fetch completes).
-        .task(id: sessionManager.currentUser?.userId) {
-            guard let userId = sessionManager.currentUser?.userId else { return }
-            // Slight delay so views have finished laying out before the overlay appears
-            try? await Task.sleep(for: .seconds(0.8))
-            tutorialManager.startIfNeeded(userId: userId)
+        .onReceive(sessionManager.$currentUser) { user in
+            // Use onReceive instead of onAppear/onChange to reliably start the tutorial.
+            // onReceive fires immediately with the current value AND on every change,
+            // so it avoids the race condition where currentUser is still nil in onAppear
+            // and onChange misses the nil→User transition.
+            guard let userId = user?.userId, !userId.isEmpty,
+                  !hasTutorialBeenTriggered else { return }
+            hasTutorialBeenTriggered = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+                tutorialManager.startIfNeeded(userId: userId)
+            }
         }
         .onChange(of: sessionManager.currentUser) { oldUser, newUser in
+            // Tutorial start is handled by .onReceive(sessionManager.$currentUser).
+
             // Fetch unread message count whenever user data becomes available
             if let userId = newUser?.userId {
                 messagesViewModel.fetchUnreadCount()
