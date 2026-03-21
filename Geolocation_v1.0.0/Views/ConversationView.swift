@@ -53,18 +53,27 @@ struct ConversationView: View {
                     }
                     .padding()
                 }
+                .refreshable {
+                    if viewModel.hasMoreMessages {
+                        scrolledToTopMessageId = viewModel.messages.first?.id
+                        viewModel.loadMoreMessages()
+                    }
+                }
                 .scrollDismissesKeyboard(.interactively)
                 .onChange(of: viewModel.messages.count) { oldCount, newCount in
-                    // Only auto-scroll if new messages were added (not when loading older)
-                    if newCount > oldCount, let lastMessage = viewModel.messages.last {
-                        // Check if the new message is at the end (new message) vs beginning (older messages)
-                        if scrolledToTopMessageId == nil {
+                    if newCount > oldCount {
+                        if let anchorId = scrolledToTopMessageId {
+                            // Earlier messages were loaded — scroll back to where the list started
+                            withAnimation {
+                                proxy.scrollTo(anchorId, anchor: .top)
+                            }
+                        } else if let lastMessage = viewModel.messages.last {
+                            // New message received — scroll to bottom
                             withAnimation {
                                 proxy.scrollTo(lastMessage.id, anchor: .bottom)
                             }
                         }
                     }
-                    // Reset the scroll tracking after processing
                     scrolledToTopMessageId = nil
                 }
                 .onChange(of: isInputFocused) { _, focused in
