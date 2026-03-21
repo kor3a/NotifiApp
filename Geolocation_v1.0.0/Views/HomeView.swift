@@ -7,6 +7,7 @@
 
 import SwiftUI
 import UIKit
+import Combine
 
 struct HomeView: View {
     @ObservedObject private var sessionManager = UserSessionManager.shared
@@ -153,12 +154,12 @@ struct HomeView: View {
                 OnMyWayNotificationService.shared.startListening(userEmail: userEmail)
             }
 
-            // Start onboarding tutorial for new users (slight delay so views have laid out)
-            if let userId = sessionManager.currentUser?.userId {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
-                    tutorialManager.startIfNeeded(userId: userId)
-                }
-            }
+            // Tutorial start is handled by TutorialManager's own Combine
+            // subscription on UserSessionManager.$currentUser, so it works
+            // reliably even when permission dialogs disrupt HomeView's lifecycle.
+            #if DEBUG
+            print("🎓 HomeView.onAppear: currentUser=\(sessionManager.currentUser?.userId ?? "nil"), isLoading=\(sessionManager.isLoading)")
+            #endif
         }
         .onChange(of: tutorialManager.pendingTabSwitch) { _, tab in
             guard let tab = tab else { return }
@@ -168,12 +169,6 @@ struct HomeView: View {
             tutorialManager.pendingTabSwitch = nil
         }
         .onChange(of: sessionManager.currentUser) { oldUser, newUser in
-            // Start tutorial when a new account becomes active
-            if let userId = newUser?.userId, oldUser?.userId != newUser?.userId {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
-                    tutorialManager.startIfNeeded(userId: userId)
-                }
-            }
 
             // Fetch unread message count whenever user data becomes available
             if let userId = newUser?.userId {

@@ -251,6 +251,12 @@ struct StoresView: View {
             if storeViewMode == .list {
                 startFabInactivityTimer()
             }
+            // Start tutorial for new users if user data is already available
+            if let userId = sessionManager.currentUser?.userId {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+                    tutorialManager.startIfNeeded(userId: userId)
+                }
+            }
         }
         .onDisappear {
             fabInactivityTimer?.invalidate()
@@ -272,9 +278,13 @@ struct StoresView: View {
             }
         }
         .onChange(of: sessionManager.currentUser) { oldValue, newValue in
-            if newValue != nil {
+            if let newValue = newValue {
                 if viewModel.userStoreItems.isEmpty {
                     self.viewModel.fetchUserStores()
+                }
+                // Start tutorial when user data becomes available (backup trigger for new users)
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+                    tutorialManager.startIfNeeded(userId: newValue.userId)
                 }
             }
         }

@@ -7,6 +7,7 @@
 
 import SwiftUI
 import Combine
+import FirebaseAuth
 
 // MARK: - Tutorial Step
 
@@ -99,22 +100,66 @@ final class TutorialManager: ObservableObject {
     @Published var pendingTabSwitch: Int? = nil
 
     private(set) var currentUserId: String?
+    private(set) var currentAuthUid: String?
+    private var cancellable: AnyCancellable?
 
-    private var tutorialKey: String {
-        guard let userId = currentUserId else { return "hasCompletedTutorial" }
-        return "hasCompletedTutorial_\(userId)"
+    private var tutorialKey: String? {
+        guard let uid = currentAuthUid else { return nil }
+        return "hasCompletedTutorial_auth_\(uid)"
     }
 
     var hasCompletedTutorial: Bool {
-        get { UserDefaults.standard.bool(forKey: tutorialKey) }
-        set { UserDefaults.standard.set(newValue, forKey: tutorialKey) }
+        get {
+            // Use the Auth UID key exclusively — the legacy username-based key
+            // is unreliable because usernames can be reused across accounts.
+            guard let key = tutorialKey else { return false }
+            return UserDefaults.standard.bool(forKey: key)
+        }
+        set {
+            guard let key = tutorialKey else { return }
+            UserDefaults.standard.set(newValue, forKey: key)
+        }
     }
 
-    private init() {}
+    private init() {
+        // Subscribe to UserSessionManager.currentUser so the tutorial starts
+        // reliably regardless of HomeView's lifecycle (permission dialogs on
+        // physical devices can tear down / recreate the view and reset @State).
+        cancellable = UserSessionManager.shared.$currentUser
+            .compactMap { $0 }                       // wait until non-nil
+            .map(\.userId)
+            .filter { !$0.isEmpty }
+            .first()                                 // only react once
+            .delay(for: .seconds(0.8), scheduler: DispatchQueue.main)
+            .sink { [weak self] userId in
+                guard let self else { return }
+                #if DEBUG
+                print("🎓 TutorialManager: Combine auto-start for userId=\(userId)")
+                #endif
+                self.startIfNeeded(userId: userId)
+            }
+    }
 
     func startIfNeeded(userId: String) {
         currentUserId = userId
-        guard !hasCompletedTutorial, !isActive else { return }
+        currentAuthUid = Auth.auth().currentUser?.uid
+        #if DEBUG
+        print("🎓 TutorialManager.startIfNeeded: userId=\(userId), authUid=\(currentAuthUid ?? "nil"), key=\(tutorialKey ?? "nil"), hasCompleted=\(hasCompletedTutorial), isActive=\(isActive)")
+        let allKeys = UserDefaults.standard.dictionaryRepresentation().keys.filter { $0.contains("Tutorial") || $0.contains("tutorial") }
+        print("🎓 TutorialManager: All tutorial-related UserDefaults keys: \(allKeys)")
+        for key in allKeys {
+            print("🎓   \(key) = \(UserDefaults.standard.bool(forKey: key))")
+        }
+        #endif
+        guard !hasCompletedTutorial, !isActive else {
+            #if DEBUG
+            print("🎓 TutorialManager.startIfNeeded: BLOCKED — hasCompleted=\(hasCompletedTutorial), isActive=\(isActive)")
+            #endif
+            return
+        }
+        #if DEBUG
+        print("🎓 TutorialManager.startIfNeeded: ACTIVATING tutorial ✅")
+        #endif
         currentStep = .welcome
         isActive = true
     }
