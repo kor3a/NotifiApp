@@ -202,10 +202,8 @@ class MessagingService: ObservableObject {
                 // Check if there are more messages than our display limit
                 let hasMore = allMessages.count > limit
 
-                // Only return the most recent messages (last N)
-                let messages = hasMore ? Array(allMessages.suffix(limit)) : allMessages
-
-                completion(.success((messages: messages, hasMore: hasMore)))
+                // Return all messages; the ViewModel manages the display window in-memory
+                completion(.success((messages: allMessages, hasMore: hasMore)))
             }
     }
 

@@ -53,19 +53,32 @@ struct ConversationView: View {
                     }
                     .padding()
                 }
+                .refreshable {
+                    if viewModel.hasMoreMessages {
+                        scrolledToTopMessageId = viewModel.messages.first?.id
+                        viewModel.loadMoreMessages()
+                    }
+                }
                 .scrollDismissesKeyboard(.interactively)
                 .onChange(of: viewModel.messages.count) { oldCount, newCount in
-                    // Only auto-scroll if new messages were added (not when loading older)
-                    if newCount > oldCount, let lastMessage = viewModel.messages.last {
-                        // Check if the new message is at the end (new message) vs beginning (older messages)
-                        if scrolledToTopMessageId == nil {
+                    if newCount > oldCount {
+                        if let anchorId = scrolledToTopMessageId {
+                            // Earlier messages were loaded — defer scroll so the new items are
+                            // laid out first, then snap back to the previously-top message
+                            scrolledToTopMessageId = nil
+                            DispatchQueue.main.async {
+                                proxy.scrollTo(anchorId, anchor: .top)
+                            }
+                        } else if let lastMessage = viewModel.messages.last {
+                            // New message received — scroll to bottom
+                            scrolledToTopMessageId = nil
                             withAnimation {
                                 proxy.scrollTo(lastMessage.id, anchor: .bottom)
                             }
                         }
+                    } else {
+                        scrolledToTopMessageId = nil
                     }
-                    // Reset the scroll tracking after processing
-                    scrolledToTopMessageId = nil
                 }
                 .onChange(of: isInputFocused) { _, focused in
                     // When keyboard appears, scroll to the latest message

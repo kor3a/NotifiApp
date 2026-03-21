@@ -147,10 +147,10 @@ class MessagesViewModel: ObservableObject {
 
     // MARK: - Messages
 
-    // Track the oldest timestamp from displayed messages for pagination
-    private var oldestDisplayedTimestamp: TimeInterval?
-    // Store manually loaded older messages (messages older than what snapshot returns)
-    private var olderLoadedMessages: [Message] = []
+    // All messages loaded from the snapshot (used for in-memory display windowing)
+    private var allLoadedMessages: [Message] = []
+    // Number of messages currently shown; increases when user loads earlier messages
+    private var displayedCount: Int = MessagingService.messagePageSize
 
     /// Fetch paginated messages for a conversation with real-time updates
     func fetchMessages(for conversationId: String) {
@@ -159,8 +159,8 @@ class MessagesViewModel: ObservableObject {
             stopListeningForMessages()
             messages = []
             hasMoreMessages = false
-            oldestDisplayedTimestamp = nil
-            olderLoadedMessages = []
+            allLoadedMessages = []
+            displayedCount = MessagingService.messagePageSize
         }
 
         currentConversationId = conversationId
@@ -173,19 +173,11 @@ class MessagesViewModel: ObservableObject {
                 self.isLoading = false
 
                 switch result {
-                case .success(let (recentMessages, hasMore)):
-                    // Merge older loaded messages with recent messages from snapshot
-                    // Filter out any duplicates (messages that appear in both)
-                    let recentIds = Set(recentMessages.map { $0.id })
-                    let uniqueOlderMessages = self.olderLoadedMessages.filter { !recentIds.contains($0.id) }
-
-                    self.messages = uniqueOlderMessages + recentMessages
-                    self.hasMoreMessages = hasMore || !uniqueOlderMessages.isEmpty
-
-                    // Track oldest displayed timestamp for pagination
-                    if let firstMessage = self.messages.first {
-                        self.oldestDisplayedTimestamp = firstMessage.createdAt
-                    }
+                case .success(let (allMessages, _)):
+                    // Store the full message list and show only the display window
+                    self.allLoadedMessages = allMessages
+                    self.messages = Array(allMessages.suffix(self.displayedCount))
+                    self.hasMoreMessages = self.displayedCount < allMessages.count
 
                 case .failure(let error):
                     self.errorMessage = error.localizedDescription
@@ -199,41 +191,12 @@ class MessagesViewModel: ObservableObject {
 
     /// Load older messages when user scrolls to top
     func loadMoreMessages() {
-        guard let conversationId = currentConversationId,
-              hasMoreMessages,
-              !isLoadingMore,
-              let oldestTimestamp = oldestDisplayedTimestamp else { return }
+        guard hasMoreMessages, !isLoadingMore else { return }
 
-        isLoadingMore = true
-
-        messagingService.loadOlderMessages(
-            for: conversationId,
-            beforeTimestamp: oldestTimestamp
-        ) { [weak self] result in
-            DispatchQueue.main.async {
-                guard let self = self else { return }
-                self.isLoadingMore = false
-
-                switch result {
-                case .success(let (olderMessages, hasMore)):
-                    // Store these older messages so they persist across snapshot updates
-                    self.olderLoadedMessages = olderMessages + self.olderLoadedMessages
-                    // Prepend older messages to the beginning
-                    self.messages = olderMessages + self.messages
-                    self.hasMoreMessages = hasMore
-                    // Update oldest timestamp for next pagination
-                    if let firstOldMessage = olderMessages.first {
-                        self.oldestDisplayedTimestamp = firstOldMessage.createdAt
-                    }
-
-                case .failure(let error):
-                    self.errorMessage = error.localizedDescription
-                    #if DEBUG
-                    print("MessagesViewModel: Error loading more messages: \(error)")
-                    #endif
-                }
-            }
-        }
+        // Expand the display window by one page; all data is already in allLoadedMessages
+        displayedCount += MessagingService.messagePageSize
+        messages = Array(allLoadedMessages.suffix(displayedCount))
+        hasMoreMessages = displayedCount < allLoadedMessages.count
     }
 
     /// Stop listening for messages
