@@ -734,6 +734,30 @@ class UserSessionManager: ObservableObject {
         }
     }
 
+    /// Re-authenticates the user with their password, then deletes the account.
+    /// Use this when `deleteAccount` fails with a requiresRecentLogin error.
+    func reauthenticateAndDeleteAccount(password: String, completion: @escaping (Bool, String?) -> Void) {
+        guard let authUser = Auth.auth().currentUser,
+              let email = authUser.email else {
+            completion(false, "No authenticated user found")
+            return
+        }
+
+        let credential = EmailAuthProvider.credential(withEmail: email, password: password)
+        authUser.reauthenticate(with: credential) { _, error in
+            if let error = error {
+                let nsError = error as NSError
+                if nsError.code == AuthErrorCode.wrongPassword.rawValue {
+                    completion(false, "Incorrect password. Please try again.")
+                } else {
+                    completion(false, "Re-authentication failed: \(error.localizedDescription)")
+                }
+                return
+            }
+            self.deleteAccount(completion: completion)
+        }
+    }
+
     // Clear user session (call on logout)
     func clearSession() {
         // Only clear if there's actually a session to clear (prevents redundant updates)
