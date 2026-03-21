@@ -103,36 +103,21 @@ final class TutorialManager: ObservableObject {
     private(set) var currentAuthUid: String?
     private var cancellable: AnyCancellable?
 
-    private var tutorialKey: String {
-        guard let userId = currentUserId else { return "hasCompletedTutorial" }
-        return "hasCompletedTutorial_\(userId)"
-    }
-
-    /// Returns the Firebase Auth UID-based key for reliable per-account tracking.
-    /// Falls back to the legacy username-based key only for lookup, never for writes.
-    private var authTutorialKey: String? {
+    private var tutorialKey: String? {
         guard let uid = currentAuthUid else { return nil }
         return "hasCompletedTutorial_auth_\(uid)"
     }
 
     var hasCompletedTutorial: Bool {
         get {
-            // Check the Auth UID key first (new, reliable), then fall back to
-            // the legacy username-based key for users who completed the tutorial
-            // before this change.
-            if let authKey = authTutorialKey {
-                if UserDefaults.standard.object(forKey: authKey) != nil {
-                    return UserDefaults.standard.bool(forKey: authKey)
-                }
-            }
-            return UserDefaults.standard.bool(forKey: tutorialKey)
+            // Use the Auth UID key exclusively — the legacy username-based key
+            // is unreliable because usernames can be reused across accounts.
+            guard let key = tutorialKey else { return false }
+            return UserDefaults.standard.bool(forKey: key)
         }
         set {
-            // Always write to the Auth UID key if available
-            if let authKey = authTutorialKey {
-                UserDefaults.standard.set(newValue, forKey: authKey)
-            }
-            UserDefaults.standard.set(newValue, forKey: tutorialKey)
+            guard let key = tutorialKey else { return }
+            UserDefaults.standard.set(newValue, forKey: key)
         }
     }
 
@@ -159,7 +144,7 @@ final class TutorialManager: ObservableObject {
         currentUserId = userId
         currentAuthUid = Auth.auth().currentUser?.uid
         #if DEBUG
-        print("🎓 TutorialManager.startIfNeeded: userId=\(userId), authUid=\(currentAuthUid ?? "nil"), authKey=\(authTutorialKey ?? "nil"), legacyKey=\(tutorialKey), hasCompleted=\(hasCompletedTutorial), isActive=\(isActive)")
+        print("🎓 TutorialManager.startIfNeeded: userId=\(userId), authUid=\(currentAuthUid ?? "nil"), key=\(tutorialKey ?? "nil"), hasCompleted=\(hasCompletedTutorial), isActive=\(isActive)")
         let allKeys = UserDefaults.standard.dictionaryRepresentation().keys.filter { $0.contains("Tutorial") || $0.contains("tutorial") }
         print("🎓 TutorialManager: All tutorial-related UserDefaults keys: \(allKeys)")
         for key in allKeys {
