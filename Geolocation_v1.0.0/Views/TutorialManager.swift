@@ -114,7 +114,24 @@ final class TutorialManager: ObservableObject {
 
     func startIfNeeded(userId: String) {
         currentUserId = userId
-        guard !hasCompletedTutorial, !isActive else { return }
+        #if DEBUG
+        print("🎓 TutorialManager.startIfNeeded: userId=\(userId), key=\(tutorialKey), hasCompleted=\(hasCompletedTutorial), isActive=\(isActive)")
+        // Dump all tutorial-related UserDefaults keys for diagnosis
+        let allKeys = UserDefaults.standard.dictionaryRepresentation().keys.filter { $0.contains("Tutorial") || $0.contains("tutorial") }
+        print("🎓 TutorialManager: All tutorial-related UserDefaults keys: \(allKeys)")
+        for key in allKeys {
+            print("🎓   \(key) = \(UserDefaults.standard.bool(forKey: key))")
+        }
+        #endif
+        guard !hasCompletedTutorial, !isActive else {
+            #if DEBUG
+            print("🎓 TutorialManager.startIfNeeded: BLOCKED — hasCompleted=\(hasCompletedTutorial), isActive=\(isActive)")
+            #endif
+            return
+        }
+        #if DEBUG
+        print("🎓 TutorialManager.startIfNeeded: ACTIVATING tutorial ✅")
+        #endif
         currentStep = .welcome
         isActive = true
     }

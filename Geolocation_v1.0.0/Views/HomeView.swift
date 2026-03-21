@@ -157,6 +157,9 @@ struct HomeView: View {
 
             // Tutorial start is handled by .onReceive(sessionManager.$currentUser)
             // to avoid race conditions when currentUser is still nil at this point.
+            #if DEBUG
+            print("🎓 HomeView.onAppear: currentUser=\(sessionManager.currentUser?.userId ?? "nil"), isLoading=\(sessionManager.isLoading)")
+            #endif
         }
         .onChange(of: tutorialManager.pendingTabSwitch) { _, tab in
             guard let tab = tab else { return }
@@ -170,11 +173,28 @@ struct HomeView: View {
             // onReceive fires immediately with the current value AND on every change,
             // so it avoids the race condition where currentUser is still nil in onAppear
             // and onChange misses the nil→User transition.
+            #if DEBUG
+            print("🎓 HomeView.onReceive: currentUser = \(user?.userId ?? "nil"), hasTutorialBeenTriggered = \(hasTutorialBeenTriggered), tutorialManager.isActive = \(tutorialManager.isActive), hasCompleted = \(tutorialManager.hasCompletedTutorial)")
+            #endif
             guard let userId = user?.userId, !userId.isEmpty,
-                  !hasTutorialBeenTriggered else { return }
+                  !hasTutorialBeenTriggered else {
+                #if DEBUG
+                print("🎓 HomeView.onReceive: SKIPPED — userId=\(user?.userId ?? "nil"), isEmpty=\(user?.userId?.isEmpty ?? true), hasTutorialBeenTriggered=\(hasTutorialBeenTriggered)")
+                #endif
+                return
+            }
             hasTutorialBeenTriggered = true
+            #if DEBUG
+            print("🎓 HomeView.onReceive: WILL START tutorial for userId=\(userId) in 0.8s")
+            #endif
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+                #if DEBUG
+                print("🎓 HomeView.onReceive: FIRING startIfNeeded for userId=\(userId), isActive=\(tutorialManager.isActive), hasCompleted=\(tutorialManager.hasCompletedTutorial)")
+                #endif
                 tutorialManager.startIfNeeded(userId: userId)
+                #if DEBUG
+                print("🎓 HomeView.onReceive: AFTER startIfNeeded — isActive=\(tutorialManager.isActive)")
+                #endif
             }
         }
         .onChange(of: sessionManager.currentUser) { oldUser, newUser in
