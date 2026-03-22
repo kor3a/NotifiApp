@@ -467,12 +467,14 @@ struct ShareStoreView: View {
                     if isSharing {
                         ProgressView()
                     } else {
-                        Button("Share") {
-                            shareStore()
+                        Button(action: shareStore) {
+                            Text("Share")
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 6)
+                                .background(Color.blue)
+                                .cornerRadius(8)
                         }
-                        .buttonStyle(.borderedProminent)
-                        .tint(.blue)
-                        .foregroundColor(.white)
                         .disabled(recipientEmail.trimmingCharacters(in: .whitespaces).isEmpty || isSharingWithAllFamily)
                     }
                 }
