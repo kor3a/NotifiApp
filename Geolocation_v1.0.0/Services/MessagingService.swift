@@ -1065,12 +1065,28 @@ class MessagingService: ObservableObject {
                             addedToB += 1
                         }
 
-                        // 4. Mark B's existing reminders as shared (shared icon appears for B's own items)
+                        // 4. Mark B's existing reminders with the correct shared metadata:
+                        //    - Item exists in BOTH lists → sharedFrom = sender ("Shared by [owner]")
+                        //    - Item is unique to B → sharedWith += sender ("Shared with [owner]")
                         for doc in recipientDocs {
-                            batch.updateData([
-                                "isShared": true,
-                                "sharedWith": FieldValue.arrayUnion([senderName])
-                            ], forDocument: doc.reference)
+                            let data = doc.data()
+                            guard let title = data["title"] as? String else { continue }
+                            let key = title.lowercased().trimmingCharacters(in: .whitespaces)
+
+                            if titlesA.contains(key) {
+                                // Duplicate: the owner also has this item — attribute it to the owner
+                                batch.updateData([
+                                    "isShared": true,
+                                    "sharedFrom": senderName,
+                                    "sharedFromId": senderUserId
+                                ], forDocument: doc.reference)
+                            } else {
+                                // B's unique item being shared with A
+                                batch.updateData([
+                                    "isShared": true,
+                                    "sharedWith": FieldValue.arrayUnion([senderName])
+                                ], forDocument: doc.reference)
+                            }
                         }
 
                         // 5. Copy B's unique reminders → A's store
