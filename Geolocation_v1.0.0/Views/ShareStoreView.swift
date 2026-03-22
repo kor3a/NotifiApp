@@ -470,9 +470,6 @@ struct ShareStoreView: View {
                         Button("Share") {
                             shareStore()
                         }
-                        .buttonStyle(.borderedProminent)
-                        .tint(.blue)
-                        .foregroundColor(.white)
                         .disabled(recipientEmail.trimmingCharacters(in: .whitespaces).isEmpty || isSharingWithAllFamily)
                     }
                 }
