@@ -556,39 +556,25 @@ struct ShareStoreView: View {
         for contact in unsahredFamily {
             group.enter()
 
-            // Check if recipient already has this store
-            db.collection("user_stores")
-                .whereField("userId", isEqualTo: contact.id)
-                .whereField("storeId", isEqualTo: userStoreItem.store.id)
-                .getDocuments { snapshot, _ in
-                    if let documents = snapshot?.documents, !documents.isEmpty {
-                        // Already has store, skip
-                        failCount += 1
-                        DispatchQueue.main.async {
-                            familyShareProgress = "Sharing with \(successCount + failCount)/\(total) family members..."
-                        }
-                        group.leave()
-                        return
-                    }
-
-                    messagesViewModel.shareStore(
-                        userStoreItem: userStoreItem,
-                        to: contact,
-                        permission: permissionString,
-                        currentUserName: currentUserName,
-                        reminderTitles: reminderTitles
-                    ) { success in
-                        if success {
-                            successCount += 1
-                        } else {
-                            failCount += 1
-                        }
-                        DispatchQueue.main.async {
-                            familyShareProgress = "Sharing with \(successCount + failCount)/\(total) family members..."
-                        }
-                        group.leave()
-                    }
+            // Send the share regardless of whether the recipient already has the store —
+            // if they do, they will be prompted to merge their reminder lists on acceptance.
+            messagesViewModel.shareStore(
+                userStoreItem: userStoreItem,
+                to: contact,
+                permission: permissionString,
+                currentUserName: currentUserName,
+                reminderTitles: reminderTitles
+            ) { success in
+                if success {
+                    successCount += 1
+                } else {
+                    failCount += 1
                 }
+                DispatchQueue.main.async {
+                    familyShareProgress = "Sharing with \(successCount + failCount)/\(total) family members..."
+                }
+                group.leave()
+            }
         }
 
         group.notify(queue: .main) {
@@ -666,52 +652,34 @@ struct ShareStoreView: View {
                 print("ShareStoreView: Found contact: \(contact.name) (\(contact.id))")
                 #endif
 
-                // Check if recipient already has this store
-                self.db.collection("user_stores")
-                    .whereField("userId", isEqualTo: contact.id)
-                    .whereField("storeId", isEqualTo: self.userStoreItem.store.id)
-                    .getDocuments { snapshot, error in
-                        if let documents = snapshot?.documents, !documents.isEmpty {
-                            DispatchQueue.main.async {
-                                self.isSharing = false
-                                self.alertTitle = "Error"
-                                self.alertMessage = "This user already has this store."
-                                self.showAlert = true
-                            }
-                            return
+                // Send the store share request via messaging.
+                // Even if the recipient already has this store we allow the share —
+                // they will be prompted to merge their reminder lists on acceptance.
+                let permissionString = self.selectedPermission == .edit ? "edit" : "view"
+                self.messagesViewModel.shareStore(
+                    userStoreItem: self.userStoreItem,
+                    to: contact,
+                    permission: permissionString,
+                    currentUserName: currentUserName,
+                    reminderTitles: self.reminderTitles
+                ) { success in
+                    #if DEBUG
+                    print("ShareStoreView: messagesViewModel.shareStore completed with success=\(success)")
+                    #endif
+                    DispatchQueue.main.async {
+                        self.isSharing = false
+
+                        if success {
+                            self.alertTitle = "Success"
+                            self.alertMessage = "Share request sent! The recipient will see it in their messages and can accept or decline."
+                        } else {
+                            self.alertTitle = "Error"
+                            self.alertMessage = "Failed to send share request. Please try again."
                         }
 
-                        #if DEBUG
-                        print("ShareStoreView: Recipient doesn't have store yet, sending share request via messaging...")
-                        #endif
-
-                        // Send the store share request via messaging
-                        let permissionString = self.selectedPermission == .edit ? "edit" : "view"
-                        self.messagesViewModel.shareStore(
-                            userStoreItem: self.userStoreItem,
-                            to: contact,
-                            permission: permissionString,
-                            currentUserName: currentUserName,
-                            reminderTitles: self.reminderTitles
-                        ) { success in
-                            #if DEBUG
-                            print("ShareStoreView: messagesViewModel.shareStore completed with success=\(success)")
-                            #endif
-                            DispatchQueue.main.async {
-                                self.isSharing = false
-
-                                if success {
-                                    self.alertTitle = "Success"
-                                    self.alertMessage = "Share request sent! The recipient will see it in their messages and can accept or decline."
-                                } else {
-                                    self.alertTitle = "Error"
-                                    self.alertMessage = "Failed to send share request. Please try again."
-                                }
-
-                                self.showAlert = true
-                            }
-                        }
+                        self.showAlert = true
                     }
+                }
 
             case .failure(let error):
                 DispatchQueue.main.async {
