@@ -486,6 +486,12 @@ struct ShareStoreView: View {
                         dismiss()
                     }
                 }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Share") {
+                        shareStore()
+                    }
+                    .disabled(recipientEmail.trimmingCharacters(in: .whitespaces).isEmpty || isSharing || isSharingWithAllFamily)
+                }
             }
             .alert(alertTitle, isPresented: $showAlert) {
                 Button("OK") {
