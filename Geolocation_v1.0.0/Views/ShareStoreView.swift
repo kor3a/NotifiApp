@@ -451,29 +451,6 @@ struct ShareStoreView: View {
                     )
                 }
 
-                // Share Button
-                Button(action: shareStore) {
-                    if isSharing {
-                        ProgressView()
-                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                            .frame(maxWidth: .infinity)
-                            .padding()
-                    } else {
-                        HStack {
-                            Image(systemName: "square.and.arrow.up")
-                            Text("Share Store")
-                                .bold()
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                    }
-                }
-                .disabled(recipientEmail.isEmpty || isSharing || isSharingWithAllFamily)
-                .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(recipientEmail.isEmpty || isSharing || isSharingWithAllFamily ? Color.gray : Color.blue)
-                )
-                .foregroundColor(.white)
                     } // End of owner-only sharing UI
                 }
                 .padding()
@@ -486,12 +463,26 @@ struct ShareStoreView: View {
                         dismiss()
                     }
                 }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    if isSharing {
+                        ProgressView()
+                    } else {
+                        Button("Share") {
+                            shareStore()
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(.blue)
+                        .foregroundColor(.white)
+                        .disabled(recipientEmail.trimmingCharacters(in: .whitespaces).isEmpty || isSharingWithAllFamily)
+                    }
+                }
             }
             .alert(alertTitle, isPresented: $showAlert) {
                 Button("OK") {
                     if alertTitle == "Success" {
                         fetchSharedUsers()
                         recipientEmail = ""
+                        dismiss()
                     }
                 }
             } message: {
