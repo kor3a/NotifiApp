@@ -24,6 +24,7 @@ class ProfileViewModel: ObservableObject {
     @Published var isLoading: Bool = false
     @Published var errorMessage: String = ""
     @Published var successMessage: String = ""
+    @Published var needsReauthForDeletion: Bool = false
 
     // Fields for editing
     @Published var newName: String = ""
@@ -53,6 +54,25 @@ class ProfileViewModel: ObservableObject {
         isLoading = true
         errorMessage = ""
         sessionManager.deleteAccount { [weak self] success, errorMsg in
+            guard let self = self else { return }
+            DispatchQueue.main.async {
+                self.isLoading = false
+                if !success {
+                    if errorMsg?.contains("sign out and sign back in") == true {
+                        self.needsReauthForDeletion = true
+                    } else {
+                        self.errorMessage = errorMsg ?? "Failed to delete account"
+                    }
+                }
+                // On success the auth listener signs the user out automatically
+            }
+        }
+    }
+
+    func reauthenticateAndDelete(password: String) {
+        isLoading = true
+        errorMessage = ""
+        sessionManager.reauthenticateAndDeleteAccount(password: password) { [weak self] success, errorMsg in
             guard let self = self else { return }
             DispatchQueue.main.async {
                 self.isLoading = false

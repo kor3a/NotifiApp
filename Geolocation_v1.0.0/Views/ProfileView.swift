@@ -16,6 +16,7 @@ struct ProfileView: View {
     @State private var showImagePicker = false
     @State private var selectedImage: UIImage?
     @State private var showDeleteAccountAlert = false
+    @State private var reauthPassword = ""
 
     var body: some View {
         if sessionManager.isLoading || viewModel.isLoading {
@@ -203,6 +204,19 @@ struct ProfileView: View {
                     Button("Cancel", role: .cancel) { }
                 } message: {
                     Text("This will permanently delete your account and all associated data. This action cannot be undone.")
+                }
+                .alert("Confirm Your Identity", isPresented: $viewModel.needsReauthForDeletion) {
+                    SecureField("Password", text: $reauthPassword)
+                    Button("Delete Account", role: .destructive) {
+                        let password = reauthPassword
+                        reauthPassword = ""
+                        viewModel.reauthenticateAndDelete(password: password)
+                    }
+                    Button("Cancel", role: .cancel) {
+                        reauthPassword = ""
+                    }
+                } message: {
+                    Text("Please enter your password to confirm account deletion.")
                 }
 
                 #if DEBUG
