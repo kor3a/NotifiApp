@@ -125,8 +125,7 @@ class StoresViewModel: ObservableObject {
                 // when the snapshot fires (e.g. after adding a new store)
                 var existingReminderCounts: [String: Int] = [:]
                 for item in self.userStoreItems {
-                    let key = item.sourceUserStoreId ?? item.sharedStoreGroupId ?? item.id
-                    existingReminderCounts[key] = item.store.reminderCount
+                    existingReminderCounts[item.reminderStoreId] = item.store.reminderCount
                 }
 
                 // Parse user store data (without reminder counts initially)
@@ -155,8 +154,12 @@ class StoresViewModel: ObservableObject {
                     let sharedWith = data["sharedWith"] as? [String]
                     let notificationsEnabled = data["notificationsEnabled"] as? Bool ?? true
 
-                    // Determine which ID to use for fetching reminders
-                    let reminderStoreId = sourceUserStoreId ?? sharedStoreGroupId ?? userStoreId
+                    // Determine which ID to use for fetching reminders.
+                    // Owners always use their own user_store ID even if sourceUserStoreId is set
+                    // (the merge flow sets sourceUserStoreId for tracking without changing owner's reminders).
+                    let reminderStoreId = permission == .owner
+                        ? userStoreId
+                        : (sourceUserStoreId ?? sharedStoreGroupId ?? userStoreId)
                     reminderStoreIds.insert(reminderStoreId)
 
                     let store = Store(
@@ -259,7 +262,7 @@ class StoresViewModel: ObservableObject {
         // Find and update all UserStoreItems that use this reminderStoreId
         var updated = false
         for (index, item) in userStoreItems.enumerated() {
-            let itemReminderStoreId = item.sourceUserStoreId ?? item.sharedStoreGroupId ?? item.id
+            let itemReminderStoreId = item.reminderStoreId
 
             if itemReminderStoreId == reminderStoreId && item.store.reminderCount != count {
                 // Create updated store with new count

@@ -28,11 +28,13 @@ struct UserStoreItem: Identifiable, Hashable {
         return sharedFromName != nil
     }
 
-    /// Returns the ID to use for reminders
-    /// - For Can Edit: uses sharedStoreGroupId
-    /// - For View Only: uses sourceUserStoreId (owner's user_store)
-    /// - For Owner: uses own id
+    /// Returns the ID to use for fetching reminders.
+    /// - Owners always use their own user_store ID, even if sourceUserStoreId is set
+    ///   (the merge flow sets sourceUserStoreId for tracking purposes without changing
+    ///   which reminders the owner sees).
+    /// - View-only and edit recipients use sourceUserStoreId (owner's store) or sharedStoreGroupId.
     var reminderStoreId: String {
+        guard permission != .owner else { return id }
         return sourceUserStoreId ?? sharedStoreGroupId ?? id
     }
 }

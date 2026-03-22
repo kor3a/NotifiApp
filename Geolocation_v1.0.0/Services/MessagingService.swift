@@ -1099,19 +1099,35 @@ class MessagingService: ObservableObject {
                             addedToA += 1
                         }
 
-                        // 6. Update A's user_store so the shared indicator appears in A's StoresView
+                        // 6. Update A's user_store so the shared indicator appears in A's StoresView.
+                        //    setupSharedStatusListeners will also keep this in sync going forward
+                        //    once B's doc has sourceUserStoreId set (step 7).
                         let senderStoreRef = self.db.collection("user_stores").document(senderUserStoreId)
                         batch.updateData(
                             ["sharedWith": FieldValue.arrayUnion([recipientName])],
                             forDocument: senderStoreRef
                         )
 
+                        // 7. Update B's existing user_store so the system can track the relationship.
+                        //    - sourceUserStoreId: lets fetchSharedUsers and setupSharedStatusListeners
+                        //      find B when querying against A's store ID. permission stays .owner so
+                        //      reminderStoreId ignores this field and B keeps seeing their own reminders.
+                        //    - userName: used by setupSharedStatusListeners to populate sharedWith on A.
+                        //    - sharedWith / sharedFromName: makes isShared=true for B's StoresView.
+                        let recipientStoreRef = self.db.collection("user_stores").document(existingUserStoreId)
+                        batch.updateData([
+                            "sourceUserStoreId": senderUserStoreId,
+                            "userName": recipientName,
+                            "sharedWith": FieldValue.arrayUnion([senderName]),
+                            "sharedFromName": senderName
+                        ], forDocument: recipientStoreRef)
+
                         batch.commit { error in
                             #if DEBUG
                             if let error = error {
                                 print("🔀 mergeStoreReminders: ERROR - \(error)")
                             } else {
-                                print("🔀 mergeStoreReminders: SUCCESS — +\(addedToB) to B, +\(addedToA) to A, A store marked shared with \(recipientName)")
+                                print("🔀 mergeStoreReminders: SUCCESS — +\(addedToB) to B, +\(addedToA) to A, tracking linked")
                             }
                             #endif
                             completion()
