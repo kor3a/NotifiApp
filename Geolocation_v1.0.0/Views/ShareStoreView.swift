@@ -492,6 +492,7 @@ struct ShareStoreView: View {
                     if alertTitle == "Success" {
                         fetchSharedUsers()
                         recipientEmail = ""
+                        dismiss()
                     }
                 }
             } message: {
