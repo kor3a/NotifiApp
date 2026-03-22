@@ -99,9 +99,12 @@ class ReminderViewModel: ObservableObject {
                         let sharedReminderId = data["sharedReminderId"] as? String
                         let sharedWith = data["sharedWith"] as? [String]
 
-                        // If viewing a shared store and reminder is shared but has no sharedFrom,
-                        // populate it with the store owner's name for proper display
-                        if isShared == true && sharedFrom == nil && sharedFromName != nil {
+                        // If viewing a shared store and reminder is shared but has no sharedFrom
+                        // and no sharedWith, populate it with the store owner's name.
+                        // Skip when sharedWith is set — that means the current user shared it out,
+                        // not received it, so sharedFrom should stay nil.
+                        if isShared == true && sharedFrom == nil && sharedFromName != nil
+                            && (sharedWith == nil || sharedWith!.isEmpty) {
                             sharedFrom = sharedFromName
                         }
 
