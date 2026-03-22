@@ -889,7 +889,8 @@ class MessagingService: ObservableObject {
                         senderUserStoreId: senderUserStoreId,
                         senderName: senderName,
                         senderUserId: senderUserId,
-                        senderEmail: linkedStore.senderEmail
+                        recipientUserId: currentUserId,
+                        recipientName: recipientName
                     ) { [weak self] in
                         self?.updateLinkedStoreStatus(messageId: messageId, status: .accepted, completion: completion)
                     }
@@ -964,14 +965,20 @@ class MessagingService: ObservableObject {
             }
     }
 
-    /// Merges the sender's reminder list into the recipient's existing store.
-    /// Reminders from the sender that don't already exist (by title) are copied with shared metadata.
+    /// Bidirectional merge when the recipient already owns the same store.
+    ///
+    /// - Copies sender's unique reminders → recipient's store (isShared + sharedFrom = sender)
+    /// - Marks recipient's existing reminders as shared (isShared + sharedWith += sender)
+    /// - Copies recipient's unique reminders → sender's store (isShared + sharedFrom = recipient)
+    /// - Appends recipient's name to the sender's user_store.sharedWith so the shared icon
+    ///   appears in the sender's StoresView
     private func mergeStoreReminders(
-        existingUserStoreId: String,
-        senderUserStoreId: String?,
+        existingUserStoreId: String,   // recipient (B) user_store doc ID
+        senderUserStoreId: String?,    // sender (A) user_store doc ID
         senderName: String,
         senderUserId: String,
-        senderEmail: String?,
+        recipientUserId: String,
+        recipientName: String,
         completion: @escaping () -> Void
     ) {
         guard let senderUserStoreId = senderUserStoreId else {
@@ -983,74 +990,62 @@ class MessagingService: ObservableObject {
         }
 
         #if DEBUG
-        print("🔀 mergeStoreReminders: Merging from \(senderUserStoreId) into \(existingUserStoreId)")
+        print("🔀 mergeStoreReminders: Bidirectional merge — B=\(existingUserStoreId), A=\(senderUserStoreId)")
         #endif
 
         let remindersRef = db.collection("reminders")
 
-        // Fetch recipient's existing reminders
+        // 1. Fetch recipient's (B) existing active reminders
         remindersRef
             .whereField("userStoreId", isEqualTo: existingUserStoreId)
             .whereField("isDone", isEqualTo: false)
             .getDocuments { [weak self] recipientSnapshot, recipientError in
                 guard let self = self else { completion(); return }
 
-                if let recipientError = recipientError {
+                if let error = recipientError {
                     #if DEBUG
-                    print("🔀 mergeStoreReminders: Error fetching recipient reminders - \(recipientError)")
+                    print("🔀 mergeStoreReminders: Error fetching recipient reminders - \(error)")
                     #endif
                     completion()
                     return
                 }
 
-                // Build a set of existing titles (lowercased) for duplicate detection
-                let existingTitles: Set<String> = Set(
-                    (recipientSnapshot?.documents ?? []).compactMap {
-                        ($0.data()["title"] as? String)?.lowercased().trimmingCharacters(in: .whitespaces)
-                    }
-                )
+                let recipientDocs = recipientSnapshot?.documents ?? []
+                let titlesB: Set<String> = Set(recipientDocs.compactMap {
+                    ($0.data()["title"] as? String)?.lowercased().trimmingCharacters(in: .whitespaces)
+                })
 
-                // Fetch sender's reminders
+                // 2. Fetch sender's (A) existing active reminders
                 remindersRef
                     .whereField("userStoreId", isEqualTo: senderUserStoreId)
                     .whereField("isDone", isEqualTo: false)
                     .getDocuments { [weak self] senderSnapshot, senderError in
                         guard let self = self else { completion(); return }
 
-                        if let senderError = senderError {
+                        if let error = senderError {
                             #if DEBUG
-                            print("🔀 mergeStoreReminders: Error fetching sender reminders - \(senderError)")
+                            print("🔀 mergeStoreReminders: Error fetching sender reminders - \(error)")
                             #endif
                             completion()
                             return
                         }
 
                         let senderDocs = senderSnapshot?.documents ?? []
-                        guard !senderDocs.isEmpty else {
-                            #if DEBUG
-                            print("🔀 mergeStoreReminders: No sender reminders to merge")
-                            #endif
-                            completion()
-                            return
-                        }
+                        let titlesA: Set<String> = Set(senderDocs.compactMap {
+                            ($0.data()["title"] as? String)?.lowercased().trimmingCharacters(in: .whitespaces)
+                        })
 
                         let batch = self.db.batch()
-                        var addedCount = 0
+                        var addedToB = 0
+                        var addedToA = 0
 
+                        // 3. Copy A's unique reminders → B's store
                         for doc in senderDocs {
                             let data = doc.data()
                             guard let title = data["title"] as? String else { continue }
-                            let normalizedTitle = title.lowercased().trimmingCharacters(in: .whitespaces)
+                            let key = title.lowercased().trimmingCharacters(in: .whitespaces)
+                            guard !titlesB.contains(key) else { continue }
 
-                            // Skip if recipient already has this item
-                            if existingTitles.contains(normalizedTitle) {
-                                #if DEBUG
-                                print("🔀 mergeStoreReminders: Skipping duplicate '\(title)'")
-                                #endif
-                                continue
-                            }
-
-                            // Build new reminder document for the recipient's store
                             let newRef = remindersRef.document()
                             var newData: [String: Any] = [
                                 "userStoreId": existingUserStoreId,
@@ -1062,23 +1057,61 @@ class MessagingService: ObservableObject {
                                 "sharedFromId": senderUserId,
                                 "sharedAt": Date().timeIntervalSince1970
                             ]
-
-                            // Carry over optional fields from sender's reminder
-                            if let quantity = data["quantity"] { newData["quantity"] = quantity }
-                            if let category = data["category"] { newData["category"] = category }
-                            if let sortOrder = data["sortOrder"] { newData["sortOrder"] = sortOrder }
-                            if let photoURLs = data["photoURLs"] { newData["photoURLs"] = photoURLs }
-
+                            if let v = data["quantity"] { newData["quantity"] = v }
+                            if let v = data["category"] { newData["category"] = v }
+                            if let v = data["sortOrder"] { newData["sortOrder"] = v }
+                            if let v = data["photoURLs"] { newData["photoURLs"] = v }
                             batch.setData(newData, forDocument: newRef)
-                            addedCount += 1
+                            addedToB += 1
                         }
+
+                        // 4. Mark B's existing reminders as shared (shared icon appears for B's own items)
+                        for doc in recipientDocs {
+                            batch.updateData([
+                                "isShared": true,
+                                "sharedWith": FieldValue.arrayUnion([senderName])
+                            ], forDocument: doc.reference)
+                        }
+
+                        // 5. Copy B's unique reminders → A's store
+                        for doc in recipientDocs {
+                            let data = doc.data()
+                            guard let title = data["title"] as? String else { continue }
+                            let key = title.lowercased().trimmingCharacters(in: .whitespaces)
+                            guard !titlesA.contains(key) else { continue }
+
+                            let newRef = remindersRef.document()
+                            var newData: [String: Any] = [
+                                "userStoreId": senderUserStoreId,
+                                "title": title,
+                                "isDone": false,
+                                "createdAt": Date().timeIntervalSince1970,
+                                "isShared": true,
+                                "sharedFrom": recipientName,
+                                "sharedFromId": recipientUserId,
+                                "sharedAt": Date().timeIntervalSince1970
+                            ]
+                            if let v = data["quantity"] { newData["quantity"] = v }
+                            if let v = data["category"] { newData["category"] = v }
+                            if let v = data["sortOrder"] { newData["sortOrder"] = v }
+                            if let v = data["photoURLs"] { newData["photoURLs"] = v }
+                            batch.setData(newData, forDocument: newRef)
+                            addedToA += 1
+                        }
+
+                        // 6. Update A's user_store so the shared indicator appears in A's StoresView
+                        let senderStoreRef = self.db.collection("user_stores").document(senderUserStoreId)
+                        batch.updateData(
+                            ["sharedWith": FieldValue.arrayUnion([recipientName])],
+                            forDocument: senderStoreRef
+                        )
 
                         batch.commit { error in
                             #if DEBUG
                             if let error = error {
-                                print("🔀 mergeStoreReminders: ERROR committing batch - \(error)")
+                                print("🔀 mergeStoreReminders: ERROR - \(error)")
                             } else {
-                                print("🔀 mergeStoreReminders: SUCCESS - added \(addedCount) reminders from sender")
+                                print("🔀 mergeStoreReminders: SUCCESS — +\(addedToB) to B, +\(addedToA) to A, A store marked shared with \(recipientName)")
                             }
                             #endif
                             completion()
