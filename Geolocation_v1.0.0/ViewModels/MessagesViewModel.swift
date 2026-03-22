@@ -658,6 +658,22 @@ class MessagesViewModel: ObservableObject {
 
     // MARK: - Shared Store Accept/Reject
 
+    /// Checks whether the current user already has a store with the given storeId.
+    func checkIfUserHasStore(storeId: String, completion: @escaping (Bool) -> Void) {
+        guard let userId = currentUserId else {
+            completion(false)
+            return
+        }
+        Firestore.firestore().collection("user_stores")
+            .whereField("userId", isEqualTo: userId)
+            .whereField("storeId", isEqualTo: storeId)
+            .getDocuments { snapshot, _ in
+                DispatchQueue.main.async {
+                    completion(snapshot?.documents.isEmpty == false)
+                }
+            }
+    }
+
     func acceptSharedStore(
         message: Message,
         completion: @escaping (Bool) -> Void

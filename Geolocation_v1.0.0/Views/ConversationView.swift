@@ -469,6 +469,7 @@ struct StoreCard: View {
     @ObservedObject var viewModel: MessagesViewModel
     @Environment(\.colorScheme) var colorScheme
     @State private var isProcessing = false
+    @State private var showMergeAlert = false
 
     // Determine if accept/reject buttons should be shown
     private var showActionButtons: Bool {
@@ -632,21 +633,39 @@ struct StoreCard: View {
                         .stroke(Color.blue.opacity(0.3), lineWidth: 1)
                 )
         )
+        .alert("Merge Lists?", isPresented: $showMergeAlert) {
+            Button("Merge", role: .none) {
+                performAccept()
+            }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("You already have \(store.storeName) in your list. Accepting will merge the reminder lists — items from \(message.senderName) that you don't have yet will be added with a shared indicator.")
+        }
     }
 
     private func acceptStore() {
         isProcessing = true
+        viewModel.checkIfUserHasStore(storeId: store.storeId) { hasDuplicate in
+            if hasDuplicate {
+                isProcessing = false
+                showMergeAlert = true
+            } else {
+                performAccept()
+            }
+        }
+    }
+
+    private func performAccept() {
+        isProcessing = true
         viewModel.acceptSharedStore(message: message) { success in
             isProcessing = false
+            #if DEBUG
             if success {
-                #if DEBUG
                 print("StoreCard: Successfully accepted store")
-                #endif
             } else {
-                #if DEBUG
                 print("StoreCard: Failed to accept store")
-                #endif
             }
+            #endif
         }
     }
 
