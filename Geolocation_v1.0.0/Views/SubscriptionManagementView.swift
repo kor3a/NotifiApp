@@ -12,8 +12,9 @@ struct SubscriptionManagementView: View {
     @StateObject private var subscriptionManager = SubscriptionManager.shared
     @State private var showManageError = false
     @State private var manageErrorMessage = ""
-    @State private var showTerms = false
     @State private var showPrivacy = false
+
+    private let appleEULAURL = URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")!
 
     var body: some View {
         NavigationStack {
@@ -155,9 +156,8 @@ struct SubscriptionManagementView: View {
                             .foregroundColor(.secondary)
                             .multilineTextAlignment(.center)
                         HStack(spacing: 16) {
-                            Button("Terms of Use") { showTerms = true }
+                            Link("Terms of Use", destination: appleEULAURL)
                                 .font(.caption2)
-                                .foregroundColor(.blue)
                             Text("·")
                                 .font(.caption2)
                                 .foregroundColor(.secondary)
@@ -168,7 +168,6 @@ struct SubscriptionManagementView: View {
                     }
                     .padding(.horizontal, 24)
                     .padding(.bottom, 16)
-                    .sheet(isPresented: $showTerms) { TermsOfUseView() }
                     .sheet(isPresented: $showPrivacy) { PrivacyPolicyView() }
                 }
             }

@@ -11,8 +11,9 @@ struct SubscriptionPaywallView: View {
     @Environment(\.colorScheme) var colorScheme
     @StateObject private var subscriptionManager = SubscriptionManager.shared
     @State private var showError = false
-    @State private var showTerms = false
     @State private var showPrivacy = false
+
+    private let appleEULAURL = URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")!
 
     var body: some View {
         NavigationStack {
@@ -166,9 +167,8 @@ struct SubscriptionPaywallView: View {
 
                         // Links row
                         HStack(spacing: 16) {
-                            Button("Terms of Use") { showTerms = true }
+                            Link("Terms of Use", destination: appleEULAURL)
                                 .font(.caption2)
-                                .foregroundColor(.blue)
                             Text("·")
                                 .font(.caption2)
                                 .foregroundColor(.secondary)
@@ -179,7 +179,6 @@ struct SubscriptionPaywallView: View {
                     }
                     .padding(.horizontal, 24)
                     .padding(.bottom, 16)
-                    .sheet(isPresented: $showTerms) { TermsOfUseView() }
                     .sheet(isPresented: $showPrivacy) { PrivacyPolicyView() }
                 }
             }
