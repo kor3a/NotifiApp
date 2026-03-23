@@ -66,7 +66,7 @@ struct ShareReminderView: View {
                                 ProgressView()
                             } else {
                                 Button("Find") {
-                                    viewModel.searchContact(email: searchEmail)
+                                    viewModel.searchContact(query: searchEmail)
                                 }
                                 .disabled(searchEmail.isEmpty)
                             }

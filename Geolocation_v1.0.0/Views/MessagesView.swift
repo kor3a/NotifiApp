@@ -249,26 +249,25 @@ struct NewMessageView: View {
     @ObservedObject var viewModel: MessagesViewModel
     @ObservedObject private var sessionManager = UserSessionManager.shared
     @Environment(\.dismiss) private var dismiss
-    @State private var searchEmail = ""
+    @State private var searchQuery = ""
     @State private var selectedConversation: Conversation?
 
     var body: some View {
         NavigationStack {
             List {
-                Section("Find by Email") {
+                Section {
                     HStack {
-                        TextField("Enter email address", text: $searchEmail)
+                        TextField("Enter email or username", text: $searchQuery)
                             .textInputAutocapitalization(.never)
-                            .keyboardType(.emailAddress)
                             .autocorrectionDisabled()
 
                         if viewModel.isSearching {
                             ProgressView()
                         } else {
                             Button("Search") {
-                                viewModel.searchContact(email: searchEmail)
+                                viewModel.searchContact(query: searchQuery)
                             }
-                            .disabled(searchEmail.isEmpty)
+                            .disabled(searchQuery.isEmpty)
                         }
                     }
 
@@ -276,11 +275,15 @@ struct NewMessageView: View {
                         Button(action: { startConversation(with: contact) }) {
                             ContactRow(contact: contact)
                         }
-                    } else if !searchEmail.isEmpty && !viewModel.isSearching && viewModel.searchedContact == nil {
-                        Text("No user found with that email")
+                    } else if !searchQuery.isEmpty && !viewModel.isSearching && viewModel.searchedContact == nil {
+                        Text("No user found")
                             .foregroundColor(.secondary)
                             .font(.subheadline)
                     }
+                } header: {
+                    Text("Find by Email or Username")
+                } footer: {
+                    Text("Search by email address or username")
                 }
 
                 if !viewModel.recentContacts.isEmpty {

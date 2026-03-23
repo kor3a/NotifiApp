@@ -280,14 +280,16 @@ class MessagesViewModel: ObservableObject {
         }
     }
 
-    func searchContact(email: String) {
-        guard !email.isEmpty else {
+    func searchContact(query: String) {
+        guard !query.isEmpty else {
             searchedContact = nil
             return
         }
 
         isSearching = true
-        messagingService.searchUserByEmail(email) { [weak self] result in
+        searchedContact = nil
+
+        let handleResult: (Result<Contact?, Error>) -> Void = { [weak self] result in
             DispatchQueue.main.async {
                 self?.isSearching = false
                 switch result {
@@ -300,6 +302,12 @@ class MessagesViewModel: ObservableObject {
                     #endif
                 }
             }
+        }
+
+        if query.contains("@") {
+            messagingService.searchUserByEmail(query, completion: handleResult)
+        } else {
+            messagingService.searchUserByUsername(query, completion: handleResult)
         }
     }
 
