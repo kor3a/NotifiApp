@@ -1055,81 +1055,118 @@ class StoresViewModel: ObservableObject {
         }
     }
 
-    /// Clears sharing metadata from a merged store and removes the former owner's reminder items from it.
-    /// Called when an owner deletes their store or when the shared connection is otherwise broken,
-    /// and the recipient had merged (rather than received a separate copy of) the store.
+    /// Handles unlinking a merged store from its former owner.
+    ///
+    /// Queries ALL reminders in B's store and splits them into two groups:
+    ///   • Owner's items  (`sharedFromId == ownerUserId`) — deleted
+    ///   • B's own items  (everything else) — kept, sharing metadata cleared
+    ///
+    /// After cleaning up reminders:
+    ///   • If B has no own items left → B's user_store is deleted (store disappears from B's list)
+    ///   • If B still has own items   → B's user_store is updated to clear sharing fields
+    ///     so the shared icon disappears and B becomes the sole owner
     private func clearMergedStoreSharing(mergedUserStoreId: String, ownerUserId: String, ownerName: String) {
         let db = self.db
 
-        // Clear the sharing relationship fields on the recipient's own user_store
-        db.collection("user_stores").document(mergedUserStoreId).updateData([
-            "sourceUserStoreId": FieldValue.delete(),
-            "sharedFrom":        FieldValue.delete(),
-            "sharedFromName":    FieldValue.delete(),
-            "sharedWith":        FieldValue.delete()
-        ]) { error in
-            #if DEBUG
-            if let error = error {
-                print("StoresViewModel: Error clearing merged store sharing fields: \(error.localizedDescription)")
-            } else {
-                print("StoresViewModel: Cleared sharing fields on merged store \(mergedUserStoreId)")
-            }
-            #endif
-        }
-
-        // Find shared reminders in the merged store and handle each one:
-        //   • Reminders that came FROM the owner  → delete (they no longer belong here)
-        //   • Reminders the recipient shared WITH the owner → remove owner from sharedWith
+        // Fetch ALL reminders in B's merged store (not just isShared==true, in case any slipped through)
         db.collection("reminders")
             .whereField("userStoreId", isEqualTo: mergedUserStoreId)
-            .whereField("isShared", isEqualTo: true)
             .getDocuments { snapshot, error in
                 if let error = error {
                     #if DEBUG
-                    print("StoresViewModel: Error fetching merged store reminders: \(error.localizedDescription)")
+                    print("StoresViewModel: Error fetching merged store reminders for cleanup: \(error.localizedDescription)")
                     #endif
                     return
                 }
 
-                guard let documents = snapshot?.documents, !documents.isEmpty else { return }
+                let allDocs = snapshot?.documents ?? []
 
                 let batch = db.batch()
-                var deletedCount = 0
-                var updatedCount = 0
+                var ownRemainCount = 0   // B's items that will survive
 
-                for doc in documents {
+                for doc in allDocs {
                     let data = doc.data()
                     let sharedFromId = data["sharedFromId"] as? String
+                    let sharedFromName = data["sharedFrom"] as? String
                     var sharedWith = data["sharedWith"] as? [String] ?? []
 
-                    if sharedFromId == ownerUserId || (!ownerUserId.isEmpty && sharedFromId == ownerUserId) {
-                        // Reminder was copied from the owner during merge — delete it
+                    let isOwnerItem = (sharedFromId == ownerUserId && !ownerUserId.isEmpty)
+                        || (sharedFromId == nil && sharedFromName == ownerName && !ownerName.isEmpty)
+
+                    if isOwnerItem {
+                        // Came from the owner — delete it
                         batch.deleteDocument(doc.reference)
-                        deletedCount += 1
-                    } else if sharedWith.contains(ownerName) {
-                        // Recipient's own reminder that was shared WITH the owner — unlink it
-                        sharedWith.removeAll { $0 == ownerName }
-                        if sharedWith.isEmpty {
+                    } else {
+                        // B's own item — remove owner from sharedWith and clear isShared if no one left
+                        ownRemainCount += 1
+                        if sharedWith.contains(ownerName) {
+                            sharedWith.removeAll { $0 == ownerName }
+                            if sharedWith.isEmpty {
+                                batch.updateData([
+                                    "isShared": false,
+                                    "sharedWith": FieldValue.delete()
+                                ], forDocument: doc.reference)
+                            } else {
+                                batch.updateData(["sharedWith": sharedWith], forDocument: doc.reference)
+                            }
+                        } else if (data["isShared"] as? Bool) == true
+                            && sharedWith.isEmpty
+                            && sharedFromId == nil {
+                            // Residual isShared flag with no sharing info left — clear it
                             batch.updateData([
-                                "isShared": false,
-                                "sharedWith": FieldValue.delete()
+                                "isShared": false
                             ], forDocument: doc.reference)
-                        } else {
-                            batch.updateData(["sharedWith": sharedWith], forDocument: doc.reference)
                         }
-                        updatedCount += 1
                     }
                 }
 
-                if deletedCount > 0 || updatedCount > 0 {
+                // Commit reminder changes first, then decide what to do with B's user_store
+                let commitAndDecide = {
+                    let userStoreRef = db.collection("user_stores").document(mergedUserStoreId)
+
+                    if ownRemainCount == 0 {
+                        // B has no content of their own — remove the store entirely
+                        userStoreRef.delete { error in
+                            #if DEBUG
+                            if let error = error {
+                                print("StoresViewModel: Error deleting empty merged store \(mergedUserStoreId): \(error.localizedDescription)")
+                            } else {
+                                print("StoresViewModel: Deleted empty merged store \(mergedUserStoreId) (no own reminders)")
+                            }
+                            #endif
+                        }
+                    } else {
+                        // B has their own items — keep the store but strip all sharing fields
+                        userStoreRef.updateData([
+                            "sourceUserStoreId": FieldValue.delete(),
+                            "sharedFrom":        FieldValue.delete(),
+                            "sharedFromEmail":   FieldValue.delete(),
+                            "sharedFromName":    FieldValue.delete(),
+                            "sharedWith":        FieldValue.delete()
+                        ]) { error in
+                            #if DEBUG
+                            if let error = error {
+                                print("StoresViewModel: Error clearing merged store sharing fields \(mergedUserStoreId): \(error.localizedDescription)")
+                            } else {
+                                print("StoresViewModel: Unlinked merged store \(mergedUserStoreId) — \(ownRemainCount) own reminder(s) remain")
+                            }
+                            #endif
+                        }
+                    }
+                }
+
+                if allDocs.isEmpty {
+                    // No reminders at all — just decide on the user_store
+                    commitAndDecide()
+                } else {
                     batch.commit { error in
                         #if DEBUG
                         if let error = error {
-                            print("StoresViewModel: Error updating merged store reminders: \(error.localizedDescription)")
-                        } else {
-                            print("StoresViewModel: Removed \(deletedCount) owner reminders, updated \(updatedCount) reminders in merged store \(mergedUserStoreId)")
+                            print("StoresViewModel: Error cleaning merged store reminders \(mergedUserStoreId): \(error.localizedDescription)")
+                            return
                         }
                         #endif
+                        commitAndDecide()
                     }
                 }
             }

@@ -889,6 +889,7 @@ class MessagingService: ObservableObject {
                         senderUserStoreId: senderUserStoreId,
                         senderName: senderName,
                         senderUserId: senderUserId,
+                        senderEmail: linkedStore.senderEmail ?? "",
                         recipientUserId: currentUserId,
                         recipientEmail: currentUserEmail,
                         recipientName: recipientName
@@ -978,6 +979,7 @@ class MessagingService: ObservableObject {
         senderUserStoreId: String?,    // sender (A) user_store doc ID
         senderName: String,
         senderUserId: String,
+        senderEmail: String,           // sender (A) email — stored so rules can authorise A to update/delete later
         recipientUserId: String,
         recipientEmail: String,
         recipientName: String,
@@ -1138,7 +1140,11 @@ class MessagingService: ObservableObject {
                             "userName": recipientName,
                             "userEmail": recipientEmail,
                             "sharedWith": FieldValue.arrayUnion([senderName]),
-                            "sharedFromName": senderName
+                            "sharedFromName": senderName,
+                            // Store sender's userId and email so Firestore rules allow A to
+                            // update or delete B's merged user_store (mirrors non-merged share flow)
+                            "sharedFrom": senderUserId,
+                            "sharedFromEmail": senderEmail
                         ], forDocument: recipientStoreRef)
 
                         batch.commit { error in
