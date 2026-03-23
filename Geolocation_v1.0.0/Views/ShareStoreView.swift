@@ -762,7 +762,15 @@ struct ShareStoreView: View {
         db.collection("users").document(sharedUser.userId).getDocument { [self] snapshot, error in
             let recipientName = snapshot?.data()?["name"] as? String ?? sharedUser.userEmail
 
-            // Delete the shared user's user_store document
+            // Merged-store case: the recipient owns their store (permission == .owner) and merged
+            // their existing store with the shared one. Don't delete their store — just unlink
+            // the sharing relationship and clean up reminder items on both sides.
+            if sharedUser.permission == .owner {
+                unshareWithMergedUser(sharedUser: sharedUser, recipientName: recipientName)
+                return
+            }
+
+            // Regular shared store: delete the recipient's user_store document
             db.collection("user_stores").document(sharedUser.id).delete { error in
                 if let error = error {
                     self.alertTitle = "Error"
@@ -791,6 +799,133 @@ struct ShareStoreView: View {
                 }
             }
         }
+    }
+
+    /// Unshare from a recipient whose store was merged (they own their own store; permission == .owner).
+    /// Clears the sharing link on both sides and deletes reminder items that crossed the boundary.
+    private func unshareWithMergedUser(sharedUser: SharedUser, recipientName: String) {
+        guard let currentUserId = viewModel.sessionManager.currentUser?.userId,
+              let currentUserName = viewModel.sessionManager.currentUser?.name else { return }
+
+        // Remove from local UI immediately
+        sharedUsers.removeAll { $0.id == sharedUser.id }
+
+        // 1. Clear sharing fields on the recipient's merged user_store
+        db.collection("user_stores").document(sharedUser.id).updateData([
+            "sourceUserStoreId": FieldValue.delete(),
+            "sharedFrom":        FieldValue.delete(),
+            "sharedFromName":    FieldValue.delete(),
+            "sharedWith":        FieldValue.delete()
+        ])
+
+        // 2. Remove the owner's reminder items from the recipient's merged store
+        //    and clear the owner from sharedWith on the recipient's own reminders.
+        removeOwnerRemindersFromMergedStore(
+            mergedStoreId: sharedUser.id,
+            ownerUserId: currentUserId,
+            ownerName: currentUserName
+        )
+
+        // 3. Remove the recipient's reminder items from the owner's store
+        //    and clear the recipient from sharedWith on the owner's own reminders.
+        let ownerStoreId = userStoreItem.sharedStoreGroupId ?? userStoreItem.id
+        removeRecipientRemindersFromOwnerStore(
+            ownerStoreId: ownerStoreId,
+            recipientUserId: sharedUser.userId,
+            recipientName: recipientName
+        )
+
+        // 4. Update the owner's user_store to remove the recipient from sharedWith
+        updateOwnerUserStoreAfterUnshare(recipientName: recipientName)
+
+        // 5. Notify the recipient
+        sendUnshareMessage(to: sharedUser, recipientName: recipientName)
+
+        #if DEBUG
+        print("ShareStoreView: Unlinked merged store \(sharedUser.id) for \(recipientName)")
+        #endif
+    }
+
+    /// Deletes reminder items the owner added to the recipient's merged store,
+    /// and removes the owner from sharedWith on the recipient's own reminders.
+    private func removeOwnerRemindersFromMergedStore(mergedStoreId: String, ownerUserId: String, ownerName: String) {
+        db.collection("reminders")
+            .whereField("userStoreId", isEqualTo: mergedStoreId)
+            .whereField("isShared", isEqualTo: true)
+            .getDocuments { [self] snapshot, error in
+                guard let documents = snapshot?.documents, !documents.isEmpty else { return }
+
+                let batch = db.batch()
+                for doc in documents {
+                    let data = doc.data()
+                    let sharedFromId = data["sharedFromId"] as? String
+                    var sharedWith = data["sharedWith"] as? [String] ?? []
+
+                    if sharedFromId == ownerUserId {
+                        // Came from the owner during merge — delete it
+                        batch.deleteDocument(doc.reference)
+                    } else if sharedWith.contains(ownerName) {
+                        // Recipient's own item shared WITH the owner — remove owner from sharedWith
+                        sharedWith.removeAll { $0 == ownerName }
+                        if sharedWith.isEmpty {
+                            batch.updateData([
+                                "isShared": false,
+                                "sharedWith": FieldValue.delete()
+                            ], forDocument: doc.reference)
+                        } else {
+                            batch.updateData(["sharedWith": sharedWith], forDocument: doc.reference)
+                        }
+                    }
+                }
+                batch.commit { error in
+                    #if DEBUG
+                    if let error = error {
+                        print("ShareStoreView: Error removing owner reminders from merged store: \(error.localizedDescription)")
+                    }
+                    #endif
+                }
+            }
+    }
+
+    /// Deletes reminder items the recipient added to the owner's store during merge,
+    /// and removes the recipient from sharedWith on the owner's own reminders.
+    private func removeRecipientRemindersFromOwnerStore(ownerStoreId: String, recipientUserId: String, recipientName: String) {
+        db.collection("reminders")
+            .whereField("userStoreId", isEqualTo: ownerStoreId)
+            .whereField("isShared", isEqualTo: true)
+            .getDocuments { [self] snapshot, error in
+                guard let documents = snapshot?.documents, !documents.isEmpty else { return }
+
+                let batch = db.batch()
+                for doc in documents {
+                    let data = doc.data()
+                    let sharedFromId = data["sharedFromId"] as? String
+                    var sharedWith = data["sharedWith"] as? [String] ?? []
+
+                    if sharedFromId == recipientUserId {
+                        // Came from the recipient during merge — delete it from owner's store
+                        batch.deleteDocument(doc.reference)
+                    } else if sharedWith.contains(recipientName) {
+                        // Owner's own item shared WITH the recipient — remove recipient from sharedWith
+                        sharedWith.removeAll { $0 == recipientName }
+                        if sharedWith.isEmpty {
+                            batch.updateData([
+                                "isShared": false,
+                                "sharedWith": FieldValue.delete()
+                            ], forDocument: doc.reference)
+                        } else {
+                            batch.updateData(["sharedWith": sharedWith], forDocument: doc.reference)
+                        }
+                    }
+                }
+                batch.commit { error in
+                    #if DEBUG
+                    if let error = error {
+                        print("ShareStoreView: Error removing recipient reminders from owner store: \(error.localizedDescription)")
+                    }
+                    #endif
+                }
+            }
     }
 
     private func updateRemindersAfterUnshare(recipientName: String) {
@@ -824,32 +959,22 @@ struct ShareStoreView: View {
                     var sharedWith = data["sharedWith"] as? [String] ?? []
                     let sharedFrom = data["sharedFrom"] as? String
 
-                    var needsUpdate = false
-                    var clearSharedStatus = false
+                    // Case 2: Reminder was created by the recipient and added to the owner's store.
+                    // Delete it entirely — it was their item and they are being removed.
+                    if sharedFrom == recipientName {
+                        batch.deleteDocument(doc.reference)
+                        updatedCount += 1
+                        continue
+                    }
 
                     // Case 1: Reminder created by owner, shared with recipient
                     // Remove the recipient from sharedWith
                     if sharedWith.contains(recipientName) {
                         sharedWith.removeAll { $0 == recipientName }
-                        needsUpdate = true
-
-                        if sharedWith.isEmpty {
-                            clearSharedStatus = true
-                        }
-                    }
-
-                    // Case 2: Reminder created by recipient (sharedFrom = recipient's name)
-                    // Clear the shared status entirely since the creator is being removed
-                    if sharedFrom == recipientName {
-                        clearSharedStatus = true
-                        needsUpdate = true
-                    }
-
-                    if needsUpdate {
                         updatedCount += 1
 
-                        if clearSharedStatus {
-                            // No more sharing, remove shared status completely
+                        if sharedWith.isEmpty {
+                            // No more sharing recipients, clear shared status completely
                             batch.updateData([
                                 "isShared": false,
                                 "sharedWith": FieldValue.delete(),
