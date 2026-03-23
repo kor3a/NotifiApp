@@ -51,6 +51,7 @@ struct SubscriptionPaywallView: View {
                 .padding(.top, 24)
             }
             .storeButton(.visible, for: .restorePurchases)
+            .storeButton(.hidden, for: .cancellation)
             .subscriptionStorePolicyDestination(url: appleEULAURL, for: .termsOfService)
             .subscriptionStorePolicyDestination(for: .privacyPolicy) { PrivacyPolicyView() }
             .onInAppPurchaseCompletion { _, result in
