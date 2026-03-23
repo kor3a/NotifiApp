@@ -17,6 +17,11 @@ struct ConversationView: View {
     @FocusState private var isInputFocused: Bool
     @Environment(\.colorScheme) var colorScheme
 
+    // Photo sharing state
+    @State private var selectedImages: [UIImage] = []
+    @State private var showImagePicker = false
+    @State private var isSendingPhoto = false
+
     private var currentUserId: String {
         sessionManager.currentUser?.userId ?? ""
     }
@@ -167,51 +172,125 @@ struct ConversationView: View {
     }
 
     private var inputBar: some View {
-        HStack(spacing: 12) {
-            TextField("Type a message...", text: $messageText, axis: .vertical)
-                .textFieldStyle(.plain)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 10)
-                .background(
-                    RoundedRectangle(cornerRadius: 20)
-                        .fill(colorScheme == .dark ? Color.white.opacity(0.1) : Color.white)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 20)
-                                .stroke(Color.gray.opacity(0.3), lineWidth: 1)
-                        )
-                )
-                .focused($isInputFocused)
-                .lineLimit(1...5)
+        VStack(spacing: 0) {
+            // Selected photos preview strip
+            if !selectedImages.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(Array(selectedImages.enumerated()), id: \.offset) { index, image in
+                            ZStack(alignment: .topTrailing) {
+                                Image(uiImage: image)
+                                    .resizable()
+                                    .scaledToFill()
+                                    .frame(width: 72, height: 72)
+                                    .clipShape(RoundedRectangle(cornerRadius: 10))
 
-            Button(action: sendMessage) {
-                Image(systemName: "arrow.up.circle.fill")
-                    .font(.system(size: 32))
-                    .foregroundColor(messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? .gray : .appAccent)
+                                Button {
+                                    selectedImages.remove(at: index)
+                                } label: {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .font(.system(size: 18))
+                                        .foregroundColor(.white)
+                                        .background(Color.black.opacity(0.6), in: Circle())
+                                }
+                                .offset(x: 6, y: -6)
+                            }
+                        }
+                    }
+                    .padding(.horizontal)
+                    .padding(.vertical, 8)
+                }
+                .background(colorScheme == .dark ? Color.white.opacity(0.05) : Color.gray.opacity(0.07))
+
+                Divider()
             }
-            .disabled(messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+
+            HStack(spacing: 12) {
+                // Photo picker button
+                Button {
+                    showImagePicker = true
+                } label: {
+                    Image(systemName: "photo")
+                        .font(.system(size: 22))
+                        .foregroundColor(.appAccent)
+                }
+                .disabled(isSendingPhoto)
+
+                TextField("Type a message...", text: $messageText, axis: .vertical)
+                    .textFieldStyle(.plain)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+                    .background(
+                        RoundedRectangle(cornerRadius: 20)
+                            .fill(colorScheme == .dark ? Color.white.opacity(0.1) : Color.white)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 20)
+                                    .stroke(Color.gray.opacity(0.3), lineWidth: 1)
+                            )
+                    )
+                    .focused($isInputFocused)
+                    .lineLimit(1...5)
+
+                if isSendingPhoto {
+                    ProgressView()
+                        .frame(width: 32, height: 32)
+                } else {
+                    Button(action: sendMessage) {
+                        Image(systemName: "arrow.up.circle.fill")
+                            .font(.system(size: 32))
+                            .foregroundColor(canSend ? .appAccent : .gray)
+                    }
+                    .disabled(!canSend)
+                }
+            }
+            .padding(.horizontal)
+            .padding(.vertical, 8)
         }
-        .padding(.horizontal)
-        .padding(.vertical, 8)
         .background(
             Rectangle()
                 .fill(.ultraThinMaterial)
                 .shadow(color: .black.opacity(0.1), radius: 5, y: -2)
         )
+        .sheet(isPresented: $showImagePicker) {
+            ImagePicker(selectedImage: .constant(nil)) { image in
+                selectedImages.append(image)
+            }
+        }
+    }
+
+    private var canSend: Bool {
+        !messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !selectedImages.isEmpty
     }
 
     private func sendMessage() {
         let content = messageText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !content.isEmpty else { return }
+        guard canSend else { return }
         guard let senderName = sessionManager.currentUser?.name else { return }
 
-        viewModel.sendMessage(
-            conversationId: conversation.id,
-            content: content,
-            senderName: senderName
-        )
-
+        let imagesToSend = selectedImages
         messageText = ""
+        selectedImages = []
         viewModel.draftMessages[conversation.id] = nil
+
+        if imagesToSend.isEmpty {
+            viewModel.sendMessage(
+                conversationId: conversation.id,
+                content: content,
+                senderName: senderName
+            )
+        } else {
+            isSendingPhoto = true
+            viewModel.sendMessageWithPhotos(
+                conversationId: conversation.id,
+                content: content,
+                images: imagesToSend,
+                senderName: senderName
+            ) { _ in
+                DispatchQueue.main.async {
+                    isSendingPhoto = false
+                }
+            }
+        }
     }
 }
 
@@ -248,16 +327,23 @@ struct MessageBubble: View {
                     )
                 }
 
-                // Message content
-                Text(message.content)
-                    .textSelection(.enabled)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 10)
-                    .background(
-                        RoundedRectangle(cornerRadius: 18)
-                            .fill(isFromCurrentUser ? Color.appAccent : (colorScheme == .dark ? Color.white.opacity(0.15) : Color.white))
-                    )
-                    .foregroundColor(isFromCurrentUser ? .white : .primary)
+                // Photo attachments
+                if let photoURLs = message.photoURLs, !photoURLs.isEmpty {
+                    PhotoAttachmentsView(photoURLs: photoURLs)
+                }
+
+                // Message content (only show if non-empty)
+                if !message.content.isEmpty {
+                    Text(message.content)
+                        .textSelection(.enabled)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 10)
+                        .background(
+                            RoundedRectangle(cornerRadius: 18)
+                                .fill(isFromCurrentUser ? Color.appAccent : (colorScheme == .dark ? Color.white.opacity(0.15) : Color.white))
+                        )
+                        .foregroundColor(isFromCurrentUser ? .white : .primary)
+                }
 
                 // Timestamp
                 Text(formatTime(message.createdAt))
@@ -689,6 +775,102 @@ struct StoreCard: View {
                 #if DEBUG
                 print("StoreCard: Failed to reject store")
                 #endif
+            }
+        }
+    }
+}
+
+// MARK: - Photo Attachments View
+
+struct PhotoAttachmentsView: View {
+    let photoURLs: [String]
+    @State private var selectedPhotoURL: String?
+
+    var body: some View {
+        let columns = photoURLs.count == 1
+            ? [GridItem(.flexible())]
+            : [GridItem(.flexible()), GridItem(.flexible())]
+
+        LazyVGrid(columns: columns, spacing: 4) {
+            ForEach(photoURLs, id: \.self) { urlString in
+                AsyncImage(url: URL(string: urlString)) { phase in
+                    switch phase {
+                    case .success(let image):
+                        image
+                            .resizable()
+                            .scaledToFill()
+                            .frame(
+                                width: photoURLs.count == 1 ? 220 : 105,
+                                height: photoURLs.count == 1 ? 220 : 105
+                            )
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                            .onTapGesture {
+                                selectedPhotoURL = urlString
+                            }
+                    case .failure:
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(Color.gray.opacity(0.3))
+                            .frame(width: 105, height: 105)
+                            .overlay(Image(systemName: "photo").foregroundColor(.secondary))
+                    case .empty:
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(Color.gray.opacity(0.2))
+                            .frame(width: 105, height: 105)
+                            .overlay(ProgressView())
+                    @unknown default:
+                        EmptyView()
+                    }
+                }
+            }
+        }
+        .frame(maxWidth: 220)
+        .fullScreenCover(item: Binding(
+            get: { selectedPhotoURL.map { IdentifiableURL(url: $0) } },
+            set: { selectedPhotoURL = $0?.url }
+        )) { item in
+            PhotoFullScreenView(urlString: item.url)
+        }
+    }
+}
+
+private struct IdentifiableURL: Identifiable {
+    let id = UUID()
+    let url: String
+}
+
+struct PhotoFullScreenView: View {
+    let urlString: String
+    @Environment(\.dismiss) var dismiss
+
+    var body: some View {
+        ZStack(alignment: .topTrailing) {
+            Color.black.ignoresSafeArea()
+
+            AsyncImage(url: URL(string: urlString)) { phase in
+                switch phase {
+                case .success(let image):
+                    image
+                        .resizable()
+                        .scaledToFit()
+                        .ignoresSafeArea()
+                case .failure:
+                    Image(systemName: "photo")
+                        .foregroundColor(.white)
+                case .empty:
+                    ProgressView()
+                        .tint(.white)
+                @unknown default:
+                    EmptyView()
+                }
+            }
+
+            Button {
+                dismiss()
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.system(size: 30))
+                    .foregroundColor(.white)
+                    .padding()
             }
         }
     }
