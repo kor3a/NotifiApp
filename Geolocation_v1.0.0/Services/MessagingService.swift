@@ -25,6 +25,11 @@ class MessagingService: ObservableObject {
     private var listenerStartTime: TimeInterval = 0
     private var notifiedMessageIds: Set<String> = []
 
+    /// The conversation ID the user is currently viewing. When set, incoming
+    /// message notifications for this conversation are suppressed because the
+    /// user is already reading that conversation.
+    var activeConversationId: String? = nil
+
     private init() {}
 
     // MARK: - Conversations
@@ -1827,6 +1832,9 @@ class MessagingService: ObservableObject {
                     // the same event, so firing a local notification too would
                     // produce a visible duplicate.
                     guard UIApplication.shared.applicationState == .active else { continue }
+
+                    // Suppress notifications for the conversation the user is actively viewing.
+                    if self.activeConversationId == conversationId { continue }
 
                     // Determine notification content based on message type
                     var notificationContent = content
