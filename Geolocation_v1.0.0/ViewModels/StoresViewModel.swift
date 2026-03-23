@@ -24,6 +24,11 @@ class StoresViewModel: ObservableObject {
     // Shared status listeners to detect when recipients leave (keyed by owner's userStoreId)
     private var sharedStatusListeners: [String: ListenerRegistration] = [:]
 
+    // Source store listeners — watch the original owner's user_store document for merged stores.
+    // When the owner deletes their store, B's app detects it here and cleans up B's merged store
+    // locally (no cross-user Firestore write permissions needed).
+    private var sourceStoreListeners: [String: ListenerRegistration] = [:]
+
     // Flag to prevent listener from overwriting during manual sort
     private var isManuallyReordering = false
 
@@ -50,6 +55,7 @@ class StoresViewModel: ObservableObject {
         storesListener = nil
         removeAllReminderCountListeners()
         removeAllSharedStatusListeners()
+        removeAllSourceStoreListeners()
         isLoading = false
         userStoreItems = TutorialMockData.stores
     }
@@ -59,6 +65,7 @@ class StoresViewModel: ObservableObject {
         storesListener = nil
         removeAllReminderCountListeners()
         removeAllSharedStatusListeners()
+        removeAllSourceStoreListeners()
         userStoreItems = []
     }
 
@@ -90,6 +97,7 @@ class StoresViewModel: ObservableObject {
         storesListener?.remove()
         removeAllReminderCountListeners()
         removeAllSharedStatusListeners()
+        removeAllSourceStoreListeners()
 
         // Add new snapshot listener and store the registration
         storesListener = db.collection("user_stores")
@@ -114,6 +122,7 @@ class StoresViewModel: ObservableObject {
                     self.userStoreItems = []
                     self.removeAllReminderCountListeners()
                     self.removeAllSharedStatusListeners()
+                    self.removeAllSourceStoreListeners()
                     return
                 }
 
@@ -209,6 +218,9 @@ class StoresViewModel: ObservableObject {
 
                 // Set up real-time listeners for shared store recipients
                 self.setupSharedStatusListeners(for: tempUserStoreItems)
+
+                // Watch the source user_store for each merged store — detects owner deletion
+                self.setupSourceStoreListeners(for: tempUserStoreItems)
 
                 #if DEBUG
                 print("StoresViewModel: Loaded \(self.userStoreItems.count) stores, setting up reminder listeners")
@@ -476,6 +488,55 @@ class StoresViewModel: ObservableObject {
             listener.remove()
         }
         sharedStatusListeners.removeAll()
+    }
+
+    /// Watch the source (owner's) user_store document for each merged store B participates in.
+    /// When the owner deletes their store, B's app detects it locally and runs cleanup using
+    /// B's own credentials — no cross-user Firestore write permissions required.
+    private func setupSourceStoreListeners(for items: [UserStoreItem]) {
+        // Only merged stores have sourceUserStoreId set with permission == .owner
+        let mergedItems = items.filter { $0.permission == .owner && $0.sourceUserStoreId != nil }
+        let activeSourceIds = Set(mergedItems.compactMap { $0.sourceUserStoreId })
+
+        // Remove listeners for source stores no longer in the list
+        let currentIds = Set(sourceStoreListeners.keys)
+        for id in currentIds.subtracting(activeSourceIds) {
+            sourceStoreListeners[id]?.remove()
+            sourceStoreListeners.removeValue(forKey: id)
+        }
+
+        for item in mergedItems {
+            guard let sourceUserStoreId = item.sourceUserStoreId else { continue }
+            guard sourceStoreListeners[sourceUserStoreId] == nil else { continue }
+
+            let mergedUserStoreId = item.id
+            let ownerUserId = item.sharedFromId ?? ""
+            let ownerName = item.sharedFromName ?? ""
+
+            let listener = db.collection("user_stores").document(sourceUserStoreId)
+                .addSnapshotListener { [weak self] snapshot, error in
+                    guard let self = self, let snapshot = snapshot else { return }
+                    // React only when the source store document is deleted
+                    guard !snapshot.exists else { return }
+
+                    // Owner deleted their store — clean up our merged store using our own credentials.
+                    self.sourceStoreListeners[sourceUserStoreId]?.remove()
+                    self.sourceStoreListeners.removeValue(forKey: sourceUserStoreId)
+                    self.clearMergedStoreSharing(
+                        mergedUserStoreId: mergedUserStoreId,
+                        ownerUserId: ownerUserId,
+                        ownerName: ownerName
+                    )
+                }
+            sourceStoreListeners[sourceUserStoreId] = listener
+        }
+    }
+
+    private func removeAllSourceStoreListeners() {
+        for (_, listener) in sourceStoreListeners {
+            listener.remove()
+        }
+        sourceStoreListeners.removeAll()
     }
 
     /// Fetch all available stores from the stores collection
@@ -1485,5 +1546,6 @@ class StoresViewModel: ObservableObject {
         storesListener?.remove()
         removeAllReminderCountListeners()
         removeAllSharedStatusListeners()
+        removeAllSourceStoreListeners()
     }
 }
