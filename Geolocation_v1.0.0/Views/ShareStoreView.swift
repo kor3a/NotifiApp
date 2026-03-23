@@ -737,11 +737,11 @@ struct ShareStoreView: View {
                 self.sharedUsers = documents.compactMap { doc in
                     let data = doc.data()
                     guard let userId = data["userId"] as? String,
-                          let userEmail = data["userEmail"] as? String,
-                          let permissionString = data["permission"] as? String,
-                          let permission = StorePermission(rawValue: permissionString) else {
+                          let userEmail = data["userEmail"] as? String else {
                         return nil
                     }
+                    let permissionString = data["permission"] as? String ?? "edit"
+                    let permission = StorePermission(rawValue: permissionString) ?? .edit
 
                     let sharedAt = data["sharedAt"] as? TimeInterval
 
