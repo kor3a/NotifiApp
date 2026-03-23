@@ -542,6 +542,31 @@ class MessagingService: ObservableObject {
 
     // MARK: - Contacts
 
+    /// Search for users by username (userId / document ID)
+    func searchUserByUsername(_ username: String, completion: @escaping (Result<Contact?, Error>) -> Void) {
+        let normalizedUsername = username.lowercased()
+        db.collection("users").document(normalizedUsername).getDocument { snapshot, error in
+            if let error = error {
+                completion(.failure(error))
+                return
+            }
+            guard let data = snapshot?.data(),
+                  let name = data["name"] as? String,
+                  let email = data["email"] as? String else {
+                completion(.success(nil))
+                return
+            }
+            let userId = data["userId"] as? String ?? normalizedUsername
+            let contact = Contact(
+                id: userId,
+                name: name,
+                email: email,
+                profilePictureURL: data["profilePictureURL"] as? String
+            )
+            completion(.success(contact))
+        }
+    }
+
     /// Search for users by email to add as contacts
     func searchUserByEmail(_ email: String, completion: @escaping (Result<Contact?, Error>) -> Void) {
         db.collection("users")
