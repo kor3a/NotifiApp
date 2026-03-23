@@ -337,32 +337,60 @@ class FriendsService: ObservableObject {
                     let data = doc.data()
                     let recipientUserStoreId = doc.documentID
                     let sourceUserStoreId = data["sourceUserStoreId"] as? String
+                    let permission = data["permission"] as? String ?? ""
 
                     innerGroup.enter()
 
-                    // Delete the friend's user_store document
-                    self.db.collection("user_stores").document(recipientUserStoreId).delete { error in
-                        if let error = error {
-                            #if DEBUG
-                            print("FriendsService: Error deleting friend's user_store \(recipientUserStoreId): \(error.localizedDescription)")
-                            #endif
-                            if firstError == nil { firstError = error }
-                        } else {
-                            totalUnshared += 1
-                            #if DEBUG
-                            print("FriendsService: Deleted friend's user_store \(recipientUserStoreId)")
-                            #endif
-                        }
-
-                        // Update the owner's (current user's) user_store and reminders
-                        if let ownerStoreId = sourceUserStoreId {
-                            self.cleanUpOwnerAfterUnshare(
-                                ownerUserStoreId: ownerStoreId,
-                                recipientName: friendName
+                    if permission == "owner" {
+                        // Merged store: the friend owns this store — just clear sharing fields
+                        // rather than deleting their store entirely.
+                        self.db.collection("user_stores").document(recipientUserStoreId).updateData([
+                            "sourceUserStoreId": FieldValue.delete(),
+                            "sharedFrom":        FieldValue.delete(),
+                            "sharedFromName":    FieldValue.delete(),
+                            "sharedWith":        FieldValue.delete()
+                        ]) { error in
+                            if error == nil { totalUnshared += 1 }
+                            // Clean up reminder items that crossed the merge boundary
+                            self.cleanUpMergedStoreRemindersOnUnshare(
+                                mergedStoreId: recipientUserStoreId,
+                                ownerUserId: currentUserId,
+                                ownerName: currentUserName
                             )
+                            // Update the owner's (current user's) user_store and reminders
+                            if let ownerStoreId = sourceUserStoreId {
+                                self.cleanUpOwnerAfterUnshare(
+                                    ownerUserStoreId: ownerStoreId,
+                                    recipientName: friendName
+                                )
+                            }
+                            innerGroup.leave()
                         }
+                    } else {
+                        // Regular shared store: delete the friend's user_store document
+                        self.db.collection("user_stores").document(recipientUserStoreId).delete { error in
+                            if let error = error {
+                                #if DEBUG
+                                print("FriendsService: Error deleting friend's user_store \(recipientUserStoreId): \(error.localizedDescription)")
+                                #endif
+                                if firstError == nil { firstError = error }
+                            } else {
+                                totalUnshared += 1
+                                #if DEBUG
+                                print("FriendsService: Deleted friend's user_store \(recipientUserStoreId)")
+                                #endif
+                            }
 
-                        innerGroup.leave()
+                            // Update the owner's (current user's) user_store and reminders
+                            if let ownerStoreId = sourceUserStoreId {
+                                self.cleanUpOwnerAfterUnshare(
+                                    ownerUserStoreId: ownerStoreId,
+                                    recipientName: friendName
+                                )
+                            }
+
+                            innerGroup.leave()
+                        }
                     }
                 }
 
@@ -410,32 +438,59 @@ class FriendsService: ObservableObject {
                     let data = doc.data()
                     let recipientUserStoreId = doc.documentID
                     let sourceUserStoreId = data["sourceUserStoreId"] as? String
+                    let permission = data["permission"] as? String ?? ""
 
                     innerGroup.enter()
 
-                    // Delete the current user's shared user_store document
-                    self.db.collection("user_stores").document(recipientUserStoreId).delete { error in
-                        if let error = error {
-                            #if DEBUG
-                            print("FriendsService: Error deleting current user's shared user_store \(recipientUserStoreId): \(error.localizedDescription)")
-                            #endif
-                            if firstError == nil { firstError = error }
-                        } else {
-                            totalUnshared += 1
-                            #if DEBUG
-                            print("FriendsService: Deleted current user's shared user_store \(recipientUserStoreId)")
-                            #endif
-                        }
-
-                        // Update the owner's (friend's) user_store and reminders
-                        if let ownerStoreId = sourceUserStoreId {
-                            self.cleanUpOwnerAfterUnshare(
-                                ownerUserStoreId: ownerStoreId,
-                                recipientName: currentUserName
+                    if permission == "owner" {
+                        // Merged store: the current user owns this store — just clear sharing fields.
+                        self.db.collection("user_stores").document(recipientUserStoreId).updateData([
+                            "sourceUserStoreId": FieldValue.delete(),
+                            "sharedFrom":        FieldValue.delete(),
+                            "sharedFromName":    FieldValue.delete(),
+                            "sharedWith":        FieldValue.delete()
+                        ]) { error in
+                            if error == nil { totalUnshared += 1 }
+                            // Clean up reminder items that crossed the merge boundary
+                            self.cleanUpMergedStoreRemindersOnUnshare(
+                                mergedStoreId: recipientUserStoreId,
+                                ownerUserId: friendId,
+                                ownerName: friendName
                             )
+                            // Update the owner's (friend's) user_store and reminders
+                            if let ownerStoreId = sourceUserStoreId {
+                                self.cleanUpOwnerAfterUnshare(
+                                    ownerUserStoreId: ownerStoreId,
+                                    recipientName: currentUserName
+                                )
+                            }
+                            innerGroup.leave()
                         }
+                    } else {
+                        // Regular shared store: delete the current user's shared user_store document
+                        self.db.collection("user_stores").document(recipientUserStoreId).delete { error in
+                            if let error = error {
+                                #if DEBUG
+                                print("FriendsService: Error deleting current user's shared user_store \(recipientUserStoreId): \(error.localizedDescription)")
+                                #endif
+                                if firstError == nil { firstError = error }
+                            } else {
+                                totalUnshared += 1
+                                #if DEBUG
+                                print("FriendsService: Deleted current user's shared user_store \(recipientUserStoreId)")
+                                #endif
+                            }
 
-                        innerGroup.leave()
+                            // Update the owner's (friend's) user_store and reminders
+                            if let ownerStoreId = sourceUserStoreId {
+                                self.cleanUpOwnerAfterUnshare(
+                                    ownerUserStoreId: ownerStoreId,
+                                    recipientName: currentUserName
+                                )
+                            }
+
+                            innerGroup.leave()
+                        }
                     }
                 }
 
@@ -544,27 +599,19 @@ class FriendsService: ObservableObject {
                     var sharedWith = data["sharedWith"] as? [String] ?? []
                     let sharedFrom = data["sharedFrom"] as? String
 
-                    var needsUpdate = false
-                    var clearSharedStatus = false
+                    // Reminder was created by the recipient and added to the owner's store.
+                    // Delete it entirely — it was their item and they are being removed.
+                    if sharedFrom == recipientName {
+                        batch.deleteDocument(doc.reference)
+                        updatedCount += 1
+                        continue
+                    }
 
-                    // Reminder shared with the recipient - remove them
+                    // Reminder shared with the recipient — remove them from sharedWith
                     if sharedWith.contains(recipientName) {
                         sharedWith.removeAll { $0 == recipientName }
-                        needsUpdate = true
-                        if sharedWith.isEmpty {
-                            clearSharedStatus = true
-                        }
-                    }
-
-                    // Reminder created by the recipient - clear shared status
-                    if sharedFrom == recipientName {
-                        clearSharedStatus = true
-                        needsUpdate = true
-                    }
-
-                    if needsUpdate {
                         updatedCount += 1
-                        if clearSharedStatus {
+                        if sharedWith.isEmpty {
                             batch.updateData([
                                 "isShared": false,
                                 "sharedWith": FieldValue.delete(),
@@ -585,6 +632,58 @@ class FriendsService: ObservableObject {
                             print("FriendsService: Error updating reminders after unshare: \(error.localizedDescription)")
                         } else {
                             print("FriendsService: Updated \(updatedCount) reminder(s) after unshare")
+                        }
+                        #endif
+                    }
+                }
+            }
+    }
+
+    /// Cleans up reminder items in a merged store when the sharing relationship is broken.
+    /// Deletes items that came from the owner, and removes the owner from sharedWith on the
+    /// merged-store owner's own reminders.
+    private func cleanUpMergedStoreRemindersOnUnshare(mergedStoreId: String, ownerUserId: String, ownerName: String) {
+        db.collection("reminders")
+            .whereField("userStoreId", isEqualTo: mergedStoreId)
+            .whereField("isShared", isEqualTo: true)
+            .getDocuments { [weak self] snapshot, error in
+                guard let self = self,
+                      let documents = snapshot?.documents, !documents.isEmpty else { return }
+
+                let batch = self.db.batch()
+                var count = 0
+
+                for doc in documents {
+                    let data = doc.data()
+                    let sharedFromId = data["sharedFromId"] as? String
+                    var sharedWith = data["sharedWith"] as? [String] ?? []
+
+                    if sharedFromId == ownerUserId {
+                        // Came from the owner during merge — delete it
+                        batch.deleteDocument(doc.reference)
+                        count += 1
+                    } else if sharedWith.contains(ownerName) {
+                        // Merged-store owner's item shared WITH the original owner — remove them
+                        sharedWith.removeAll { $0 == ownerName }
+                        if sharedWith.isEmpty {
+                            batch.updateData([
+                                "isShared": false,
+                                "sharedWith": FieldValue.delete()
+                            ], forDocument: doc.reference)
+                        } else {
+                            batch.updateData(["sharedWith": sharedWith], forDocument: doc.reference)
+                        }
+                        count += 1
+                    }
+                }
+
+                if count > 0 {
+                    batch.commit { error in
+                        #if DEBUG
+                        if let error = error {
+                            print("FriendsService: Error cleaning merged store reminders: \(error.localizedDescription)")
+                        } else {
+                            print("FriendsService: Cleaned \(count) reminder(s) in merged store \(mergedStoreId)")
                         }
                         #endif
                     }
