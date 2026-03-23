@@ -126,8 +126,8 @@ struct ShareStoreView: View {
                             VStack(spacing: 8) {
                                 ForEach(sharedUsers) { sharedUser in
                                     HStack {
-                                        Image(systemName: sharedUser.permission == .edit ? "person.fill.checkmark" : "eye.fill")
-                                            .foregroundStyle(sharedUser.permission == .edit ? .green : .orange)
+                                        Image(systemName: sharedUser.permission == .view ? "eye.fill" : "person.fill.checkmark")
+                                            .foregroundStyle(sharedUser.permission == .view ? .orange : .green)
                                             .frame(width: 24)
 
                                         VStack(alignment: .leading, spacing: 2) {
@@ -135,7 +135,7 @@ struct ShareStoreView: View {
                                                 .font(.subheadline)
                                                 .bold()
 
-                                            Text(sharedUser.permission == .edit ? "Can Edit" : "View Only")
+                                            Text(sharedUser.permission == .view ? "View Only" : "Can Edit")
                                                 .font(.caption)
                                                 .foregroundStyle(.secondary)
                                         }
