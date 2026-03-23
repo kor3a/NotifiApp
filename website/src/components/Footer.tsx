@@ -35,6 +35,12 @@ export default function Footer() {
             >
               Download
             </a>
+            <a
+              href="/support"
+              className="text-sm text-allim-muted hover:text-white transition-colors"
+            >
+              Support
+            </a>
           </div>
 
           <p className="text-sm text-allim-muted">
