@@ -13,10 +13,12 @@ struct ProfileView: View {
     @Environment(\.dismiss) private var dismiss
     @StateObject private var viewModel = ProfileViewModel()
     @ObservedObject private var sessionManager = UserSessionManager.shared
+    @ObservedObject private var subscriptionManager = SubscriptionManager.shared
     @State private var showImagePicker = false
     @State private var selectedImage: UIImage?
     @State private var showDeleteAccountAlert = false
     @State private var reauthPassword = ""
+    @State private var showSubscriptionSheet = false
 
     var body: some View {
         if sessionManager.isLoading || viewModel.isLoading {
@@ -236,6 +238,27 @@ struct ProfileView: View {
                 #endif
 
                 Spacer().frame(height: 30)
+            }
+        }
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button {
+                    showSubscriptionSheet = true
+                } label: {
+                    Image(systemName: subscriptionManager.isSubscribed ? "crown.fill" : "crown")
+                        .foregroundStyle(subscriptionManager.isSubscribed
+                            ? AnyShapeStyle(.linearGradient(colors: [.yellow, .orange], startPoint: .topLeading, endPoint: .bottomTrailing))
+                            : AnyShapeStyle(.secondary)
+                        )
+                        .imageScale(.large)
+                }
+            }
+        }
+        .sheet(isPresented: $showSubscriptionSheet) {
+            if subscriptionManager.isSubscribed {
+                SubscriptionManagementView()
+            } else {
+                SubscriptionPaywallView()
             }
         }
         .onAppear {
