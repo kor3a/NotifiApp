@@ -17,7 +17,7 @@ struct PrivacyPolicyView: View {
                     Group {
                         sectionHeader("Privacy Policy")
                         bodyText("Last Updated: March 2025")
-                        bodyText("This Privacy Policy describes how Kor3a ("we", "us", or "our") collects, uses, and shares information when you use the Allim application ("App"). By using Allim, you agree to the practices described in this policy.")
+                        bodyText("This Privacy Policy describes how Kor3a (\"we\", \"us\", or \"our\") collects, uses, and shares information when you use the Allim application (\"App\"). By using Allim, you agree to the practices described in this policy.")
                     }
 
                     Group {
