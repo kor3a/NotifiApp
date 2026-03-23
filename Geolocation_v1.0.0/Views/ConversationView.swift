@@ -132,6 +132,12 @@ struct ConversationView: View {
         .onDisappear {
             viewModel.markAsRead(conversationId: conversation.id)
             viewModel.stopListeningForMessages()
+            // If the user navigated away without sending any messages, delete the empty
+            // conversation so it doesn't linger in the conversation list.
+            let latestConversation = viewModel.conversations.first(where: { $0.id == conversation.id }) ?? conversation
+            if viewModel.messages.isEmpty && (latestConversation.lastMessageContent?.isEmpty ?? true) {
+                viewModel.deleteConversation(latestConversation)
+            }
         }
     }
 
