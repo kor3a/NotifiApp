@@ -8,20 +8,13 @@ import StoreKit
 
 struct SubscriptionPaywallView: View {
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.colorScheme) var colorScheme
-    @StateObject private var subscriptionManager = SubscriptionManager.shared
-    @State private var showError = false
-    @State private var showPrivacy = false
 
     private let appleEULAURL = URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")!
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(spacing: 28) {
-                    Spacer(minLength: 16)
-
-                    // Hero icon
+            SubscriptionStoreView(productIDs: [SubscriptionManager.monthlyProductID]) {
+                VStack(spacing: 20) {
                     Image(systemName: "crown.fill")
                         .font(.system(size: 56))
                         .foregroundStyle(.linearGradient(
@@ -30,7 +23,6 @@ struct SubscriptionPaywallView: View {
                             endPoint: .bottomTrailing
                         ))
 
-                    // Title
                     VStack(spacing: 6) {
                         Text("Allim Premium")
                             .font(.title)
@@ -40,163 +32,38 @@ struct SubscriptionPaywallView: View {
                             .foregroundColor(.secondary)
                     }
 
-                    // Feature list
                     VStack(alignment: .leading, spacing: 16) {
-                        featureRow(
-                            icon: "fork.knife.circle.fill",
-                            color: .blue,
-                            title: "Smart Recipe",
-                            description: "Ask for any recipe and add ingredients directly to your stores"
-                        )
-                        featureRow(
-                            icon: "sparkles",
-                            color: .purple,
-                            title: "Smart Category",
-                            description: "AI auto-categorizes every item you add to your shopping list"
-                        )
-                        featureRow(
-                            icon: "hand.thumbsup.fill",
-                            color: .green,
-                            title: "Ad-Free Experience",
-                            description: "Enjoy the app without any banner advertisements"
-                        )
+                        featureRow(icon: "fork.knife.circle.fill", color: .blue,
+                                   title: "Smart Recipe",
+                                   description: "Ask for any recipe and add ingredients directly to your stores")
+                        featureRow(icon: "sparkles", color: .purple,
+                                   title: "Smart Category",
+                                   description: "AI auto-categorizes every item you add to your shopping list")
+                        featureRow(icon: "hand.thumbsup.fill", color: .green,
+                                   title: "Ad-Free Experience",
+                                   description: "Enjoy the app without any banner advertisements")
                     }
                     .padding(.horizontal, 28)
                     .padding(.vertical, 20)
-                    .background(
-                        RoundedRectangle(cornerRadius: 16)
-                            .fill(.ultraThinMaterial)
-                    )
+                    .background(RoundedRectangle(cornerRadius: 16).fill(.ultraThinMaterial))
                     .padding(.horizontal, 20)
-
-                    // Pricing card
-                    VStack(spacing: 8) {
-                        if let product = subscriptionManager.product {
-                            Text(product.displayPrice)
-                                .font(.system(size: 36, weight: .bold))
-                            Text("per month")
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
-                        } else {
-                            Text("$0.99")
-                                .font(.system(size: 36, weight: .bold))
-                            Text("per month")
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
-                        }
-
-                        Text("7-day free trial, then billed monthly")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                            .padding(.top, 2)
-                    }
-
-                    // Subscribe button
-                    Button {
-                        Task {
-                            await subscriptionManager.purchase()
-                            if subscriptionManager.isSubscribed {
-                                dismiss()
-                            }
-                        }
-                    } label: {
-                        ZStack {
-                            if subscriptionManager.isPurchasing {
-                                ProgressView()
-                                    .tint(.white)
-                                    .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 16)
-                            } else {
-                                Text("Start Free Trial")
-                                    .font(.headline)
-                                    .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 16)
-                            }
-                        }
-                        .background(
-                            LinearGradient(
-                                colors: [.blue, .purple],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
-                        .foregroundColor(.white)
-                        .clipShape(RoundedRectangle(cornerRadius: 14))
-                    }
-                    .disabled(subscriptionManager.isPurchasing)
-                    .padding(.horizontal, 20)
-
-                    // Restore purchases
-                    Button {
-                        Task {
-                            await subscriptionManager.restorePurchases()
-                            if subscriptionManager.isSubscribed {
-                                dismiss()
-                            }
-                        }
-                    } label: {
-                        Text("Restore Purchases")
-                            .font(.subheadline)
-                            .foregroundColor(.blue)
-                    }
-                    .disabled(subscriptionManager.isPurchasing)
-
-                    // Legal disclosure — all fields required by App Store Guideline 3.1.2(c)
-                    VStack(spacing: 10) {
-                        // Subscription details summary
-                        VStack(spacing: 4) {
-                            Text("Allim Premium · Monthly Subscription")
-                                .font(.caption2)
-                                .fontWeight(.semibold)
-                                .foregroundColor(.secondary)
-                            if let product = subscriptionManager.product {
-                                Text("\(product.displayPrice) / month · 7-day free trial")
-                                    .font(.caption2)
-                                    .foregroundColor(.secondary)
-                            } else {
-                                Text("$0.99 / month · 7-day free trial")
-                                    .font(.caption2)
-                                    .foregroundColor(.secondary)
-                            }
-                        }
-
-                        Text("Subscription auto-renews monthly unless cancelled at least 24 hours before the end of the current period. Free trial converts to a paid subscription if not cancelled. Manage or cancel anytime in App Store Settings.")
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
-                            .multilineTextAlignment(.center)
-
-                        // Links row
-                        HStack(spacing: 16) {
-                            Link("Terms of Use", destination: appleEULAURL)
-                                .font(.caption2)
-                            Text("·")
-                                .font(.caption2)
-                                .foregroundColor(.secondary)
-                            Button("Privacy Policy") { showPrivacy = true }
-                                .font(.caption2)
-                                .foregroundColor(.blue)
-                        }
-                    }
-                    .padding(.horizontal, 24)
-                    .padding(.bottom, 16)
-                    .sheet(isPresented: $showPrivacy) { PrivacyPolicyView() }
+                }
+                .padding(.top, 24)
+            }
+            .storeButton(.visible, for: .restorePurchases)
+            .subscriptionStorePolicyDestination(url: appleEULAURL, for: .termsOfService)
+            .subscriptionStorePolicyDestination(for: .privacyPolicy) { PrivacyPolicyView() }
+            .onInAppPurchaseCompletion { _, result in
+                if case .success(let purchaseResult) = result,
+                   case .success = purchaseResult {
+                    await SubscriptionManager.shared.refreshSubscriptionStatus()
+                    dismiss()
                 }
             }
-            .background(Color.backgroundGradient(for: colorScheme).ignoresSafeArea())
-            .navigationTitle("Go Premium")
-            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button("Close") { dismiss() }
                 }
-            }
-            .alert("Purchase Error", isPresented: Binding(
-                get: { subscriptionManager.errorMessage != nil },
-                set: { if !$0 { subscriptionManager.errorMessage = nil } }
-            )) {
-                Button("OK") { subscriptionManager.errorMessage = nil }
-            } message: {
-                Text(subscriptionManager.errorMessage ?? "")
             }
         }
     }
