@@ -71,3 +71,28 @@ export default defineConfig([
   },
 ])
 ```
+
+## Build for AWS S3 + CloudFront
+
+This project is configured to output production files into `out/`.
+
+1. Build:
+
+```bash
+npm install
+npm run build
+```
+
+2. Upload the contents of `out/` to your S3 bucket (not the folder itself, the files inside it).
+3. Configure S3 and CloudFront:
+   - **S3 Static website hosting**
+     - Index document: `index.html`
+     - Error document: `index.html` (for SPA routes)
+   - **CloudFront**
+     - Origin: your S3 bucket
+     - Default root object: `index.html`
+     - Custom error responses:
+       - `403` -> `/index.html` with response code `200`
+       - `404` -> `/index.html` with response code `200`
+
+These settings ensure direct navigation to client-side routes works correctly.
