@@ -890,6 +890,7 @@ class MessagingService: ObservableObject {
                         senderName: senderName,
                         senderUserId: senderUserId,
                         recipientUserId: currentUserId,
+                        recipientEmail: currentUserEmail,
                         recipientName: recipientName
                     ) { [weak self] in
                         self?.updateLinkedStoreStatus(messageId: messageId, status: .accepted, completion: completion)
@@ -978,6 +979,7 @@ class MessagingService: ObservableObject {
         senderName: String,
         senderUserId: String,
         recipientUserId: String,
+        recipientEmail: String,
         recipientName: String,
         completion: @escaping () -> Void
     ) {
@@ -1134,6 +1136,7 @@ class MessagingService: ObservableObject {
                         batch.updateData([
                             "sourceUserStoreId": senderUserStoreId,
                             "userName": recipientName,
+                            "userEmail": recipientEmail,
                             "sharedWith": FieldValue.arrayUnion([senderName]),
                             "sharedFromName": senderName
                         ], forDocument: recipientStoreRef)
