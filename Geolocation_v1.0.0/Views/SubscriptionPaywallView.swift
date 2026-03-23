@@ -11,6 +11,8 @@ struct SubscriptionPaywallView: View {
     @Environment(\.colorScheme) var colorScheme
     @StateObject private var subscriptionManager = SubscriptionManager.shared
     @State private var showError = false
+    @State private var showTerms = false
+    @State private var showPrivacy = false
 
     var body: some View {
         NavigationStack {
@@ -138,13 +140,47 @@ struct SubscriptionPaywallView: View {
                     }
                     .disabled(subscriptionManager.isPurchasing)
 
-                    // Legal
-                    Text("Subscription auto-renews at $0.99/month unless cancelled at least 24 hours before the end of the current period. Free trial converts to a paid subscription if not cancelled. Manage or cancel in App Store Settings.")
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 24)
-                        .padding(.bottom, 16)
+                    // Legal disclosure — all fields required by App Store Guideline 3.1.2(c)
+                    VStack(spacing: 10) {
+                        // Subscription details summary
+                        VStack(spacing: 4) {
+                            Text("Allim Premium · Monthly Subscription")
+                                .font(.caption2)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.secondary)
+                            if let product = subscriptionManager.product {
+                                Text("\(product.displayPrice) / month · 7-day free trial")
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
+                            } else {
+                                Text("$0.99 / month · 7-day free trial")
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+
+                        Text("Subscription auto-renews monthly unless cancelled at least 24 hours before the end of the current period. Free trial converts to a paid subscription if not cancelled. Manage or cancel anytime in App Store Settings.")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+
+                        // Links row
+                        HStack(spacing: 16) {
+                            Button("Terms of Use") { showTerms = true }
+                                .font(.caption2)
+                                .foregroundColor(.blue)
+                            Text("·")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                            Button("Privacy Policy") { showPrivacy = true }
+                                .font(.caption2)
+                                .foregroundColor(.blue)
+                        }
+                    }
+                    .padding(.horizontal, 24)
+                    .padding(.bottom, 16)
+                    .sheet(isPresented: $showTerms) { TermsOfUseView() }
+                    .sheet(isPresented: $showPrivacy) { PrivacyPolicyView() }
                 }
             }
             .background(Color.backgroundGradient(for: colorScheme).ignoresSafeArea())

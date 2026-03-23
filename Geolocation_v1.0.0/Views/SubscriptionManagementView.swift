@@ -12,6 +12,8 @@ struct SubscriptionManagementView: View {
     @StateObject private var subscriptionManager = SubscriptionManager.shared
     @State private var showManageError = false
     @State private var manageErrorMessage = ""
+    @State private var showTerms = false
+    @State private var showPrivacy = false
 
     var body: some View {
         NavigationStack {
@@ -143,12 +145,31 @@ struct SubscriptionManagementView: View {
                     }
 
                     // Legal
-                    Text("Subscription auto-renews at the stated price unless cancelled at least 24 hours before the end of the current period. Manage or cancel in App Store Settings.")
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 24)
-                        .padding(.bottom, 16)
+                    VStack(spacing: 10) {
+                        Text("Allim Premium · Monthly Subscription")
+                            .font(.caption2)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.secondary)
+                        Text("Subscription auto-renews monthly unless cancelled at least 24 hours before the end of the current period. Manage or cancel anytime in App Store Settings.")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                        HStack(spacing: 16) {
+                            Button("Terms of Use") { showTerms = true }
+                                .font(.caption2)
+                                .foregroundColor(.blue)
+                            Text("·")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                            Button("Privacy Policy") { showPrivacy = true }
+                                .font(.caption2)
+                                .foregroundColor(.blue)
+                        }
+                    }
+                    .padding(.horizontal, 24)
+                    .padding(.bottom, 16)
+                    .sheet(isPresented: $showTerms) { TermsOfUseView() }
+                    .sheet(isPresented: $showPrivacy) { PrivacyPolicyView() }
                 }
             }
             .background(Color.backgroundGradient(for: colorScheme).ignoresSafeArea())
