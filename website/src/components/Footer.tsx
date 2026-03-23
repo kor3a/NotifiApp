@@ -35,6 +35,14 @@ export default function Footer() {
             >
               Download
             </a>
+            <a
+              href="https://github.com/kor3a/allim-privacy-policy/blob/main/support.md"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm text-allim-muted hover:text-white transition-colors"
+            >
+              Support
+            </a>
           </div>
 
           <p className="text-sm text-allim-muted">
