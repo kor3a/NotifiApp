@@ -271,6 +271,12 @@ struct ReminderView: View {
                 let title = newReminderText.trimmingCharacters(in: .whitespaces)
                 if title.isEmpty {
                     isAddingNewReminder = false
+                } else {
+                    // Focus was lost while actively typing (e.g. due to AI categorization
+                    // triggering a Firestore update and SwiftUI re-render). Restore it.
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                        isNewReminderFocused = true
+                    }
                 }
             }
         }
