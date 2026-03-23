@@ -125,11 +125,13 @@ struct ConversationView: View {
             messageText = viewModel.draftMessages[conversation.id] ?? ""
             viewModel.fetchMessages(for: conversation.id)
             viewModel.markAsRead(conversationId: conversation.id)
+            MessagingService.shared.activeConversationId = conversation.id
         }
         .onChange(of: messageText) { _, newValue in
             viewModel.draftMessages[conversation.id] = newValue
         }
         .onDisappear {
+            MessagingService.shared.activeConversationId = nil
             viewModel.markAsRead(conversationId: conversation.id)
             viewModel.stopListeningForMessages()
             // If the user navigated away without sending any messages, delete the empty
