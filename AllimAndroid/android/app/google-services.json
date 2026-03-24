@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "903190692128",
+    "project_id": "georeminder-pilot",
+    "storage_bucket": "georeminder-pilot.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:903190692128:android:REPLACE_WITH_REAL_APP_ID",
+        "android_info": {
+          "package_name": "com.allimandroid"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyASp2GRow0A5_bDJrJbzURuG_VS2YstkpA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
