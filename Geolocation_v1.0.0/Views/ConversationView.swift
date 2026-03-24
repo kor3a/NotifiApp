@@ -181,8 +181,8 @@ struct ConversationView: View {
                             ZStack(alignment: .topTrailing) {
                                 Image(uiImage: image)
                                     .resizable()
-                                    .scaledToFill()
-                                    .frame(width: 72, height: 72)
+                                    .scaledToFit()
+                                    .frame(maxHeight: 80)
                                     .clipShape(RoundedRectangle(cornerRadius: 10))
 
                                 Button {
