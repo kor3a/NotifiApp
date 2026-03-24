@@ -999,11 +999,11 @@ class MessagesViewModel: ObservableObject {
         guard let userId = currentUserId else { return }
 
         // Collect participant IDs we haven't fetched yet (handles both 1:1 and groups)
+        // Include ALL participant IDs — the current user is shown in GroupInfoView too
         var needed: Set<String> = []
         for conversation in conversations {
-            let otherIds = conversation.otherParticipantIds(currentUserId: userId)
-            for otherId in otherIds where !fetchedParticipantIds.contains(otherId) {
-                needed.insert(otherId)
+            for participantId in conversation.participantIds where !fetchedParticipantIds.contains(participantId) {
+                needed.insert(participantId)
             }
         }
 
