@@ -843,7 +843,7 @@ struct PhotoFullScreenView: View {
     @Environment(\.dismiss) var dismiss
 
     var body: some View {
-        ZStack(alignment: .topTrailing) {
+        ZStack {
             Color.black.ignoresSafeArea()
 
             AsyncImage(url: URL(string: urlString)) { phase in
@@ -852,7 +852,6 @@ struct PhotoFullScreenView: View {
                     image
                         .resizable()
                         .scaledToFit()
-                        .ignoresSafeArea()
                 case .failure:
                     Image(systemName: "photo")
                         .foregroundColor(.white)
@@ -864,13 +863,19 @@ struct PhotoFullScreenView: View {
                 }
             }
 
-            Button {
-                dismiss()
-            } label: {
-                Image(systemName: "xmark.circle.fill")
-                    .font(.system(size: 30))
-                    .foregroundColor(.white)
-                    .padding()
+            VStack {
+                HStack {
+                    Spacer()
+                    Button {
+                        dismiss()
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 30))
+                            .foregroundColor(.white)
+                            .padding()
+                    }
+                }
+                Spacer()
             }
         }
     }
