@@ -11,13 +11,14 @@ import UIKit
 struct ImagePicker: UIViewControllerRepresentable {
     @Binding var selectedImage: UIImage?
     @Environment(\.presentationMode) var presentationMode
+    var allowsEditing: Bool = true
     var onImageSelected: (UIImage) -> Void
 
     func makeUIViewController(context: Context) -> UIImagePickerController {
         let picker = UIImagePickerController()
         picker.delegate = context.coordinator
         picker.sourceType = .photoLibrary
-        picker.allowsEditing = true
+        picker.allowsEditing = allowsEditing
         return picker
     }
 
@@ -35,7 +36,13 @@ struct ImagePicker: UIViewControllerRepresentable {
         }
 
         func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
-            if let image = info[.editedImage] as? UIImage ?? info[.originalImage] as? UIImage {
+            let image: UIImage?
+            if parent.allowsEditing {
+                image = info[.editedImage] as? UIImage ?? info[.originalImage] as? UIImage
+            } else {
+                image = info[.originalImage] as? UIImage
+            }
+            if let image = image {
                 parent.selectedImage = image
                 parent.onImageSelected(image)
             }

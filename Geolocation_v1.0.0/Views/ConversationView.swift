@@ -252,7 +252,7 @@ struct ConversationView: View {
                 .shadow(color: .black.opacity(0.1), radius: 5, y: -2)
         )
         .sheet(isPresented: $showImagePicker) {
-            ImagePicker(selectedImage: .constant(nil)) { image in
+            ImagePicker(selectedImage: .constant(nil), allowsEditing: false) { image in
                 selectedImages.append(image)
             }
         }
