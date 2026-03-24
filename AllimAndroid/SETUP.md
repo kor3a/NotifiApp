@@ -26,9 +26,20 @@ After install, open Android Studio → SDK Manager → install:
 ### 3. Install Java 17
 ```sh
 brew install openjdk@17
+```
+
+After install, Homebrew requires a symlink so macOS can find the JDK:
+```sh
+sudo ln -sfn /opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk /Library/Java/JavaVirtualMachines/openjdk-17.jdk
+```
+
+Then add `JAVA_HOME` to your shell:
+```sh
 echo 'export JAVA_HOME=$(/usr/libexec/java_home -v17)' >> ~/.zshrc
 source ~/.zshrc
 ```
+
+Verify with `java -version` — you should see `openjdk version "17.x.x"`.
 
 ### 4. Set Android SDK path
 Add to your `~/.zshrc`:
