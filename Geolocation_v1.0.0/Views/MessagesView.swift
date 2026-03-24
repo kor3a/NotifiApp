@@ -15,6 +15,8 @@ struct MessagesView: View {
     @State private var showNewMessage = false
     @State private var showNewGroup = false
     @State private var notificationConversation: Conversation? = nil
+    @State private var showDeleteGroupAlert = false
+    @State private var pendingDeleteConversation: Conversation? = nil
     @Environment(\.colorScheme) var colorScheme
 
     var body: some View {
@@ -140,7 +142,7 @@ struct MessagesView: View {
                 .listRowSeparator(.hidden)
                 .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                     Button(role: .destructive) {
-                        viewModel.deleteConversation(conversation)
+                        handleDelete(conversation)
                     } label: {
                         Image(systemName: "trash")
                     }
@@ -151,6 +153,36 @@ struct MessagesView: View {
         .scrollContentBackground(.hidden)
         .safeAreaInset(edge: .bottom) {
             Color.clear.frame(height: 50)
+        }
+        .alert("Delete Group Chat?", isPresented: $showDeleteGroupAlert) {
+            Button("Delete for Everyone", role: .destructive) {
+                if let conversation = pendingDeleteConversation {
+                    viewModel.deleteConversation(conversation)
+                }
+                pendingDeleteConversation = nil
+            }
+            Button("Cancel", role: .cancel) {
+                pendingDeleteConversation = nil
+            }
+        } message: {
+            Text("This will permanently delete the group chat and all its messages for every member.")
+        }
+    }
+
+    private func handleDelete(_ conversation: Conversation) {
+        let currentUserId = sessionManager.currentUser?.userId ?? ""
+        guard conversation.isGroupConversation else {
+            // 1:1 conversation — delete as normal
+            viewModel.deleteConversation(conversation)
+            return
+        }
+        if conversation.groupCreatorId == currentUserId {
+            // Owner swipe-deleting a group — confirm first
+            pendingDeleteConversation = conversation
+            showDeleteGroupAlert = true
+        } else {
+            // Non-owner — leave the group instead of deleting
+            viewModel.leaveGroup(conversationId: conversation.id) { _ in }
         }
     }
 }
