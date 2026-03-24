@@ -14,14 +14,27 @@ import Combine
 class SubscriptionManager: ObservableObject {
     static let shared = SubscriptionManager()
 
-    // MARK: - Product ID
+    // MARK: - Product IDs
     static let monthlyProductID = "com.kor3a.nearbuy.premium.monthly"
+    static let annualProductID  = "com.kor3a.nearbuy.premium.annual"
 
     // MARK: - Published State
     @Published var isSubscribed: Bool = false
     @Published var product: Product? = nil
+    @Published var annualProduct: Product? = nil
+    @Published var activeProductID: String? = nil
     @Published var isPurchasing: Bool = false
     @Published var errorMessage: String? = nil
+
+    /// The StoreKit Product the user is currently entitled to, or nil if not subscribed.
+    var activeProduct: Product? {
+        guard isSubscribed else { return nil }
+        switch activeProductID {
+        case Self.annualProductID:  return annualProduct
+        case Self.monthlyProductID: return product
+        default:                    return product
+        }
+    }
 
     private var updateListenerTask: Task<Void, Never>? = nil
     private var userCancellable: AnyCancellable? = nil
@@ -57,8 +70,9 @@ class SubscriptionManager: ObservableObject {
 
     func loadProducts() async {
         do {
-            let products = try await Product.products(for: [Self.monthlyProductID])
-            self.product = products.first
+            let products = try await Product.products(for: [Self.monthlyProductID, Self.annualProductID])
+            self.product        = products.first { $0.id == Self.monthlyProductID }
+            self.annualProduct  = products.first { $0.id == Self.annualProductID }
         } catch {
             #if DEBUG
             print("SubscriptionManager: Failed to load products — \(error.localizedDescription)")
@@ -68,22 +82,12 @@ class SubscriptionManager: ObservableObject {
 
     // MARK: - Purchase
 
-    func purchase() async {
-        // If product didn't load on launch (e.g. slow network), try once more before failing.
-        if product == nil {
-            await loadProducts()
-        }
-
-        guard let product = product else {
-            errorMessage = "Subscription unavailable. Please check your internet connection and try again. If the issue persists, the subscription may still be under review."
-            return
-        }
-
+    /// Purchase a specific product (monthly or annual).
+    func purchase(_ productToBuy: Product) async {
         isPurchasing = true
         errorMessage = nil
-
         do {
-            let result = try await product.purchase()
+            let result = try await productToBuy.purchase()
             switch result {
             case .success(let verification):
                 let transaction = try checkVerified(verification)
@@ -99,8 +103,17 @@ class SubscriptionManager: ObservableObject {
         } catch {
             errorMessage = "Purchase failed: \(error.localizedDescription)"
         }
-
         isPurchasing = false
+    }
+
+    /// Convenience: purchase the monthly plan, loading products first if needed.
+    func purchase() async {
+        if product == nil { await loadProducts() }
+        guard let product else {
+            errorMessage = "Subscription unavailable. Please check your internet connection and try again."
+            return
+        }
+        await purchase(product)
     }
 
     // MARK: - Restore Purchases
@@ -121,12 +134,15 @@ class SubscriptionManager: ObservableObject {
 
     func refreshSubscriptionStatus() async {
         var hasStoreKitSubscription = false
+        var subscribedProductID: String? = nil
+        let validIDs: Set<String> = [Self.monthlyProductID, Self.annualProductID]
 
         for await result in Transaction.currentEntitlements {
             guard case .verified(let transaction) = result else { continue }
-            if transaction.productID == Self.monthlyProductID,
+            if validIDs.contains(transaction.productID),
                transaction.revocationDate == nil {
                 hasStoreKitSubscription = true
+                subscribedProductID = transaction.productID
                 break
             }
         }
@@ -136,6 +152,7 @@ class SubscriptionManager: ObservableObject {
         let hasAdminOverride = UserSessionManager.shared.currentUser?.adminSubscribed == true
 
         isSubscribed = hasStoreKitSubscription || hasAdminOverride
+        activeProductID = hasStoreKitSubscription ? subscribedProductID : nil
 
         // Only sync StoreKit-derived status to Firestore.
         // Never touch adminSubscribed — it's managed manually.
