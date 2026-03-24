@@ -1,0 +1,23 @@
+# Node
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# React Native
+.bundle/
+.expo/
+
+# Android
+android/app/build/
+android/build/
+android/.gradle/
+android/local.properties
+android/app/debug.keystore
+*.keystore
+
+# iOS (not used)
+ios/
+
+# Misc
+.DS_Store
+*.log
