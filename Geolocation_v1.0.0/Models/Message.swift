@@ -114,7 +114,7 @@ struct LinkedReminder: Codable, Equatable {
     }
 }
 
-/// Represents a conversation between users
+/// Represents a conversation between users (1:1 or group)
 struct Conversation: Codable, Identifiable, Equatable, Hashable {
     let id: String
     let participantIds: [String]
@@ -125,6 +125,12 @@ struct Conversation: Codable, Identifiable, Equatable, Hashable {
     var lastMessageSenderId: String?
     var unreadCount: [String: Int] // userId -> unread count
 
+    // Group-specific fields (nil for 1:1 conversations)
+    var isGroup: Bool?
+    var groupName: String?
+    var groupCreatorId: String?
+    var groupAvatarURL: String?
+
     enum CodingKeys: String, CodingKey {
         case id
         case participantIds
@@ -134,6 +140,10 @@ struct Conversation: Codable, Identifiable, Equatable, Hashable {
         case lastMessageAt
         case lastMessageSenderId
         case unreadCount
+        case isGroup
+        case groupName
+        case groupCreatorId
+        case groupAvatarURL
     }
 
     // Hashable conformance using only id
@@ -141,7 +151,20 @@ struct Conversation: Codable, Identifiable, Equatable, Hashable {
         hasher.combine(id)
     }
 
-    /// Get the other participant's name for display
+    /// Whether this is a group conversation
+    var isGroupConversation: Bool {
+        return isGroup == true
+    }
+
+    /// Display name for the conversation
+    func displayName(currentUserId: String) -> String {
+        if isGroupConversation {
+            return groupName ?? "Group"
+        }
+        return otherParticipantName(currentUserId: currentUserId)
+    }
+
+    /// Get the other participant's name for display (1:1 only)
     func otherParticipantName(currentUserId: String) -> String {
         for (userId, name) in participantNames {
             if userId != currentUserId {
@@ -151,14 +174,28 @@ struct Conversation: Codable, Identifiable, Equatable, Hashable {
         return "Unknown"
     }
 
-    /// Get the other participant's ID
+    /// Get the other participant's ID (1:1 only)
     func otherParticipantId(currentUserId: String) -> String? {
         return participantIds.first { $0 != currentUserId }
+    }
+
+    /// Get all participant IDs except the current user
+    func otherParticipantIds(currentUserId: String) -> [String] {
+        return participantIds.filter { $0 != currentUserId }
     }
 
     /// Get unread count for current user
     func unreadCountFor(userId: String) -> Int {
         return unreadCount[userId] ?? 0
+    }
+
+    /// Sorted member names for subtitle display in group conversations
+    func memberNamesSubtitle(currentUserId: String) -> String {
+        let others = participantIds
+            .filter { $0 != currentUserId }
+            .compactMap { participantNames[$0] }
+            .sorted()
+        return others.joined(separator: ", ")
     }
 }
 

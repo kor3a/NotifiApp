@@ -9,6 +9,8 @@
 /* Begin PBXBuildFile section */
 		010405BA2F575A680057862B /* TravelTimeService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010405B92F575A680057862B /* TravelTimeService.swift */; };
 		010405BC2F575A6F0057862B /* OnMyWayNotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010405BB2F575A6F0057862B /* OnMyWayNotificationService.swift */; };
+		010A82C92F73377900728D59 /* GroupInfoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010A82C82F73377900728D59 /* GroupInfoView.swift */; };
+		010A82CB2F73378000728D59 /* NewGroupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010A82CA2F73378000728D59 /* NewGroupView.swift */; };
 		010B28092EB6C2E9004E828B /* AddStoreView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010B28082EB6C2E9004E828B /* AddStoreView.swift */; };
 		011077602F609A1500E76A67 /* StoreFloatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0110775F2F609A1500E76A67 /* StoreFloatView.swift */; };
 		011574882F69DC3900963138 /* FCMTokenManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 011574872F69DC3900963138 /* FCMTokenManager.swift */; };
@@ -133,6 +135,8 @@
 /* Begin PBXFileReference section */
 		010405B92F575A680057862B /* TravelTimeService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TravelTimeService.swift; sourceTree = "<group>"; };
 		010405BB2F575A6F0057862B /* OnMyWayNotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnMyWayNotificationService.swift; sourceTree = "<group>"; };
+		010A82C82F73377900728D59 /* GroupInfoView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupInfoView.swift; sourceTree = "<group>"; };
+		010A82CA2F73378000728D59 /* NewGroupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewGroupView.swift; sourceTree = "<group>"; };
 		010B28082EB6C2E9004E828B /* AddStoreView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddStoreView.swift; sourceTree = "<group>"; };
 		0110775F2F609A1500E76A67 /* StoreFloatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoreFloatView.swift; sourceTree = "<group>"; };
 		011574872F69DC3900963138 /* FCMTokenManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FCMTokenManager.swift; sourceTree = "<group>"; };
@@ -348,6 +352,8 @@
 		8278FE0E2C5DE5930017EB72 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				010A82CA2F73378000728D59 /* NewGroupView.swift */,
+				010A82C82F73377900728D59 /* GroupInfoView.swift */,
 				0141FCBF2F718817009C626B /* SubscriptionManagementView.swift */,
 				0141FCBD2F71880F009C626B /* PrivacyPolicyView.swift */,
 				012FB6942F6AED5C0020BB90 /* TutorialMockData.swift */,
@@ -623,6 +629,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				74A79E852CBDACB800713F0E /* Store.swift in Sources */,
+				010A82CB2F73378000728D59 /* NewGroupView.swift in Sources */,
 				74A79E7D2CBDAA4E00713F0E /* Reminder.swift in Sources */,
 				01B408332F3BECF200EA1F25 /* MessagesView.swift in Sources */,
 				0188F8592F68568C007953B2 /* BannerAdView.swift in Sources */,
@@ -676,6 +683,7 @@
 				82D289B02C61D30C009F357F /* User.swift in Sources */,
 				742E371B2CBC036F0056F692 /* ProfileViewModel.swift in Sources */,
 				01B408232F3BECB100EA1F25 /* MessagesViewModel.swift in Sources */,
+				010A82C92F73377900728D59 /* GroupInfoView.swift in Sources */,
 				011CF6022ED638E4009A31A6 /* SharedStoreGroup.swift in Sources */,
 				DF66A9982E24C86100C15DA9 /* User_Store.swift in Sources */,
 				011574882F69DC3900963138 /* FCMTokenManager.swift in Sources */,
@@ -897,7 +905,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = AllimRelease.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 4;
+				CURRENT_PROJECT_VERSION = 5;
 				DEVELOPMENT_ASSET_PATHS = "\"Geolocation_v1.0.0/Preview Content\"";
 				DEVELOPMENT_TEAM = XT28W79782;
 				ENABLE_PREVIEWS = YES;
@@ -927,7 +935,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = AllimRelease.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 4;
+				CURRENT_PROJECT_VERSION = 5;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_ASSET_PATHS = "\"Geolocation_v1.0.0/Preview Content\"";
 				DEVELOPMENT_TEAM = XT28W79782;

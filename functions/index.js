@@ -193,13 +193,24 @@ exports.newMessageNotification = onDocumentCreated(
         const preview =
             content && content.length > 100 ? `${content.substring(0, 100)}…` : content || 'Sent you a message';
 
+        // Use group name as notification title for group conversations
+        const isGroup = convSnap.data()?.isGroup === true;
+        const groupName = convSnap.data()?.groupName;
+        const notificationTitle = isGroup && groupName
+            ? groupName
+            : (senderName || 'New Message');
+        const notificationBody = isGroup
+            ? `${senderName || 'Someone'}: ${preview}`
+            : preview;
+
         await Promise.all(
             recipients.map(async (userId) => {
                 const token = await getFCMToken(userId);
                 if (!token) return;
-                await sendFCM(token, senderName || 'New Message', preview, {
+                await sendFCM(token, notificationTitle, notificationBody, {
                     type: 'message',
                     conversationId: conversationId,
+                    isGroup: String(isGroup),
                 });
             })
         );

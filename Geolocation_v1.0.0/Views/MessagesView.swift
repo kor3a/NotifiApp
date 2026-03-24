@@ -13,7 +13,10 @@ struct MessagesView: View {
     @ObservedObject private var sessionManager = UserSessionManager.shared
     @ObservedObject private var subscriptionManager = SubscriptionManager.shared
     @State private var showNewMessage = false
+    @State private var showNewGroup = false
     @State private var notificationConversation: Conversation? = nil
+    @State private var showDeleteGroupAlert = false
+    @State private var pendingDeleteConversation: Conversation? = nil
     @Environment(\.colorScheme) var colorScheme
 
     var body: some View {
@@ -42,11 +45,19 @@ struct MessagesView: View {
         .navigationTitle("Messages")
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
-                Button(action: { showNewMessage = true }) {
-                    Image(systemName: "square.and.pencil")
+                HStack(spacing: 4) {
+                    Button(action: { showNewGroup = true }) {
+                        Image(systemName: "person.3")
+                    }
+                    Button(action: { showNewMessage = true }) {
+                        Image(systemName: "square.and.pencil")
+                    }
+                    .tutorialHighlight(id: "tutorial_compose")
                 }
-                .tutorialHighlight(id: "tutorial_compose")
             }
+        }
+        .sheet(isPresented: $showNewGroup) {
+            NewGroupView(viewModel: viewModel)
         }
         .sheet(isPresented: $showNewMessage) {
             NewMessageView(viewModel: viewModel)
@@ -131,7 +142,7 @@ struct MessagesView: View {
                 .listRowSeparator(.hidden)
                 .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                     Button(role: .destructive) {
-                        viewModel.deleteConversation(conversation)
+                        handleDelete(conversation)
                     } label: {
                         Image(systemName: "trash")
                     }
@@ -142,6 +153,36 @@ struct MessagesView: View {
         .scrollContentBackground(.hidden)
         .safeAreaInset(edge: .bottom) {
             Color.clear.frame(height: 50)
+        }
+        .alert("Delete Group Chat?", isPresented: $showDeleteGroupAlert) {
+            Button("Delete for Everyone", role: .destructive) {
+                if let conversation = pendingDeleteConversation {
+                    viewModel.deleteConversation(conversation)
+                }
+                pendingDeleteConversation = nil
+            }
+            Button("Cancel", role: .cancel) {
+                pendingDeleteConversation = nil
+            }
+        } message: {
+            Text("This will permanently delete the group chat and all its messages for every member.")
+        }
+    }
+
+    private func handleDelete(_ conversation: Conversation) {
+        let currentUserId = sessionManager.currentUser?.userId ?? ""
+        guard conversation.isGroupConversation else {
+            // 1:1 conversation — delete as normal
+            viewModel.deleteConversation(conversation)
+            return
+        }
+        if conversation.groupCreatorId == currentUserId {
+            // Owner swipe-deleting a group — confirm first
+            pendingDeleteConversation = conversation
+            showDeleteGroupAlert = true
+        } else {
+            // Non-owner — leave the group instead of deleting
+            viewModel.leaveGroup(conversationId: conversation.id) { _ in }
         }
     }
 }
@@ -155,25 +196,30 @@ struct ConversationRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            // Avatar
-            ProfilePictureView(profilePictureURL: profilePictureURL, size: 50) {
-                Circle()
-                    .fill(Color.appAccent.opacity(0.2))
-                    .frame(width: 50, height: 50)
-                    .overlay(
-                        Text(avatarInitial)
-                            .font(.headline)
-                            .foregroundColor(.appAccent)
-                    )
+            // Avatar — group vs 1:1
+            if conversation.isGroupConversation {
+                groupAvatar
+            } else {
+                ProfilePictureView(profilePictureURL: profilePictureURL, size: 50) {
+                    Circle()
+                        .fill(Color.appAccent.opacity(0.2))
+                        .frame(width: 50, height: 50)
+                        .overlay(
+                            Text(avatarInitial)
+                                .font(.headline)
+                                .foregroundColor(.appAccent)
+                        )
+                }
             }
 
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
-                    Text(conversation.otherParticipantName(currentUserId: currentUserId))
+                    Text(conversation.displayName(currentUserId: currentUserId))
                         .font(.headline)
                         .lineLimit(1)
 
-                    if let otherId = conversation.otherParticipantId(currentUserId: currentUserId) {
+                    if !conversation.isGroupConversation,
+                       let otherId = conversation.otherParticipantId(currentUserId: currentUserId) {
                         Text("@\(otherId)")
                             .font(.caption)
                             .foregroundColor(.secondary)
@@ -190,12 +236,19 @@ struct ConversationRow: View {
                 }
 
                 HStack {
-                    if let lastMessage = conversation.lastMessageContent {
+                    if conversation.isGroupConversation {
+                        Text(conversation.memberNamesSubtitle(currentUserId: currentUserId))
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .lineLimit(1)
+                    }
+
+                    if let lastMessage = conversation.lastMessageContent, !lastMessage.isEmpty {
                         Text(lastMessage)
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                             .lineLimit(1)
-                    } else {
+                    } else if !conversation.isGroupConversation {
                         Text("No messages yet")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
@@ -217,6 +270,18 @@ struct ConversationRow: View {
             }
         }
         .padding(.vertical, 8)
+    }
+
+    /// Stacked initials avatar for group conversations
+    private var groupAvatar: some View {
+        ZStack {
+            Circle()
+                .fill(Color.purple.opacity(0.18))
+                .frame(width: 50, height: 50)
+            Image(systemName: "person.3.fill")
+                .font(.system(size: 22))
+                .foregroundColor(.purple)
+        }
     }
 
     private var avatarInitial: String {
