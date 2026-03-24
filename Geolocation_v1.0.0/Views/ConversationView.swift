@@ -16,6 +16,7 @@ struct ConversationView: View {
     @State private var scrolledToTopMessageId: String?
     @FocusState private var isInputFocused: Bool
     @Environment(\.colorScheme) var colorScheme
+    @Environment(\.dismiss) private var dismiss
 
     // Photo sharing state
     @State private var selectedImages: [UIImage] = []
@@ -147,7 +148,9 @@ struct ConversationView: View {
             }
         }
         .sheet(isPresented: $showGroupInfo) {
-            GroupInfoView(conversation: conversation, viewModel: viewModel)
+            GroupInfoView(conversation: conversation, viewModel: viewModel, onLeaveGroup: {
+                dismiss()
+            })
         }
         .onAppear {
             messageText = viewModel.draftMessages[conversation.id] ?? ""

@@ -10,6 +10,7 @@ import SwiftUI
 struct GroupInfoView: View {
     let conversation: Conversation
     @ObservedObject var viewModel: MessagesViewModel
+    var onLeaveGroup: (() -> Void)? = nil
     @ObservedObject private var sessionManager = UserSessionManager.shared
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) var colorScheme
@@ -254,8 +255,10 @@ struct GroupInfoView: View {
     }
 
     private func leaveGroup() {
-        viewModel.leaveGroup(conversationId: conversation.id) { _ in
+        viewModel.leaveGroup(conversationId: conversation.id) { success in
+            guard success else { return }
             dismiss()
+            onLeaveGroup?()
         }
     }
 
