@@ -21,6 +21,7 @@ struct ConversationView: View {
     @State private var selectedImages: [UIImage] = []
     @State private var showImagePicker = false
     @State private var isSendingPhoto = false
+    @State private var showGroupInfo = false
 
     private var currentUserId: String {
         sessionManager.currentUser?.userId ?? ""
@@ -42,6 +43,7 @@ struct ConversationView: View {
                             MessageBubble(
                                 message: message,
                                 isFromCurrentUser: viewModel.isCurrentUser(message.senderId),
+                                showSenderName: conversation.isGroupConversation,
                                 viewModel: viewModel
                             )
                             .id(message.id)
@@ -114,17 +116,38 @@ struct ConversationView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .principal) {
-                VStack(spacing: 1) {
-                    Text(conversation.otherParticipantName(currentUserId: currentUserId))
-                        .font(.headline)
+                Button(action: {
+                    if conversation.isGroupConversation { showGroupInfo = true }
+                }) {
+                    VStack(spacing: 1) {
+                        Text(conversation.displayName(currentUserId: currentUserId))
+                            .font(.headline)
+                            .foregroundColor(.primary)
 
-                    if let otherId = conversation.otherParticipantId(currentUserId: currentUserId) {
-                        Text("@\(otherId)")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                        if conversation.isGroupConversation {
+                            Text("\(conversation.participantIds.count) members")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        } else if let otherId = conversation.otherParticipantId(currentUserId: currentUserId) {
+                            Text("@\(otherId)")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                }
+                .disabled(!conversation.isGroupConversation)
+            }
+
+            if conversation.isGroupConversation {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(action: { showGroupInfo = true }) {
+                        Image(systemName: "person.3")
                     }
                 }
             }
+        }
+        .sheet(isPresented: $showGroupInfo) {
+            GroupInfoView(conversation: conversation, viewModel: viewModel)
         }
         .onAppear {
             messageText = viewModel.draftMessages[conversation.id] ?? ""
@@ -299,6 +322,7 @@ struct ConversationView: View {
 struct MessageBubble: View {
     let message: Message
     let isFromCurrentUser: Bool
+    var showSenderName: Bool = false
     @ObservedObject var viewModel: MessagesViewModel
     @Environment(\.colorScheme) var colorScheme
 
@@ -307,6 +331,15 @@ struct MessageBubble: View {
             if isFromCurrentUser { Spacer(minLength: 60) }
 
             VStack(alignment: isFromCurrentUser ? .trailing : .leading, spacing: 4) {
+                // Sender name label (group conversations only, incoming messages)
+                if showSenderName && !isFromCurrentUser {
+                    Text(message.senderName)
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.secondary)
+                        .padding(.horizontal, 4)
+                }
+
                 // Linked reminder card if present
                 if let reminder = message.linkedReminder {
                     ReminderCard(

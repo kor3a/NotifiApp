@@ -210,7 +210,7 @@ service cloud.firestore {
     }
 
     // ============================================================
-    // Conversations (messaging feature)
+    // Conversations (messaging feature — 1:1 and group)
     // ============================================================
     // LIMITATION: participantIds uses usernames, not emails.
     // Without a participantEmails array field, rules cannot verify
@@ -219,9 +219,16 @@ service cloud.firestore {
     match /conversations/{conversationId} {
       allow read: if request.auth != null;
 
+      // 1:1 conversations require exactly 2 participants.
+      // Group conversations (isGroup == true) require 2 or more participants.
       allow create: if request.auth != null &&
                        request.resource.data.participantIds is list &&
-                       request.resource.data.participantIds.size() == 2;
+                       (
+                         request.resource.data.participantIds.size() == 2 ||
+                         (request.resource.data.isGroup == true &&
+                          request.resource.data.participantIds.size() >= 2 &&
+                          request.resource.data.groupName is string)
+                       );
 
       allow update: if request.auth != null;
 
