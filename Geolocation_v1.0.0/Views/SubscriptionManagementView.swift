@@ -16,6 +16,14 @@ struct SubscriptionManagementView: View {
 
     private let appleEULAURL = URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")!
 
+    private var annualSavingsLabel: String? {
+        guard let monthly = subscriptionManager.product,
+              let annual = subscriptionManager.annualProduct,
+              monthly.price > 0 else { return nil }
+        let pct = Int(((monthly.price * 12 - annual.price) / (monthly.price * 12) * 100).rounded())
+        return pct > 0 ? "Save \(pct)%" : nil
+    }
+
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -89,18 +97,31 @@ struct SubscriptionManagementView: View {
                     )
                     .padding(.horizontal, 20)
 
-                    // Pricing info
-                    if let active = subscriptionManager.activeProduct {
-                        let isAnnual = active.id == SubscriptionManager.annualProductID
-                        VStack(spacing: 4) {
-                            Text("\(active.displayPrice) / \(isAnnual ? "year" : "month")")
-                                .font(.headline)
-                                .foregroundColor(.secondary)
-                            Text("Renews automatically unless cancelled")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
+                    // Plan comparison
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Your Plan")
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.secondary)
+
+                        HStack(spacing: 12) {
+                            planComparisonCard(
+                                title: "Monthly",
+                                price: subscriptionManager.product?.displayPrice ?? "—",
+                                period: "per month",
+                                isActive: subscriptionManager.activeProductID == SubscriptionManager.monthlyProductID,
+                                badge: nil
+                            )
+                            planComparisonCard(
+                                title: "Annual",
+                                price: subscriptionManager.annualProduct?.displayPrice ?? "$10.00",
+                                period: "per year",
+                                isActive: subscriptionManager.activeProductID == SubscriptionManager.annualProductID,
+                                badge: annualSavingsLabel
+                            )
                         }
                     }
+                    .padding(.horizontal, 20)
 
                     // Manage subscription button
                     Button {
@@ -200,6 +221,65 @@ struct SubscriptionManagementView: View {
         } else {
             if let url = URL(string: "itms-apps://apps.apple.com/account/subscriptions") {
                 await UIApplication.shared.open(url)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func planComparisonCard(title: String, price: String, period: String, isActive: Bool, badge: String?) -> some View {
+        ZStack(alignment: .topTrailing) {
+            VStack(spacing: 6) {
+                if isActive {
+                    HStack(spacing: 4) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.caption)
+                        Text("Current Plan")
+                            .font(.caption)
+                            .fontWeight(.semibold)
+                    }
+                    .foregroundColor(.white)
+                }
+                Text(title)
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                    .foregroundColor(isActive ? .white : .primary)
+                Text(price)
+                    .font(.title2)
+                    .fontWeight(.bold)
+                    .foregroundColor(isActive ? .white : .primary)
+                Text(period)
+                    .font(.caption)
+                    .foregroundColor(isActive ? .white.opacity(0.8) : .secondary)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 18)
+            .padding(.top, badge != nil ? 10 : 0)
+            .background(
+                RoundedRectangle(cornerRadius: 14)
+                    .fill(isActive
+                        ? AnyShapeStyle(LinearGradient(
+                            colors: [.yellow, .orange],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing))
+                        : AnyShapeStyle(.ultraThinMaterial))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 14)
+                    .strokeBorder(
+                        isActive ? Color.clear : Color.secondary.opacity(0.2),
+                        lineWidth: 1
+                    )
+            )
+
+            if let badge {
+                Text(badge)
+                    .font(.caption2)
+                    .fontWeight(.bold)
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(Capsule().fill(Color.green))
+                    .offset(x: -10, y: -10)
             }
         }
     }
