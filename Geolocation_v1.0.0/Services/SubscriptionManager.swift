@@ -14,14 +14,23 @@ import Combine
 class SubscriptionManager: ObservableObject {
     static let shared = SubscriptionManager()
 
-    // MARK: - Product ID
+    // MARK: - Product IDs
     static let monthlyProductID = "com.kor3a.nearbuy.premium.monthly"
+    static let annualProductID  = "com.kor3a.nearbuy.premium.annual"
 
     // MARK: - Published State
     @Published var isSubscribed: Bool = false
     @Published var product: Product? = nil
+    @Published var annualProduct: Product? = nil
     @Published var isPurchasing: Bool = false
     @Published var errorMessage: String? = nil
+
+    /// The product the user is currently entitled to, or nil if not subscribed.
+    var activeProduct: Product? {
+        guard isSubscribed else { return nil }
+        // Prefer annual if both were somehow active; real-world this will be one or the other.
+        return annualProduct ?? product
+    }
 
     private var updateListenerTask: Task<Void, Never>? = nil
     private var userCancellable: AnyCancellable? = nil
@@ -57,8 +66,9 @@ class SubscriptionManager: ObservableObject {
 
     func loadProducts() async {
         do {
-            let products = try await Product.products(for: [Self.monthlyProductID])
-            self.product = products.first
+            let products = try await Product.products(for: [Self.monthlyProductID, Self.annualProductID])
+            self.product        = products.first { $0.id == Self.monthlyProductID }
+            self.annualProduct  = products.first { $0.id == Self.annualProductID }
         } catch {
             #if DEBUG
             print("SubscriptionManager: Failed to load products — \(error.localizedDescription)")
@@ -121,10 +131,11 @@ class SubscriptionManager: ObservableObject {
 
     func refreshSubscriptionStatus() async {
         var hasStoreKitSubscription = false
+        let validIDs: Set<String> = [Self.monthlyProductID, Self.annualProductID]
 
         for await result in Transaction.currentEntitlements {
             guard case .verified(let transaction) = result else { continue }
-            if transaction.productID == Self.monthlyProductID,
+            if validIDs.contains(transaction.productID),
                transaction.revocationDate == nil {
                 hasStoreKitSubscription = true
                 break

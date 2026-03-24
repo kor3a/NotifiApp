@@ -13,7 +13,7 @@ struct SubscriptionPaywallView: View {
 
     var body: some View {
         NavigationStack {
-            SubscriptionStoreView(productIDs: [SubscriptionManager.monthlyProductID]) {
+            SubscriptionStoreView(productIDs: [SubscriptionManager.monthlyProductID, SubscriptionManager.annualProductID]) {
                 VStack(spacing: 20) {
                     Image(systemName: "crown.fill")
                         .font(.system(size: 56))

@@ -90,9 +90,10 @@ struct SubscriptionManagementView: View {
                     .padding(.horizontal, 20)
 
                     // Pricing info
-                    if let product = subscriptionManager.product {
+                    if let active = subscriptionManager.activeProduct {
+                        let isAnnual = active.id == SubscriptionManager.annualProductID
                         VStack(spacing: 4) {
-                            Text("\(product.displayPrice) / month")
+                            Text("\(active.displayPrice) / \(isAnnual ? "year" : "month")")
                                 .font(.headline)
                                 .foregroundColor(.secondary)
                             Text("Renews automatically unless cancelled")
@@ -147,11 +148,12 @@ struct SubscriptionManagementView: View {
 
                     // Legal
                     VStack(spacing: 10) {
-                        Text("Allim Premium · Monthly Subscription")
+                        let isAnnual = subscriptionManager.activeProduct?.id == SubscriptionManager.annualProductID
+                        Text("Allim Premium · \(isAnnual ? "Annual" : "Monthly") Subscription")
                             .font(.caption2)
                             .fontWeight(.semibold)
                             .foregroundColor(.secondary)
-                        Text("Subscription auto-renews monthly unless cancelled at least 24 hours before the end of the current period. Manage or cancel anytime in App Store Settings.")
+                        Text("Subscription auto-renews \(isAnnual ? "annually" : "monthly") unless cancelled at least 24 hours before the end of the current period. Manage or cancel anytime in App Store Settings.")
                             .font(.caption2)
                             .foregroundColor(.secondary)
                             .multilineTextAlignment(.center)
