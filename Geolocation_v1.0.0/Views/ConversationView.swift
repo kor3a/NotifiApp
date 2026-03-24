@@ -798,11 +798,7 @@ struct PhotoAttachmentsView: View {
                     case .success(let image):
                         image
                             .resizable()
-                            .scaledToFill()
-                            .frame(
-                                width: photoURLs.count == 1 ? 220 : 105,
-                                height: photoURLs.count == 1 ? 220 : 105
-                            )
+                            .scaledToFit()
                             .clipShape(RoundedRectangle(cornerRadius: 12))
                             .onTapGesture {
                                 selectedPhotoURL = urlString
@@ -810,12 +806,12 @@ struct PhotoAttachmentsView: View {
                     case .failure:
                         RoundedRectangle(cornerRadius: 12)
                             .fill(Color.gray.opacity(0.3))
-                            .frame(width: 105, height: 105)
+                            .frame(height: 100)
                             .overlay(Image(systemName: "photo").foregroundColor(.secondary))
                     case .empty:
                         RoundedRectangle(cornerRadius: 12)
                             .fill(Color.gray.opacity(0.2))
-                            .frame(width: 105, height: 105)
+                            .frame(height: 100)
                             .overlay(ProgressView())
                     @unknown default:
                         EmptyView()
