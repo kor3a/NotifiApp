@@ -18,11 +18,13 @@ struct SubscriptionPaywallView: View {
     // Savings % compared to paying monthly for a full year
     private var savingsPercent: Int? {
         guard let monthly = subscriptionManager.product,
-              let annual = subscriptionManager.annualProduct,
-              monthly.price > 0 else { return nil }
-        let monthlyAnnualized = monthly.price * 12
-        let savings = (monthlyAnnualized - annual.price) / monthlyAnnualized
-        return Int((savings * 100).rounded())
+              let annual = subscriptionManager.annualProduct else { return nil }
+        let monthlyDouble = NSDecimalNumber(decimal: monthly.price).doubleValue
+        let annualDouble  = NSDecimalNumber(decimal: annual.price).doubleValue
+        guard monthlyDouble > 0 else { return nil }
+        let monthlyAnnualized = monthlyDouble * 12
+        let pct = (monthlyAnnualized - annualDouble) / monthlyAnnualized * 100
+        return pct > 0 ? Int(pct.rounded()) : nil
     }
 
     var body: some View {

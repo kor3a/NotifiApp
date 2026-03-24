@@ -18,10 +18,12 @@ struct SubscriptionManagementView: View {
 
     private var annualSavingsLabel: String? {
         guard let monthly = subscriptionManager.product,
-              let annual = subscriptionManager.annualProduct,
-              monthly.price > 0 else { return nil }
-        let pct = Int(((monthly.price * 12 - annual.price) / (monthly.price * 12) * 100).rounded())
-        return pct > 0 ? "Save \(pct)%" : nil
+              let annual = subscriptionManager.annualProduct else { return nil }
+        let monthlyDouble = NSDecimalNumber(decimal: monthly.price).doubleValue
+        let annualDouble  = NSDecimalNumber(decimal: annual.price).doubleValue
+        guard monthlyDouble > 0 else { return nil }
+        let pct = (monthlyDouble * 12 - annualDouble) / (monthlyDouble * 12) * 100
+        return pct > 0 ? "Save \(Int(pct.rounded()))%" : nil
     }
 
     var body: some View {
