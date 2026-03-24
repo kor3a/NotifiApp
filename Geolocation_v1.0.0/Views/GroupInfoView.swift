@@ -78,14 +78,19 @@ struct GroupInfoView: View {
                 Section("Members") {
                     ForEach(sortedParticipants, id: \.self) { userId in
                         HStack(spacing: 12) {
-                            Circle()
-                                .fill(Color.appAccent.opacity(0.2))
-                                .frame(width: 36, height: 36)
-                                .overlay(
-                                    Text(String(memberName(for: userId).prefix(1)).uppercased())
-                                        .font(.subheadline)
-                                        .foregroundColor(.appAccent)
-                                )
+                            ProfilePictureView(
+                                profilePictureURL: viewModel.participantProfilePictures[userId],
+                                size: 36
+                            ) {
+                                Circle()
+                                    .fill(Color.appAccent.opacity(0.2))
+                                    .frame(width: 36, height: 36)
+                                    .overlay(
+                                        Text(String(memberName(for: userId).prefix(1)).uppercased())
+                                            .font(.subheadline)
+                                            .foregroundColor(.appAccent)
+                                    )
+                            }
 
                             VStack(alignment: .leading, spacing: 2) {
                                 HStack(spacing: 6) {
