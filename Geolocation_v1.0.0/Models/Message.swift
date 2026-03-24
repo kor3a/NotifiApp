@@ -17,6 +17,9 @@ struct Message: Codable, Identifiable, Equatable {
     let createdAt: TimeInterval
     var isRead: Bool
 
+    // Optional: photo URLs for photo messages
+    let photoURLs: [String]?
+
     // Optional: linked reminder info
     let linkedReminder: LinkedReminder?
 
@@ -31,6 +34,7 @@ struct Message: Codable, Identifiable, Equatable {
         case content
         case createdAt
         case isRead
+        case photoURLs
         case linkedReminder
         case linkedStore
     }

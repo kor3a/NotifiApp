@@ -8,6 +8,8 @@
 import Foundation
 import FirebaseAuth
 import FirebaseFirestore
+import FirebaseStorage
+import UIKit
 import Combine
 
 class MessagesViewModel: ObservableObject {
@@ -251,6 +253,107 @@ class MessagesViewModel: ObservableObject {
                     print("MessagesViewModel: Error sending message: \(error)")
                     #endif
                 }
+            }
+        }
+    }
+
+    /// Upload photos to Firebase Storage and send a message with the resulting URLs.
+    func sendMessageWithPhotos(
+        conversationId: String,
+        content: String,
+        images: [UIImage],
+        senderName: String,
+        completion: @escaping (Bool) -> Void
+    ) {
+        guard !TutorialManager.shared.isActive else { completion(false); return }
+        guard let userId = currentUserId else { completion(false); return }
+
+        guard !images.isEmpty else {
+            // No images — fall back to plain text message
+            sendMessage(conversationId: conversationId, content: content, senderName: senderName)
+            completion(true)
+            return
+        }
+
+        uploadImages(images, conversationId: conversationId) { [weak self] result in
+            guard let self = self else { return }
+            switch result {
+            case .success(let urls):
+                self.messagingService.sendMessage(
+                    conversationId: conversationId,
+                    senderId: userId,
+                    senderName: senderName,
+                    content: content,
+                    photoURLs: urls
+                ) { messageResult in
+                    DispatchQueue.main.async {
+                        switch messageResult {
+                        case .success:
+                            completion(true)
+                        case .failure(let error):
+                            self.errorMessage = error.localizedDescription
+                            #if DEBUG
+                            print("MessagesViewModel: Error sending photo message: \(error)")
+                            #endif
+                            completion(false)
+                        }
+                    }
+                }
+            case .failure(let error):
+                DispatchQueue.main.async {
+                    self.errorMessage = error.localizedDescription
+                    #if DEBUG
+                    print("MessagesViewModel: Error uploading photos: \(error)")
+                    #endif
+                    completion(false)
+                }
+            }
+        }
+    }
+
+    /// Upload multiple images to Firebase Storage and return their download URLs.
+    private func uploadImages(
+        _ images: [UIImage],
+        conversationId: String,
+        completion: @escaping (Result<[String], Error>) -> Void
+    ) {
+        var uploadedURLs: [String] = []
+        var uploadError: Error?
+        let group = DispatchGroup()
+
+        for image in images {
+            guard let imageData = image.jpegData(compressionQuality: 0.7) else { continue }
+
+            group.enter()
+            let photoId = UUID().uuidString
+            let photoRef = Storage.storage().reference()
+                .child("message_photos/\(conversationId)/\(photoId).jpg")
+
+            let metadata = StorageMetadata()
+            metadata.contentType = "image/jpeg"
+
+            photoRef.putData(imageData, metadata: metadata) { _, error in
+                if let error = error {
+                    uploadError = error
+                    group.leave()
+                    return
+                }
+                photoRef.downloadURL { url, error in
+                    if let error = error {
+                        uploadError = error
+                    } else if let url = url {
+                        uploadedURLs.append(url.absoluteString)
+                    }
+                    group.leave()
+                }
+            }
+        }
+
+        group.notify(queue: .main) {
+            if let error = uploadError {
+                completion(.failure(error))
+            } else {
+                completion(.success(uploadedURLs))
             }
         }
     }

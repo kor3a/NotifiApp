@@ -304,6 +304,7 @@ class MessagingService: ObservableObject {
         senderId: String,
         senderName: String,
         content: String,
+        photoURLs: [String]? = nil,
         linkedReminder: LinkedReminder? = nil,
         linkedStore: LinkedStore? = nil,
         completion: @escaping (Result<Message, Error>) -> Void
@@ -318,6 +319,10 @@ class MessagingService: ObservableObject {
             "createdAt": now,
             "isRead": false
         ]
+
+        if let urls = photoURLs, !urls.isEmpty {
+            messageData["photoURLs"] = urls
+        }
 
         if let reminder = linkedReminder {
             var reminderData: [String: Any] = [
@@ -397,10 +402,16 @@ class MessagingService: ObservableObject {
             }
 
             // Update conversation with last message info
+            let displayContent: String
+            if content.isEmpty, let urls = photoURLs, !urls.isEmpty {
+                displayContent = urls.count == 1 ? "📷 Photo" : "📷 \(urls.count) Photos"
+            } else {
+                displayContent = content
+            }
             self.updateConversationLastMessage(
                 conversationId: conversationId,
                 senderId: senderId,
-                content: content,
+                content: displayContent,
                 timestamp: now
             )
 
@@ -412,6 +423,7 @@ class MessagingService: ObservableObject {
                 content: content,
                 createdAt: now,
                 isRead: false,
+                photoURLs: photoURLs,
                 linkedReminder: linkedReminder,
                 linkedStore: linkedStore
             )
@@ -767,6 +779,8 @@ class MessagingService: ObservableObject {
             )
         }
 
+        let photoURLs = data["photoURLs"] as? [String]
+
         return Message(
             id: doc.documentID,
             conversationId: conversationId,
@@ -775,6 +789,7 @@ class MessagingService: ObservableObject {
             content: content,
             createdAt: createdAt,
             isRead: data["isRead"] as? Bool ?? false,
+            photoURLs: photoURLs,
             linkedReminder: linkedReminder,
             linkedStore: linkedStore
         )
