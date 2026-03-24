@@ -698,6 +698,161 @@ class MessagingService: ObservableObject {
             }
     }
 
+    // MARK: - Group Conversations
+
+    /// Create a new group conversation with multiple participants
+    func createGroupConversation(
+        groupName: String,
+        creatorId: String,
+        creatorName: String,
+        members: [(userId: String, name: String)],
+        completion: @escaping (Result<Conversation, Error>) -> Void
+    ) {
+        let now = Date().timeIntervalSince1970
+
+        var participantIds = [creatorId] + members.map { $0.userId }
+        var participantNames: [String: String] = [creatorId: creatorName]
+        for member in members {
+            participantNames[member.userId] = member.name
+        }
+
+        // Deduplicate participantIds (in case creator was included)
+        let seen = NSMutableOrderedSet(array: participantIds)
+        participantIds = seen.array as! [String]
+
+        var unreadCount: [String: Int] = [:]
+        for pid in participantIds { unreadCount[pid] = 0 }
+
+        let conversationData: [String: Any] = [
+            "participantIds": participantIds,
+            "participantNames": participantNames,
+            "createdAt": now,
+            "lastMessageContent": "",
+            "lastMessageAt": now,
+            "lastMessageSenderId": "",
+            "unreadCount": unreadCount,
+            "isGroup": true,
+            "groupName": groupName,
+            "groupCreatorId": creatorId
+        ]
+
+        var ref: DocumentReference?
+        ref = db.collection("conversations").addDocument(data: conversationData) { error in
+            if let error = error {
+                completion(.failure(error))
+                return
+            }
+
+            guard let docId = ref?.documentID else {
+                completion(.failure(NSError(domain: "MessagingService", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to create group conversation"])))
+                return
+            }
+
+            let conversation = Conversation(
+                id: docId,
+                participantIds: participantIds,
+                participantNames: participantNames,
+                createdAt: now,
+                lastMessageContent: "",
+                lastMessageAt: now,
+                lastMessageSenderId: "",
+                unreadCount: unreadCount,
+                isGroup: true,
+                groupName: groupName,
+                groupCreatorId: creatorId,
+                groupAvatarURL: nil
+            )
+            completion(.success(conversation))
+        }
+    }
+
+    /// Update the display name of a group conversation
+    func updateGroupName(
+        conversationId: String,
+        newName: String,
+        completion: @escaping (Result<Void, Error>) -> Void
+    ) {
+        db.collection("conversations").document(conversationId).updateData([
+            "groupName": newName
+        ]) { error in
+            if let error = error {
+                completion(.failure(error))
+            } else {
+                completion(.success(()))
+            }
+        }
+    }
+
+    /// Add a member to an existing group conversation
+    func addGroupMember(
+        conversationId: String,
+        userId: String,
+        userName: String,
+        completion: @escaping (Result<Void, Error>) -> Void
+    ) {
+        let ref = db.collection("conversations").document(conversationId)
+        ref.getDocument { snapshot, error in
+            if let error = error { completion(.failure(error)); return }
+            guard let data = snapshot?.data() else {
+                completion(.failure(NSError(domain: "MessagingService", code: -1, userInfo: [NSLocalizedDescriptionKey: "Conversation not found"])))
+                return
+            }
+
+            var participantIds = data["participantIds"] as? [String] ?? []
+            var participantNames = data["participantNames"] as? [String: String] ?? [:]
+            var unreadCount = data["unreadCount"] as? [String: Int] ?? [:]
+
+            guard !participantIds.contains(userId) else {
+                completion(.success(()))
+                return
+            }
+
+            participantIds.append(userId)
+            participantNames[userId] = userName
+            unreadCount[userId] = 0
+
+            ref.updateData([
+                "participantIds": participantIds,
+                "participantNames": participantNames,
+                "unreadCount": unreadCount
+            ]) { error in
+                if let error = error { completion(.failure(error)) } else { completion(.success(())) }
+            }
+        }
+    }
+
+    /// Remove a member from a group conversation (or leave if removing self)
+    func removeGroupMember(
+        conversationId: String,
+        userId: String,
+        completion: @escaping (Result<Void, Error>) -> Void
+    ) {
+        let ref = db.collection("conversations").document(conversationId)
+        ref.getDocument { snapshot, error in
+            if let error = error { completion(.failure(error)); return }
+            guard let data = snapshot?.data() else {
+                completion(.failure(NSError(domain: "MessagingService", code: -1, userInfo: [NSLocalizedDescriptionKey: "Conversation not found"])))
+                return
+            }
+
+            var participantIds = data["participantIds"] as? [String] ?? []
+            var participantNames = data["participantNames"] as? [String: String] ?? [:]
+            var unreadCount = data["unreadCount"] as? [String: Int] ?? [:]
+
+            participantIds.removeAll { $0 == userId }
+            participantNames.removeValue(forKey: userId)
+            unreadCount.removeValue(forKey: userId)
+
+            ref.updateData([
+                "participantIds": participantIds,
+                "participantNames": participantNames,
+                "unreadCount": unreadCount
+            ]) { error in
+                if let error = error { completion(.failure(error)) } else { completion(.success(())) }
+            }
+        }
+    }
+
     // MARK: - Parsing Helpers
 
     private func parseConversation(from doc: QueryDocumentSnapshot) -> Conversation? {
@@ -717,7 +872,11 @@ class MessagingService: ObservableObject {
             lastMessageContent: data["lastMessageContent"] as? String,
             lastMessageAt: data["lastMessageAt"] as? TimeInterval,
             lastMessageSenderId: data["lastMessageSenderId"] as? String,
-            unreadCount: data["unreadCount"] as? [String: Int] ?? [:]
+            unreadCount: data["unreadCount"] as? [String: Int] ?? [:],
+            isGroup: data["isGroup"] as? Bool,
+            groupName: data["groupName"] as? String,
+            groupCreatorId: data["groupCreatorId"] as? String,
+            groupAvatarURL: data["groupAvatarURL"] as? String
         )
     }
 

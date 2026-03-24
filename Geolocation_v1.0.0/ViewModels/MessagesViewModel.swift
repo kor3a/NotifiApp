@@ -446,6 +446,91 @@ class MessagesViewModel: ObservableObject {
         }
     }
 
+    // MARK: - Direct Search (for NewGroupView)
+
+    func messagingServiceSearch(byEmail email: String, completion: @escaping (Result<Contact?, Error>) -> Void) {
+        messagingService.searchUserByEmail(email, completion: completion)
+    }
+
+    func messagingServiceSearch(byUsername username: String, completion: @escaping (Result<Contact?, Error>) -> Void) {
+        messagingService.searchUserByUsername(username, completion: completion)
+    }
+
+    // MARK: - Group Conversations
+
+    func createGroupConversation(
+        groupName: String,
+        members: [Contact],
+        completion: @escaping (Conversation?) -> Void
+    ) {
+        guard let userId = currentUserId,
+              let userName = UserSessionManager.shared.currentUser?.name else {
+            completion(nil)
+            return
+        }
+
+        let memberTuples = members.map { (userId: $0.id, name: $0.name) }
+
+        messagingService.createGroupConversation(
+            groupName: groupName,
+            creatorId: userId,
+            creatorName: userName,
+            members: memberTuples
+        ) { result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success(let conversation):
+                    completion(conversation)
+                case .failure(let error):
+                    #if DEBUG
+                    print("MessagesViewModel: Error creating group: \(error)")
+                    #endif
+                    completion(nil)
+                }
+            }
+        }
+    }
+
+    func updateGroupName(conversationId: String, newName: String) {
+        messagingService.updateGroupName(conversationId: conversationId, newName: newName) { result in
+            #if DEBUG
+            if case .failure(let error) = result {
+                print("MessagesViewModel: Error updating group name: \(error)")
+            }
+            #endif
+        }
+    }
+
+    func addGroupMember(conversationId: String, contact: Contact) {
+        messagingService.addGroupMember(
+            conversationId: conversationId,
+            userId: contact.id,
+            userName: contact.name
+        ) { result in
+            #if DEBUG
+            if case .failure(let error) = result {
+                print("MessagesViewModel: Error adding group member: \(error)")
+            }
+            #endif
+        }
+    }
+
+    func leaveGroup(conversationId: String, completion: @escaping (Bool) -> Void) {
+        guard let userId = currentUserId else { completion(false); return }
+        messagingService.removeGroupMember(conversationId: conversationId, userId: userId) { result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success: completion(true)
+                case .failure(let error):
+                    #if DEBUG
+                    print("MessagesViewModel: Error leaving group: \(error)")
+                    #endif
+                    completion(false)
+                }
+            }
+        }
+    }
+
     // MARK: - Share Reminder
 
     func shareReminder(
@@ -893,22 +978,31 @@ class MessagesViewModel: ObservableObject {
 
     // MARK: - Profile Pictures
 
-    /// Get the profile picture URL for the other participant in a conversation
+    /// Get the profile picture URL for the other participant in a 1:1 conversation
     func profilePictureURL(for conversation: Conversation) -> String? {
         guard let userId = currentUserId,
               let otherId = conversation.otherParticipantId(currentUserId: userId) else { return nil }
         return participantProfilePictures[otherId]
     }
 
+    /// Get profile picture URLs for all members of a group (excluding current user)
+    func groupMemberProfilePictures(for conversation: Conversation) -> [String: String] {
+        guard let userId = currentUserId else { return [:] }
+        let otherIds = conversation.otherParticipantIds(currentUserId: userId)
+        return otherIds.reduce(into: [:]) { result, id in
+            result[id] = participantProfilePictures[id]
+        }
+    }
+
     /// Fetch profile picture URLs for conversation participants not yet cached
     private func fetchParticipantProfilePictures(from conversations: [Conversation]) {
         guard let userId = currentUserId else { return }
 
-        // Collect participant IDs we haven't fetched yet
+        // Collect participant IDs we haven't fetched yet (handles both 1:1 and groups)
         var needed: Set<String> = []
         for conversation in conversations {
-            if let otherId = conversation.otherParticipantId(currentUserId: userId),
-               !fetchedParticipantIds.contains(otherId) {
+            let otherIds = conversation.otherParticipantIds(currentUserId: userId)
+            for otherId in otherIds where !fetchedParticipantIds.contains(otherId) {
                 needed.insert(otherId)
             }
         }
