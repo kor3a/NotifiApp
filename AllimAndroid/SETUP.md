@@ -150,8 +150,18 @@ To receive push notifications, you also need to add an FCM Server Key in Firebas
 sdk.dir=/Users/YOUR_USERNAME/Library/Android/sdk
 ```
 
-**Metro bundler issues**
+**Metro bundler issues / `Cannot read properties of undefined (reading 'handle')`**
+
+This error means Metro received `undefined` instead of a valid middleware — usually from a corrupted `node_modules`. Fix with a clean reinstall:
 ```sh
+rm -rf node_modules
+npm install
+npx react-native start --reset-cache
+```
+
+If it still fails, also clear Watchman's file-watch cache:
+```sh
+watchman watch-del-all
 npx react-native start --reset-cache
 ```
 
