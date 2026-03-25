@@ -57,10 +57,10 @@ struct ProfileView: View {
 
     @ViewBuilder
     func profileEditView(user: User) -> some View {
-        ScrollView {
-            VStack(spacing: 20) {
-                // Profile Picture and Info Section
-                HStack(alignment: .top, spacing: 20) {
+        List {
+            // MARK: - Profile Picture & Info
+            Section {
+                HStack(alignment: .center, spacing: 16) {
                     // Profile Picture
                     Button {
                         showImagePicker = true
@@ -69,7 +69,7 @@ struct ProfileView: View {
                             Image(uiImage: selectedImage)
                                 .resizable()
                                 .scaledToFill()
-                                .frame(width: 80, height: 80)
+                                .frame(width: 70, height: 70)
                                 .clipShape(Circle())
                                 .overlay(Circle().stroke(Color.blue, lineWidth: 2))
                         } else if let profilePictureURL = user.profilePictureURL,
@@ -78,36 +78,34 @@ struct ProfileView: View {
                                 image
                                     .resizable()
                                     .scaledToFill()
-                                    .frame(width: 80, height: 80)
+                                    .frame(width: 70, height: 70)
                                     .clipShape(Circle())
                                     .overlay(Circle().stroke(Color.blue, lineWidth: 2))
                             } placeholder: {
                                 Image(systemName: "person.circle.fill")
                                     .resizable()
-                                    .frame(width: 80, height: 80)
+                                    .frame(width: 70, height: 70)
                                     .foregroundStyle(.gray)
                             }
                         } else {
                             Image(systemName: "person.circle.fill")
                                 .resizable()
-                                .frame(width: 80, height: 80)
+                                .frame(width: 70, height: 70)
                                 .foregroundStyle(.gray)
                         }
                     }
                     .sheet(isPresented: $showImagePicker) {
                         ImagePicker(selectedImage: $selectedImage, onImageSelected: { image in
                             viewModel.uploadProfilePicture(image: image)
-                            // Clear selected image after 2 seconds to show the uploaded image from URL
                             DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
                                 selectedImage = nil
                             }
                         })
                     }
 
-                    // Name and Email
-                    VStack(alignment: .leading, spacing: 8) {
+                    VStack(alignment: .leading, spacing: 4) {
                         Text(user.name)
-                            .font(.title2)
+                            .font(.title3)
                             .bold()
 
                         Text("@\(user.userId)")
@@ -118,87 +116,44 @@ struct ProfileView: View {
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                     }
-                    .padding(.top, 8)
 
                     Spacer()
                 }
-                .padding(.horizontal)
-                .padding(.top, 20)
+                .padding(.vertical, 8)
+            }
 
-                // Success Message
-                if !viewModel.successMessage.isEmpty {
-                    Text(viewModel.successMessage)
-                        .foregroundStyle(.green)
-                        .font(.subheadline)
-                        .padding(.horizontal)
+            // MARK: - Navigation Rows
+            Section {
+                NavigationLink {
+                    AccountSecurityView(viewModel: viewModel)
+                } label: {
+                    Label("Account Security", systemImage: "lock.fill")
                 }
 
-                // Error Message
-                if !viewModel.errorMessage.isEmpty {
-                    Text(viewModel.errorMessage)
-                        .foregroundStyle(.red)
-                        .font(.subheadline)
-                        .padding(.horizontal)
+                NavigationLink {
+                    AboutView()
+                } label: {
+                    Label("About Allim Smart Shopping List", systemImage: "info.circle.fill")
                 }
 
-                // Edit Fields Section
-                VStack(spacing: 16) {
-                    // Name Field
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Name")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                        TextField("Enter your name", text: $viewModel.newName)
-                            .textFieldStyle(RoundedBorderTextFieldStyle())
-                            .autocapitalization(.words)
-                            .disableAutocorrection(true)
-                            .id("nameTextField")
-                    }
-
-                    // New Password Field
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("New Password (optional)")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                        SecureField("Enter new password", text: $viewModel.newPassword)
-                            .textFieldStyle(RoundedBorderTextFieldStyle())
-                    }
-
-                    // Confirm Password Field
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Confirm Password")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                        SecureField("Confirm new password", text: $viewModel.confirmPassword)
-                            .textFieldStyle(RoundedBorderTextFieldStyle())
-                    }
+                NavigationLink {
+                    ReportFeedbackView()
+                } label: {
+                    Label("Report Errors and Feedback", systemImage: "exclamationmark.bubble.fill")
                 }
-                .padding(.horizontal)
-                .padding(.top, 10)
+            }
 
-                // Save Button
-                Button("Save Changes") {
-                    viewModel.saveProfileChanges()
-                }
-                .buttonStyle(PrimaryButtonStyle(color: .blue))
-                .padding(.horizontal)
-                .padding(.top, 20)
-
-                // Sign Out Button
+            // MARK: - Account Actions
+            Section {
                 Button("Sign Out") {
                     viewModel.signOut()
                 }
-                .buttonStyle(SecondaryButtonStyle(color: .red))
-                .padding(.horizontal)
-                .padding(.top, 10)
+                .foregroundStyle(.red)
 
-                // Delete Account Button
                 Button("Delete Account") {
                     showDeleteAccountAlert = true
                 }
-                .buttonStyle(SecondaryButtonStyle(color: .red))
-                .padding(.horizontal)
-                .padding(.top, 4)
+                .foregroundStyle(.red)
                 .alert("Delete Account", isPresented: $showDeleteAccountAlert) {
                     Button("Delete", role: .destructive) {
                         viewModel.deleteAccount()
@@ -220,8 +175,10 @@ struct ProfileView: View {
                 } message: {
                     Text("Please enter your password to confirm account deletion.")
                 }
+            }
 
-                #if DEBUG
+            #if DEBUG
+            Section {
                 Button("Replay Tutorial") {
                     TutorialManager.shared.resetTutorial()
                     dismiss()
@@ -232,14 +189,11 @@ struct ProfileView: View {
                         }
                     }
                 }
-                .buttonStyle(SecondaryButtonStyle(color: .orange))
-                .padding(.horizontal)
-                .padding(.top, 4)
-                #endif
-
-                Spacer().frame(height: 30)
+                .foregroundStyle(.orange)
             }
+            #endif
         }
+        .listStyle(.insetGrouped)
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button {
@@ -262,19 +216,10 @@ struct ProfileView: View {
             }
         }
         .onAppear {
-            // Initialize the name field only if it's empty to prevent keyboard conflicts
             if viewModel.newName.isEmpty {
                 viewModel.newName = user.name
             }
         }
-    }
-
-    private func formatDate(_ timestamp: TimeInterval) -> String {
-        let date = Date(timeIntervalSince1970: timestamp)
-        let formatter = DateFormatter()
-        formatter.dateStyle = .medium
-        formatter.timeStyle = .none
-        return formatter.string(from: date)
     }
 }
 
