@@ -27,4 +27,12 @@ allprojects {
             url("$rootDir/../node_modules/@notifee/react-native/android/libs")
         }
     }
+    configurations.all {
+        resolutionStrategy {
+            // androidx.core:core-ktx:1.17.0+ requires AGP 8.9.1 and compileSdk 36.
+            // Force to a version compatible with the current AGP 8.6.0 / compileSdk 35 setup.
+            force 'androidx.core:core-ktx:1.15.0'
+            force 'androidx.core:core:1.15.0'
+        }
+    }
 }
