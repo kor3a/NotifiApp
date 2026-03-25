@@ -6,7 +6,8 @@
     "android": "react-native run-android",
     "start": "react-native start",
     "test": "jest",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "postinstall": "node scripts/patch-metro.js"
   },
   "dependencies": {
     "react": "18.3.1",
@@ -56,9 +57,4 @@
   "engines": {
     "node": ">=18"
   },
-"overrides": {
-    "@react-native-community/cli": "15.0.1",
-    "@react-native-community/cli-platform-android": "15.0.1",
-    "@react-native-community/cli-platform-ios": "15.0.1"
-  }
 }

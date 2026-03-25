@@ -26,9 +26,20 @@ After install, open Android Studio → SDK Manager → install:
 ### 3. Install Java 17
 ```sh
 brew install openjdk@17
+```
+
+After install, Homebrew requires a symlink so macOS can find the JDK:
+```sh
+sudo ln -sfn /opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk /Library/Java/JavaVirtualMachines/openjdk-17.jdk
+```
+
+Then add `JAVA_HOME` to your shell:
+```sh
 echo 'export JAVA_HOME=$(/usr/libexec/java_home -v17)' >> ~/.zshrc
 source ~/.zshrc
 ```
+
+Verify with `java -version` — you should see `openjdk version "17.x.x"`.
 
 ### 4. Set Android SDK path
 Add to your `~/.zshrc`:
@@ -139,8 +150,18 @@ To receive push notifications, you also need to add an FCM Server Key in Firebas
 sdk.dir=/Users/YOUR_USERNAME/Library/Android/sdk
 ```
 
-**Metro bundler issues**
+**Metro bundler issues / `Cannot read properties of undefined (reading 'handle')`**
+
+This error means Metro received `undefined` instead of a valid middleware — usually from a corrupted `node_modules`. Fix with a clean reinstall:
 ```sh
+rm -rf node_modules
+npm install
+npx react-native start --reset-cache
+```
+
+If it still fails, also clear Watchman's file-watch cache:
+```sh
+watchman watch-del-all
 npx react-native start --reset-cache
 ```
 
