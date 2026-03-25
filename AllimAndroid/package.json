@@ -6,8 +6,7 @@
     "android": "react-native run-android",
     "start": "react-native start",
     "test": "jest",
-    "lint": "eslint .",
-    "postinstall": "node scripts/patch-metro.js"
+    "lint": "eslint ."
   },
   "dependencies": {
     "react": "18.3.1",
