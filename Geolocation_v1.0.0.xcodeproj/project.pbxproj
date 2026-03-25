@@ -32,6 +32,9 @@
 		0138D8752F68BB95007CC1E4 /* SubscriptionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0138D8742F68BB95007CC1E4 /* SubscriptionManager.swift */; };
 		0141FCBE2F71880F009C626B /* PrivacyPolicyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0141FCBD2F71880F009C626B /* PrivacyPolicyView.swift */; };
 		0141FCC02F718817009C626B /* SubscriptionManagementView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0141FCBF2F718817009C626B /* SubscriptionManagementView.swift */; };
+		0183E1F92F743AFE00AB9429 /* AccountSecurityView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0183E1F82F743AFE00AB9429 /* AccountSecurityView.swift */; };
+		0183E1FB2F743B0500AB9429 /* AboutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0183E1FA2F743B0500AB9429 /* AboutView.swift */; };
+		0183E1FD2F743B0C00AB9429 /* ReportFeedbackView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0183E1FC2F743B0C00AB9429 /* ReportFeedbackView.swift */; };
 		0188F8592F68568C007953B2 /* BannerAdView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0188F8582F68568C007953B2 /* BannerAdView.swift */; };
 		01897B5B2EBA4AB00038A4D1 /* StoresViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01897B5A2EBA4AB00038A4D1 /* StoresViewModel.swift */; };
 		01B408232F3BECB100EA1F25 /* MessagesViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01B408222F3BECB100EA1F25 /* MessagesViewModel.swift */; };
@@ -158,6 +161,9 @@
 		0141FCBD2F71880F009C626B /* PrivacyPolicyView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrivacyPolicyView.swift; sourceTree = "<group>"; };
 		0141FCBF2F718817009C626B /* SubscriptionManagementView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionManagementView.swift; sourceTree = "<group>"; };
 		0176B3082F3CE658003B9C75 /* Geolocation_v1_0_0Tests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = Geolocation_v1_0_0Tests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		0183E1F82F743AFE00AB9429 /* AccountSecurityView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountSecurityView.swift; sourceTree = "<group>"; };
+		0183E1FA2F743B0500AB9429 /* AboutView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutView.swift; sourceTree = "<group>"; };
+		0183E1FC2F743B0C00AB9429 /* ReportFeedbackView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportFeedbackView.swift; sourceTree = "<group>"; };
 		0188F8582F68568C007953B2 /* BannerAdView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BannerAdView.swift; sourceTree = "<group>"; };
 		01897B5A2EBA4AB00038A4D1 /* StoresViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoresViewModel.swift; sourceTree = "<group>"; };
 		018D77DF2ED7C43C00E767D6 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
@@ -352,6 +358,9 @@
 		8278FE0E2C5DE5930017EB72 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				0183E1FC2F743B0C00AB9429 /* ReportFeedbackView.swift */,
+				0183E1FA2F743B0500AB9429 /* AboutView.swift */,
+				0183E1F82F743AFE00AB9429 /* AccountSecurityView.swift */,
 				010A82CA2F73378000728D59 /* NewGroupView.swift */,
 				010A82C82F73377900728D59 /* GroupInfoView.swift */,
 				0141FCBF2F718817009C626B /* SubscriptionManagementView.swift */,
@@ -691,6 +700,7 @@
 				AA1234560001AABB00CC0004 /* OpenAIService.swift in Sources */,
 				AA1234560001AABB00CC0005 /* SmartRecipeViewModel.swift in Sources */,
 				AA1234560001AABB00CC0006 /* SmartRecipeView.swift in Sources */,
+				0183E1FB2F743B0500AB9429 /* AboutView.swift in Sources */,
 				0138D8752F68BB95007CC1E4 /* SubscriptionManager.swift in Sources */,
 				012FB6952F6AED5C0020BB90 /* TutorialMockData.swift in Sources */,
 				AA1234560001AABB00CC0020 /* FriendRequestService.swift in Sources */,
@@ -698,9 +708,11 @@
 				AA1234560001AABB00CC0023 /* LocationMonitoringManager.swift in Sources */,
 				AA1234560001AABB00CC0024 /* LocationSearchManager.swift in Sources */,
 				AA1234560001AABB00CC0025 /* MessagingService.swift in Sources */,
+				0183E1F92F743AFE00AB9429 /* AccountSecurityView.swift in Sources */,
 				AA1234560001AABB00CC0026 /* NotificationLogStore.swift in Sources */,
 				AA1234560001AABB00CC0027 /* NotificationManager.swift in Sources */,
 				C10000000001AABB00CC0041 /* SharedReminderNotificationService.swift in Sources */,
+				0183E1FD2F743B0C00AB9429 /* ReportFeedbackView.swift in Sources */,
 				AA1234560001AABB00CC0028 /* StoreLogoProvider.swift in Sources */,
 				AA1234560001AABB00CC0029 /* UserSessionManager.swift in Sources */,
 				AA1234560001AABB00CC0031 /* SubscriptionPaywallView.swift in Sources */,
