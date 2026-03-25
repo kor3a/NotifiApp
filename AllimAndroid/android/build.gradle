@@ -37,11 +37,6 @@ allprojects {
             // Force to a version compatible with the current AGP 8.6.0 / compileSdk 35 setup.
             force 'androidx.core:core-ktx:1.15.0'
             force 'androidx.core:core:1.15.0'
-            // firebase-auth 23.1.0+ was compiled with Kotlin 2.0+ metadata, which is
-            // incompatible with RN 0.76.x's Kotlin 1.9.x Gradle plugin.
-            // 23.0.0 (Firebase BOM 33.0.0, May 2024) still uses Kotlin 1.9.x metadata.
-            force 'com.google.firebase:firebase-auth:23.0.0'
-            force 'com.google.firebase:firebase-auth-ktx:23.0.0'
         }
     }
 }
