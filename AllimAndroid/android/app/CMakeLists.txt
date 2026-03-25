@@ -1,14 +1,17 @@
 cmake_minimum_required(VERSION 3.22.1)
 project(allimandroid)
 
-# Stub shared library to satisfy SoLoader's System.loadLibrary("hermes_executor")
-# call from HermesExecutor.java. In RN 0.76.x the executor was merged into
-# libreactnative.so; this stub provides the missing file so the dlopen succeeds.
-add_library(hermes_executor SHARED
-    src/main/cpp/hermes_executor_stub.cpp
-)
+# In RN 0.76.x several libraries were merged into libreactnative.so but their
+# Java/Kotlin callers still invoke SoLoader.loadLibrary() by the old names,
+# which falls back to System.loadLibrary() → dlopen → "library not found".
+# These stubs satisfy the dlopen check; actual symbols come from libreactnative.so.
 
-target_link_libraries(hermes_executor
-    android
-    log
-)
+function(add_stub name)
+    add_library(${name} SHARED src/main/cpp/stub.cpp)
+    target_link_libraries(${name} android log)
+endfunction()
+
+add_stub(hermes_executor)
+add_stub(react_devsupportjni)
+add_stub(reactnativejni)
+add_stub(react_nativemodule_core)
