@@ -7,20 +7,37 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:903190692128:android:REPLACE_WITH_REAL_APP_ID",
-        "android_info": {
+        "mobilesdk_app_id": "1:903190692128:android:5686b095b3f5514e5a1745",
+        "android_client_info": {
           "package_name": "com.allimandroid"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "903190692128-pvjlr0hn70tdf1834o2toh4117oeqsh0.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
-          "current_key": "AIzaSyASp2GRow0A5_bDJrJbzURuG_VS2YstkpA"
+          "current_key": "AIzaSyDfqvH3s2BwiwmAy46AT4NLYAjboTF4gkY"
         }
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "903190692128-pvjlr0hn70tdf1834o2toh4117oeqsh0.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "903190692128-h6gt4jvvnqvk791o2nndnnuurprgl0tc.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.kor3a.nearbuy"
+              }
+            }
+          ]
         }
       }
     }
