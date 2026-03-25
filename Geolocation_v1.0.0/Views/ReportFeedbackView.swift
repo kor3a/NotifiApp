@@ -51,7 +51,7 @@ struct ReportFeedbackView: View {
                     sendEmail()
                 }
                 .frame(maxWidth: .infinity, alignment: .center)
-                .foregroundStyle(messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? .secondary : .blue)
+                .foregroundStyle(messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? Color.secondary : Color.blue)
                 .disabled(messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
         }
