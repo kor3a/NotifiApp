@@ -5,7 +5,11 @@ buildscript {
         compileSdkVersion = 35
         targetSdkVersion = 35
         ndkVersion = "27.1.12297006"
-        kotlinVersion = "2.0.21"
+        kotlinVersion = "1.9.25"
+        // Pin Firebase BOM to a version whose SDK artifacts were compiled with
+        // Kotlin 1.9.x. Firebase BOM 33.x.x (33.2.0+) switched to Kotlin 2.0+,
+        // which is incompatible with RN 0.76.x's Gradle plugin (requires Kotlin < 2.0).
+        FirebaseSDKVersion = "32.7.0"
     }
     repositories {
         google()
@@ -20,3 +24,19 @@ buildscript {
 }
 
 apply plugin: "com.facebook.react.rootproject"
+
+allprojects {
+    repositories {
+        maven {
+            url("$rootDir/../node_modules/@notifee/react-native/android/libs")
+        }
+    }
+    configurations.all {
+        resolutionStrategy {
+            // androidx.core:core-ktx:1.17.0+ requires AGP 8.9.1 and compileSdk 36.
+            // Force to a version compatible with the current AGP 8.6.0 / compileSdk 35 setup.
+            force 'androidx.core:core-ktx:1.15.0'
+            force 'androidx.core:core:1.15.0'
+        }
+    }
+}
