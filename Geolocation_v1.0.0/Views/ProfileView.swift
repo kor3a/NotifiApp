@@ -154,6 +154,22 @@ struct ProfileView: View {
                             .disableAutocorrection(true)
                             .id("nameTextField")
                     }
+                }
+                .padding(.horizontal)
+                .padding(.top, 10)
+
+                // Account Security Section
+                VStack(alignment: .leading, spacing: 16) {
+                    Text("Account Security")
+                        .font(.headline)
+                        .padding(.horizontal)
+
+                    // Ad Banner (shown only for non-subscribers)
+                    if !subscriptionManager.isSubscribed {
+                        BannerAdView(adUnitID: kBannerAdUnitID)
+                            .frame(height: 50)
+                            .padding(.horizontal)
+                    }
 
                     // New Password Field
                     VStack(alignment: .leading, spacing: 8) {
@@ -163,6 +179,7 @@ struct ProfileView: View {
                         SecureField("Enter new password", text: $viewModel.newPassword)
                             .textFieldStyle(RoundedBorderTextFieldStyle())
                     }
+                    .padding(.horizontal)
 
                     // Confirm Password Field
                     VStack(alignment: .leading, spacing: 8) {
@@ -172,8 +189,8 @@ struct ProfileView: View {
                         SecureField("Confirm new password", text: $viewModel.confirmPassword)
                             .textFieldStyle(RoundedBorderTextFieldStyle())
                     }
+                    .padding(.horizontal)
                 }
-                .padding(.horizontal)
                 .padding(.top, 10)
 
                 // Save Button
