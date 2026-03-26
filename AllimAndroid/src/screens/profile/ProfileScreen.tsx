@@ -17,6 +17,7 @@ import {launchImageLibrary} from 'react-native-image-picker';
 
 import GradientBackground from '../../components/GradientBackground';
 import ProfileAvatar from '../../components/ProfileAvatar';
+import AdBanner from '../../components/AdBanner';
 import PrimaryButton from '../../components/PrimaryButton';
 import {
   Colors,
@@ -194,6 +195,9 @@ export default function ProfileScreen() {
               </View>
             ) : null}
           </View>
+
+          {/* Ad banner */}
+          <AdBanner />
 
           {/* Sign out */}
           <TouchableOpacity
