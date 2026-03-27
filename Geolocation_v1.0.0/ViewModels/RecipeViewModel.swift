@@ -32,7 +32,8 @@ class RecipeViewModel: ObservableObject {
         guard let userId = currentUserId else { return }
         isLoading = true
         listener?.remove()
-        listener = db.collection("users").document(userId).collection("recipes")
+        listener = db.collection("recipes")
+            .whereField("userId", isEqualTo: userId)
             .addSnapshotListener { [weak self] snapshot, error in
                 guard let self = self else { return }
                 DispatchQueue.main.async {
@@ -57,26 +58,24 @@ class RecipeViewModel: ObservableObject {
     func addRecipe(name: String, ingredients: [String]) {
         guard let userId = currentUserId,
               let userEmail = sessionManager.currentUser?.email else { return }
-        let docRef = db.collection("users").document(userId).collection("recipes").document()
+        let docRef = db.collection("recipes").document()
         let data: [String: Any] = [
+            "userId": userId,
+            "userEmail": userEmail,
             "name": name,
             "ingredients": ingredients,
-            "createdAt": Date().timeIntervalSince1970,
-            "userEmail": userEmail
+            "createdAt": Date().timeIntervalSince1970
         ]
         docRef.setData(data)
     }
 
     func updateRecipe(_ recipe: Recipe, name: String, ingredients: [String]) {
-        guard let userId = currentUserId else { return }
-        db.collection("users").document(userId).collection("recipes").document(recipe.id)
+        db.collection("recipes").document(recipe.id)
             .updateData(["name": name, "ingredients": ingredients])
     }
 
     func deleteRecipe(_ recipe: Recipe) {
-        guard let userId = currentUserId else { return }
-        db.collection("users").document(userId).collection("recipes").document(recipe.id)
-            .delete()
+        db.collection("recipes").document(recipe.id).delete()
     }
 
     // MARK: - Add Ingredients to Store
