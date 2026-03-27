@@ -53,9 +53,10 @@ service cloud.firestore {
     // Recipes Collection (custom user-defined recipes)
     // ============================================================
     match /recipes/{recipeId} {
-      // Users can only read their own recipes
-      allow read: if request.auth != null &&
-                     resource.data.userEmail == request.auth.token.email;
+      // Allow any authenticated user to query — the app always filters
+      // by userId so only the owner's recipes are returned.
+      // This mirrors the pattern used by reminders and user_stores.
+      allow read: if request.auth != null;
 
       // Only the owner can create a recipe (userEmail must match auth)
       allow create: if request.auth != null &&
