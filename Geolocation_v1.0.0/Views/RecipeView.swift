@@ -13,7 +13,7 @@ struct RecipeView: View {
     @StateObject private var viewModel = RecipeViewModel()
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) var colorScheme
-    @State private var showingEditRecipe = false
+    @State private var showingNewRecipe = false
     @State private var recipeToEdit: Recipe?
     @State private var recipeToDelete: Recipe?
 
@@ -39,25 +39,24 @@ struct RecipeView: View {
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button {
-                        recipeToEdit = nil
-                        showingEditRecipe = true
+                        showingNewRecipe = true
                     } label: {
                         Image(systemName: "plus")
                     }
                 }
             }
         }
-        .sheet(isPresented: $showingEditRecipe) {
-            RecipeEditView(
-                recipe: recipeToEdit,
-                onSave: { name, ingredients in
-                    if let existing = recipeToEdit {
-                        viewModel.updateRecipe(existing, name: name, ingredients: ingredients)
-                    } else {
-                        viewModel.addRecipe(name: name, ingredients: ingredients)
-                    }
-                }
-            )
+        // New recipe — no item needed
+        .sheet(isPresented: $showingNewRecipe) {
+            RecipeEditView(recipe: nil) { name, ingredients in
+                viewModel.addRecipe(name: name, ingredients: ingredients)
+            }
+        }
+        // Edit existing recipe — sheet(item:) guarantees the recipe is set before init
+        .sheet(item: $recipeToEdit) { recipe in
+            RecipeEditView(recipe: recipe) { name, ingredients in
+                viewModel.updateRecipe(recipe, name: name, ingredients: ingredients)
+            }
         }
         .alert("Delete Recipe", isPresented: Binding(
             get: { recipeToDelete != nil },
@@ -87,7 +86,6 @@ struct RecipeView: View {
                     .contentShape(Rectangle())
                     .onTapGesture {
                         recipeToEdit = recipe
-                        showingEditRecipe = true
                     }
                     .listRowBackground(
                         RoundedRectangle(cornerRadius: 16)
