@@ -17,6 +17,7 @@ struct ReminderView: View {
     @AppStorage("autoDeleteReminders") private var autoDeleteEnabled = false
     @State private var smartCategoryEnabled = true
     @State private var showInfoPanel = false
+    @State private var showingRecipePicker = false
     @State private var fadingReminderIds: Set<String> = []
     @State private var reminderToShare: Reminder?
     @State private var reminderToDelete: Reminder?
@@ -75,6 +76,9 @@ struct ReminderView: View {
         coreView
             .sheet(item: $reminderToShare) { reminder in
                 ShareReminderView(reminder: reminder, store: userStoreItem.store)
+            }
+            .sheet(isPresented: $showingRecipePicker) {
+                RecipePickerView(userStoreItem: userStoreItem)
             }
             .sheet(item: $reminderForPhoto) { reminder in
                 ImagePicker(selectedImage: $selectedImage) { image in
@@ -1261,6 +1265,42 @@ struct ReminderView: View {
                     }
                     .padding(.horizontal, 16)
                     .padding(.vertical, 12)
+
+                    if userStoreItem.permission != .view {
+                        Divider()
+                            .padding(.horizontal, 16)
+
+                        // Recipes row
+                        Button {
+                            withAnimation(.easeInOut(duration: 0.18)) {
+                                showInfoPanel = false
+                            }
+                            showingRecipePicker = true
+                        } label: {
+                            HStack(spacing: 12) {
+                                Image(systemName: "fork.knife")
+                                    .font(.body)
+                                    .foregroundColor(Color.appAccent)
+                                    .frame(width: 24)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Recipes")
+                                        .font(.subheadline)
+                                        .fontWeight(.medium)
+                                        .foregroundStyle(Color.primary)
+                                    Text("Add ingredients from a saved recipe")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .font(.caption)
+                                    .foregroundStyle(.tertiary)
+                            }
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 12)
+                        }
+                        .buttonStyle(.plain)
+                    }
                 }
                 .background(
                     RoundedRectangle(cornerRadius: 16)

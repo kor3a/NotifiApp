@@ -24,6 +24,7 @@ struct StoresView: View {
     @ObservedObject private var tutorialManager = TutorialManager.shared
     @State private var showingAddStore = false
     @State private var showingSmartRecipe = false
+    @State private var showingRecipes = false
     @State private var showingPaywall = false
     @State private var isMenuExpanded = false
     @State private var selectedStoreToShare: UserStoreItem?
@@ -178,6 +179,9 @@ struct StoresView: View {
         }
         .sheet(isPresented: $showingSmartRecipe) {
             SmartRecipeView(viewModel: smartRecipeViewModel, storesViewModel: viewModel)
+        }
+        .sheet(isPresented: $showingRecipes) {
+            RecipeView()
         }
         .sheet(isPresented: $showingPaywall) {
             SubscriptionPaywallView()
@@ -512,6 +516,31 @@ struct StoresView: View {
                                     Image(systemName: "cart.badge.plus")
                                         .font(.system(size: 20))
                                     Text("Add Store")
+                                        .font(.system(size: 17))
+                                    Spacer()
+                                }
+                                .padding()
+                                .frame(width: 200)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 16)
+                                        .fill(.ultraThinMaterial)
+                                )
+                                .foregroundColor(.primary)
+                            }
+
+                            Button(action: {
+                                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                                    isMenuExpanded = false
+                                    if storeViewMode == .float {
+                                        isFabShrunk = true
+                                    }
+                                }
+                                showingRecipes = true
+                            }) {
+                                HStack {
+                                    Image(systemName: "list.bullet.rectangle")
+                                        .font(.system(size: 20))
+                                    Text("Add Recipe")
                                         .font(.system(size: 17))
                                     Spacer()
                                 }
