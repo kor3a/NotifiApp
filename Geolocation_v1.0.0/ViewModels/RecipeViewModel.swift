@@ -56,12 +56,14 @@ class RecipeViewModel: ObservableObject {
     // MARK: - Create / Update / Delete
 
     func addRecipe(name: String, ingredients: [String]) {
-        guard let userId = currentUserId else { return }
+        guard let userId = currentUserId,
+              let userEmail = sessionManager.currentUser?.email else { return }
         let docRef = db.collection("users").document(userId).collection("recipes").document()
         let data: [String: Any] = [
             "name": name,
             "ingredients": ingredients,
-            "createdAt": Date().timeIntervalSince1970
+            "createdAt": Date().timeIntervalSince1970,
+            "userEmail": userEmail
         ]
         docRef.setData(data)
     }
