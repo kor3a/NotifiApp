@@ -33,7 +33,6 @@ class RecipeViewModel: ObservableObject {
         isLoading = true
         listener?.remove()
         listener = db.collection("users").document(userId).collection("recipes")
-            .order(by: "createdAt", descending: false)
             .addSnapshotListener { [weak self] snapshot, error in
                 guard let self = self else { return }
                 DispatchQueue.main.async {
@@ -42,13 +41,13 @@ class RecipeViewModel: ObservableObject {
                         self.errorMessage = error.localizedDescription
                         return
                     }
-                    self.recipes = snapshot?.documents.compactMap { doc -> Recipe? in
+                    self.recipes = (snapshot?.documents.compactMap { doc -> Recipe? in
                         let data = doc.data()
                         guard let name = data["name"] as? String,
                               let ingredients = data["ingredients"] as? [String],
                               let createdAt = data["createdAt"] as? TimeInterval else { return nil }
                         return Recipe(id: doc.documentID, name: name, ingredients: ingredients, createdAt: createdAt)
-                    } ?? []
+                    } ?? []).sorted { $0.createdAt < $1.createdAt }
                 }
             }
     }
