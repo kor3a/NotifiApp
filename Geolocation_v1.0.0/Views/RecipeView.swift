@@ -201,7 +201,9 @@ struct RecipeEditView: View {
     }
 
     private var isValid: Bool {
-        !recipeName.trimmingCharacters(in: .whitespaces).isEmpty && !ingredients.isEmpty
+        let hasName = !recipeName.trimmingCharacters(in: .whitespaces).isEmpty
+        let hasIngredients = !ingredients.isEmpty || !newIngredientText.trimmingCharacters(in: .whitespaces).isEmpty
+        return hasName && hasIngredients
     }
 
     var body: some View {
