@@ -7,7 +7,6 @@
 
 import Foundation
 import FirebaseFirestore
-import FirebaseAuth
 
 class RecipeViewModel: ObservableObject {
     @Published var recipes: [Recipe] = []
@@ -16,16 +15,21 @@ class RecipeViewModel: ObservableObject {
     @Published var isSavingIngredients: Bool = false
 
     private let db = Firestore.firestore()
+    private let sessionManager = UserSessionManager.shared
     private var listener: ListenerRegistration?
 
     deinit {
         listener?.remove()
     }
 
+    private var currentUserId: String? {
+        sessionManager.currentUser?.userId
+    }
+
     // MARK: - Fetch
 
     func fetchRecipes() {
-        guard let userId = Auth.auth().currentUser?.uid else { return }
+        guard let userId = currentUserId else { return }
         isLoading = true
         listener?.remove()
         listener = db.collection("users").document(userId).collection("recipes")
@@ -52,7 +56,7 @@ class RecipeViewModel: ObservableObject {
     // MARK: - Create / Update / Delete
 
     func addRecipe(name: String, ingredients: [String]) {
-        guard let userId = Auth.auth().currentUser?.uid else { return }
+        guard let userId = currentUserId else { return }
         let docRef = db.collection("users").document(userId).collection("recipes").document()
         let data: [String: Any] = [
             "name": name,
@@ -63,13 +67,13 @@ class RecipeViewModel: ObservableObject {
     }
 
     func updateRecipe(_ recipe: Recipe, name: String, ingredients: [String]) {
-        guard let userId = Auth.auth().currentUser?.uid else { return }
+        guard let userId = currentUserId else { return }
         db.collection("users").document(userId).collection("recipes").document(recipe.id)
             .updateData(["name": name, "ingredients": ingredients])
     }
 
     func deleteRecipe(_ recipe: Recipe) {
-        guard let userId = Auth.auth().currentUser?.uid else { return }
+        guard let userId = currentUserId else { return }
         db.collection("users").document(userId).collection("recipes").document(recipe.id)
             .delete()
     }
