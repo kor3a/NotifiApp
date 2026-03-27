@@ -125,39 +125,9 @@ struct ProfileView: View {
             // MARK: - Ad Banner (non-subscribers only)
             if !subscriptionManager.isSubscribed {
                 Section {
-                    Button {
-                        showSubscriptionSheet = true
-                    } label: {
-                        HStack(spacing: 14) {
-                            Image(systemName: "crown.fill")
-                                .font(.title2)
-                                .foregroundStyle(.linearGradient(
-                                    colors: [.yellow, .orange],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                ))
-
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("Upgrade to Premium")
-                                    .font(.headline)
-                                    .foregroundStyle(.primary)
-                                Text("Remove ads and unlock all features")
-                                    .font(.subheadline)
-                                    .foregroundStyle(.secondary)
-                            }
-
-                            Spacer()
-
-                            Image(systemName: "chevron.right")
-                                .font(.footnote.weight(.semibold))
-                                .foregroundStyle(.secondary)
-                        }
-                        .padding(.vertical, 4)
-                    }
-                } header: {
-                    Text("AD")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    BannerAdView(adUnitID: kBannerAdUnitID)
+                        .frame(height: 50)
+                        .listRowInsets(EdgeInsets())
                 }
             }
 
