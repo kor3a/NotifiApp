@@ -99,13 +99,22 @@ class ReminderViewModel: ObservableObject {
                         let sharedReminderId = data["sharedReminderId"] as? String
                         let sharedWith = data["sharedWith"] as? [String]
 
-                        // If viewing a shared store and reminder is shared but has no sharedFrom
-                        // and no sharedWith, populate it with the store owner's name.
-                        // Skip when sharedWith is set — that means the current user shared it out,
-                        // not received it, so sharedFrom should stay nil.
-                        if isShared == true && sharedFrom == nil && sharedFromName != nil
-                            && (sharedWith == nil || sharedWith!.isEmpty) {
-                            sharedFrom = sharedFromName
+                        // If viewing a shared store and reminder is shared but has no sharedFrom,
+                        // populate it with the store owner's name so the badge shows the correct
+                        // direction (received-from arrow) for the recipient.
+                        //
+                        // Skip when sharedWith is set AND the current user's name is NOT in it —
+                        // that means this user created/shared the reminder outward (e.g. a merge
+                        // recipient's own items), so sharedFrom should stay nil and the badge
+                        // will correctly show the "sharing to" arrow.
+                        if isShared == true && sharedFrom == nil && sharedFromName != nil {
+                            let currentUserName = UserSessionManager.shared.currentUser?.name
+                            let currentUserIsInSharedWith = sharedWith?.contains(where: {
+                                $0.lowercased() == currentUserName?.lowercased() ?? ""
+                            }) ?? false
+                            if sharedWith == nil || currentUserIsInSharedWith {
+                                sharedFrom = sharedFromName
+                            }
                         }
 
                         let photoURLs = data["photoURLs"] as? [String]

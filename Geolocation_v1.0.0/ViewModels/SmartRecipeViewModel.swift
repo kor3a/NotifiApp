@@ -41,6 +41,7 @@ class SmartRecipeViewModel: ObservableObject {
     @Published var isSavingIngredients: Bool = false
     @Published var savedIngredientsCount: Int?
     @Published var savedToStoreName: String?
+    @Published var savedRecipeName: String?
 
     private let openAIService = OpenAIService.shared
     private let db = Firestore.firestore()
@@ -205,9 +206,56 @@ class SmartRecipeViewModel: ObservableObject {
         }
     }
 
+    func addRecipeToList(messageId: UUID) {
+        guard let message = messages.first(where: { $0.id == messageId }),
+              let ingredients = message.ingredients, !ingredients.isEmpty else { return }
+
+        guard let userId = UserSessionManager.shared.currentUser?.userId,
+              let userEmail = UserSessionManager.shared.currentUser?.email else {
+            errorMessage = "Please sign in to save recipes"
+            return
+        }
+
+        let name = extractRecipeName(from: message.content)
+        let docRef = db.collection("recipes").document()
+        let data: [String: Any] = [
+            "userId": userId,
+            "userEmail": userEmail,
+            "name": name,
+            "ingredients": ingredients,
+            "createdAt": Date().timeIntervalSince1970
+        ]
+
+        isSavingIngredients = true
+        savedRecipeName = nil
+
+        docRef.setData(data) { [weak self] error in
+            DispatchQueue.main.async {
+                guard let self = self else { return }
+                self.isSavingIngredients = false
+                if let error = error {
+                    self.errorMessage = "Failed to save recipe: \(error.localizedDescription)"
+                } else {
+                    self.savedRecipeName = name
+                }
+            }
+        }
+    }
+
+    private func extractRecipeName(from content: String) -> String {
+        for line in content.components(separatedBy: "\n") {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            if trimmed.hasPrefix("### ") { return String(trimmed.dropFirst(4)).trimmingCharacters(in: .whitespaces) }
+            if trimmed.hasPrefix("## ") { return String(trimmed.dropFirst(3)).trimmingCharacters(in: .whitespaces) }
+            if trimmed.hasPrefix("# ") { return String(trimmed.dropFirst(2)).trimmingCharacters(in: .whitespaces) }
+        }
+        return "Smart Recipe"
+    }
+
     func clearSavedConfirmation() {
         savedIngredientsCount = nil
         savedToStoreName = nil
+        savedRecipeName = nil
     }
 
     func startNewChat() {
@@ -218,5 +266,6 @@ class SmartRecipeViewModel: ObservableObject {
         isSavingIngredients = false
         savedIngredientsCount = nil
         savedToStoreName = nil
+        savedRecipeName = nil
     }
 }

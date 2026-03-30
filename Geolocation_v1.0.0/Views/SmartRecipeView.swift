@@ -96,12 +96,31 @@ struct SmartRecipeView: View {
                     .background(Color.orange.opacity(0.1))
                 }
 
-                // Success confirmation
+                // Success confirmation - ingredients added to store
                 if let count = viewModel.savedIngredientsCount, let storeName = viewModel.savedToStoreName {
                     HStack {
                         Image(systemName: "checkmark.circle.fill")
                             .foregroundColor(.green)
                         Text("Added \(count) ingredient\(count == 1 ? "" : "s") to \(storeName)")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        Spacer()
+                        Button("Dismiss") {
+                            viewModel.clearSavedConfirmation()
+                        }
+                        .font(.caption)
+                    }
+                    .padding(.horizontal)
+                    .padding(.vertical, 8)
+                    .background(Color.green.opacity(0.1))
+                }
+
+                // Success confirmation - recipe saved to list
+                if let recipeName = viewModel.savedRecipeName {
+                    HStack {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundColor(.green)
+                        Text("\"\(recipeName)\" saved to your recipe list")
                             .font(.caption)
                             .foregroundColor(.secondary)
                         Spacer()
@@ -154,23 +173,44 @@ struct SmartRecipeView: View {
     // MARK: - Add Ingredients Button
 
     private func addIngredientsButton(for message: RecipeChatMessage) -> some View {
-        Button {
-            messageIdForStorePicker = message.id
-        } label: {
-            HStack(spacing: 8) {
-                Image(systemName: "cart.badge.plus")
-                    .font(.system(size: 14))
-                Text("Add Ingredients to Store")
-                    .font(.subheadline)
-                    .fontWeight(.medium)
+        HStack(spacing: 8) {
+            Button {
+                messageIdForStorePicker = message.id
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "cart.badge.plus")
+                        .font(.system(size: 14))
+                    Text("Add to Store")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .background(
+                    RoundedRectangle(cornerRadius: 20)
+                        .fill(Color.blue)
+                )
+                .foregroundColor(.white)
             }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 8)
-            .background(
-                RoundedRectangle(cornerRadius: 20)
-                    .fill(Color.blue)
-            )
-            .foregroundColor(.white)
+
+            Button {
+                viewModel.addRecipeToList(messageId: message.id)
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "text.badge.plus")
+                        .font(.system(size: 14))
+                    Text("Add to Recipes")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .background(
+                    RoundedRectangle(cornerRadius: 20)
+                        .fill(Color.green)
+                )
+                .foregroundColor(.white)
+            }
         }
         .disabled(viewModel.isSavingIngredients)
         .opacity(viewModel.isSavingIngredients ? 0.6 : 1.0)
