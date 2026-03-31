@@ -119,6 +119,7 @@ class MessagesViewModel: ObservableObject {
                 print("📊 MessagesViewModel.fetchUnreadCount: Received count: \(count)")
                 #endif
                 self?.totalUnreadCount = count
+                UIApplication.shared.applicationIconBadgeNumber = count
                 #if DEBUG
                 print("📊 MessagesViewModel.totalUnreadCount updated to: \(self?.totalUnreadCount ?? -1)")
                 #endif
