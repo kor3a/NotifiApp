@@ -98,6 +98,7 @@ final class TutorialManager: ObservableObject {
     @Published var currentStep: TutorialStep = .welcome
     @Published var elementFrames: [String: CGRect] = [:]
     @Published var pendingTabSwitch: Int? = nil
+    @Published var showSubscriptionAfterTutorial: Bool = false
 
     private(set) var currentUserId: String?
     private(set) var currentAuthUid: String?
@@ -193,6 +194,7 @@ final class TutorialManager: ObservableObject {
             isActive = false
         }
         hasCompletedTutorial = true
+        showSubscriptionAfterTutorial = true
     }
 
     /// Resets the tutorial so it will show again on next app launch or call to startIfNeeded().
