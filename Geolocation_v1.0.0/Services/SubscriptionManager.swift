@@ -50,13 +50,43 @@ class SubscriptionManager: ObservableObject {
         // This is critical for the adminSubscribed override: on app launch
         // currentUser is nil when SubscriptionManager first runs, so the
         // admin check would be missed without this observer.
+        //
+        // IMPORTANT: StoreKit entitlements are scoped to the Apple ID, not the
+        // app-level user account. If multiple app accounts share the same Apple ID
+        // on one device (e.g. during testing), naively querying StoreKit on every
+        // login would grant the previous user's subscription to the newly-logged-in
+        // user and corrupt their Firestore record. We only call refreshSubscriptionStatus()
+        // (which queries StoreKit and syncs to Firestore) when Firestore already shows
+        // this user is subscribed — confirming the purchase belongs to them.
         userCancellable = UserSessionManager.shared.$currentUser
             .dropFirst()                      // skip the initial nil
             .removeDuplicates { $0?.userId == $1?.userId }
             .sink { [weak self] user in
-                guard user != nil else { return }
-                Task { [weak self] in
-                    await self?.refreshSubscriptionStatus()
+                guard let self = self else { return }
+                guard let user = user else {
+                    // User logged out — clear subscription state immediately.
+                    Task { @MainActor [weak self] in
+                        self?.isSubscribed = false
+                        self?.activeProductID = nil
+                    }
+                    return
+                }
+                let hasFirestoreSubscription = user.isSubscribed == true
+                let hasAdminOverride = user.adminSubscribed == true
+                if hasFirestoreSubscription || hasAdminOverride {
+                    // Firestore confirms this user has a subscription — safe to query
+                    // StoreKit for live status and active plan details.
+                    Task { [weak self] in
+                        await self?.refreshSubscriptionStatus()
+                    }
+                } else {
+                    // Firestore says not subscribed. Do NOT query StoreKit here —
+                    // any active entitlement belongs to a different app account sharing
+                    // the same Apple ID, not this user.
+                    Task { @MainActor [weak self] in
+                        self?.isSubscribed = false
+                        self?.activeProductID = nil
+                    }
                 }
             }
     }
