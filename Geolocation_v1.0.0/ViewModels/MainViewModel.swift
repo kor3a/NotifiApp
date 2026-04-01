@@ -32,6 +32,7 @@ class MainViewModel: NSObject, ObservableObject {
                     UserSessionManager.shared.fetchUser()
                 } else {
                     UserSessionManager.shared.clearSession()
+                    LocationMonitoringManager.shared.stopMonitoring()
                 }
             }
         })

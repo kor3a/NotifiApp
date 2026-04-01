@@ -151,6 +151,7 @@ class LocationMonitoringManager: NSObject, ObservableObject {
 
     func stopMonitoring() {
         isMonitoring = false
+        currentUserId = nil
         locationManager.stopMonitoringSignificantLocationChanges()
         stopAllGeofences()
         #if DEBUG
