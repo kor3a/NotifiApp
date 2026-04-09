@@ -199,6 +199,11 @@ struct ProfileView: View {
                     }
                 }
                 .foregroundStyle(.orange)
+
+                NavigationLink("Subscription Debug") {
+                    SubscriptionDebugView()
+                }
+                .foregroundStyle(.orange)
             }
             #endif
         }
