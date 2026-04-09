@@ -100,6 +100,13 @@ class SubscriptionManager: ObservableObject {
             @unknown default:
                 break
             }
+        } catch let skError as SKError where skError.code == .paymentCancelled {
+            // SKError paymentCancelled — treat as silent cancellation (no error shown)
+            break
+        } catch let urlError as URLError where urlError.code == .cancelled {
+            // StoreKit's network request was cancelled (e.g. sandbox session expired,
+            // pending T&Cs, or transient sandbox connectivity issue). Give a retry hint.
+            errorMessage = "Purchase request was interrupted. Please try again."
         } catch {
             errorMessage = "Purchase failed: \(error.localizedDescription)"
         }
