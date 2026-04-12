@@ -74,14 +74,16 @@ struct SubscriptionPaywallView: View {
                             title: "Monthly",
                             price: subscriptionManager.product?.displayPrice ?? "—",
                             period: "per month",
-                            badge: nil
+                            badge: nil,
+                            trialText: "7-day free trial"
                         )
                         planCard(
                             planID: SubscriptionManager.annualProductID,
                             title: "Annual",
                             price: subscriptionManager.annualProduct?.displayPrice ?? "$10.00",
                             period: "per year",
-                            badge: savingsPercent.map { "Save \($0)%" } ?? "Best Value"
+                            badge: savingsPercent.map { "Save \($0)%" } ?? "Best Value",
+                            trialText: "7-day free trial"
                         )
                     }
                     .padding(.horizontal, 20)
@@ -102,8 +104,13 @@ struct SubscriptionPaywallView: View {
                                 ProgressView()
                                     .progressViewStyle(CircularProgressViewStyle(tint: .white))
                             } else {
-                                Text("Subscribe Now")
-                                    .font(.headline)
+                                VStack(spacing: 2) {
+                                    Text("Start Free Trial")
+                                        .font(.headline)
+                                    Text("7 days free, then auto-renews")
+                                        .font(.caption2)
+                                        .opacity(0.85)
+                                }
                             }
                         }
                         .frame(maxWidth: .infinity)
@@ -170,7 +177,7 @@ struct SubscriptionPaywallView: View {
     }
 
     @ViewBuilder
-    private func planCard(planID: String, title: String, price: String, period: String, badge: String?) -> some View {
+    private func planCard(planID: String, title: String, price: String, period: String, badge: String?, trialText: String? = nil) -> some View {
         let isSelected = selectedPlan == planID
         Button { selectedPlan = planID } label: {
             ZStack(alignment: .topTrailing) {
@@ -186,6 +193,18 @@ struct SubscriptionPaywallView: View {
                     Text(period)
                         .font(.caption)
                         .foregroundColor(isSelected ? .white.opacity(0.8) : .secondary)
+                    if let trialText {
+                        Text(trialText)
+                            .font(.caption2)
+                            .fontWeight(.medium)
+                            .foregroundColor(isSelected ? .white : .green)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 3)
+                            .background(
+                                Capsule()
+                                    .fill(isSelected ? Color.white.opacity(0.25) : Color.green.opacity(0.15))
+                            )
+                    }
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 20)
