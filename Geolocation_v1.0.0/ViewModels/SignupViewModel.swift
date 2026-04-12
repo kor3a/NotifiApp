@@ -104,7 +104,7 @@ class SignupViewModel: ObservableObject {
     
     /// Create a new User document in Firestore
     private func createUser(normalizedUserId: String, normalizedEmail: String, authUserId: String) {
-        let newUser = User(userId: normalizedUserId, name: name, email: normalizedEmail, joined: Date().timeIntervalSince1970, isSubscribed: false)
+        let newUser = User(userId: normalizedUserId, name: name, email: normalizedEmail, joined: Date().timeIntervalSince1970, isSubscribed: false, subscriptionToken: UUID().uuidString)
         let userData = newUser.asDict()
 
         #if DEBUG

@@ -50,13 +50,43 @@ class SubscriptionManager: ObservableObject {
         // This is critical for the adminSubscribed override: on app launch
         // currentUser is nil when SubscriptionManager first runs, so the
         // admin check would be missed without this observer.
+        //
+        // IMPORTANT: StoreKit entitlements are scoped to the Apple ID, not the
+        // app-level user account. If multiple app accounts share the same Apple ID
+        // on one device (e.g. during testing), naively querying StoreKit on every
+        // login would grant the previous user's subscription to the newly-logged-in
+        // user and corrupt their Firestore record. We only call refreshSubscriptionStatus()
+        // (which queries StoreKit and syncs to Firestore) when Firestore already shows
+        // this user is subscribed — confirming the purchase belongs to them.
         userCancellable = UserSessionManager.shared.$currentUser
             .dropFirst()                      // skip the initial nil
             .removeDuplicates { $0?.userId == $1?.userId }
             .sink { [weak self] user in
-                guard user != nil else { return }
-                Task { [weak self] in
-                    await self?.refreshSubscriptionStatus()
+                guard let self = self else { return }
+                guard let user = user else {
+                    // User logged out — clear subscription state immediately.
+                    Task { @MainActor [weak self] in
+                        self?.isSubscribed = false
+                        self?.activeProductID = nil
+                    }
+                    return
+                }
+                let hasFirestoreSubscription = user.isSubscribed == true
+                let hasAdminOverride = user.adminSubscribed == true
+                if hasFirestoreSubscription || hasAdminOverride {
+                    // Firestore confirms this user has a subscription — safe to query
+                    // StoreKit for live status and active plan details.
+                    Task { [weak self] in
+                        await self?.refreshSubscriptionStatus()
+                    }
+                } else {
+                    // Firestore says not subscribed. Do NOT query StoreKit here —
+                    // any active entitlement belongs to a different app account sharing
+                    // the same Apple ID, not this user.
+                    Task { @MainActor [weak self] in
+                        self?.isSubscribed = false
+                        self?.activeProductID = nil
+                    }
                 }
             }
     }
@@ -64,6 +94,27 @@ class SubscriptionManager: ObservableObject {
     deinit {
         updateListenerTask?.cancel()
         userCancellable?.cancel()
+    }
+
+    // MARK: - Testable Helpers
+
+    /// Returns `true` if the given transaction token is consistent with the
+    /// current user owning the entitlement.
+    ///
+    /// - `nil` transactionToken → legacy purchase (no token recorded); allow through.
+    /// - matching tokens → definitely this user's purchase.
+    /// - mismatched tokens → belongs to a different app account sharing the Apple ID.
+    static func transactionTokenBelongsToUser(transactionToken: UUID?, userToken: UUID?) -> Bool {
+        guard let txToken = transactionToken else { return true }   // legacy: no token set
+        guard let userTok = userToken        else { return false }  // new tx but user has no token
+        return txToken == userTok
+    }
+
+    /// Returns `true` if StoreKit should be queried for a user who just logged in.
+    /// We only query StoreKit when Firestore already shows the user has a subscription,
+    /// preventing entitlements from leaking to non-subscribing accounts.
+    static func shouldQueryStoreKit(for user: User) -> Bool {
+        return user.isSubscribed == true || user.adminSubscribed == true
     }
 
     // MARK: - Load Products
@@ -87,7 +138,16 @@ class SubscriptionManager: ObservableObject {
         isPurchasing = true
         errorMessage = nil
         do {
-            let result = try await productToBuy.purchase()
+            // Attach the user's subscriptionToken as appAccountToken so StoreKit
+            // records which app-level account made this purchase. This lets us
+            // later verify that an entitlement belongs to the currently logged-in
+            // user rather than another account sharing the same Apple ID.
+            var purchaseOptions: Set<Product.PurchaseOption> = []
+            if let tokenString = UserSessionManager.shared.currentUser?.subscriptionToken,
+               let token = UUID(uuidString: tokenString) {
+                purchaseOptions.insert(.appAccountToken(token))
+            }
+            let result = try await productToBuy.purchase(options: purchaseOptions)
             switch result {
             case .success(let verification):
                 let transaction = try checkVerified(verification)
@@ -137,10 +197,21 @@ class SubscriptionManager: ObservableObject {
         var subscribedProductID: String? = nil
         let validIDs: Set<String> = [Self.monthlyProductID, Self.annualProductID]
 
+        let currentUserToken = UserSessionManager.shared.currentUser?.subscriptionToken
+            .flatMap { UUID(uuidString: $0) }
+
         for await result in Transaction.currentEntitlements {
             guard case .verified(let transaction) = result else { continue }
             if validIDs.contains(transaction.productID),
                transaction.revocationDate == nil {
+                // If the transaction carries an appAccountToken, verify it matches
+                // the current user. Legacy purchases (no token) are allowed through
+                // — they're already gated upstream by the Firestore check in the
+                // user-change observer.
+                guard Self.transactionTokenBelongsToUser(
+                    transactionToken: transaction.appAccountToken,
+                    userToken: currentUserToken
+                ) else { continue }
                 hasStoreKitSubscription = true
                 subscribedProductID = transaction.productID
                 break
@@ -172,6 +243,20 @@ class SubscriptionManager: ObservableObject {
                 guard let self = self else { break }
                 do {
                     let transaction = try self.checkVerified(result)
+
+                    // If the renewal/update has an appAccountToken, only process it
+                    // for the matching user. This prevents User A's auto-renewal from
+                    // updating User B's Firestore record when B is currently logged in.
+                    // Finish the transaction regardless — StoreKit requires it.
+                    if let txToken = transaction.appAccountToken {
+                        let currentUserToken = UserSessionManager.shared.currentUser?.subscriptionToken
+                            .flatMap { UUID(uuidString: $0) }
+                        guard txToken == currentUserToken else {
+                            await transaction.finish()
+                            continue
+                        }
+                    }
+
                     await self.refreshSubscriptionStatus()
                     await transaction.finish()
                 } catch {

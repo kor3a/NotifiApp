@@ -85,7 +85,8 @@ class UserSessionManager: ObservableObject {
                         profilePictureURL: userData["profilePictureURL"] as? String,
                         familyMemberIds: userData["familyMemberIds"] as? [String],
                         isSubscribed: userData["isSubscribed"] as? Bool,
-                        adminSubscribed: userData["adminSubscribed"] as? Bool
+                        adminSubscribed: userData["adminSubscribed"] as? Bool,
+                        subscriptionToken: userData["subscriptionToken"] as? String
                     )
                 }
             }
