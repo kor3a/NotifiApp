@@ -18,16 +18,24 @@ class SignupViewModel: ObservableObject {
     @Published var confirmPassword: String = ""
     @Published var errorMessage: String = ""
     @Published var signupComplete: Bool = false
-    
+    @Published var isLoading: Bool = false
+
     private let db = Firestore.firestore()
-    
-    
+
+
     init() {}
-    
+
     func register() {
+        // Prevent concurrent signup attempts (double-tap would otherwise cause a
+        // second createUser call to race with the first and return
+        // `emailAlreadyInUse` after the first has succeeded).
+        guard !isLoading else { return }
+
         guard validate() else {
             return
         }
+
+        isLoading = true
 
         // Normalize userId to lowercase for consistency
         let normalizedUserId = userId.lowercased()
@@ -39,12 +47,12 @@ class SignupViewModel: ObservableObject {
             guard let self = self else { return }
 
             if let error = error {
-                self.errorMessage = "Error creating user: \(error.localizedDescription)"
+                self.finish(error: "Error creating user: \(error.localizedDescription)")
                 return
             }
 
             guard let user = authResult?.user else {
-                self.errorMessage = "Failed to retrieve user ID"
+                self.finish(error: "Failed to retrieve user ID")
                 return
             }
 
@@ -55,7 +63,7 @@ class SignupViewModel: ObservableObject {
                     if !isAvailable {
                         // Username is taken - delete the auth user and show error
                         self.deleteAuthUser(user: user)
-                        self.errorMessage = "Username is already taken. Please try again with a different username."
+                        self.finish(error: "Username is already taken. Please try again with a different username.")
                         return
                     }
 
@@ -65,9 +73,16 @@ class SignupViewModel: ObservableObject {
                 case .failure(let error):
                     // Error checking username - delete the auth user and show error
                     self.deleteAuthUser(user: user)
-                    self.errorMessage = "Error checking username availability: \(error.localizedDescription)"
+                    self.finish(error: "Error checking username availability: \(error.localizedDescription)")
                 }
             }
+        }
+    }
+
+    private func finish(error: String) {
+        DispatchQueue.main.async {
+            self.errorMessage = error
+            self.isLoading = false
         }
     }
     
@@ -119,11 +134,11 @@ class SignupViewModel: ObservableObject {
                     #if DEBUG
                     print("SignupViewModel: Error saving user: \(error.localizedDescription)")
                     #endif
-                    self.errorMessage = "Error saving user: \(error.localizedDescription)"
                     // If we fail to create the Firestore document, we should delete the auth user
                     if let currentUser = Auth.auth().currentUser {
                         self.deleteAuthUser(user: currentUser)
                     }
+                    self.finish(error: "Error saving user: \(error.localizedDescription)")
                 } else {
                     #if DEBUG
                     print("SignupViewModel: User '\(normalizedUserId)' created successfully in Firestore")
@@ -138,7 +153,7 @@ class SignupViewModel: ObservableObject {
     /// Send email verification and sign the user out so they must verify before logging in
     private func sendVerificationEmail() {
         guard let user = Auth.auth().currentUser else {
-            self.errorMessage = "Failed to send verification email."
+            self.finish(error: "Failed to send verification email.")
             return
         }
 
@@ -169,6 +184,7 @@ class SignupViewModel: ObservableObject {
             }
 
             DispatchQueue.main.async {
+                self.isLoading = false
                 self.signupComplete = true
             }
         }
