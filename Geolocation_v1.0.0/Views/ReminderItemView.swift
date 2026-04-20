@@ -376,8 +376,13 @@ struct SharedBadge: View {
 
         // If sharedFrom is set and it's someone else, user is a recipient
         if let sharedFrom = sharedFrom, !sharedFrom.isEmpty {
-            if let sharedWith = sharedWith, !sharedWith.isEmpty {
-                return "Shared by \(sharedFrom) with \(sharedWith.count) people"
+            // Exclude the viewer from the recipient list — they already know
+            // they received it, and "Shared by X with 1 people" reads badly.
+            let otherRecipients = (sharedWith ?? []).filter {
+                $0.lowercased() != (currentUserName ?? "").lowercased()
+            }
+            if !otherRecipients.isEmpty {
+                return "Shared by \(sharedFrom) with \(otherRecipients.joined(separator: ", "))"
             }
             return "Shared by \(sharedFrom)"
         }

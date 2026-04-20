@@ -135,10 +135,22 @@ class SmartRecipeViewModel: ObservableObject {
                     if isSharedStore {
                         reminderData["isShared"] = true
                         reminderData["sharedAt"] = Date().timeIntervalSince1970
-                        if let sharedWith = sharedWith, !sharedWith.isEmpty {
-                            reminderData["sharedWith"] = sharedWith
-                        } else if let sharedFromName = sharedFromName {
+
+                        // Recipient perspective first so merge recipients don't
+                        // fall through to the owner branch and lose attribution.
+                        if let sharedFromName = sharedFromName {
                             reminderData["sharedWith"] = [sharedFromName]
+                        } else if let sharedWith = sharedWith, !sharedWith.isEmpty {
+                            reminderData["sharedWith"] = sharedWith
+                        }
+
+                        // Persist creator attribution so the other side renders
+                        // the correct sharer without relying on backfill.
+                        if let currentUserName = UserSessionManager.shared.currentUser?.name {
+                            reminderData["sharedFrom"] = currentUserName
+                        }
+                        if let currentUserId = UserSessionManager.shared.currentUser?.userId {
+                            reminderData["sharedFromId"] = currentUserId
                         }
                     }
 
