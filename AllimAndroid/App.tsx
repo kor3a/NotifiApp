@@ -1,5 +1,5 @@
-import React, {useEffect} from 'react';
-import {StatusBar} from 'react-native';
+import React, {useEffect, useRef} from 'react';
+import {AppState, AppStateStatus, StatusBar} from 'react-native';
 import {NavigationContainer} from '@react-navigation/native';
 import {SafeAreaProvider} from 'react-native-safe-area-context';
 import {GestureHandlerRootView} from 'react-native-gesture-handler';
@@ -28,16 +28,23 @@ async function requestNotificationPermission() {
   });
 }
 
+// Claim background message handling so FCM does not re-deliver the message to
+// the foreground handler when the user opens the app by tapping the icon.
+messaging().setBackgroundMessageHandler(async () => {});
+
 function App(): React.JSX.Element {
   const isDarkMode = useColorScheme() === 'dark';
+  const appState = useRef<AppStateStatus>(AppState.currentState);
 
   useEffect(() => {
     requestNotificationPermission();
 
-    // Handle FCM background messages
     const unsubscribe = messaging().onMessage(async remoteMessage => {
       if (remoteMessage.notification) {
         await notifee.displayNotification({
+          // Using messageId collapses duplicate deliveries of the same FCM
+          // message into a single visible notification.
+          id: remoteMessage.messageId,
           title: remoteMessage.notification.title,
           body: remoteMessage.notification.body,
           android: {
@@ -49,7 +56,23 @@ function App(): React.JSX.Element {
       }
     });
 
-    return unsubscribe;
+    // When the user opens the app by tapping the icon (not the notification),
+    // clear any notifications the system tray is still holding so they don't
+    // reappear alongside a fresh delivery.
+    const subscription = AppState.addEventListener('change', nextState => {
+      if (
+        appState.current.match(/inactive|background/) &&
+        nextState === 'active'
+      ) {
+        notifee.cancelDisplayedNotifications();
+      }
+      appState.current = nextState;
+    });
+
+    return () => {
+      unsubscribe();
+      subscription.remove();
+    };
   }, []);
 
   return (
