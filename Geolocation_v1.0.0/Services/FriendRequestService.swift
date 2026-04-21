@@ -22,8 +22,25 @@ class FriendRequestService: ObservableObject {
     private var incomingListener: ListenerRegistration?
     private var outgoingListener: ListenerRegistration?
     private var knownRequestIds: Set<String> = []
+    /// Timestamp of the app's most recent transition to the active state.
+    /// Friend requests whose `createdAt` predates this were already delivered
+    /// by the Cloud Function's FCM push while the app was backgrounded —
+    /// scheduling a local notification for them now would duplicate the push
+    /// when the user opens the app via the icon.
+    private var lastForegroundedAt: TimeInterval = Date().timeIntervalSince1970
 
-    private init() {}
+    private init() {
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(appDidBecomeActive),
+            name: UIApplication.didBecomeActiveNotification,
+            object: nil
+        )
+    }
+
+    @objc private func appDidBecomeActive() {
+        lastForegroundedAt = Date().timeIntervalSince1970
+    }
 
     // MARK: - Send Friend Request
 
@@ -365,12 +382,16 @@ class FriendRequestService: ObservableObject {
 
                         let data = doc.data()
                         let fromUserName = data["requesterName"] as? String ?? "Someone"
+                        let createdAt = data["createdAt"] as? TimeInterval ?? 0
 
-                        // Only schedule a local notification while the app is active.
-                        // When backgrounded the Cloud Function already sends an FCM
-                        // push for the same friend request, so firing a local one
-                        // too would produce a visible duplicate.
+                        // Skip the local notification when the request predates
+                        // the current foreground session: it was created while
+                        // the app was backgrounded, so the Cloud Function's FCM
+                        // push has already delivered it. Without this guard,
+                        // opening the app via the icon fires a second local
+                        // notification for the same request.
                         guard UIApplication.shared.applicationState == .active else { continue }
+                        guard createdAt >= self.lastForegroundedAt else { continue }
 
                         #if DEBUG
                         print("FriendRequestService: NEW friend request detected from \(fromUserName), scheduling notification...")

@@ -19,8 +19,25 @@ class SharedReminderNotificationService {
     /// Tracks Firestore document IDs already processed this session.
     /// Prevents duplicate notifications when startListening() is called twice quickly.
     private var processedDocIds: Set<String> = []
+    /// Timestamp of the app's most recent transition to the active state.
+    /// Any notification doc whose `createdAt` predates this was already
+    /// delivered by the Cloud Function's FCM push while the app was
+    /// backgrounded — scheduling a local notification for it now would
+    /// produce a visible duplicate when the user opens the app via the icon.
+    private var lastForegroundedAt: TimeInterval = Date().timeIntervalSince1970
 
-    private init() {}
+    private init() {
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(appDidBecomeActive),
+            name: UIApplication.didBecomeActiveNotification,
+            object: nil
+        )
+    }
+
+    @objc private func appDidBecomeActive() {
+        lastForegroundedAt = Date().timeIntervalSince1970
+    }
 
     // MARK: - Send Notifications
 
@@ -325,18 +342,22 @@ class SharedReminderNotificationService {
                     let storeName = data["storeName"] as? String ?? "a store"
                     let addedCount = data["addedCount"] as? Int ?? 0
                     let otherChangeCount = data["otherChangeCount"] as? Int ?? 0
+                    let createdAt = data["createdAt"] as? TimeInterval ?? 0
 
                     #if DEBUG
                     print("📥   Notification: \(senderName) changed '\(storeName)' (added: \(addedCount), other: \(otherChangeCount))")
                     #endif
 
-                    // Only schedule a local notification while the app is active.
-                    // When backgrounded the Cloud Function already sends an FCM
-                    // push for the same event — firing a local one too produces
-                    // a visible duplicate.  willPresent in NotificationManager
-                    // suppresses the FCM push when the app is active, so only
-                    // one notification is ever shown.
-                    if UIApplication.shared.applicationState == .active {
+                    // Skip the local notification when the doc predates the
+                    // current foreground session: it was created while the app
+                    // was backgrounded, so the Cloud Function's FCM push has
+                    // already delivered it. Without this guard, opening the
+                    // app via the icon fires a second, time-sensitive local
+                    // notification for the same event. willPresent handles the
+                    // app-active case by suppressing the FCM push, so only one
+                    // notification is ever shown there.
+                    let alreadyDeliveredByFCM = createdAt < lastForegroundedAt
+                    if UIApplication.shared.applicationState == .active && !alreadyDeliveredByFCM {
                         NotificationManager.shared.scheduleSharedReminderNotification(
                             senderName: senderName,
                             storeName: storeName,
