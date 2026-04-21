@@ -24,13 +24,30 @@ class MessagingService: ObservableObject {
     private var activeListeningUserId: String?
     private var listenerStartTime: TimeInterval = 0
     private var notifiedMessageIds: Set<String> = []
+    /// Timestamp of the app's most recent transition to the active state.
+    /// Messages whose `createdAt` predates this were already delivered by
+    /// the Cloud Function's FCM push while the app was backgrounded —
+    /// scheduling a local notification for them now would duplicate the
+    /// push when the user opens the app via the icon.
+    private var lastForegroundedAt: TimeInterval = Date().timeIntervalSince1970
 
     /// The conversation ID the user is currently viewing. When set, incoming
     /// message notifications for this conversation are suppressed because the
     /// user is already reading that conversation.
     var activeConversationId: String? = nil
 
-    private init() {}
+    private init() {
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(appDidBecomeActive),
+            name: UIApplication.didBecomeActiveNotification,
+            object: nil
+        )
+    }
+
+    @objc private func appDidBecomeActive() {
+        lastForegroundedAt = Date().timeIntervalSince1970
+    }
 
     // MARK: - Conversations
 
@@ -2006,6 +2023,12 @@ class MessagingService: ObservableObject {
                     // the same event, so firing a local notification too would
                     // produce a visible duplicate.
                     guard UIApplication.shared.applicationState == .active else { continue }
+
+                    // Also skip when the message predates the current foreground
+                    // session: the listener may deliver it as .added on reconnect
+                    // after the user opens the app via the icon, and the FCM push
+                    // has already shown it.
+                    guard createdAt >= self.lastForegroundedAt else { continue }
 
                     // Suppress notifications for the conversation the user is actively viewing.
                     if self.activeConversationId == conversationId { continue }
