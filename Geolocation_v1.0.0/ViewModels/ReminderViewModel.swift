@@ -569,14 +569,17 @@ class ReminderViewModel: ObservableObject {
             } else if let sharedFromName = sharedFromName {
                 // Recipient adding reminder - mark as shared with the owner
                 reminderData["sharedWith"] = [sharedFromName]
-                // Also set sharedFrom to the current user (recipient) who created this reminder
-                if let currentUserName = currentUserName {
-                    reminderData["sharedFrom"] = currentUserName
-                }
-                // Store user ID for reliable identity comparison after name changes
-                if let currentUserId = UserSessionManager.shared.currentUser?.userId {
-                    reminderData["sharedFromId"] = currentUserId
-                }
+            }
+
+            // Record the creator's identity on every shared reminder so downstream
+            // views can reliably tell the sharer from the recipient. Without this,
+            // owner-created reminders have no sharedFromId and the recipient falls
+            // back to name heuristics that can misattribute ownership.
+            if let currentUserName = currentUserName {
+                reminderData["sharedFrom"] = currentUserName
+            }
+            if let currentUserId = UserSessionManager.shared.currentUser?.userId {
+                reminderData["sharedFromId"] = currentUserId
             }
         }
 
@@ -1207,13 +1210,15 @@ class ReminderViewModel: ObservableObject {
                     reminderData["sharedWith"] = sharedWith
                 } else if let sharedFromName = sharedFromName {
                     reminderData["sharedWith"] = [sharedFromName]
-                    if let currentUserName = currentUserName {
-                        reminderData["sharedFrom"] = currentUserName
-                    }
-                    // Store user ID for reliable identity comparison after name changes
-                    if let currentUserId = UserSessionManager.shared.currentUser?.userId {
-                        reminderData["sharedFromId"] = currentUserId
-                    }
+                }
+
+                // Record the creator's identity on every shared reminder so downstream
+                // views can reliably tell the sharer from the recipient.
+                if let currentUserName = currentUserName {
+                    reminderData["sharedFrom"] = currentUserName
+                }
+                if let currentUserId = UserSessionManager.shared.currentUser?.userId {
+                    reminderData["sharedFromId"] = currentUserId
                 }
             }
 

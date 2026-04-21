@@ -321,6 +321,13 @@ struct SharedBadge: View {
            let currentUserId = currentUserId {
             return sharedFromId == currentUserId
         }
+        // Legacy reminders without sharedFromId: if the current user's name
+        // appears in sharedWith, they are a recipient, not the sharer.
+        if let currentUserName = currentUserName,
+           let sharedWith = sharedWith,
+           sharedWith.contains(where: { $0.lowercased() == currentUserName.lowercased() }) {
+            return false
+        }
         // Fallback to name comparison for old reminders without sharedFromId
         guard let sharedFrom = sharedFrom, !sharedFrom.isEmpty,
               let currentUserName = currentUserName else {
@@ -382,8 +389,15 @@ struct SharedBadge: View {
             return "Shared by \(sharedFrom)"
         }
 
-        // No sharedFrom means user is the original sender (owner added it)
+        // No sharedFrom (legacy reminder) — fall back to sharedWith, but only
+        // phrase it as "Shared with" if the viewer isn't one of the recipients.
         if let sharedWith = sharedWith, !sharedWith.isEmpty {
+            let viewerIsRecipient = currentUserName.map { name in
+                sharedWith.contains(where: { $0.lowercased() == name.lowercased() })
+            } ?? false
+            if viewerIsRecipient {
+                return "Shared reminder"
+            }
             return "Shared with: \(sharedWith.joined(separator: ", "))"
         }
 

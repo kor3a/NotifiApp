@@ -942,6 +942,13 @@ struct ReminderView: View {
                    let currentUserId = currentUserId {
                     return sharedFromId == currentUserId
                 }
+                // Legacy reminders without sharedFromId: if the current user's name
+                // appears in sharedWith, they are a recipient, not the sharer.
+                if let currentUserName = currentUserName,
+                   let sharedWith = reminder.sharedWith,
+                   sharedWith.contains(where: { $0.lowercased() == currentUserName.lowercased() }) {
+                    return false
+                }
                 return reminder.sharedFrom != nil &&
                     !reminder.sharedFrom!.isEmpty &&
                     reminder.sharedFrom == currentUserName
@@ -960,7 +967,16 @@ struct ReminderView: View {
                     Text("Shared by: \(sharedFrom)\n\nChanges sync automatically.")
                 }
             } else if let sharedWith = reminder.sharedWith, !sharedWith.isEmpty {
-                Text("You shared this reminder with:\n\(sharedWith.joined(separator: "\n"))\n\nChanges sync automatically.")
+                // sharedFrom is missing (legacy reminder). Only call the current
+                // user the sharer if they aren't one of the recipients listed.
+                let currentUserIsRecipient = currentUserName.map { name in
+                    sharedWith.contains(where: { $0.lowercased() == name.lowercased() })
+                } ?? false
+                if currentUserIsRecipient {
+                    Text("This reminder is shared.\n\nChanges sync automatically.")
+                } else {
+                    Text("You shared this reminder with:\n\(sharedWith.joined(separator: "\n"))\n\nChanges sync automatically.")
+                }
             } else {
                 Text("This reminder is synced across users.")
             }
