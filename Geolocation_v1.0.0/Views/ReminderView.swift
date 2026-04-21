@@ -423,8 +423,12 @@ struct ReminderView: View {
                         .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
                 }
 
-                if viewModel.hasDisplayedCategorizedReminders && !isReorderMode {
-                    // Grouped by category
+                if !isReorderMode {
+                    // Always render the sectioned structure so that the List's
+                    // direct children don't change shape when the first AI
+                    // categorization arrives mid-typing — otherwise the List
+                    // reconciles and the focused TextField in inlineAddSection
+                    // gets torn down, dropping the keyboard.
                     ForEach(viewModel.displayedCategoryOrder, id: \.self) { category in
                         Section {
                             if !collapsedCategories.contains(category) {
@@ -433,17 +437,19 @@ struct ReminderView: View {
                                 }
                             }
                         } header: {
-                            categoryHeader(for: category)
+                            if viewModel.hasDisplayedCategorizedReminders {
+                                categoryHeader(for: category)
+                            }
                         }
                     }
                 } else {
-                    // Flat list (no categories yet, or reorder mode)
+                    // Reorder mode requires a flat ForEach for .onMove to work.
                     ForEach(viewModel.displayedReminders) { reminder in
                         reminderRow(for: reminder)
                     }
-                    .onMove(perform: isReorderMode ? { source, destination in
+                    .onMove(perform: { source, destination in
                         viewModel.moveReminder(from: source, to: destination)
-                    } : nil)
+                    })
                     .deleteDisabled(true)
                 }
 
