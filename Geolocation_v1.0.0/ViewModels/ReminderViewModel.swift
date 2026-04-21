@@ -562,21 +562,28 @@ class ReminderViewModel: ObservableObject {
             reminderData["isShared"] = true
             reminderData["sharedAt"] = Date().timeIntervalSince1970
 
-            // Set sharedWith appropriately based on perspective
-            if let sharedWith = sharedWith, !sharedWith.isEmpty {
-                // Owner adding reminder - use their sharedWith list
-                reminderData["sharedWith"] = sharedWith
-            } else if let sharedFromName = sharedFromName {
-                // Recipient adding reminder - mark as shared with the owner
+            // Check the recipient perspective first. sharedFromName is set
+            // whenever the current user received this store from someone else,
+            // even in the merge flow where their own user_store.sharedWith also
+            // contains the owner's name. Without this ordering a merge recipient
+            // would fall through to the owner branch and lose attribution.
+            if let sharedFromName = sharedFromName {
+                // Recipient adding: record the reminder as shared back to the owner
                 reminderData["sharedWith"] = [sharedFromName]
-                // Also set sharedFrom to the current user (recipient) who created this reminder
-                if let currentUserName = currentUserName {
-                    reminderData["sharedFrom"] = currentUserName
-                }
-                // Store user ID for reliable identity comparison after name changes
-                if let currentUserId = UserSessionManager.shared.currentUser?.userId {
-                    reminderData["sharedFromId"] = currentUserId
-                }
+            } else if let sharedWith = sharedWith, !sharedWith.isEmpty {
+                // Owner adding: use their full recipient list
+                reminderData["sharedWith"] = sharedWith
+            }
+
+            // Always attribute the reminder to whoever created it. Persisting
+            // this on the document avoids relying on retroactive backfill from
+            // the store's sharedFromName (which breaks if the cached name is
+            // stale, missing, or doesn't match the viewer's display name).
+            if let currentUserName = currentUserName {
+                reminderData["sharedFrom"] = currentUserName
+            }
+            if let currentUserId = UserSessionManager.shared.currentUser?.userId {
+                reminderData["sharedFromId"] = currentUserId
             }
         }
 
@@ -1203,17 +1210,23 @@ class ReminderViewModel: ObservableObject {
             if isSharedStore {
                 reminderData["isShared"] = true
                 reminderData["sharedAt"] = Date().timeIntervalSince1970
-                if let sharedWith = sharedWith, !sharedWith.isEmpty {
-                    reminderData["sharedWith"] = sharedWith
-                } else if let sharedFromName = sharedFromName {
+
+                // Recipient perspective takes precedence: sharedFromName is set
+                // for anyone who received this store, including the merge flow
+                // where their own sharedWith already contains the owner's name.
+                if let sharedFromName = sharedFromName {
                     reminderData["sharedWith"] = [sharedFromName]
-                    if let currentUserName = currentUserName {
-                        reminderData["sharedFrom"] = currentUserName
-                    }
-                    // Store user ID for reliable identity comparison after name changes
-                    if let currentUserId = UserSessionManager.shared.currentUser?.userId {
-                        reminderData["sharedFromId"] = currentUserId
-                    }
+                } else if let sharedWith = sharedWith, !sharedWith.isEmpty {
+                    reminderData["sharedWith"] = sharedWith
+                }
+
+                // Always persist creator attribution so the recipient's view
+                // never has to guess who shared the reminder.
+                if let currentUserName = currentUserName {
+                    reminderData["sharedFrom"] = currentUserName
+                }
+                if let currentUserId = UserSessionManager.shared.currentUser?.userId {
+                    reminderData["sharedFromId"] = currentUserId
                 }
             }
 
