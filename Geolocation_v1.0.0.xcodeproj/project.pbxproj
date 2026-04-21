@@ -32,6 +32,7 @@
 		0138D8752F68BB95007CC1E4 /* SubscriptionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0138D8742F68BB95007CC1E4 /* SubscriptionManager.swift */; };
 		0141FCBE2F71880F009C626B /* PrivacyPolicyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0141FCBD2F71880F009C626B /* PrivacyPolicyView.swift */; };
 		0141FCC02F718817009C626B /* SubscriptionManagementView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0141FCBF2F718817009C626B /* SubscriptionManagementView.swift */; };
+		01500AB42F87F22F0038F0D3 /* SubscriptionDebugView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01500AB32F87F22F0038F0D3 /* SubscriptionDebugView.swift */; };
 		017BD2532F76D39800E5842A /* RecipeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 017BD2522F76D39800E5842A /* RecipeView.swift */; };
 		017BD2552F76D3B600E5842A /* Recipe.swift in Sources */ = {isa = PBXBuildFile; fileRef = 017BD2542F76D3B600E5842A /* Recipe.swift */; };
 		017BD2572F76D3BD00E5842A /* RecipeViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 017BD2562F76D3BD00E5842A /* RecipeViewModel.swift */; };
@@ -163,6 +164,7 @@
 		0138D8742F68BB95007CC1E4 /* SubscriptionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionManager.swift; sourceTree = "<group>"; };
 		0141FCBD2F71880F009C626B /* PrivacyPolicyView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrivacyPolicyView.swift; sourceTree = "<group>"; };
 		0141FCBF2F718817009C626B /* SubscriptionManagementView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionManagementView.swift; sourceTree = "<group>"; };
+		01500AB32F87F22F0038F0D3 /* SubscriptionDebugView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionDebugView.swift; sourceTree = "<group>"; };
 		0176B3082F3CE658003B9C75 /* Geolocation_v1_0_0Tests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = Geolocation_v1_0_0Tests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		017BD2522F76D39800E5842A /* RecipeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecipeView.swift; sourceTree = "<group>"; };
 		017BD2542F76D3B600E5842A /* Recipe.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Recipe.swift; sourceTree = "<group>"; };
@@ -364,6 +366,7 @@
 		8278FE0E2C5DE5930017EB72 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				01500AB32F87F22F0038F0D3 /* SubscriptionDebugView.swift */,
 				017BD2522F76D39800E5842A /* RecipeView.swift */,
 				0183E1FC2F743B0C00AB9429 /* ReportFeedbackView.swift */,
 				0183E1FA2F743B0500AB9429 /* AboutView.swift */,
@@ -684,6 +687,7 @@
 				01D86E952F6AD65B0007802A /* TutorialManager.swift in Sources */,
 				01D2D8732EC2901F009C371F /* ImagePicker.swift in Sources */,
 				8278FDFA2C5DD1C90017EB72 /* MainView.swift in Sources */,
+				01500AB42F87F22F0038F0D3 /* SubscriptionDebugView.swift in Sources */,
 				01B78C382EBD414A00201B88 /* UserStoreItem.swift in Sources */,
 				011CF6002ED638DD009A31A6 /* ShareStoreView.swift in Sources */,
 				01B408252F3BECB800EA1F25 /* FriendsViewModel.swift in Sources */,
