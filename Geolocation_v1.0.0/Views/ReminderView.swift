@@ -264,9 +264,11 @@ struct ReminderView: View {
         }
         .onChange(of: smartCategoryEnabled) { oldValue, newValue in
             UserDefaults.standard.set(newValue, forKey: smartCategoryKey)
+            #if DEBUG
             if !oldValue && newValue && isSubscribed {
                 viewModel.categorizeUncategorizedReminders()
             }
+            #endif
         }
         .onChange(of: autoDeleteEnabled) { oldValue, newValue in
             if newValue && !oldValue {
