@@ -33,6 +33,7 @@
 		0141FCBE2F71880F009C626B /* PrivacyPolicyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0141FCBD2F71880F009C626B /* PrivacyPolicyView.swift */; };
 		0141FCC02F718817009C626B /* SubscriptionManagementView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0141FCBF2F718817009C626B /* SubscriptionManagementView.swift */; };
 		01500AB42F87F22F0038F0D3 /* SubscriptionDebugView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01500AB32F87F22F0038F0D3 /* SubscriptionDebugView.swift */; };
+		016FC87E2F97EACF005AD716 /* Allim.icon in Resources */ = {isa = PBXBuildFile; fileRef = 016FC87D2F97EACF005AD716 /* Allim.icon */; };
 		017BD2532F76D39800E5842A /* RecipeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 017BD2522F76D39800E5842A /* RecipeView.swift */; };
 		017BD2552F76D3B600E5842A /* Recipe.swift in Sources */ = {isa = PBXBuildFile; fileRef = 017BD2542F76D3B600E5842A /* Recipe.swift */; };
 		017BD2572F76D3BD00E5842A /* RecipeViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 017BD2562F76D3BD00E5842A /* RecipeViewModel.swift */; };
@@ -165,6 +166,7 @@
 		0141FCBD2F71880F009C626B /* PrivacyPolicyView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrivacyPolicyView.swift; sourceTree = "<group>"; };
 		0141FCBF2F718817009C626B /* SubscriptionManagementView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionManagementView.swift; sourceTree = "<group>"; };
 		01500AB32F87F22F0038F0D3 /* SubscriptionDebugView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionDebugView.swift; sourceTree = "<group>"; };
+		016FC87D2F97EACF005AD716 /* Allim.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = Allim.icon; sourceTree = "<group>"; };
 		0176B3082F3CE658003B9C75 /* Geolocation_v1_0_0Tests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = Geolocation_v1_0_0Tests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		017BD2522F76D39800E5842A /* RecipeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecipeView.swift; sourceTree = "<group>"; };
 		017BD2542F76D3B600E5842A /* Recipe.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Recipe.swift; sourceTree = "<group>"; };
@@ -337,6 +339,7 @@
 		8278FDF62C5DD1C90017EB72 /* Geolocation_v1.0.0 */ = {
 			isa = PBXGroup;
 			children = (
+				016FC87D2F97EACF005AD716 /* Allim.icon */,
 				DF66A9992E24C86100C15DA9 /* Geolocation_v1.0.0.entitlements */,
 				018D77DF2ED7C43C00E767D6 /* Info.plist */,
 				011CF60C2ED63A69009A31A6 /* NotifiApp.icon */,
@@ -621,6 +624,7 @@
 			files = (
 				8278FDFF2C5DD1CB0017EB72 /* Preview Assets.xcassets in Resources */,
 				8278FDFC2C5DD1CB0017EB72 /* Assets.xcassets in Resources */,
+				016FC87E2F97EACF005AD716 /* Allim.icon in Resources */,
 				011CF60D2ED63A69009A31A6 /* NotifiApp.icon in Resources */,
 				011CF6092ED63945009A31A6 /* Notifi.icon in Resources */,
 				FF0200000001AABB00CC0001 /* SpecialElite-Regular.ttf in Resources */,
@@ -929,7 +933,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 01B408212F3BEC7F00EA1F25 /* Secrets.xcconfig */;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = NotifiApp;
+				ASSETCATALOG_COMPILER_APPICON_NAME = Allim;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = AllimRelease.entitlements;
 				CODE_SIGN_STYLE = Automatic;
@@ -959,7 +963,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 01B408212F3BEC7F00EA1F25 /* Secrets.xcconfig */;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = NotifiApp;
+				ASSETCATALOG_COMPILER_APPICON_NAME = Allim;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = AllimRelease.entitlements;
 				CODE_SIGN_STYLE = Automatic;
