@@ -262,8 +262,13 @@ struct ReminderView: View {
             viewModel.fetchFavoriteTags(for: userStoreItem.reminderStoreId)
             smartCategoryEnabled = UserDefaults.standard.object(forKey: smartCategoryKey) as? Bool ?? true
         }
-        .onChange(of: smartCategoryEnabled) { _, newValue in
+        .onChange(of: smartCategoryEnabled) { oldValue, newValue in
             UserDefaults.standard.set(newValue, forKey: smartCategoryKey)
+            #if DEBUG
+            if !oldValue && newValue && isSubscribed {
+                viewModel.categorizeUncategorizedReminders()
+            }
+            #endif
         }
         .onChange(of: autoDeleteEnabled) { oldValue, newValue in
             if newValue && !oldValue {

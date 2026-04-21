@@ -2,6 +2,64 @@ import firestore from '@react-native-firebase/firestore';
 import storage from '@react-native-firebase/storage';
 import {Reminder} from '../models';
 
+// Keywords used to auto-assign categories when Smart Category is toggled on
+const SMART_CATEGORY_KEYWORDS: Record<string, string[]> = {
+  Produce: [
+    'apple', 'banana', 'orange', 'grape', 'strawberry', 'blueberry', 'raspberry',
+    'peach', 'pear', 'plum', 'mango', 'pineapple', 'watermelon', 'cantaloupe',
+    'lemon', 'lime', 'avocado', 'tomato', 'potato', 'onion', 'garlic', 'carrot',
+    'celery', 'cucumber', 'lettuce', 'spinach', 'kale', 'broccoli', 'cauliflower',
+    'pepper', 'zucchini', 'eggplant', 'corn', 'asparagus', 'mushroom', 'cabbage',
+    'radish', 'beet', 'turnip', 'squash', 'salad', 'herbs', 'basil', 'cilantro',
+    'parsley', 'ginger', 'vegetable', 'fruit',
+  ],
+  Dairy: [
+    'milk', 'cheese', 'yogurt', 'butter', 'cream', 'egg', 'eggs', 'sour cream',
+    'cottage cheese', 'cream cheese', 'half and half', 'whipped cream',
+    'mozzarella', 'cheddar', 'parmesan', 'brie', 'feta',
+  ],
+  Meat: [
+    'chicken', 'beef', 'pork', 'turkey', 'lamb', 'salmon', 'tuna', 'fish',
+    'shrimp', 'steak', 'ground beef', 'sausage', 'bacon', 'ham', 'hot dog',
+    'deli', 'pepperoni', 'seafood', 'lobster', 'crab', 'tilapia', 'cod',
+  ],
+  Bakery: [
+    'bread', 'bagel', 'muffin', 'cake', 'pie', 'croissant', 'bun', 'roll',
+    'tortilla', 'wrap', 'pita', 'naan', 'donut', 'pastry', 'baguette',
+  ],
+  Frozen: ['frozen', 'ice cream', 'popsicle', 'freezer'],
+  Beverages: [
+    'water', 'juice', 'soda', 'coffee', 'tea', 'beer', 'wine', 'lemonade',
+    'smoothie', 'sport drink', 'energy drink', 'sparkling', 'coconut water',
+    'almond milk', 'oat milk', 'drink',
+  ],
+  Snacks: [
+    'chips', 'crackers', 'nuts', 'popcorn', 'candy', 'chocolate', 'cookies',
+    'granola', 'protein bar', 'trail mix', 'pretzels', 'gummies', 'cereal',
+    'oats', 'rice cakes',
+  ],
+  Household: [
+    'detergent', 'soap', 'paper towel', 'toilet paper', 'tissue', 'cleaning',
+    'dish', 'laundry', 'trash bag', 'zip lock', 'foil', 'cling wrap',
+    'sponge', 'bleach', 'wipes', 'batteries', 'light bulb', 'candle',
+  ],
+  'Personal Care': [
+    'shampoo', 'conditioner', 'toothpaste', 'toothbrush', 'deodorant', 'razor',
+    'lotion', 'sunscreen', 'face wash', 'makeup', 'lipstick', 'mascara',
+    'moisturizer', 'cologne', 'perfume', 'body wash', 'floss',
+  ],
+};
+
+function guessCategory(title: string): string {
+  const lower = title.toLowerCase();
+  for (const [cat, keywords] of Object.entries(SMART_CATEGORY_KEYWORDS)) {
+    if (keywords.some(kw => lower.includes(kw))) {
+      return cat;
+    }
+  }
+  return 'Other';
+}
+
 export const reminderService = {
   // Subscribe to reminders for a user store
   subscribeToReminders(
@@ -115,6 +173,28 @@ export const reminderService = {
       .collection('stores')
       .doc(storeId)
       .update({reminderCount: remaining.docs.length});
+  },
+
+  // Batch-categorize all uncategorized reminders in a store using keyword matching.
+  // Called once when the user toggles Smart Category on.
+  async smartCategorizeAll(userStoreId: string): Promise<void> {
+    const snap = await firestore()
+      .collection('reminders')
+      .where('userStoreId', '==', userStoreId)
+      .get();
+
+    const uncategorized = snap.docs.filter(
+      d => !d.data().category,
+    );
+
+    if (uncategorized.length === 0) {return;}
+
+    const batch = firestore().batch();
+    uncategorized.forEach(doc => {
+      const category = guessCategory(doc.data().title ?? '');
+      batch.update(doc.ref, {category});
+    });
+    await batch.commit();
   },
 
   // Reorder reminders

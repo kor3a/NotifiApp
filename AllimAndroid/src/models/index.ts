@@ -40,6 +40,7 @@ export interface UserStore {
   sharedFromEmail?: string;
   sharedFromName?: string;
   sharedStoreGroupId?: string;
+  smartCategoryEnabled?: boolean;
 }
 
 // Combined item used in UI

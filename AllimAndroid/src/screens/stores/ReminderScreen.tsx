@@ -12,6 +12,7 @@ import {
   Modal,
   ScrollView,
   Image,
+  Switch,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {useRoute, useNavigation, RouteProp} from '@react-navigation/native';
@@ -30,8 +31,10 @@ import {
 } from '../../theme/AppTheme';
 import {useSession} from '../../context/SessionContext';
 import {reminderService} from '../../services/reminderService';
+import {storeService} from '../../services/storeService';
 import {Reminder} from '../../models';
 import {StoresStackParamList} from '../../navigation/AppNavigator';
+import firestore from '@react-native-firebase/firestore';
 
 type RouteType = RouteProp<StoresStackParamList, 'Reminders'>;
 
@@ -41,7 +44,7 @@ export default function ReminderScreen() {
   const scheme = useColorScheme();
   const route = useRoute<RouteType>();
   const navigation = useNavigation();
-  const {firebaseUser} = useSession();
+  const {firebaseUser, currentUser} = useSession();
 
   const {userStoreId, storeName, storeId, permission} = route.params;
   const canEdit = permission !== 'view';
@@ -55,6 +58,9 @@ export default function ReminderScreen() {
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [categoryReminder, setCategoryReminder] = useState<Reminder | null>(null);
   const [showPhotoModal, setShowPhotoModal] = useState<Reminder | null>(null);
+  const [showInfoModal, setShowInfoModal] = useState(false);
+  const [smartCategoryEnabled, setSmartCategoryEnabled] = useState(false);
+  const [smartCategoryLoading, setSmartCategoryLoading] = useState(false);
 
   useEffect(() => {
     const unsub = reminderService.subscribeToReminders(userStoreId, items => {
@@ -63,6 +69,32 @@ export default function ReminderScreen() {
     });
     return unsub;
   }, [userStoreId]);
+
+  // Subscribe to smartCategoryEnabled from the user_stores doc
+  useEffect(() => {
+    const unsub = firestore()
+      .collection('user_stores')
+      .doc(userStoreId)
+      .onSnapshot(snap => {
+        setSmartCategoryEnabled(snap.data()?.smartCategoryEnabled ?? false);
+      });
+    return unsub;
+  }, [userStoreId]);
+
+  async function handleSmartCategoryToggle(value: boolean) {
+    setSmartCategoryLoading(true);
+    try {
+      await storeService.updateSmartCategory(userStoreId, value);
+      // When turning ON, run a one-time categorization pass on uncategorized items
+      if (value) {
+        await reminderService.smartCategorizeAll(userStoreId);
+      }
+    } catch (err: any) {
+      Alert.alert('Error', err.message ?? 'Failed to update Smart Category.');
+    } finally {
+      setSmartCategoryLoading(false);
+    }
+  }
 
   async function handleAdd() {
     if (!newTitle.trim()) {return;}
@@ -235,9 +267,16 @@ export default function ReminderScreen() {
               {pendingCount} item{pendingCount !== 1 ? 's' : ''} remaining
             </Text>
           </View>
-          {permission === 'view' && (
-            <Icon name="eye-outline" size={18} color={textSecondary(scheme)} />
-          )}
+          <View style={styles.headerRight}>
+            {permission === 'view' && (
+              <Icon name="eye-outline" size={18} color={textSecondary(scheme)} style={{marginRight: 8}} />
+            )}
+            <TouchableOpacity
+              onPress={() => setShowInfoModal(true)}
+              style={styles.infoBtn}>
+              <Icon name="information-circle-outline" size={24} color={Colors.blue} />
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Add reminder input */}
@@ -295,6 +334,70 @@ export default function ReminderScreen() {
         )}
       </SafeAreaView>
 
+      {/* Info / settings modal */}
+      <Modal
+        visible={showInfoModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowInfoModal(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalCard, {backgroundColor: cardBackground(scheme)}]}>
+            <Text style={[styles.modalTitle, {color: textPrimary(scheme)}]}>
+              Store Settings
+            </Text>
+
+            {/* Smart Category row */}
+            {(currentUser?.isSubscribed || currentUser?.adminSubscribed) ? (
+              <View style={styles.settingRow}>
+                <View style={styles.settingInfo}>
+                  <Text style={[styles.settingLabel, {color: textPrimary(scheme)}]}>
+                    Smart Category
+                  </Text>
+                  <Text style={[styles.settingDesc, {color: textSecondary(scheme)}]}>
+                    Auto-organizes uncategorized items by aisle when turned on
+                  </Text>
+                </View>
+                {smartCategoryLoading ? (
+                  <ActivityIndicator size="small" color={Colors.blue} />
+                ) : (
+                  <Switch
+                    value={smartCategoryEnabled}
+                    onValueChange={handleSmartCategoryToggle}
+                    trackColor={{false: '#767577', true: Colors.blue + '80'}}
+                    thumbColor={smartCategoryEnabled ? Colors.blue : '#f4f3f4'}
+                  />
+                )}
+              </View>
+            ) : (
+              <View style={styles.settingRow}>
+                <View style={styles.settingInfo}>
+                  <View style={styles.settingLabelRow}>
+                    <Text style={[styles.settingLabel, {color: textSecondary(scheme)}]}>
+                      Smart Category
+                    </Text>
+                    <View style={styles.premiumBadge}>
+                      <Text style={styles.premiumBadgeText}>Premium</Text>
+                    </View>
+                  </View>
+                  <Text style={[styles.settingDesc, {color: textSecondary(scheme)}]}>
+                    Upgrade to auto-organize items by aisle
+                  </Text>
+                </View>
+                <Switch value={false} disabled trackColor={{false: '#767577', true: Colors.blue + '80'}} />
+              </View>
+            )}
+
+            <TouchableOpacity
+              style={[styles.cancelBtn, {backgroundColor: Colors.blue + '1A'}]}
+              onPress={() => setShowInfoModal(false)}>
+              <Text style={{color: Colors.blue, fontWeight: '600', fontSize: 16}}>
+                Done
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
       {/* Category picker modal */}
       <Modal
         visible={showCategoryModal}
@@ -349,6 +452,13 @@ const styles = StyleSheet.create({
   headerCenter: {
     flex: 1,
   },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  infoBtn: {
+    padding: Spacing.xs,
+  },
   storeName: {
     fontSize: 20,
     fontWeight: '700',
@@ -356,6 +466,44 @@ const styles = StyleSheet.create({
   reminderCount: {
     fontSize: 13,
     marginTop: 2,
+  },
+  settingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: Spacing.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: 'rgba(128,128,128,0.3)',
+    marginBottom: Spacing.sm,
+  },
+  settingInfo: {
+    flex: 1,
+    marginRight: Spacing.md,
+  },
+  settingLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  settingLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  settingDesc: {
+    fontSize: 13,
+    marginTop: 2,
+    lineHeight: 18,
+  },
+  premiumBadge: {
+    backgroundColor: Colors.purple + '22',
+    borderRadius: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  premiumBadgeText: {
+    color: Colors.purple,
+    fontSize: 11,
+    fontWeight: '700',
   },
   addRow: {
     flexDirection: 'row',

@@ -119,6 +119,17 @@ export const storeService = {
     await firestore().collection('user_stores').doc(userStoreId).delete();
   },
 
+  // Toggle smart category for a user store
+  async updateSmartCategory(
+    userStoreId: string,
+    enabled: boolean,
+  ): Promise<void> {
+    await firestore()
+      .collection('user_stores')
+      .doc(userStoreId)
+      .update({smartCategoryEnabled: enabled});
+  },
+
   // Reorder stores
   async reorderStores(updates: {id: string; order: number}[]): Promise<void> {
     const batch = firestore().batch();
