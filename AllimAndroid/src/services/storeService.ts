@@ -1,4 +1,5 @@
 import firestore from '@react-native-firebase/firestore';
+import storage from '@react-native-firebase/storage';
 import {Store, UserStore, UserStoreItem} from '../models';
 
 function normalizeStoreName(name: string): string {
@@ -89,18 +90,27 @@ export const storeService = {
     uid: string,
     email: string,
   ): Promise<void> {
-    const batch = firestore().batch();
-
-    // Delete all reminders for this store
     const reminders = await firestore()
       .collection('reminders')
       .where('userStoreId', '==', userStoreId)
       .get();
+
+    // Delete every photo attached to any reminder in this store from Storage
+    // before removing the Firestore docs, otherwise the files are orphaned.
+    const photoURLs = reminders.docs.flatMap(
+      d => (d.data().photoURLs ?? []) as string[],
+    );
+    await Promise.all(
+      photoURLs.map(async url => {
+        try {
+          await storage().refFromURL(url).delete();
+        } catch (_) {}
+      }),
+    );
+
+    const batch = firestore().batch();
     reminders.docs.forEach(d => batch.delete(d.ref));
-
-    // Delete the user_store doc
     batch.delete(firestore().collection('user_stores').doc(userStoreId));
-
     await batch.commit();
   },
 

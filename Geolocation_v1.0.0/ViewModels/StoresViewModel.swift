@@ -4,6 +4,7 @@
 import Foundation
 import FirebaseFirestore
 import FirebaseAuth
+import FirebaseStorage
 import Combine
 
 class StoresViewModel: ObservableObject {
@@ -762,6 +763,24 @@ class StoresViewModel: ObservableObject {
 
                 guard let documents = snapshot?.documents, !documents.isEmpty else {
                     return
+                }
+
+                // Clean up all attached photos from Storage before deleting the
+                // reminder docs, otherwise the files are left orphaned.
+                var photoURLs = Set<String>()
+                for doc in documents {
+                    if let urls = doc.data()["photoURLs"] as? [String] {
+                        photoURLs.formUnion(urls)
+                    }
+                }
+                for url in photoURLs {
+                    Storage.storage().reference(forURL: url).delete { error in
+                        #if DEBUG
+                        if let error = error {
+                            print("StoresViewModel: Failed to delete photo from storage: \(error.localizedDescription)")
+                        }
+                        #endif
+                    }
                 }
 
                 let batch = db.batch()
