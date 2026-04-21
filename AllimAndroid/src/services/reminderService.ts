@@ -151,6 +151,17 @@ export const reminderService = {
 
   // Delete reminder
   async deleteReminder(id: string, storeId: string): Promise<void> {
+    // Delete any attached photos from Storage first so they don't become orphaned.
+    const snap = await firestore().collection('reminders').doc(id).get();
+    const photoURLs = (snap.data()?.photoURLs ?? []) as string[];
+    await Promise.all(
+      photoURLs.map(async url => {
+        try {
+          await storage().refFromURL(url).delete();
+        } catch (_) {}
+      }),
+    );
+
     await firestore().collection('reminders').doc(id).delete();
 
     // Decrement store reminder count

@@ -1084,6 +1084,16 @@ class ReminderViewModel: ObservableObject {
                         return
                     }
 
+                    // Delete attached photos from Storage before removing the docs,
+                    // otherwise the files are left orphaned in Firebase Storage.
+                    var photoURLs = Set<String>()
+                    for doc in documents {
+                        if let urls = doc.data()["photoURLs"] as? [String] {
+                            photoURLs.formUnion(urls)
+                        }
+                    }
+                    Self.deletePhotosFromStorage(urls: photoURLs)
+
                     // Batch delete all linked reminders
                     let batch = self.db.batch()
                     for doc in documents {
@@ -1112,18 +1122,41 @@ class ReminderViewModel: ObservableObject {
     }
 
     private func deleteSingleReminder(_ reminderId: String) {
-        db.collection("reminders").document(reminderId).delete { [weak self] error in
-            DispatchQueue.main.async {
-                if let error = error {
-                    #if DEBUG
-                    print("ReminderViewModel: Error deleting reminder: \(error.localizedDescription)")
-                    #endif
-                    self?.errorMessage = "Failed to delete reminder: \(error.localizedDescription)"
-                } else {
-                    #if DEBUG
-                    print("ReminderViewModel: Reminder deleted successfully")
-                    #endif
+        let docRef = db.collection("reminders").document(reminderId)
+        // Fetch photoURLs first so we can clean them up from Storage; without
+        // this step the files are left orphaned after the doc is deleted.
+        docRef.getDocument { snapshot, _ in
+            if let urls = snapshot?.data()?["photoURLs"] as? [String] {
+                Self.deletePhotosFromStorage(urls: Set(urls))
+            }
+            docRef.delete { [weak self] error in
+                DispatchQueue.main.async {
+                    if let error = error {
+                        #if DEBUG
+                        print("ReminderViewModel: Error deleting reminder: \(error.localizedDescription)")
+                        #endif
+                        self?.errorMessage = "Failed to delete reminder: \(error.localizedDescription)"
+                    } else {
+                        #if DEBUG
+                        print("ReminderViewModel: Reminder deleted successfully")
+                        #endif
+                    }
                 }
+            }
+        }
+    }
+
+    /// Fire-and-forget deletion of photo objects from Firebase Storage.
+    /// Errors are logged but don't block Firestore deletions.
+    static func deletePhotosFromStorage(urls: Set<String>) {
+        for url in urls {
+            let ref = Storage.storage().reference(forURL: url)
+            ref.delete { error in
+                #if DEBUG
+                if let error = error {
+                    print("ReminderViewModel: Failed to delete photo from storage: \(error.localizedDescription)")
+                }
+                #endif
             }
         }
     }
