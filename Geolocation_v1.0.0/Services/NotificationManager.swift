@@ -507,7 +507,25 @@ extension NotificationManager: UNUserNotificationCenterDelegate {
         #endif
 
         DispatchQueue.main.async {
-            switch categoryIdentifier {
+            // Remote FCM notifications arrive without a categoryIdentifier but
+            // carry a `type` key in userInfo. Map that back onto the same
+            // routing keys used by local notifications so taps on background
+            // pushes navigate to the store/conversation instead of falling
+            // through to the default tab.
+            let routingKey: String
+            if !categoryIdentifier.isEmpty {
+                routingKey = categoryIdentifier
+            } else {
+                switch userInfo["type"] as? String {
+                case "reminder_change": routingKey = "SHARED_REMINDER_CHANGE"
+                case "on_my_way":       routingKey = "ON_MY_WAY"
+                case "message":         routingKey = "NEW_MESSAGE"
+                case "friend_request":  routingKey = "FRIEND_REQUEST"
+                default:                routingKey = ""
+                }
+            }
+
+            switch routingKey {
             case "STORE_PROXIMITY", "SHARED_REMINDER_CHANGE", "ON_MY_WAY":
                 if let storeName = userInfo["storeName"] as? String {
                     self.pendingNavigation = .store(name: storeName)
