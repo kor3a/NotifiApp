@@ -95,9 +95,24 @@ android {
             version "3.22.1"
         }
     }
+    // Store .so files uncompressed and page-aligned inside the APK so the
+    // loader can mmap them directly on 16 KB page-size devices (Android 15+).
+    packagingOptions {
+        jniLibs {
+            useLegacyPackaging = false
+        }
+    }
+    signingConfigs {
+        debug {
+            storeFile file('debug.keystore')
+            storePassword 'android'
+            keyAlias 'androiddebugkey'
+            keyPassword 'android'
+        }
+    }
     buildTypes {
         debug {
-            // Uses default ~/.android/debug.keystore automatically
+            signingConfig signingConfigs.debug
         }
         release {
             // TODO: Add your own signing config for the release build.

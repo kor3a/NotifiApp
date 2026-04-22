@@ -13,8 +13,8 @@ android/app/build/
 android/build/
 android/.gradle/
 android/local.properties
-android/app/debug.keystore
 *.keystore
+!android/app/debug.keystore
 
 # iOS (not used)
 ios/
