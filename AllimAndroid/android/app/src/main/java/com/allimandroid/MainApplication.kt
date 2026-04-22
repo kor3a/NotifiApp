@@ -9,6 +9,7 @@ import com.facebook.react.ReactPackage
 import com.facebook.react.defaults.DefaultNewArchitectureEntryPoint.load
 import com.facebook.react.defaults.DefaultReactHost.getDefaultReactHost
 import com.facebook.react.defaults.DefaultReactNativeHost
+import com.facebook.react.soloader.OpenSourceMergedSoMapping
 import com.facebook.soloader.SoLoader
 
 class MainApplication : Application(), ReactApplication {
@@ -33,15 +34,12 @@ class MainApplication : Application(), ReactApplication {
 
   override fun onCreate() {
     super.onCreate()
-    SoLoader.init(this, false)
-    // In RN 0.76.x the JNI bindings for WritableNativeMap, InspectorFlags,
-    // HermesExecutor, etc. all live inside libreactnative.so. Our CMake stubs
-    // (reactnativejni, react_devsupportjni, hermes_executor, react_nativemodule_core)
-    // only satisfy SoLoader's dlopen check — they contain no JNI symbols.
-    // We must load libreactnative.so explicitly so background entry points
-    // (FCM onNewToken, boot receivers, dev-server AsyncTasks) can resolve
-    // those native methods before the RN bridge would otherwise lazy-load it.
-    SoLoader.loadLibrary("reactnative")
+    // RN 0.76 merged its internal libs (reactnativejni, react_devsupportjni,
+    // hermes_executor, react_nativemodule_core, …) into a single libreactnative.so.
+    // OpenSourceMergedSoMapping tells SoLoader to redirect loadLibrary() calls
+    // for the old names to libreactnative.so, so JNI methods resolve correctly
+    // from every entry point (main activity, FCM background service, etc.).
+    SoLoader.init(this, OpenSourceMergedSoMapping)
     if (BuildConfig.IS_NEW_ARCHITECTURE_ENABLED) {
       // If you opted-in for the New Architecture, we load the native entry point for this app.
       load()
