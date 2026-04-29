@@ -47,7 +47,7 @@ export default function Download() {
         {/* Download button */}
         <div className="mt-12">
           <a
-            href="https://apps.apple.com"
+            href="https://apps.apple.com/us/app/allim-smart-shopping-list/id6758680783"
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-3 px-8 py-4 rounded-2xl bg-white text-black font-semibold text-lg hover:bg-gray-100 transition-colors shadow-2xl shadow-white/10"
