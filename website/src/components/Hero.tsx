@@ -31,14 +31,14 @@ export default function Hero() {
             </h1>
 
             {/* Subheadline */}
-            <p className="mt-6 text-lg sm:text-xl text-allim-muted max-w-xl leading-relaxed">
+            <p className="mt-6 text-lg sm:text-xl text-allim-muted max-w-xl mx-auto lg:mx-0 leading-relaxed">
               Allim alerts you when you're near your favorite stores so you
               never miss a shopping trip. Collaborate with family and friends,
               and let smart AI organize your lists.
             </p>
 
             {/* CTA Buttons */}
-            <div className="mt-10 flex flex-col sm:flex-row items-center lg:items-start gap-4">
+            <div className="mt-10 flex flex-col sm:flex-row items-center lg:items-start justify-center lg:justify-start gap-4">
               <a
                 href="#download"
                 className="inline-flex items-center gap-2 px-8 py-4 rounded-2xl bg-gradient-to-r from-allim-blue to-allim-purple text-white font-semibold text-lg hover:opacity-90 transition-opacity shadow-lg shadow-allim-purple/25"

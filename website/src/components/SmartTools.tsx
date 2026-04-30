@@ -2,6 +2,7 @@ import { Sparkles, Tag, Zap } from "lucide-react";
 import PhoneFrame from "./PhoneFrame";
 import SmartRecipeScreen from "./screens/SmartRecipeScreen";
 import ReminderScreen from "./screens/ReminderScreen";
+import FadeIn from "./FadeIn";
 
 export default function SmartTools() {
   return (
@@ -13,7 +14,7 @@ export default function SmartTools() {
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-allim-purple/10 rounded-full blur-[200px]" />
 
       <div className="relative z-10 max-w-7xl mx-auto px-6">
-        <div className="text-center mb-20">
+        <FadeIn className="text-center mb-20">
           <span className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-allim-purple/10 border border-allim-purple/20 text-allim-purple text-sm font-medium mb-4">
             <Sparkles size={14} />
             AI-Powered
@@ -28,19 +29,19 @@ export default function SmartTools() {
             Powered by AI, Allim's smart features take the manual work out of
             meal planning and list organization.
           </p>
-        </div>
+        </FadeIn>
 
         {/* Smart Recipe */}
         <div className="grid lg:grid-cols-2 gap-12 items-center mb-24">
           {/* Phone mockup */}
-          <div className="flex justify-center order-2 lg:order-1">
+          <FadeIn className="flex justify-center order-2 lg:order-1">
             <PhoneFrame>
               <SmartRecipeScreen />
             </PhoneFrame>
-          </div>
+          </FadeIn>
 
           {/* Description */}
-          <div className="order-1 lg:order-2">
+          <FadeIn delay={200} className="order-1 lg:order-2">
             <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-allim-purple to-pink-500 flex items-center justify-center mb-6 shadow-lg shadow-allim-purple/20">
               <span className="text-2xl">🍳</span>
             </div>
@@ -67,13 +68,13 @@ export default function SmartTools() {
                 </li>
               ))}
             </ul>
-          </div>
+          </FadeIn>
         </div>
 
         {/* Smart Category */}
         <div className="grid lg:grid-cols-2 gap-12 items-center">
           {/* Description */}
-          <div>
+          <FadeIn>
             <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-allim-blue to-cyan-400 flex items-center justify-center mb-6 shadow-lg shadow-allim-blue/20">
               <Tag size={28} className="text-white" />
             </div>
@@ -100,14 +101,14 @@ export default function SmartTools() {
                 </li>
               ))}
             </ul>
-          </div>
+          </FadeIn>
 
           {/* Phone mockup */}
-          <div className="flex justify-center">
+          <FadeIn delay={200} className="flex justify-center">
             <PhoneFrame>
               <ReminderScreen />
             </PhoneFrame>
-          </div>
+          </FadeIn>
         </div>
       </div>
     </section>

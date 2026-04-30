@@ -1,4 +1,5 @@
 import { Star } from "lucide-react";
+import FadeIn from "./FadeIn";
 
 const testimonials = [
   {
@@ -22,7 +23,7 @@ export default function Testimonials() {
   return (
     <section className="relative bg-allim-dark py-32">
       <div className="max-w-7xl mx-auto px-6">
-        <div className="text-center mb-16">
+        <FadeIn className="text-center mb-16">
           <span className="inline-block px-4 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-sm font-medium mb-4">
             Loved by Shoppers
           </span>
@@ -32,28 +33,27 @@ export default function Testimonials() {
               saying
             </span>
           </h2>
-        </div>
+        </FadeIn>
 
         <div className="grid md:grid-cols-3 gap-6">
-          {testimonials.map((t) => (
-            <div
-              key={t.name}
-              className="rounded-3xl bg-white/[0.03] border border-white/[0.06] p-8 hover:bg-white/[0.06] transition-all duration-300"
-            >
-              <div className="flex gap-0.5 mb-4">
-                {Array.from({ length: t.stars }).map((_, i) => (
-                  <Star
-                    key={i}
-                    size={16}
-                    className="text-amber-400 fill-amber-400"
-                  />
-                ))}
+          {testimonials.map((t, index) => (
+            <FadeIn key={t.name} delay={index * 120}>
+              <div className="rounded-3xl bg-white/[0.03] border border-white/[0.06] p-8 hover:bg-white/[0.06] transition-all duration-300 h-full">
+                <div className="flex gap-0.5 mb-4">
+                  {Array.from({ length: t.stars }).map((_, i) => (
+                    <Star
+                      key={i}
+                      size={16}
+                      className="text-amber-400 fill-amber-400"
+                    />
+                  ))}
+                </div>
+                <p className="text-allim-muted leading-relaxed mb-6">
+                  "{t.text}"
+                </p>
+                <p className="text-white font-medium text-sm">{t.name}</p>
               </div>
-              <p className="text-allim-muted leading-relaxed mb-6">
-                "{t.text}"
-              </p>
-              <p className="text-white font-medium text-sm">{t.name}</p>
-            </div>
+            </FadeIn>
           ))}
         </div>
       </div>
