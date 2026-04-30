@@ -1,4 +1,4 @@
-import { MapPin, Users, Bell, Share2 } from "lucide-react";
+import { MapPin, Users, Share2, ChefHat } from "lucide-react";
 import PhoneFrame from "./PhoneFrame";
 import NotificationScreen from "./screens/NotificationScreen";
 import { useInView } from "../hooks/useInView";
@@ -13,10 +13,10 @@ const features = [
     gradient: "from-blue-500 to-cyan-400",
   },
   {
-    icon: Bell,
-    title: "Smart Notifications",
+    icon: ChefHat,
+    title: "Smart Recipe",
     description:
-      "Receive timely, non-intrusive alerts when you're within range of a store with pending items. Works in the background and even supports CarPlay for hands-free reminders.",
+      "Ask Allim's AI for any recipe and get step-by-step instructions. Add all the ingredients to your store list with a single tap — no manual typing needed.",
     gradient: "from-violet-500 to-purple-400",
   },
   {
