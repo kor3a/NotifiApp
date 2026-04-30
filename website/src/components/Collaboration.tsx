@@ -1,5 +1,6 @@
 import { Users, Eye, Pencil, MessageCircle } from "lucide-react";
 import PhoneFrame from "./PhoneFrame";
+import FadeIn from "./FadeIn";
 
 function ShareScreen() {
   return (
@@ -150,7 +151,7 @@ export default function Collaboration() {
       <div className="relative z-10 max-w-7xl mx-auto px-6">
         <div className="grid lg:grid-cols-2 gap-16 items-center">
           {/* Left: content */}
-          <div>
+          <FadeIn>
             <span className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-pink-500/10 border border-pink-500/20 text-pink-400 text-sm font-medium mb-4">
               <Users size={14} />
               Collaboration
@@ -168,53 +169,48 @@ export default function Collaboration() {
             </p>
 
             <div className="mt-8 space-y-4">
-              <div className="flex items-start gap-4">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-pink-500/20 to-rose-500/20 flex items-center justify-center shrink-0">
-                  <Pencil size={18} className="text-pink-400" />
-                </div>
-                <div>
-                  <h4 className="text-white font-medium">Can Edit</h4>
-                  <p className="text-sm text-allim-muted mt-1">
-                    Full ownership — add items, check things off, and changes
-                    sync between both users automatically.
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-start gap-4">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500/20 to-purple-500/20 flex items-center justify-center shrink-0">
-                  <Eye size={18} className="text-violet-400" />
-                </div>
-                <div>
-                  <h4 className="text-white font-medium">View Only</h4>
-                  <p className="text-sm text-allim-muted mt-1">
-                    Let someone see what you need without giving them edit
-                    access. Great for quick visibility.
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-start gap-4">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500/20 to-orange-500/20 flex items-center justify-center shrink-0">
-                  <MessageCircle size={18} className="text-amber-400" />
-                </div>
-                <div>
-                  <h4 className="text-white font-medium">
-                    "On My Way" Alerts
-                  </h4>
-                  <p className="text-sm text-allim-muted mt-1">
-                    Get notified when someone you share with is heading to the
-                    store, so you can add last-minute items.
-                  </p>
-                </div>
-              </div>
+              {[
+                {
+                  icon: Pencil,
+                  iconClass: "text-pink-400",
+                  bgClass: "from-pink-500/20 to-rose-500/20",
+                  title: "Can Edit",
+                  desc: "Full ownership — add items, check things off, and changes sync between both users automatically.",
+                },
+                {
+                  icon: Eye,
+                  iconClass: "text-violet-400",
+                  bgClass: "from-violet-500/20 to-purple-500/20",
+                  title: "View Only",
+                  desc: "Let someone see what you need without giving them edit access. Great for quick visibility.",
+                },
+                {
+                  icon: MessageCircle,
+                  iconClass: "text-amber-400",
+                  bgClass: "from-amber-500/20 to-orange-500/20",
+                  title: '"On My Way" Alerts',
+                  desc: "Get notified when someone you share with is heading to the store, so you can add last-minute items.",
+                },
+              ].map((item, i) => (
+                <FadeIn key={item.title} delay={200 + i * 120} className="flex items-start gap-4">
+                  <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${item.bgClass} flex items-center justify-center shrink-0`}>
+                    <item.icon size={18} className={item.iconClass} />
+                  </div>
+                  <div>
+                    <h4 className="text-white font-medium">{item.title}</h4>
+                    <p className="text-sm text-allim-muted mt-1">{item.desc}</p>
+                  </div>
+                </FadeIn>
+              ))}
             </div>
-          </div>
+          </FadeIn>
 
           {/* Right: phone mockup */}
-          <div className="flex justify-center">
+          <FadeIn delay={200} className="flex justify-center">
             <PhoneFrame>
               <ShareScreen />
             </PhoneFrame>
-          </div>
+          </FadeIn>
         </div>
       </div>
     </section>

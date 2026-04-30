@@ -1,4 +1,5 @@
 import { Sparkles, Shield, ChefHat, Tag } from "lucide-react";
+import FadeIn from "./FadeIn";
 
 export default function Download() {
   return (
@@ -6,29 +7,35 @@ export default function Download() {
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[600px] bg-gradient-to-b from-allim-purple/15 via-allim-blue/10 to-transparent rounded-full blur-[120px]" />
 
       <div className="relative z-10 max-w-4xl mx-auto px-6 text-center">
-        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/5 border border-white/10 mb-8">
-          <Sparkles size={14} className="text-allim-purple" />
-          <span className="text-sm text-allim-muted">
-            Free on the App Store
-          </span>
-        </div>
+        <FadeIn className="inline-flex">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/5 border border-white/10 mb-8">
+            <Sparkles size={14} className="text-allim-purple" />
+            <span className="text-sm text-allim-muted">
+              Free on the App Store
+            </span>
+          </div>
+        </FadeIn>
 
-        <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white tracking-tight leading-tight">
-          Start shopping{" "}
-          <span className="bg-gradient-to-r from-allim-blue to-allim-purple bg-clip-text text-transparent">
-            smarter
-          </span>{" "}
-          today
-        </h2>
+        <FadeIn delay={100}>
+          <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white tracking-tight leading-tight">
+            Start shopping{" "}
+            <span className="bg-gradient-to-r from-allim-blue to-allim-purple bg-clip-text text-transparent">
+              smarter
+            </span>{" "}
+            today
+          </h2>
+        </FadeIn>
 
-        <p className="mt-6 text-lg text-allim-muted max-w-xl mx-auto leading-relaxed">
-          Download Allim for free and transform how you manage your shopping. Upgrade
-          to Premium for just $0.99/month to unlock Smart Recipe, Smart Category,
-          and an ad-free experience.
-        </p>
+        <FadeIn delay={200}>
+          <p className="mt-6 text-lg text-allim-muted max-w-xl mx-auto leading-relaxed">
+            Download Allim for free and transform how you manage your shopping. Upgrade
+            to Premium for just $0.99/month to unlock Smart Recipe, Smart Category,
+            and an ad-free experience.
+          </p>
+        </FadeIn>
 
         {/* Premium features */}
-        <div className="mt-10 flex flex-wrap items-center justify-center gap-4">
+        <FadeIn delay={300} className="mt-10 flex flex-wrap items-center justify-center gap-4">
           {[
             { icon: ChefHat, label: "Smart Recipe" },
             { icon: Tag, label: "Smart Category" },
@@ -42,10 +49,10 @@ export default function Download() {
               <span className="text-white text-sm">{item.label}</span>
             </div>
           ))}
-        </div>
+        </FadeIn>
 
         {/* Download button */}
-        <div className="mt-12">
+        <FadeIn delay={400} className="mt-12">
           <a
             href="https://apps.apple.com/us/app/allim-smart-shopping-list/id6758680783"
             target="_blank"
@@ -64,7 +71,7 @@ export default function Download() {
           <p className="mt-4 text-sm text-allim-muted">
             Requires iOS 17.0 or later. Free with optional Premium upgrade.
           </p>
-        </div>
+        </FadeIn>
       </div>
     </section>
   );
