@@ -30,6 +30,12 @@ export default function Navbar() {
             How It Works
           </a>
           <a
+            href="#use-cases"
+            className="text-sm text-allim-muted hover:text-white transition-colors"
+          >
+            Use Cases
+          </a>
+          <a
             href="#smart"
             className="text-sm text-allim-muted hover:text-white transition-colors"
           >
@@ -67,6 +73,13 @@ export default function Navbar() {
             className="text-allim-muted hover:text-white transition-colors"
           >
             How It Works
+          </a>
+          <a
+            href="#use-cases"
+            onClick={() => setOpen(false)}
+            className="text-allim-muted hover:text-white transition-colors"
+          >
+            Use Cases
           </a>
           <a
             href="#smart"
