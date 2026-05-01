@@ -36,26 +36,26 @@ html {
   }
 }
 
-@keyframes swipe-right {
-  0%, 10% {
-    transform: translateX(0);
+@keyframes swipe-reveal {
+  0%, 12% {
+    clip-path: inset(0 100% 0 0);
   }
-  35%, 70% {
-    transform: translateX(72px);
+  38%, 72% {
+    clip-path: inset(0 0 0 0);
   }
-  90%, 100% {
-    transform: translateX(0);
+  92%, 100% {
+    clip-path: inset(0 100% 0 0);
   }
 }
 
-.animate-swipe-right {
-  animation: swipe-right 3.2s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+.animate-swipe-reveal {
+  animation: swipe-reveal 3.5s cubic-bezier(0.65, 0, 0.35, 1) infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .animate-swipe-right {
+  .animate-swipe-reveal {
     animation: none;
-    transform: translateX(72px);
+    clip-path: inset(0 0 0 0);
   }
 }
 
