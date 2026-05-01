@@ -36,6 +36,29 @@ html {
   }
 }
 
+@keyframes swipe-right {
+  0%, 10% {
+    transform: translateX(0);
+  }
+  35%, 70% {
+    transform: translateX(72px);
+  }
+  90%, 100% {
+    transform: translateX(0);
+  }
+}
+
+.animate-swipe-right {
+  animation: swipe-right 3.2s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-swipe-right {
+    animation: none;
+    transform: translateX(72px);
+  }
+}
+
 body {
   margin: 0;
   font-family: var(--font-body);

@@ -134,9 +134,9 @@ function SwipeStoreScreen() {
             </span>
           </div>
 
-          {/* Foreground row, translated right to reveal action */}
+          {/* Foreground row, animated to reveal action */}
           <div
-            className="flex items-center gap-3 px-3 py-2.5 rounded-2xl relative"
+            className="flex items-center gap-3 px-3 py-2.5 rounded-2xl relative animate-swipe-right"
             style={{
               background: "rgba(255,255,255,0.95)",
               backdropFilter: "blur(20px)",
@@ -144,7 +144,6 @@ function SwipeStoreScreen() {
               border: "1.5px solid rgba(255,255,255,0.5)",
               boxShadow:
                 "0 6px 14px rgba(0,0,0,0.18), 0 -2px 2px rgba(255,255,255,0.5)",
-              transform: "translateX(72px)",
             }}
           >
             <div
