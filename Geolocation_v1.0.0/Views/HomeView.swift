@@ -30,6 +30,20 @@ struct HomeView: View {
     @State private var showCarPlayAlert = false
     @State private var showNotificationsDeniedAlert = false
 
+    @ViewBuilder
+    private var debugTab: some View {
+        #if DEBUG
+        NavigationStack {
+            NotificationDebugTab()
+        }
+        .tabItem {
+            Image(systemName: "bell.badge")
+            Text("Debug")
+        }
+        .tag(4)
+        #endif
+    }
+
     var body: some View {
         ZStack {
             TabView(selection: $selectedTab) {
@@ -101,17 +115,7 @@ struct HomeView: View {
                 }
                 .tag(3)
 
-                #if DEBUG
-                NavigationStack {
-                    NotificationDebugView()
-                        .navigationBarTitleDisplayMode(.inline)
-                }//:NAVIGATIONSTACK
-                .tabItem {
-                    Image(systemName: "bell.badge")
-                    Text("Debug")
-                }
-                .tag(4)
-                #endif
+                debugTab
             }//:TABVIEW
 
             // Tutorial overlay — rendered above the TabView (including tab bar)
@@ -327,3 +331,56 @@ struct HomeView: View {
 #Preview {
     HomeView()
 }
+
+#if DEBUG
+private struct NotificationDebugTab: View {
+    @ObservedObject private var manager = NotificationManager.shared
+    @State private var storeName = "Target"
+    @State private var reminderCount = 3
+
+    var body: some View {
+        List {
+            Section("Status") {
+                HStack { Text("Notifications"); Spacer(); Text(manager.isAuthorized ? "✅" : "❌") }
+                HStack { Text("CarPlay"); Spacer(); Text(manager.isCarPlayConnected ? "🚗 Connected" : "📱 Disconnected") }
+            }
+
+            Section("Test Notification") {
+                TextField("Store Name", text: $storeName)
+                Stepper("Reminders: \(reminderCount)", value: $reminderCount, in: 1...10)
+                Button("Test: Passive") { fire(.passive) }
+                Button("Test: Time Sensitive") { fire(.timeSensitive) }
+                Button("Test: Critical") { fire(.critical) }
+            }
+
+            Section("Debug Actions") {
+                Button("Print Detailed Settings") {
+                    Task { await manager.printDetailedSettings() }
+                }
+                Button("Show Pending") { manager.getAllPendingNotificationsDebug() }
+                Button("Show Delivered") { manager.getAllDeliveredNotificationsDebug() }
+                Button("Clear All Pending", role: .destructive) {
+                    manager.removeAllPendingNotifications()
+                }
+            }
+
+            if !manager.debugInfo.isEmpty {
+                Section("Last Settings Check") {
+                    Text(manager.debugInfo)
+                        .font(.system(.caption, design: .monospaced))
+                }
+            }
+        }
+        .navigationTitle("🔧 Notification Debug")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private func fire(_ mode: NotificationManager.InterruptionMode) {
+        manager.scheduleStoreProximityNotification(
+            storeName: storeName,
+            reminderCount: reminderCount,
+            mode: mode
+        )
+    }
+}
+#endif
