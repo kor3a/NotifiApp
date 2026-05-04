@@ -10,6 +10,7 @@ import UserNotifications
 import CoreLocation
 import Intents
 import UIKit
+import AVFoundation
 
 class NotificationManager: NSObject, ObservableObject {
     static let shared = NotificationManager()
@@ -49,16 +50,25 @@ class NotificationManager: NSObject, ObservableObject {
 
     #if DEBUG
     private func startCarPlayMonitoring() {
+        // Communication-type CarPlay apps don't get a CarPlay UIScreen, so
+        // UIScreen.screens / userInterfaceIdiom == .carPlay never matches.
+        // Detect via the audio session route instead — when CarPlay is
+        // connected, the system adds a `.carAudio` output port to the
+        // current route.
         updateCarPlayConnection()
-        NotificationCenter.default.addObserver(self, selector: #selector(screenDidConnect), name: UIScreen.didConnectNotification, object: nil)
-        NotificationCenter.default.addObserver(self, selector: #selector(screenDidDisconnect), name: UIScreen.didDisconnectNotification, object: nil)
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(audioRouteChanged),
+            name: AVAudioSession.routeChangeNotification,
+            object: nil
+        )
     }
 
-    @objc private func screenDidConnect(_: Notification) { updateCarPlayConnection() }
-    @objc private func screenDidDisconnect(_: Notification) { updateCarPlayConnection() }
+    @objc private func audioRouteChanged(_: Notification) { updateCarPlayConnection() }
 
     private func updateCarPlayConnection() {
-        let connected = UIScreen.screens.contains { $0.traitCollection.userInterfaceIdiom == .carPlay }
+        let outputs = AVAudioSession.sharedInstance().currentRoute.outputs
+        let connected = outputs.contains { $0.portType == .carAudio }
         DispatchQueue.main.async { self.isCarPlayConnected = connected }
     }
 
