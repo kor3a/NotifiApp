@@ -7,6 +7,7 @@
 
 import SwiftUI
 
+#if DEBUG
 struct NotificationDebugView: View {
     @StateObject private var notificationManager = NotificationManager.shared
     @State private var testStoreName = "Target"
@@ -310,3 +311,4 @@ struct FixItem: View {
 #Preview {
     NotificationDebugView()
 }
+#endif

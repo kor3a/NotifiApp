@@ -9,6 +9,7 @@ import Foundation
 import UserNotifications
 import CoreLocation
 import Intents
+import UIKit
 
 class NotificationManager: NSObject, ObservableObject {
     static let shared = NotificationManager()
@@ -18,6 +19,17 @@ class NotificationManager: NSObject, ObservableObject {
         case message(conversationId: String)
         case friendRequest
     }
+
+    enum InterruptionMode: String {
+        case passive = "Passive"
+        case timeSensitive = "Time Sensitive"
+        case critical = "Critical"
+    }
+
+    #if DEBUG
+    @Published var isCarPlayConnected = false
+    @Published var debugInfo: String = ""
+    #endif
 
     @Published var isAuthorized = false
     @Published var isCarPlayEnabled = false
@@ -30,7 +42,55 @@ class NotificationManager: NSObject, ObservableObject {
         notificationCenter.delegate = self
         registerNotificationCategories()
         checkAuthorizationStatus()
+        #if DEBUG
+        startCarPlayMonitoring()
+        #endif
     }
+
+    #if DEBUG
+    private func startCarPlayMonitoring() {
+        updateCarPlayConnection()
+        NotificationCenter.default.addObserver(self, selector: #selector(screenDidConnect), name: UIScreen.didConnectNotification, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(screenDidDisconnect), name: UIScreen.didDisconnectNotification, object: nil)
+    }
+
+    @objc private func screenDidConnect(_: Notification) { updateCarPlayConnection() }
+    @objc private func screenDidDisconnect(_: Notification) { updateCarPlayConnection() }
+
+    private func updateCarPlayConnection() {
+        let connected = UIScreen.screens.contains { $0.traitCollection.userInterfaceIdiom == .carPlay }
+        DispatchQueue.main.async { self.isCarPlayConnected = connected }
+    }
+
+    func printDetailedSettings() async {
+        let settings = await notificationCenter.notificationSettings()
+        let info = """
+        Authorization: \(settings.authorizationStatus.rawValue)
+        Alert: \(settings.alertSetting.rawValue)
+        Sound: \(settings.soundSetting.rawValue)
+        CarPlay: \(settings.carPlaySetting.rawValue)
+        TimeSensitive: \(settings.timeSensitiveSetting.rawValue)
+        Announcement: \(settings.announcementSetting.rawValue)
+        CarPlay Connected: \(isCarPlayConnected)
+        """
+        print("=== NOTIFICATION SETTINGS ===\n\(info)\n=============================")
+        await MainActor.run { self.debugInfo = info }
+    }
+
+    func getAllPendingNotificationsDebug() {
+        notificationCenter.getPendingNotificationRequests { requests in
+            print("📋 Pending (\(requests.count)):")
+            requests.forEach { print("  \($0.identifier): \($0.content.title)") }
+        }
+    }
+
+    func getAllDeliveredNotificationsDebug() {
+        notificationCenter.getDeliveredNotifications { notifications in
+            print("📬 Delivered (\(notifications.count)):")
+            notifications.forEach { print("  \($0.request.identifier): \($0.request.content.title)") }
+        }
+    }
+    #endif
 
     // MARK: - Category Registration
 
@@ -222,7 +282,7 @@ class NotificationManager: NSObject, ObservableObject {
 
     // MARK: - Notification Scheduling
 
-    func scheduleStoreProximityNotification(storeName: String, reminderCount: Int) {
+    func scheduleStoreProximityNotification(storeName: String, reminderCount: Int, mode: InterruptionMode? = nil) {
         #if DEBUG
         print("🔔 NotificationManager: Attempting to schedule notification for \(storeName)")
         #endif
@@ -251,9 +311,17 @@ class NotificationManager: NSObject, ObservableObject {
                 content.body = "You have \(reminderCount) reminders waiting for you at this store."
             }
 
+            #if DEBUG
+            switch mode ?? .timeSensitive {
+            case .passive:        content.interruptionLevel = .passive;       content.sound = .default
+            case .timeSensitive:  content.interruptionLevel = .timeSensitive; content.sound = .default
+            case .critical:       content.interruptionLevel = .critical;      content.sound = .defaultCritical
+            }
+            #else
             content.sound = .default
             content.interruptionLevel = .timeSensitive
-            content.relevanceScore = 1.0 // Highest relevance for location-based reminders
+            #endif
+            content.relevanceScore = 1.0
             content.categoryIdentifier = "STORE_PROXIMITY"
             content.userInfo = ["storeName": storeName]
 

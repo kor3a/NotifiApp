@@ -100,6 +100,18 @@ struct HomeView: View {
                     Text("Search")
                 }
                 .tag(3)
+
+                #if DEBUG
+                NavigationStack {
+                    NotificationDebugView()
+                        .navigationBarTitleDisplayMode(.inline)
+                }//:NAVIGATIONSTACK
+                .tabItem {
+                    Image(systemName: "bell.badge")
+                    Text("Debug")
+                }
+                .tag(4)
+                #endif
             }//:TABVIEW
 
             // Tutorial overlay — rendered above the TabView (including tab bar)
