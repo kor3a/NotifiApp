@@ -270,10 +270,24 @@ class NotificationManager: NSObject, ObservableObject {
             guard let self else { return }
 
             let finalContent: UNNotificationContent
-            if error == nil, let updated = try? content.updating(from: intent) {
-                finalContent = updated
+            let updateOK: Bool
+            if error == nil {
+                do {
+                    finalContent = try content.updating(from: intent)
+                    updateOK = true
+                } catch {
+                    #if DEBUG
+                    print("   ⚠️ content.updating(from: intent) threw: \(error)")
+                    #endif
+                    finalContent = content
+                    updateOK = false
+                }
             } else {
+                #if DEBUG
+                print("   ⚠️ INInteraction.donate failed: \(error!)")
+                #endif
                 finalContent = content
+                updateOK = false
             }
 
             let request = UNNotificationRequest(identifier: identifier, content: finalContent, trigger: trigger)
@@ -282,7 +296,15 @@ class NotificationManager: NSObject, ObservableObject {
                 if let addError {
                     print("   ❌ Error scheduling notification: \(addError)")
                 } else {
-                    print("   ✅ Scheduled notification")
+                    let isCommunication: String
+                    if #available(iOS 15.0, *) {
+                        // Communication notifications carry filterCriteria after updating(from:)
+                        isCommunication = updateOK ? "✅ communication" : "❌ NOT communication (fell back)"
+                    } else {
+                        isCommunication = updateOK ? "communication" : "NOT communication"
+                    }
+                    print("   ✅ Scheduled \(isCommunication) notification — id=\(identifier)")
+                    print("      sender=\(senderDisplayName) conversationID=\(conversationIdentifier)")
                     onScheduled?()
                 }
                 #endif
