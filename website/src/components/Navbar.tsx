@@ -8,9 +8,11 @@ export default function Navbar() {
     <nav className="fixed top-0 left-0 right-0 z-50 bg-allim-dark/80 backdrop-blur-xl border-b border-white/5">
       <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
         <a href="#" className="flex items-center gap-2">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-allim-blue to-allim-purple flex items-center justify-center">
-            <span className="text-white font-bold text-sm">A</span>
-          </div>
+          <img
+            src="/allimIcon.png"
+            alt="Allim"
+            className="w-9 h-9 rounded-xl"
+          />
           <span className="text-white font-semibold text-xl tracking-tight">
             Allim
           </span>
