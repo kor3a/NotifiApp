@@ -55,12 +55,11 @@ export default function NotificationScreen() {
           }}
         >
           {/* App icon */}
-          <div
-            className="w-[34px] h-[34px] rounded-[8px] flex items-center justify-center shrink-0"
-            style={{ background: "linear-gradient(135deg, #3B82F6, #8B5CF6)" }}
-          >
-            <span className="text-white text-[14px] font-bold">A</span>
-          </div>
+          <img
+            src="/allimIcon.png"
+            alt="Allim"
+            className="w-[34px] h-[34px] rounded-[8px] shrink-0 object-cover"
+          />
 
           <div className="flex-1 min-w-0">
             <div className="flex items-center justify-between">
