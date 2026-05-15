@@ -1,32 +1,40 @@
+import { lazy, Suspense } from "react";
 import Navbar from "./components/Navbar";
 import Hero from "./components/Hero";
-import Features from "./components/Features";
-import HowItWorks from "./components/HowItWorks";
-import UseCases from "./components/UseCases";
-import Collaboration from "./components/Collaboration";
-import SmartTools from "./components/SmartTools";
-import Testimonials from "./components/Testimonials";
-import Download from "./components/Download";
-import Footer from "./components/Footer";
-import SupportPage from "./components/SupportPage";
+
+const Features = lazy(() => import("./components/Features"));
+const HowItWorks = lazy(() => import("./components/HowItWorks"));
+const UseCases = lazy(() => import("./components/UseCases"));
+const Collaboration = lazy(() => import("./components/Collaboration"));
+const SmartTools = lazy(() => import("./components/SmartTools"));
+const Testimonials = lazy(() => import("./components/Testimonials"));
+const Download = lazy(() => import("./components/Download"));
+const Footer = lazy(() => import("./components/Footer"));
+const SupportPage = lazy(() => import("./components/SupportPage"));
 
 export default function App() {
   if (window.location.pathname === "/support") {
-    return <SupportPage />;
+    return (
+      <Suspense fallback={null}>
+        <SupportPage />
+      </Suspense>
+    );
   }
 
   return (
     <div className="min-h-screen bg-allim-dark">
       <Navbar />
       <Hero />
-      <Features />
-      <HowItWorks />
-      <UseCases />
-      <Collaboration />
-      <SmartTools />
-      <Testimonials />
-      <Download />
-      <Footer />
+      <Suspense fallback={null}>
+        <Features />
+        <HowItWorks />
+        <UseCases />
+        <Collaboration />
+        <SmartTools />
+        <Testimonials />
+        <Download />
+        <Footer />
+      </Suspense>
     </div>
   );
 }
