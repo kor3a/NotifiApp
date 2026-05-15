@@ -34,6 +34,10 @@
 	<string>We need your location to show nearby stores and notify you when you&apos;re near stores with pending reminders.</string>
 	<key>NSSiriUsageDescription</key>
 	<string>NearBuy uses Siri to let you send and receive messages about your shopping reminders hands-free while driving.</string>
+	<key>NSUserActivityTypes</key>
+	<array>
+		<string>INSendMessageIntent</string>
+	</array>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

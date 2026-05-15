@@ -9,6 +9,8 @@ import Foundation
 import UserNotifications
 import CoreLocation
 import Intents
+import UIKit
+import AVFoundation
 
 class NotificationManager: NSObject, ObservableObject {
     static let shared = NotificationManager()
@@ -18,6 +20,17 @@ class NotificationManager: NSObject, ObservableObject {
         case message(conversationId: String)
         case friendRequest
     }
+
+    enum InterruptionMode: String {
+        case passive = "Passive"
+        case timeSensitive = "Time Sensitive"
+        case critical = "Critical"
+    }
+
+    #if DEBUG
+    @Published var isCarPlayConnected = false
+    @Published var debugInfo: String = ""
+    #endif
 
     @Published var isAuthorized = false
     @Published var isCarPlayEnabled = false
@@ -30,7 +43,64 @@ class NotificationManager: NSObject, ObservableObject {
         notificationCenter.delegate = self
         registerNotificationCategories()
         checkAuthorizationStatus()
+        #if DEBUG
+        startCarPlayMonitoring()
+        #endif
     }
+
+    #if DEBUG
+    private func startCarPlayMonitoring() {
+        // Communication-type CarPlay apps don't get a CarPlay UIScreen, so
+        // UIScreen.screens / userInterfaceIdiom == .carPlay never matches.
+        // Detect via the audio session route instead — when CarPlay is
+        // connected, the system adds a `.carAudio` output port to the
+        // current route.
+        updateCarPlayConnection()
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(audioRouteChanged),
+            name: AVAudioSession.routeChangeNotification,
+            object: nil
+        )
+    }
+
+    @objc private func audioRouteChanged(_: Notification) { updateCarPlayConnection() }
+
+    private func updateCarPlayConnection() {
+        let outputs = AVAudioSession.sharedInstance().currentRoute.outputs
+        let connected = outputs.contains { $0.portType == .carAudio }
+        DispatchQueue.main.async { self.isCarPlayConnected = connected }
+    }
+
+    func printDetailedSettings() async {
+        let settings = await notificationCenter.notificationSettings()
+        let info = """
+        Authorization: \(settings.authorizationStatus.rawValue)
+        Alert: \(settings.alertSetting.rawValue)
+        Sound: \(settings.soundSetting.rawValue)
+        CarPlay: \(settings.carPlaySetting.rawValue)
+        TimeSensitive: \(settings.timeSensitiveSetting.rawValue)
+        Announcement: \(settings.announcementSetting.rawValue)
+        CarPlay Connected: \(isCarPlayConnected)
+        """
+        print("=== NOTIFICATION SETTINGS ===\n\(info)\n=============================")
+        await MainActor.run { self.debugInfo = info }
+    }
+
+    func getAllPendingNotificationsDebug() {
+        notificationCenter.getPendingNotificationRequests { requests in
+            print("📋 Pending (\(requests.count)):")
+            requests.forEach { print("  \($0.identifier): \($0.content.title)") }
+        }
+    }
+
+    func getAllDeliveredNotificationsDebug() {
+        notificationCenter.getDeliveredNotifications { notifications in
+            print("📬 Delivered (\(notifications.count)):")
+            notifications.forEach { print("  \($0.request.identifier): \($0.request.content.title)") }
+        }
+    }
+    #endif
 
     // MARK: - Category Registration
 
@@ -200,10 +270,24 @@ class NotificationManager: NSObject, ObservableObject {
             guard let self else { return }
 
             let finalContent: UNNotificationContent
-            if error == nil, let updated = try? content.updating(from: intent) {
-                finalContent = updated
+            let updateOK: Bool
+            if error == nil {
+                do {
+                    finalContent = try content.updating(from: intent)
+                    updateOK = true
+                } catch {
+                    #if DEBUG
+                    print("   ⚠️ content.updating(from: intent) threw: \(error)")
+                    #endif
+                    finalContent = content
+                    updateOK = false
+                }
             } else {
+                #if DEBUG
+                print("   ⚠️ INInteraction.donate failed: \(error!)")
+                #endif
                 finalContent = content
+                updateOK = false
             }
 
             let request = UNNotificationRequest(identifier: identifier, content: finalContent, trigger: trigger)
@@ -212,7 +296,15 @@ class NotificationManager: NSObject, ObservableObject {
                 if let addError {
                     print("   ❌ Error scheduling notification: \(addError)")
                 } else {
-                    print("   ✅ Scheduled notification")
+                    let isCommunication: String
+                    if #available(iOS 15.0, *) {
+                        // Communication notifications carry filterCriteria after updating(from:)
+                        isCommunication = updateOK ? "✅ communication" : "❌ NOT communication (fell back)"
+                    } else {
+                        isCommunication = updateOK ? "communication" : "NOT communication"
+                    }
+                    print("   ✅ Scheduled \(isCommunication) notification — id=\(identifier)")
+                    print("      sender=\(senderDisplayName) conversationID=\(conversationIdentifier)")
                     onScheduled?()
                 }
                 #endif
@@ -222,7 +314,7 @@ class NotificationManager: NSObject, ObservableObject {
 
     // MARK: - Notification Scheduling
 
-    func scheduleStoreProximityNotification(storeName: String, reminderCount: Int) {
+    func scheduleStoreProximityNotification(storeName: String, reminderCount: Int, mode: InterruptionMode? = nil) {
         #if DEBUG
         print("🔔 NotificationManager: Attempting to schedule notification for \(storeName)")
         #endif
@@ -251,9 +343,17 @@ class NotificationManager: NSObject, ObservableObject {
                 content.body = "You have \(reminderCount) reminders waiting for you at this store."
             }
 
+            #if DEBUG
+            switch mode ?? .timeSensitive {
+            case .passive:        content.interruptionLevel = .passive;       content.sound = .default
+            case .timeSensitive:  content.interruptionLevel = .timeSensitive; content.sound = .default
+            case .critical:       content.interruptionLevel = .critical;      content.sound = .defaultCritical
+            }
+            #else
             content.sound = .default
             content.interruptionLevel = .timeSensitive
-            content.relevanceScore = 1.0 // Highest relevance for location-based reminders
+            #endif
+            content.relevanceScore = 1.0
             content.categoryIdentifier = "STORE_PROXIMITY"
             content.userInfo = ["storeName": storeName]
 
