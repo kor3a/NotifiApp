@@ -25,7 +25,7 @@ export default function Hero() {
             <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold text-white leading-tight tracking-tight">
               Never forget your{" "}
               <span className="bg-gradient-to-r from-allim-blue to-allim-purple bg-clip-text text-transparent">
-                groceries
+                to-dos
               </span>{" "}
               again
             </h1>
