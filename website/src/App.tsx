@@ -13,7 +13,7 @@ const Footer = lazy(() => import("./components/Footer"));
 const SupportPage = lazy(() => import("./components/SupportPage"));
 
 export default function App() {
-  if (window.location.pathname === "/support") {
+  if (typeof window !== "undefined" && window.location.pathname === "/support") {
     return (
       <Suspense fallback={null}>
         <SupportPage />
