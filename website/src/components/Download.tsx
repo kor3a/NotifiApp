@@ -4,7 +4,7 @@ import FadeIn from "./FadeIn";
 export default function Download() {
   return (
     <section id="download" className="relative bg-allim-dark py-32 overflow-hidden">
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[600px] bg-gradient-to-b from-allim-purple/15 via-allim-blue/10 to-transparent rounded-full blur-[120px]" />
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[600px] bg-gradient-to-b from-allim-purple/15 via-allim-blue/10 to-transparent rounded-full blur-[60px]" />
 
       <div className="relative z-10 max-w-4xl mx-auto px-6 text-center">
         <FadeIn className="inline-flex">

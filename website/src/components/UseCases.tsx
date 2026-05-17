@@ -327,8 +327,8 @@ export default function UseCases() {
       className="relative bg-allim-dark py-32 overflow-hidden"
     >
       {/* Background glows */}
-      <div className="absolute top-1/4 -left-32 w-[500px] h-[500px] bg-emerald-500/5 rounded-full blur-[180px]" />
-      <div className="absolute bottom-1/4 -right-32 w-[500px] h-[500px] bg-amber-500/5 rounded-full blur-[180px]" />
+      <div className="absolute top-1/4 -left-32 w-[500px] h-[500px] bg-emerald-500/5 rounded-full blur-[60px]" />
+      <div className="absolute bottom-1/4 -right-32 w-[500px] h-[500px] bg-amber-500/5 rounded-full blur-[60px]" />
 
       <div className="relative z-10 max-w-7xl mx-auto px-6">
         {/* Heading */}
