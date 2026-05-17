@@ -5,7 +5,7 @@ export default function Footer() {
         <div className="flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-2">
             <img
-              src="/allimIcon.png"
+              src="/allimIcon.svg"
               alt="Allim"
               className="w-8 h-8 rounded-xl"
             />

@@ -11,7 +11,7 @@ export default function SmartTools() {
       className="relative bg-allim-dark py-32 overflow-hidden"
     >
       {/* Background accent */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-allim-purple/10 rounded-full blur-[200px]" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-allim-purple/10 rounded-full blur-[60px]" />
 
       <div className="relative z-10 max-w-7xl mx-auto px-6">
         <FadeIn className="text-center mb-20">

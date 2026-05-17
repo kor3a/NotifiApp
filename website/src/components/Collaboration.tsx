@@ -146,7 +146,7 @@ function ShareScreen() {
 export default function Collaboration() {
   return (
     <section className="relative bg-allim-dark py-32 overflow-hidden">
-      <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-pink-500/5 rounded-full blur-[200px]" />
+      <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-pink-500/5 rounded-full blur-[60px]" />
 
       <div className="relative z-10 max-w-7xl mx-auto px-6">
         <div className="grid lg:grid-cols-2 gap-16 items-center">

@@ -56,7 +56,7 @@ export default function NotificationScreen() {
         >
           {/* App icon */}
           <img
-            src="/allimIcon.png"
+            src="/allimIcon.svg"
             alt="Allim"
             className="w-[34px] h-[34px] rounded-[8px] shrink-0 object-cover"
           />
