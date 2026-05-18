@@ -59,100 +59,69 @@ html {
   }
 }
 
-@keyframes route-draw {
-  0%, 6% {
-    stroke-dashoffset: 100;
-  }
-  55%, 100% {
-    stroke-dashoffset: 0;
-  }
-}
-
-@keyframes route-puck {
-  0%, 6% {
-    offset-distance: 0%;
-  }
-  55%, 100% {
-    offset-distance: 100%;
-  }
-}
-
-@keyframes route-pin {
+@keyframes aurora-drift-1 {
   0%, 100% {
-    transform: scale(1);
+    transform: translate(0, 0) scale(1);
+  }
+  33% {
+    transform: translate(8%, -6%) scale(1.15);
+  }
+  66% {
+    transform: translate(-6%, 7%) scale(0.92);
+  }
+}
+
+@keyframes aurora-drift-2 {
+  0%, 100% {
+    transform: translate(0, 0) scale(1.05);
+  }
+  40% {
+    transform: translate(-10%, 8%) scale(0.9);
+  }
+  75% {
+    transform: translate(7%, -5%) scale(1.2);
+  }
+}
+
+@keyframes aurora-drift-3 {
+  0%, 100% {
+    transform: translate(0, 0) scale(0.95);
   }
   50% {
-    transform: scale(1.18);
+    transform: translate(6%, 6%) scale(1.18);
   }
 }
 
-@keyframes arrival-toast {
-  0%, 57% {
-    opacity: 0;
-    transform: translateY(10px) scale(0.95);
+@keyframes grid-pan {
+  0% {
+    background-position: 0 0;
   }
-  63%, 90% {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-  97%, 100% {
-    opacity: 0;
-    transform: translateY(10px) scale(0.95);
+  100% {
+    background-position: 56px 56px;
   }
 }
 
-@keyframes map-drift {
-  0%, 100% {
-    transform: scale(1.06) translate(0, 0);
-  }
-  50% {
-    transform: scale(1.06) translate(-14px, -8px);
-  }
+.animate-aurora-1 {
+  animation: aurora-drift-1 22s ease-in-out infinite;
 }
 
-.animate-route-draw {
-  stroke-dasharray: 100;
-  animation: route-draw 9s ease-in-out infinite;
+.animate-aurora-2 {
+  animation: aurora-drift-2 28s ease-in-out infinite;
 }
 
-.animate-route-puck {
-  offset-path: path(
-    "M 56 256 L 56 188 Q 56 156 96 156 L 168 156 Q 200 156 200 116 L 200 72 Q 200 44 248 44 L 332 44"
-  );
-  offset-rotate: 0deg;
-  animation: route-puck 9s ease-in-out infinite;
+.animate-aurora-3 {
+  animation: aurora-drift-3 19s ease-in-out infinite;
 }
 
-.animate-route-pin {
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: route-pin 2s ease-in-out infinite;
-}
-
-.animate-arrival-toast {
-  animation: arrival-toast 9s ease-in-out infinite;
-}
-
-.animate-map-drift {
-  animation: map-drift 18s ease-in-out infinite;
+.animate-grid-pan {
+  animation: grid-pan 24s linear infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .animate-route-draw {
-    stroke-dashoffset: 0;
-    animation: none;
-  }
-  .animate-route-puck {
-    offset-distance: 100%;
-    animation: none;
-  }
-  .animate-route-pin,
-  .animate-map-drift {
-    animation: none;
-  }
-  .animate-arrival-toast {
-    opacity: 1;
-    transform: none;
+  .animate-aurora-1,
+  .animate-aurora-2,
+  .animate-aurora-3,
+  .animate-grid-pan {
     animation: none;
   }
 }
