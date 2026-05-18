@@ -17,7 +17,7 @@ export default function Hero() {
             <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/5 border border-white/10 mb-8">
               <MapPin size={14} className="text-allim-blue" />
               <span className="text-sm text-allim-muted">
-                Location-aware shopping, reimagined
+                Proximity reminders, reimagined
               </span>
             </div>
 
@@ -25,16 +25,17 @@ export default function Hero() {
             <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold text-white leading-tight tracking-tight">
               Never forget your{" "}
               <span className="bg-gradient-to-r from-allim-blue to-allim-purple bg-clip-text text-transparent">
-                groceries
+                lists
               </span>{" "}
               again
             </h1>
 
             {/* Subheadline */}
             <p className="mt-6 text-lg sm:text-xl text-allim-muted max-w-xl mx-auto lg:mx-0 leading-relaxed">
-              Allim alerts you when you're near your favorite stores so you
-              never miss a shopping trip. Collaborate with family and friends,
-              and let smart AI organize your lists.
+              Your Geolist uses smart proximity reminders to alert you the moment
+              you're near your favorite stores, so you never miss a shopping
+              trip. Collaborate with family and friends, and let smart AI
+              organize your lists.
             </p>
 
             {/* CTA Buttons */}
