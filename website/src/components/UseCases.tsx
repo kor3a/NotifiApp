@@ -356,6 +356,12 @@ export default function UseCases() {
               label: "1. Shared Walmart list",
               sub: "Mom, Dad & Sister keep adding items",
               screen: <WalmartListScreen />,
+              phoneFrameProps: {
+                screenBackgroundStyle: {
+                  background:
+                    "linear-gradient(to bottom, rgb(242,245,250), rgb(224,235,245))",
+                },
+              },
               chip: "from-amber-500/20 to-orange-500/20",
               chipText: "text-amber-300",
               delay: 0,
@@ -364,6 +370,12 @@ export default function UseCases() {
               label: "2. John swipes right",
               sub: "On his way — notify the family",
               screen: <SwipeStoreScreen />,
+              phoneFrameProps: {
+                screenBackgroundStyle: {
+                  background:
+                    "linear-gradient(to bottom, rgb(242,245,250), rgb(224,235,245))",
+                },
+              },
               chip: "from-emerald-500/20 to-teal-500/20",
               chipText: "text-emerald-300",
               delay: 150,
@@ -372,6 +384,13 @@ export default function UseCases() {
               label: "3. Family gets notified",
               sub: '"John is going to Walmart…"',
               screen: <OnMyWayNotificationScreen />,
+              phoneFrameProps: {
+                screenBackgroundStyle: {
+                  background:
+                    "linear-gradient(135deg, #1e3a8a 0%, #312e81 50%, #1e1b4b 100%)",
+                },
+                statusBarTone: "light" as const,
+              },
               chip: "from-blue-500/20 to-indigo-500/20",
               chipText: "text-blue-300",
               delay: 300,
@@ -387,7 +406,7 @@ export default function UseCases() {
               >
                 {stage.label}
               </span>
-              <PhoneFrame>{stage.screen}</PhoneFrame>
+              <PhoneFrame {...stage.phoneFrameProps}>{stage.screen}</PhoneFrame>
               <p className="mt-4 text-sm text-allim-muted text-center max-w-[240px]">
                 {stage.sub}
               </p>
