@@ -70,23 +70,23 @@ html {
 
 @keyframes hero-route-draw {
   0% {
-    stroke-dashoffset: 500;
+    stroke-dashoffset: 700;
     opacity: 0;
   }
   5% {
-    stroke-dashoffset: 500;
+    stroke-dashoffset: 700;
     opacity: 1;
   }
-  62%, 78% {
+  70%, 82% {
     stroke-dashoffset: 0;
     opacity: 1;
   }
-  82% {
+  86% {
     stroke-dashoffset: 0;
     opacity: 0;
   }
   100% {
-    stroke-dashoffset: 500;
+    stroke-dashoffset: 700;
     opacity: 0;
   }
 }
@@ -112,11 +112,11 @@ html {
 }
 
 @keyframes hero-phone-notification {
-  0%, 44%, 100% {
+  0%, 69%, 100% {
     opacity: 0;
     transform: translateY(-16px) scale(0.97);
   }
-  53%, 82% {
+  74%, 90% {
     opacity: 1;
     transform: translateY(0) scale(1);
   }
@@ -124,23 +124,23 @@ html {
 
 @keyframes hero-phone-route-draw {
   0% {
-    stroke-dashoffset: 500;
+    stroke-dashoffset: 700;
     opacity: 0;
   }
   5% {
-    stroke-dashoffset: 500;
+    stroke-dashoffset: 700;
     opacity: 1;
   }
-  62%, 78% {
+  70%, 82% {
     stroke-dashoffset: 0;
     opacity: 1;
   }
-  82% {
+  86% {
     stroke-dashoffset: 0;
     opacity: 0;
   }
   100% {
-    stroke-dashoffset: 500;
+    stroke-dashoffset: 700;
     opacity: 0;
   }
 }
@@ -155,8 +155,8 @@ html {
 }
 
 .hero-route-line {
-  stroke-dasharray: 500;
-  stroke-dashoffset: 500;
+  stroke-dasharray: 700;
+  stroke-dashoffset: 700;
   animation: hero-route-draw 8s linear infinite;
 }
 
@@ -179,8 +179,8 @@ html {
 
 .hero-phone-route {
   animation: hero-phone-route-draw 8s linear infinite;
-  stroke-dasharray: 500;
-  stroke-dashoffset: 500;
+  stroke-dasharray: 700;
+  stroke-dashoffset: 700;
 }
 
 @media (prefers-reduced-motion: reduce) {
