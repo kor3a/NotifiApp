@@ -68,19 +68,36 @@ function RouteOverlay({
 
 function AllimNotification() {
   return (
-    <div className="hero-phone-notification rounded-2xl border border-black/10 bg-white/92 p-3 shadow-2xl shadow-black/18 backdrop-blur-md">
-      <div className="flex items-start gap-3">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-black/5">
-          <img src={allimIcon} alt="" className="h-8 w-8" draggable={false} />
-        </div>
-        <div className="min-w-0">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+    <div
+      className="hero-phone-notification rounded-[20px] p-3 flex items-start gap-2.5"
+      style={{
+        background: "rgba(255,255,255,0.92)",
+        backdropFilter: "blur(30px)",
+        WebkitBackdropFilter: "blur(30px)",
+        boxShadow:
+          "0 8px 32px rgba(0,0,0,0.18), 0 2px 8px rgba(0,0,0,0.08)",
+      }}
+    >
+      <img
+        src={allimIcon}
+        alt="Allim"
+        className="w-[34px] h-[34px] rounded-[8px] shrink-0 object-cover"
+        draggable={false}
+      />
+
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center justify-between">
+          <span className="text-[12px] font-semibold text-black/80">
             Allim
-          </p>
-          <p className="mt-0.5 text-sm font-semibold leading-snug text-slate-950">
-            You're near by Target and you have 3 reminder items
-          </p>
+          </span>
+          <span className="text-[10px] text-black/40">now</span>
         </div>
+        <p className="text-[13px] font-semibold text-black mt-0.5 leading-tight">
+          You're near Whole Foods
+        </p>
+        <p className="text-[11px] text-black/60 mt-0.5 leading-snug">
+          You have 5 reminders waiting for you at this store.
+        </p>
       </div>
     </div>
   );
@@ -99,7 +116,7 @@ function HeroPhoneScreen() {
         <RouteOverlay compact />
       </div>
       <div className="absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-white/58 to-transparent" />
-      <div className="absolute left-4 right-4 top-12">
+      <div className="absolute top-8 left-3 right-3 z-20">
         <AllimNotification />
       </div>
     </div>
