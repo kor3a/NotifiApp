@@ -2,7 +2,7 @@ import { Users, Eye, Pencil, MessageCircle } from "lucide-react";
 import PhoneFrame from "./PhoneFrame";
 import FadeIn from "./FadeIn";
 
-function ShareScreen() {
+export function ShareScreen() {
   return (
     <div
       className="flex-1 flex flex-col overflow-hidden"

@@ -59,6 +59,35 @@ html {
   }
 }
 
+@keyframes features-phone-carousel {
+  0%, 20% {
+    transform: translateX(0);
+  }
+  25%, 45% {
+    transform: translateX(-100%);
+  }
+  50%, 70% {
+    transform: translateX(-200%);
+  }
+  75%, 95% {
+    transform: translateX(-300%);
+  }
+  100% {
+    transform: translateX(0);
+  }
+}
+
+.features-phone-carousel-track {
+  animation: features-phone-carousel 12s ease-in-out infinite;
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .features-phone-carousel-track {
+    animation: none;
+  }
+}
+
 @keyframes hero-map-drift {
   0%, 100% {
     transform: translate(-50%, -50%) scale(1);
