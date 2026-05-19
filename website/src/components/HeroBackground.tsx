@@ -94,17 +94,17 @@ function AllimNotification() {
 function HeroPhoneScreen() {
   return (
     <div className="relative flex-1 overflow-hidden bg-[#f4f1e9]">
-      <div className="absolute inset-0 origin-center scale-[2.12]">
+      <div className="absolute inset-0 origin-center scale-[1.56]">
         <img
           src={mapImage}
           alt=""
-          className="h-full w-full object-cover object-[67%_50%]"
+          className="h-full w-full object-cover object-[66%_50%]"
           draggable={false}
         />
         <RouteOverlay compact />
       </div>
       <div className="absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-white/58 to-transparent" />
-      <div className="absolute left-4 right-4 top-8">
+      <div className="absolute left-4 right-4 top-12">
         <AllimNotification />
       </div>
     </div>
@@ -143,8 +143,8 @@ export default function HeroBackground() {
 
       <div className="absolute inset-0 z-20 bg-[linear-gradient(90deg,rgba(8,18,31,0.92)_0%,rgba(8,18,31,0.62)_36%,rgba(8,18,31,0.18)_72%,rgba(8,18,31,0.04)_100%),linear-gradient(180deg,rgba(15,13,26,0.04)_0%,rgba(15,13,26,0.02)_45%,rgba(15,13,26,0.54)_100%)]" />
 
-      <div className="absolute bottom-[-84px] right-[-30px] z-30 hidden rotate-[-6deg] opacity-95 drop-shadow-[0_38px_74px_rgba(0,0,0,0.50)] sm:block md:right-[5%] lg:bottom-[-64px] lg:right-[10%] xl:right-[13%]">
-        <PhoneFrame className="mx-0 scale-[1.08] lg:scale-[1.18] origin-bottom-right">
+      <div className="absolute bottom-[-72px] right-[-20px] z-30 hidden rotate-[-6deg] opacity-95 drop-shadow-[0_38px_74px_rgba(0,0,0,0.50)] sm:block md:right-[5%] lg:bottom-[-52px] lg:right-[10%] xl:right-[13%]">
+        <PhoneFrame className="mx-0 scale-[0.98] lg:scale-[1.05] origin-bottom-right">
           <HeroPhoneScreen />
         </PhoneFrame>
       </div>

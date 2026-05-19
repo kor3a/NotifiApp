@@ -14,8 +14,10 @@ export default function PhoneFrame({ children, className = "" }: Props) {
         <div className="absolute inset-[3px] rounded-[41px] overflow-hidden">
           {/* Screen content */}
           <div className="w-full h-full flex flex-col relative">
+            <div className="absolute inset-0 flex flex-col">{children}</div>
+
             {/* Status bar */}
-            <div className="flex justify-between items-center px-6 pt-3 pb-1 relative z-10">
+            <div className="flex justify-between items-center px-6 pt-3 pb-1 relative z-20 pointer-events-none">
               <span className="text-[11px] font-semibold text-black/80">
                 9:41
               </span>
@@ -38,7 +40,6 @@ export default function PhoneFrame({ children, className = "" }: Props) {
                 </div>
               </div>
             </div>
-            {children}
           </div>
         </div>
       </div>
