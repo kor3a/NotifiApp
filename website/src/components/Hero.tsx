@@ -1,13 +1,12 @@
 import { MapPin, ShoppingCart } from "lucide-react";
 import PhoneFrame from "./PhoneFrame";
 import StoresScreen from "./screens/StoresScreen";
+import HeroBackground from "./HeroBackground";
 
 export default function Hero() {
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden bg-allim-dark pt-16">
-      {/* Background gradient orbs */}
-      <div className="absolute top-1/4 -left-32 w-96 h-96 bg-allim-blue/20 rounded-full blur-[60px]" />
-      <div className="absolute bottom-1/4 -right-32 w-96 h-96 bg-allim-purple/20 rounded-full blur-[60px]" />
+      <HeroBackground />
 
       <div className="relative z-10 max-w-7xl mx-auto px-6 py-24">
         <div className="grid lg:grid-cols-2 gap-16 items-center">

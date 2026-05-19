@@ -59,6 +59,114 @@ html {
   }
 }
 
+@keyframes hero-map-drift {
+  0%, 100% {
+    transform: translate(-50%, -50%) scale(1);
+  }
+  50% {
+    transform: translate(-52%, -48%) scale(1.035);
+  }
+}
+
+@keyframes hero-route-draw {
+  0%, 100% {
+    stroke-dashoffset: 980;
+  }
+  52%, 76% {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes hero-driver-move {
+  0% {
+    offset-distance: 0%;
+    opacity: 0;
+  }
+  8%, 76% {
+    opacity: 1;
+  }
+  58%, 100% {
+    offset-distance: 100%;
+    opacity: 0;
+  }
+}
+
+@keyframes hero-pin-pulse {
+  0%, 42%, 100% {
+    transform: translate(1038px, 294px) scale(1);
+  }
+  48%, 60% {
+    transform: translate(1038px, 294px) scale(1.08);
+  }
+}
+
+@keyframes hero-arrival-toast {
+  0%, 46%, 100% {
+    opacity: 0;
+    transform: translateY(14px) scale(0.98);
+  }
+  54%, 78% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.hero-map-drift {
+  animation: hero-map-drift 18s ease-in-out infinite;
+  will-change: transform;
+}
+
+.hero-route-base {
+  opacity: 0.88;
+}
+
+.hero-route-line {
+  stroke-dasharray: 980;
+  stroke-dashoffset: 980;
+  animation: hero-route-draw 8s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+}
+
+.hero-driver-dot {
+  offset-path: path("M186 684 C254 592 314 590 366 518 S458 388 552 420 642 514 726 450 770 284 888 294 966 364 1038 294");
+  offset-rotate: 0deg;
+  animation: hero-driver-move 8s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+}
+
+.hero-destination-pin {
+  animation: hero-pin-pulse 8s ease-in-out infinite;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.hero-arrival-toast {
+  animation: hero-arrival-toast 8s ease-in-out infinite;
+  will-change: opacity, transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-map-drift,
+  .hero-route-line,
+  .hero-driver-dot,
+  .hero-destination-pin,
+  .hero-arrival-toast {
+    animation: none;
+  }
+
+  .hero-route-line {
+    stroke-dashoffset: 0;
+  }
+
+  .hero-driver-dot {
+    offset-distance: 100%;
+    opacity: 1;
+  }
+
+  .hero-arrival-toast {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 body {
   margin: 0;
   font-family: var(--font-body);
