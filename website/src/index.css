@@ -69,11 +69,25 @@ html {
 }
 
 @keyframes hero-route-draw {
-  0%, 100% {
+  0% {
     stroke-dashoffset: 500;
+    opacity: 0;
+  }
+  5% {
+    stroke-dashoffset: 500;
+    opacity: 1;
   }
   62%, 78% {
     stroke-dashoffset: 0;
+    opacity: 1;
+  }
+  82% {
+    stroke-dashoffset: 0;
+    opacity: 0;
+  }
+  100% {
+    stroke-dashoffset: 500;
+    opacity: 0;
   }
 }
 
@@ -109,11 +123,25 @@ html {
 }
 
 @keyframes hero-phone-route-draw {
-  0%, 100% {
+  0% {
     stroke-dashoffset: 500;
+    opacity: 0;
+  }
+  5% {
+    stroke-dashoffset: 500;
+    opacity: 1;
   }
   62%, 78% {
     stroke-dashoffset: 0;
+    opacity: 1;
+  }
+  82% {
+    stroke-dashoffset: 0;
+    opacity: 0;
+  }
+  100% {
+    stroke-dashoffset: 500;
+    opacity: 0;
   }
 }
 

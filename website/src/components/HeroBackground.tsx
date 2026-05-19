@@ -50,28 +50,6 @@ function RouteOverlay({
         strokeWidth={compact ? "5.5" : "7"}
       />
 
-      <g>
-        <circle r={compact ? "9" : "13"} fill="#147EFB" opacity="0.2" />
-        <circle r={compact ? "6" : "8"} fill="#ffffff" />
-        <circle r={compact ? "3.5" : "4.5"} fill="#147EFB" />
-        <animateMotion
-          dur="8s"
-          repeatCount="indefinite"
-          path={route}
-          keyPoints="0;1;1;0"
-          keyTimes="0;0.62;0.78;1"
-          calcMode="linear"
-        />
-        <animate
-          attributeName="opacity"
-          dur="8s"
-          repeatCount="indefinite"
-          values="0;1;1;0"
-          keyTimes="0;0.08;0.78;1"
-          calcMode="linear"
-        />
-      </g>
-
       <g
         className={compact ? undefined : "hero-destination-pin"}
         filter={`url(#${compact ? "phoneMapPinShadow" : "heroMapPinShadow"})`}
