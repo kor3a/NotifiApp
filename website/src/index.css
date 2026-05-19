@@ -70,7 +70,7 @@ html {
 
 @keyframes hero-route-draw {
   0%, 100% {
-    stroke-dashoffset: 1040;
+    stroke-dashoffset: 1120;
   }
   52%, 76% {
     stroke-dashoffset: 0;
@@ -93,10 +93,10 @@ html {
 
 @keyframes hero-pin-pulse {
   0%, 42%, 100% {
-    transform: translate(1100px, 300px) scale(1);
+    transform: translate(1134px, 258px) scale(1);
   }
   48%, 60% {
-    transform: translate(1100px, 300px) scale(1.08);
+    transform: translate(1134px, 258px) scale(1.08);
   }
 }
 
@@ -124,7 +124,7 @@ html {
 
 @keyframes hero-phone-route-draw {
   0%, 100% {
-    stroke-dashoffset: 580;
+    stroke-dashoffset: 640;
   }
   52%, 78% {
     stroke-dashoffset: 0;
@@ -138,7 +138,7 @@ html {
   }
   52%, 78% {
     opacity: 1;
-    transform: translate(262px, -428px);
+    transform: translate(278px, -440px);
   }
 }
 
@@ -152,13 +152,13 @@ html {
 }
 
 .hero-route-line {
-  stroke-dasharray: 1040;
-  stroke-dashoffset: 1040;
+  stroke-dasharray: 1120;
+  stroke-dashoffset: 1120;
   animation: hero-route-draw 8s cubic-bezier(0.65, 0, 0.35, 1) infinite;
 }
 
 .hero-driver-dot {
-  offset-path: path("M156 674 L252 674 Q284 674 306 650 L370 580 Q392 556 424 556 L542 556 Q574 556 596 532 L666 456 Q686 434 718 434 L824 434 Q856 434 878 410 L956 326 Q980 300 1018 300 L1100 300");
+  offset-path: path("M164 650 L270 650 Q304 650 328 626 L396 558 Q420 534 454 534 L562 534 Q596 534 620 510 L704 426 Q728 402 762 402 L850 402 Q884 402 908 378 L1000 286 Q1028 258 1072 258 L1134 258");
   offset-rotate: 0deg;
   animation: hero-driver-move 8s cubic-bezier(0.65, 0, 0.35, 1) infinite;
 }
@@ -182,8 +182,8 @@ html {
 
 .hero-phone-route {
   animation: hero-phone-route-draw 8s cubic-bezier(0.65, 0, 0.35, 1) infinite;
-  stroke-dasharray: 580;
-  stroke-dashoffset: 580;
+  stroke-dasharray: 640;
+  stroke-dashoffset: 640;
 }
 
 .hero-phone-dot {
@@ -228,7 +228,7 @@ html {
 
   .hero-phone-dot {
     opacity: 1;
-    transform: translate(262px, -428px);
+    transform: translate(278px, -440px);
   }
 }
 
