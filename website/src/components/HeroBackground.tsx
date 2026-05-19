@@ -6,7 +6,7 @@ export default function HeroBackground() {
     >
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_22%,rgba(74,144,217,0.24),transparent_28%),radial-gradient(circle_at_82%_30%,rgba(139,92,246,0.16),transparent_24%),linear-gradient(135deg,#07111d_0%,#101827_48%,#090d18_100%)]" />
 
-      <div className="hero-map-drift absolute left-1/2 top-1/2 h-[760px] w-[1120px] max-w-none -translate-x-1/2 -translate-y-1/2 opacity-95 sm:h-[860px] sm:w-[1280px]">
+      <div className="hero-map-drift absolute left-1/2 top-[58%] h-[760px] w-[1120px] max-w-none -translate-x-1/2 -translate-y-1/2 opacity-95 sm:h-[900px] sm:w-[1340px] lg:left-[57%] lg:top-[57%]">
         <svg
           className="h-full w-full"
           viewBox="0 0 1280 860"
@@ -136,34 +136,8 @@ export default function HeroBackground() {
         </svg>
       </div>
 
-      <div className="hero-arrival-toast absolute right-6 top-24 hidden w-[min(320px,calc(100vw-48px))] rounded-2xl border border-white/15 bg-[#0B1624]/85 p-4 shadow-2xl shadow-black/30 backdrop-blur-md sm:block lg:right-[8%] lg:top-[22%]">
-        <div className="flex items-start gap-3">
-          <div className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-allim-blue/20 text-allim-blue">
-            <svg
-              className="h-5 w-5"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 1 0-12 0v3.2c0 .5-.2 1-.6 1.4L4 17h5m6 0a3 3 0 0 1-6 0"
-              />
-            </svg>
-          </div>
-          <div>
-            <p className="text-sm font-semibold text-white">You arrived at Target</p>
-            <p className="mt-1 text-sm leading-5 text-allim-muted">
-              Milk, eggs, coffee, and 4 more items are nearby.
-            </p>
-          </div>
-        </div>
-      </div>
-
       <video
-        className="absolute inset-0 h-full w-full object-cover opacity-90"
+        className="absolute inset-0 z-10 h-full w-full object-cover opacity-90"
         autoPlay
         loop
         muted
@@ -174,7 +148,86 @@ export default function HeroBackground() {
         <source src="/hero-map.webm" type="video/webm" />
       </video>
 
-      <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(8,18,31,0.92)_0%,rgba(8,18,31,0.62)_42%,rgba(8,18,31,0.36)_100%),linear-gradient(180deg,rgba(15,13,26,0.36)_0%,rgba(15,13,26,0.18)_45%,rgba(15,13,26,0.88)_100%)]" />
+      <div className="absolute inset-0 z-20 bg-[linear-gradient(90deg,rgba(8,18,31,0.94)_0%,rgba(8,18,31,0.66)_38%,rgba(8,18,31,0.26)_72%,rgba(8,18,31,0.14)_100%),linear-gradient(180deg,rgba(15,13,26,0.28)_0%,rgba(15,13,26,0.10)_45%,rgba(15,13,26,0.84)_100%)]" />
+
+      <div className="absolute bottom-[-84px] right-[-34px] z-30 hidden w-[330px] rotate-[-7deg] opacity-90 drop-shadow-[0_34px_70px_rgba(0,0,0,0.48)] sm:block md:right-[4%] md:w-[370px] lg:bottom-[-64px] lg:right-[9%] lg:w-[410px] xl:right-[12%]">
+        <div className="rounded-[46px] border border-white/18 bg-[#050812] p-3 shadow-2xl shadow-black/50">
+          <div className="relative aspect-[9/19.5] overflow-hidden rounded-[36px] bg-[#0A1624]">
+            <div className="absolute left-1/2 top-2 z-20 h-6 w-28 -translate-x-1/2 rounded-full bg-[#050812]" />
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_72%_18%,rgba(74,144,217,0.35),transparent_24%),linear-gradient(160deg,#12243A_0%,#07111D_48%,#101827_100%)]" />
+            <div className="absolute inset-x-0 top-0 h-36 bg-gradient-to-b from-black/38 to-transparent" />
+
+            <svg
+              className="absolute inset-0 h-full w-full opacity-85"
+              viewBox="0 0 360 780"
+              aria-hidden="true"
+            >
+              <g opacity="0.24" stroke="#D8E9FF" strokeLinecap="round">
+                <path d="M-40 172 C76 126 124 208 218 178 S322 130 414 178" />
+                <path d="M-22 360 C86 320 144 406 244 370 S342 316 410 360" />
+                <path d="M-28 548 C72 508 134 592 244 560 S348 500 420 550" />
+                <path d="M82 -20 C112 118 68 230 98 360 S174 566 126 820" />
+                <path d="M246 -30 C206 104 266 242 224 378 S162 590 202 820" />
+              </g>
+              <path
+                d="M54 604 C92 536 132 530 158 474 S218 390 252 326 264 236 316 180"
+                fill="none"
+                stroke="#153A62"
+                strokeLinecap="round"
+                strokeWidth="18"
+              />
+              <path
+                className="hero-phone-route"
+                d="M54 604 C92 536 132 530 158 474 S218 390 252 326 264 236 316 180"
+                fill="none"
+                stroke="#65B9FF"
+                strokeLinecap="round"
+                strokeWidth="9"
+              />
+              <circle className="hero-phone-dot" cx="54" cy="604" r="12" fill="#DDF1FF" />
+              <path
+                d="M316 132 C294 132 276 150 276 172 C276 202 316 236 316 236 C316 236 356 202 356 172 C356 150 338 132 316 132Z"
+                fill="#FF4D6D"
+              />
+              <circle cx="316" cy="172" r="14" fill="#FFFFFF" />
+              <circle cx="316" cy="172" r="6" fill="#FF4D6D" />
+            </svg>
+
+            <div className="hero-phone-notification absolute left-4 right-4 top-16 rounded-2xl border border-white/18 bg-[#101827]/88 p-3 shadow-2xl shadow-black/30 backdrop-blur-md">
+              <div className="flex items-start gap-3">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-allim-blue/20 text-allim-blue">
+                  <svg
+                    className="h-5 w-5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 1 0-12 0v3.2c0 .5-.2 1-.6 1.4L4 17h5m6 0a3 3 0 0 1-6 0"
+                    />
+                  </svg>
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-white/58">
+                    NotifiApp
+                  </p>
+                  <p className="mt-0.5 text-sm font-semibold text-white">
+                    You arrived at Target
+                  </p>
+                  <p className="mt-1 text-xs leading-4 text-allim-muted">
+                    Milk, eggs, coffee, and 4 more items are nearby.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="absolute bottom-6 left-1/2 h-1 w-24 -translate-x-1/2 rounded-full bg-white/28" />
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

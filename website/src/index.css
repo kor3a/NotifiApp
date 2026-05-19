@@ -64,7 +64,7 @@ html {
     transform: translate(-50%, -50%) scale(1);
   }
   50% {
-    transform: translate(-52%, -48%) scale(1.035);
+    transform: translate(-53%, -51%) scale(1.035);
   }
 }
 
@@ -111,6 +111,37 @@ html {
   }
 }
 
+@keyframes hero-phone-notification {
+  0%, 44%, 100% {
+    opacity: 0;
+    transform: translateY(-16px) scale(0.97);
+  }
+  53%, 82% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes hero-phone-route-draw {
+  0%, 100% {
+    stroke-dashoffset: 520;
+  }
+  52%, 78% {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes hero-phone-dot {
+  0%, 44%, 100% {
+    opacity: 0;
+    transform: translate(0, 0);
+  }
+  52%, 78% {
+    opacity: 1;
+    transform: translate(262px, -424px);
+  }
+}
+
 .hero-map-drift {
   animation: hero-map-drift 18s ease-in-out infinite;
   will-change: transform;
@@ -143,12 +174,32 @@ html {
   will-change: opacity, transform;
 }
 
+.hero-phone-notification {
+  animation: hero-phone-notification 8s ease-in-out infinite;
+  transform-origin: top center;
+  will-change: opacity, transform;
+}
+
+.hero-phone-route {
+  animation: hero-phone-route-draw 8s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+  stroke-dasharray: 520;
+  stroke-dashoffset: 520;
+}
+
+.hero-phone-dot {
+  animation: hero-phone-dot 8s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+  will-change: opacity, transform;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .hero-map-drift,
   .hero-route-line,
   .hero-driver-dot,
   .hero-destination-pin,
-  .hero-arrival-toast {
+  .hero-arrival-toast,
+  .hero-phone-notification,
+  .hero-phone-route,
+  .hero-phone-dot {
     animation: none;
   }
 
@@ -164,6 +215,20 @@ html {
   .hero-arrival-toast {
     opacity: 1;
     transform: none;
+  }
+
+  .hero-phone-notification {
+    opacity: 1;
+    transform: none;
+  }
+
+  .hero-phone-route {
+    stroke-dashoffset: 0;
+  }
+
+  .hero-phone-dot {
+    opacity: 1;
+    transform: translate(262px, -424px);
   }
 }
 
