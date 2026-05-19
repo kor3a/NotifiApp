@@ -11,8 +11,8 @@ function RouteOverlay({
   compact?: boolean;
 }) {
   const route = compact
-    ? "M346 503 L346 456 L407 412 L472 356 L536 304 L606 252 L662 206"
-    : "M346 503 L346 456 L407 412 L472 356 L536 304 L606 252 L662 206";
+    ? "M446 582 L446 506 L536 506 L536 432 L612 432 L612 350 L662 350 L662 206"
+    : "M446 582 L446 506 L536 506 L536 432 L612 432 L612 350 L662 350 L662 206";
   const pin = "translate(662 206)";
 
   return (
@@ -62,11 +62,11 @@ function RouteOverlay({
         transform={pin}
       >
         <path
-          d="M0 -42 C-21 -42 -37 -26 -37 -6 C-37 21 0 54 0 54 C0 54 37 21 37 -6 C37 -26 21 -42 0 -42Z"
+          d="M0 -30 C-15 -30 -27 -18 -27 -4 C-27 15 0 39 0 39 C0 39 27 15 27 -4 C27 -18 15 -30 0 -30Z"
           fill="#FF3B30"
         />
-        <circle cx="0" cy="-6" r="15" fill="#ffffff" opacity="0.92" />
-        <circle cx="0" cy="-6" r="6.5" fill="#FF3B30" />
+        <circle cx="0" cy="-4" r="10.5" fill="#ffffff" opacity="0.92" />
+        <circle cx="0" cy="-4" r="4.5" fill="#FF3B30" />
       </g>
     </svg>
   );

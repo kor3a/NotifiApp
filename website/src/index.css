@@ -167,7 +167,7 @@ html {
 }
 
 .hero-driver-dot {
-  offset-path: path("M346 503 L346 456 L407 412 L472 356 L536 304 L606 252 L662 206");
+  offset-path: path("M446 582 L446 506 L536 506 L536 432 L612 432 L612 350 L662 350 L662 206");
   offset-rotate: 0deg;
   animation: hero-driver-move 8s linear infinite;
 }
@@ -196,7 +196,7 @@ html {
 }
 
 .hero-phone-dot {
-  offset-path: path("M346 503 L346 456 L407 412 L472 356 L536 304 L606 252 L662 206");
+  offset-path: path("M446 582 L446 506 L536 506 L536 432 L612 432 L612 350 L662 350 L662 206");
   offset-rotate: 0deg;
   animation: hero-phone-dot 8s linear infinite;
   will-change: opacity, transform;
