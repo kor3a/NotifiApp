@@ -3,18 +3,25 @@ import type { ReactNode } from "react";
 interface Props {
   children: ReactNode;
   className?: string;
+  screenClassName?: string;
 }
 
-export default function PhoneFrame({ children, className = "" }: Props) {
+export default function PhoneFrame({
+  children,
+  className = "",
+  screenClassName = "pt-9",
+}: Props) {
   return (
     <div className={`relative w-[280px] h-[572px] mx-auto ${className}`}>
       {/* Outer bezel */}
       <div className="absolute inset-0 rounded-[44px] bg-[#1a1a1e] shadow-[0_25px_60px_rgba(0,0,0,0.5)]">
         {/* Inner screen */}
-        <div className="absolute inset-[3px] rounded-[41px] overflow-hidden">
+        <div className="absolute inset-[3px] rounded-[41px] overflow-hidden bg-slate-50">
           {/* Screen content */}
           <div className="w-full h-full flex flex-col relative">
-            <div className="absolute inset-0 flex flex-col">{children}</div>
+            <div className={`absolute inset-0 flex flex-col ${screenClassName}`}>
+              {children}
+            </div>
 
             {/* Status bar */}
             <div className="flex justify-between items-center px-6 pt-3 pb-1 relative z-20 pointer-events-none">
