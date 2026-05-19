@@ -70,7 +70,7 @@ html {
 
 @keyframes hero-route-draw {
   0%, 100% {
-    stroke-dashoffset: 760;
+    stroke-dashoffset: 720;
   }
   52%, 76% {
     stroke-dashoffset: 0;
@@ -93,10 +93,10 @@ html {
 
 @keyframes hero-pin-pulse {
   0%, 42%, 100% {
-    transform: translate(1018px, 258px) scale(1);
+    transform: translate(662px, 206px) scale(1);
   }
   48%, 60% {
-    transform: translate(1018px, 258px) scale(1.08);
+    transform: translate(662px, 206px) scale(1.08);
   }
 }
 
@@ -124,7 +124,7 @@ html {
 
 @keyframes hero-phone-route-draw {
   0%, 100% {
-    stroke-dashoffset: 520;
+    stroke-dashoffset: 600;
   }
   52%, 78% {
     stroke-dashoffset: 0;
@@ -155,13 +155,13 @@ html {
 }
 
 .hero-route-line {
-  stroke-dasharray: 760;
-  stroke-dashoffset: 760;
+  stroke-dasharray: 720;
+  stroke-dashoffset: 720;
   animation: hero-route-draw 8s cubic-bezier(0.65, 0, 0.35, 1) infinite;
 }
 
 .hero-driver-dot {
-  offset-path: path("M388 704 C496 694 578 654 642 584 S742 428 816 372 928 318 1018 258");
+  offset-path: path("M455 505 L590 505 Q648 505 688 466 L742 414 Q778 380 778 326 L778 258 Q778 222 812 206 L662 206");
   offset-rotate: 0deg;
   animation: hero-driver-move 8s cubic-bezier(0.65, 0, 0.35, 1) infinite;
 }
@@ -185,12 +185,12 @@ html {
 
 .hero-phone-route {
   animation: hero-phone-route-draw 8s cubic-bezier(0.65, 0, 0.35, 1) infinite;
-  stroke-dasharray: 520;
-  stroke-dashoffset: 520;
+  stroke-dasharray: 600;
+  stroke-dashoffset: 600;
 }
 
 .hero-phone-dot {
-  offset-path: path("M94 602 C154 596 194 582 226 542 S260 456 258 386 270 306 318 222");
+  offset-path: path("M68 548 L178 548 Q214 548 240 522 L286 476 Q312 450 312 412 L312 314 Q312 278 338 252 L430 160");
   offset-rotate: 0deg;
   animation: hero-phone-dot 8s cubic-bezier(0.65, 0, 0.35, 1) infinite;
   will-change: opacity, transform;

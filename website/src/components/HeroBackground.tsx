@@ -1,6 +1,7 @@
 import PhoneFrame from "./PhoneFrame";
 
 const mapImage = "/apple-maps-reference.png";
+const allimIcon = "/allimIcon.svg";
 
 function RouteOverlay({
   className = "",
@@ -10,9 +11,9 @@ function RouteOverlay({
   compact?: boolean;
 }) {
   const route = compact
-    ? "M94 602 C154 596 194 582 226 542 S260 456 258 386 270 306 318 222"
-    : "M388 704 C496 694 578 654 642 584 S742 428 816 372 928 318 1018 258";
-  const pin = compact ? "translate(318 222)" : "translate(1018 258)";
+    ? "M68 548 L178 548 Q214 548 240 522 L286 476 Q312 450 312 412 L312 314 Q312 278 338 252 L430 160"
+    : "M455 505 L590 505 Q648 505 688 466 L742 414 Q778 380 778 326 L778 258 Q778 222 812 206 L662 206";
+  const pin = compact ? "translate(430 160)" : "translate(662 206)";
 
   return (
     <svg
@@ -74,20 +75,8 @@ function AllimNotification() {
   return (
     <div className="hero-phone-notification rounded-2xl border border-black/10 bg-white/92 p-3 shadow-2xl shadow-black/18 backdrop-blur-md">
       <div className="flex items-start gap-3">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#147EFB]/12 text-[#147EFB]">
-          <svg
-            className="h-5 w-5"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth="2"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 1 0-12 0v3.2c0 .5-.2 1-.6 1.4L4 17h5m6 0a3 3 0 0 1-6 0"
-            />
-          </svg>
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-black/5">
+          <img src={allimIcon} alt="" className="h-8 w-8" draggable={false} />
         </div>
         <div className="min-w-0">
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
@@ -105,13 +94,15 @@ function AllimNotification() {
 function HeroPhoneScreen() {
   return (
     <div className="relative flex-1 overflow-hidden bg-[#f4f1e9]">
-      <img
-        src={mapImage}
-        alt=""
-        className="absolute inset-0 h-full w-full scale-[2.18] object-cover object-[55%_48%]"
-        draggable={false}
-      />
-      <RouteOverlay compact className="scale-[2.18] object-[55%_48%]" />
+      <div className="absolute inset-0 origin-center scale-[2.12]">
+        <img
+          src={mapImage}
+          alt=""
+          className="h-full w-full object-cover object-[67%_50%]"
+          draggable={false}
+        />
+        <RouteOverlay compact />
+      </div>
       <div className="absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-white/58 to-transparent" />
       <div className="absolute left-4 right-4 top-8">
         <AllimNotification />
@@ -127,13 +118,15 @@ export default function HeroBackground() {
       aria-hidden="true"
     >
       <div className="absolute inset-0">
-        <img
-          src={mapImage}
-          alt=""
-          className="h-full w-full object-cover object-[62%_48%]"
-          draggable={false}
-        />
-        <RouteOverlay />
+        <div className="absolute inset-0 origin-center scale-[1.2]">
+          <img
+            src={mapImage}
+            alt=""
+            className="h-full w-full object-cover object-[72%_50%]"
+            draggable={false}
+          />
+          <RouteOverlay />
+        </div>
       </div>
 
       <video
