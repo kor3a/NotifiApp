@@ -93,10 +93,10 @@ function AllimNotification() {
           <span className="text-[10px] text-black/40">now</span>
         </div>
         <p className="text-[13px] font-semibold text-black mt-0.5 leading-tight">
-          You're near Whole Foods
+          You're near Target
         </p>
         <p className="text-[11px] text-black/60 mt-0.5 leading-snug">
-          You have 5 reminders waiting for you at this store.
+          You have 3 reminders waiting for you at this store.
         </p>
       </div>
     </div>

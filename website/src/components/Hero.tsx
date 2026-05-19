@@ -1,5 +1,6 @@
 import { MapPin, ShoppingCart } from "lucide-react";
 import HeroBackground from "./HeroBackground";
+import { APP_STORE_URL } from "../constants/links";
 
 export default function Hero() {
   return (
@@ -36,7 +37,9 @@ export default function Hero() {
           {/* CTA Buttons */}
           <div className="mt-10 flex flex-col sm:flex-row items-center lg:items-start justify-center lg:justify-start gap-4">
             <a
-              href="#download"
+              href={APP_STORE_URL}
+              target="_blank"
+              rel="noopener noreferrer"
               className="inline-flex items-center gap-2 px-8 py-4 rounded-2xl bg-gradient-to-r from-allim-blue to-allim-purple text-white font-semibold text-lg hover:opacity-90 transition-opacity shadow-lg shadow-allim-purple/25"
             >
               <svg

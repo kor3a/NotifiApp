@@ -1,5 +1,6 @@
 import { Sparkles, Shield, ChefHat, Tag } from "lucide-react";
 import FadeIn from "./FadeIn";
+import { APP_STORE_URL } from "../constants/links";
 
 export default function Download() {
   return (
@@ -54,7 +55,7 @@ export default function Download() {
         {/* Download button */}
         <FadeIn delay={400} className="mt-12">
           <a
-            href="https://apps.apple.com/us/app/allim-smart-shopping-list/id6758680783"
+            href={APP_STORE_URL}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-3 px-8 py-4 rounded-2xl bg-white text-black font-semibold text-lg hover:bg-gray-100 transition-colors shadow-2xl shadow-white/10"
