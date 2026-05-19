@@ -77,23 +77,6 @@ html {
   }
 }
 
-@keyframes hero-driver-move {
-  0% {
-    offset-distance: 0%;
-    opacity: 0;
-  }
-  8%, 78% {
-    opacity: 1;
-  }
-  62%, 78% {
-    offset-distance: 100%;
-  }
-  100% {
-    offset-distance: 100%;
-    opacity: 0;
-  }
-}
-
 @keyframes hero-pin-pulse {
   0%, 42%, 100% {
     transform: translate(662px, 206px) scale(1);
@@ -134,23 +117,6 @@ html {
   }
 }
 
-@keyframes hero-phone-dot {
-  0% {
-    offset-distance: 0%;
-    opacity: 0;
-  }
-  8%, 78% {
-    opacity: 1;
-  }
-  62%, 78% {
-    offset-distance: 100%;
-  }
-  100% {
-    offset-distance: 100%;
-    opacity: 0;
-  }
-}
-
 .hero-map-drift {
   animation: hero-map-drift 18s ease-in-out infinite;
   will-change: transform;
@@ -164,12 +130,6 @@ html {
   stroke-dasharray: 500;
   stroke-dashoffset: 500;
   animation: hero-route-draw 8s linear infinite;
-}
-
-.hero-driver-dot {
-  offset-path: path("M446 582 L446 506 L536 506 L536 432 L612 432 L612 350 L662 350 L662 206");
-  offset-rotate: 0deg;
-  animation: hero-driver-move 8s linear infinite;
 }
 
 .hero-destination-pin {
@@ -195,32 +155,18 @@ html {
   stroke-dashoffset: 500;
 }
 
-.hero-phone-dot {
-  offset-path: path("M446 582 L446 506 L536 506 L536 432 L612 432 L612 350 L662 350 L662 206");
-  offset-rotate: 0deg;
-  animation: hero-phone-dot 8s linear infinite;
-  will-change: opacity, transform;
-}
-
 @media (prefers-reduced-motion: reduce) {
   .hero-map-drift,
   .hero-route-line,
-  .hero-driver-dot,
   .hero-destination-pin,
   .hero-arrival-toast,
   .hero-phone-notification,
-  .hero-phone-route,
-  .hero-phone-dot {
+  .hero-phone-route {
     animation: none;
   }
 
   .hero-route-line {
     stroke-dashoffset: 0;
-  }
-
-  .hero-driver-dot {
-    offset-distance: 100%;
-    opacity: 1;
   }
 
   .hero-arrival-toast {
@@ -237,10 +183,6 @@ html {
     stroke-dashoffset: 0;
   }
 
-  .hero-phone-dot {
-    offset-distance: 100%;
-    opacity: 1;
-  }
 }
 
 body {

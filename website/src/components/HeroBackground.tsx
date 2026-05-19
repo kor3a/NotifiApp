@@ -50,10 +50,26 @@ function RouteOverlay({
         strokeWidth={compact ? "5.5" : "7"}
       />
 
-      <g className={compact ? "hero-phone-dot" : "hero-driver-dot"}>
+      <g>
         <circle r={compact ? "9" : "13"} fill="#147EFB" opacity="0.2" />
         <circle r={compact ? "6" : "8"} fill="#ffffff" />
         <circle r={compact ? "3.5" : "4.5"} fill="#147EFB" />
+        <animateMotion
+          dur="8s"
+          repeatCount="indefinite"
+          path={route}
+          keyPoints="0;1;1;0"
+          keyTimes="0;0.62;0.78;1"
+          calcMode="linear"
+        />
+        <animate
+          attributeName="opacity"
+          dur="8s"
+          repeatCount="indefinite"
+          values="0;1;1;0"
+          keyTimes="0;0.08;0.78;1"
+          calcMode="linear"
+        />
       </g>
 
       <g
@@ -99,7 +115,7 @@ function HeroPhoneScreen() {
         <img
           src={mapImage}
           alt=""
-          className="h-full w-full object-cover object-[66%_50%]"
+          className="h-full w-full object-cover object-[45%_42%]"
           draggable={false}
         />
         <RouteOverlay compact />
