@@ -70,9 +70,9 @@ html {
 
 @keyframes hero-route-draw {
   0%, 100% {
-    stroke-dashoffset: 560;
+    stroke-dashoffset: 500;
   }
-  58%, 76% {
+  62%, 78% {
     stroke-dashoffset: 0;
   }
 }
@@ -82,10 +82,10 @@ html {
     offset-distance: 0%;
     opacity: 0;
   }
-  8%, 76% {
+  8%, 78% {
     opacity: 1;
   }
-  58%, 76% {
+  62%, 78% {
     offset-distance: 100%;
   }
   100% {
@@ -96,10 +96,10 @@ html {
 
 @keyframes hero-pin-pulse {
   0%, 42%, 100% {
-    transform: translate(662px, 194px) scale(1);
+    transform: translate(662px, 206px) scale(1);
   }
   48%, 60% {
-    transform: translate(662px, 194px) scale(1.08);
+    transform: translate(662px, 206px) scale(1.08);
   }
 }
 
@@ -127,9 +127,9 @@ html {
 
 @keyframes hero-phone-route-draw {
   0%, 100% {
-    stroke-dashoffset: 560;
+    stroke-dashoffset: 500;
   }
-  58%, 78% {
+  62%, 78% {
     stroke-dashoffset: 0;
   }
 }
@@ -142,7 +142,7 @@ html {
   8%, 78% {
     opacity: 1;
   }
-  58%, 78% {
+  62%, 78% {
     offset-distance: 100%;
   }
   100% {
@@ -161,15 +161,15 @@ html {
 }
 
 .hero-route-line {
-  stroke-dasharray: 560;
-  stroke-dashoffset: 560;
-  animation: hero-route-draw 8s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+  stroke-dasharray: 500;
+  stroke-dashoffset: 500;
+  animation: hero-route-draw 8s linear infinite;
 }
 
 .hero-driver-dot {
-  offset-path: path("M438 502 L560 502 Q624 502 662 462 L662 356 Q662 318 690 288 L736 242 Q762 216 720 202 L662 194");
+  offset-path: path("M346 503 L346 456 L407 412 L472 356 L536 304 L606 252 L662 206");
   offset-rotate: 0deg;
-  animation: hero-driver-move 8s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+  animation: hero-driver-move 8s linear infinite;
 }
 
 .hero-destination-pin {
@@ -190,15 +190,15 @@ html {
 }
 
 .hero-phone-route {
-  animation: hero-phone-route-draw 8s cubic-bezier(0.65, 0, 0.35, 1) infinite;
-  stroke-dasharray: 560;
-  stroke-dashoffset: 560;
+  animation: hero-phone-route-draw 8s linear infinite;
+  stroke-dasharray: 500;
+  stroke-dashoffset: 500;
 }
 
 .hero-phone-dot {
-  offset-path: path("M438 502 L560 502 Q624 502 662 462 L662 356 Q662 318 690 288 L736 242 Q762 216 720 202 L662 194");
+  offset-path: path("M346 503 L346 456 L407 412 L472 356 L536 304 L606 252 L662 206");
   offset-rotate: 0deg;
-  animation: hero-phone-dot 8s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+  animation: hero-phone-dot 8s linear infinite;
   will-change: opacity, transform;
 }
 

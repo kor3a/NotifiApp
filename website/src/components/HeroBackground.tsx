@@ -11,9 +11,9 @@ function RouteOverlay({
   compact?: boolean;
 }) {
   const route = compact
-    ? "M438 502 L560 502 Q624 502 662 462 L662 356 Q662 318 690 288 L736 242 Q762 216 720 202 L662 194"
-    : "M438 502 L560 502 Q624 502 662 462 L662 356 Q662 318 690 288 L736 242 Q762 216 720 202 L662 194";
-  const pin = "translate(662 194)";
+    ? "M346 503 L346 456 L407 412 L472 356 L536 304 L606 252 L662 206"
+    : "M346 503 L346 456 L407 412 L472 356 L536 304 L606 252 L662 206";
+  const pin = "translate(662 206)";
 
   return (
     <svg
@@ -37,7 +37,7 @@ function RouteOverlay({
         stroke="#ffffff"
         strokeLinecap="round"
         strokeLinejoin="round"
-        strokeWidth={compact ? "11" : "15"}
+        strokeWidth={compact ? "9" : "12"}
       />
       <path
         className={compact ? "hero-phone-route" : "hero-route-line"}
@@ -47,13 +47,13 @@ function RouteOverlay({
         stroke="#147EFB"
         strokeLinecap="round"
         strokeLinejoin="round"
-        strokeWidth={compact ? "7" : "9"}
+        strokeWidth={compact ? "5.5" : "7"}
       />
 
       <g className={compact ? "hero-phone-dot" : "hero-driver-dot"}>
-        <circle r={compact ? "11" : "16"} fill="#147EFB" opacity="0.2" />
-        <circle r={compact ? "7" : "9"} fill="#ffffff" />
-        <circle r={compact ? "4" : "5"} fill="#147EFB" />
+        <circle r={compact ? "9" : "13"} fill="#147EFB" opacity="0.2" />
+        <circle r={compact ? "6" : "8"} fill="#ffffff" />
+        <circle r={compact ? "3.5" : "4.5"} fill="#147EFB" />
       </g>
 
       <g
@@ -62,11 +62,11 @@ function RouteOverlay({
         transform={pin}
       >
         <path
-          d="M0 -70 C-34 -70 -60 -44 -60 -11 C-60 33 0 86 0 86 C0 86 60 33 60 -11 C60 -44 34 -70 0 -70Z"
+          d="M0 -42 C-21 -42 -37 -26 -37 -6 C-37 21 0 54 0 54 C0 54 37 21 37 -6 C37 -26 21 -42 0 -42Z"
           fill="#FF3B30"
         />
-        <circle cx="0" cy="-10" r="23" fill="#ffffff" opacity="0.92" />
-        <circle cx="0" cy="-10" r="10" fill="#FF3B30" />
+        <circle cx="0" cy="-6" r="15" fill="#ffffff" opacity="0.92" />
+        <circle cx="0" cy="-6" r="6.5" fill="#FF3B30" />
       </g>
     </svg>
   );
