@@ -11,14 +11,15 @@ function RouteOverlay({
   compact?: boolean;
 }) {
   const route = compact
-    ? "M68 548 L178 548 Q214 548 240 522 L286 476 Q312 450 312 412 L312 314 Q312 278 338 252 L430 160"
-    : "M455 505 L590 505 Q648 505 688 466 L742 414 Q778 380 778 326 L778 258 Q778 222 812 206 L662 206";
-  const pin = compact ? "translate(430 160)" : "translate(662 206)";
+    ? "M438 502 L560 502 Q624 502 662 462 L662 356 Q662 318 690 288 L736 242 Q762 216 720 202 L662 194"
+    : "M438 502 L560 502 Q624 502 662 462 L662 356 Q662 318 690 288 L736 242 Q762 216 720 202 L662 194";
+  const pin = "translate(662 194)";
 
   return (
     <svg
       className={`pointer-events-none absolute inset-0 h-full w-full ${className}`}
-      viewBox="0 0 1200 786"
+      viewBox="0 0 1200 675"
+      preserveAspectRatio="xMidYMid slice"
       aria-hidden="true"
     >
       <defs>
@@ -36,7 +37,7 @@ function RouteOverlay({
         stroke="#ffffff"
         strokeLinecap="round"
         strokeLinejoin="round"
-        strokeWidth={compact ? "19" : "25"}
+        strokeWidth={compact ? "11" : "15"}
       />
       <path
         className={compact ? "hero-phone-route" : "hero-route-line"}
@@ -46,13 +47,13 @@ function RouteOverlay({
         stroke="#147EFB"
         strokeLinecap="round"
         strokeLinejoin="round"
-        strokeWidth={compact ? "12" : "16"}
+        strokeWidth={compact ? "7" : "9"}
       />
 
       <g className={compact ? "hero-phone-dot" : "hero-driver-dot"}>
-        <circle r={compact ? "16" : "24"} fill="#147EFB" opacity="0.2" />
-        <circle r={compact ? "9" : "12"} fill="#ffffff" />
-        <circle r={compact ? "5" : "7"} fill="#147EFB" />
+        <circle r={compact ? "11" : "16"} fill="#147EFB" opacity="0.2" />
+        <circle r={compact ? "7" : "9"} fill="#ffffff" />
+        <circle r={compact ? "4" : "5"} fill="#147EFB" />
       </g>
 
       <g
@@ -118,11 +119,11 @@ export default function HeroBackground() {
       aria-hidden="true"
     >
       <div className="absolute inset-0">
-        <div className="absolute inset-0 origin-center scale-[1.2]">
+        <div className="absolute inset-0 origin-center scale-[1.24]">
           <img
             src={mapImage}
             alt=""
-            className="h-full w-full object-cover object-[72%_50%]"
+            className="h-full w-full object-cover object-center"
             draggable={false}
           />
           <RouteOverlay />
