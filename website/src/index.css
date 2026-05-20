@@ -187,6 +187,11 @@ html {
   stroke-dasharray: 700;
   stroke-dashoffset: 700;
   animation: hero-route-draw 8s linear infinite;
+  will-change: stroke-dashoffset, opacity;
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
 }
 
 .hero-destination-pin {
@@ -210,6 +215,11 @@ html {
   animation: hero-phone-route-draw 8s linear infinite;
   stroke-dasharray: 700;
   stroke-dashoffset: 700;
+  will-change: stroke-dashoffset, opacity;
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
 }
 
 @media (prefers-reduced-motion: reduce) {
