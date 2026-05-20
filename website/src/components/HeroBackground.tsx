@@ -11,7 +11,7 @@ function RouteOverlay({
   compact?: boolean;
 }) {
   const route = compact
-    ? "M548 632 L548 588 L638 588 L638 412 L634 394 L634 220 L662 220"
+    ? "M508 632 L508 588 L600 588 L600 412 L596 394 L596 220 L662 220"
     : "M463 632 L463 540 L576 540 L576 412 L573 394 L573 215 L610 215";
   const pin = compact ? "translate(662 215)" : "translate(610 206)";
 
