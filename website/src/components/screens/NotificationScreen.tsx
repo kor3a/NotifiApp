@@ -37,9 +37,9 @@ export default function NotificationScreen({
         }`}
       >
         {[
-          { name: "Whole Foods", letter: "W", from: "#34D399", to: "#059669", n: 5 },
-          { name: "Target", letter: "T", from: "#F87171", to: "#DC2626", n: 3 },
-          { name: "Costco", letter: "C", from: "#60A5FA", to: "#2563EB", n: 8 },
+          { name: "Whole Foods", logo: "/store-logos/whole-foods.svg", n: 5 },
+          { name: "Target", logo: "/store-logos/target.svg", n: 3 },
+          { name: "Costco", logo: "/store-logos/costco.svg", n: 8 },
         ].map((s) => (
           <div
             key={s.name}
@@ -50,10 +50,14 @@ export default function NotificationScreen({
             }}
           >
             <div
-              className="w-[42px] h-[42px] rounded-full flex items-center justify-center"
-              style={{ background: `linear-gradient(135deg, ${s.from}, ${s.to})` }}
+              className="w-[42px] h-[42px] rounded-2xl flex items-center justify-center overflow-hidden bg-white shadow-[0_2px_6px_rgba(0,0,0,0.10)] shrink-0"
             >
-              <span className="text-white text-[16px] font-bold">{s.letter}</span>
+              <img
+                src={s.logo}
+                alt={s.name}
+                className="h-full w-full object-cover"
+                draggable={false}
+              />
             </div>
             <span className="text-[15px] text-black/90 flex-1">{s.name}</span>
             <div className="w-[22px] h-[22px] rounded-full bg-red-500 flex items-center justify-center">
