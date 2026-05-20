@@ -78,7 +78,7 @@ html {
 }
 
 .features-phone-carousel-track {
-  animation: features-phone-carousel 12s ease-in-out infinite;
+  animation: features-phone-carousel 20s ease-in-out infinite;
   will-change: transform;
 }
 
