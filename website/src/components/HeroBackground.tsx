@@ -11,8 +11,8 @@ function RouteOverlay({
   compact?: boolean;
 }) {
   const route = compact
-    ? "M446 582 L446 506 L536 506 L536 432 L612 432 L612 350 L662 350 L662 206"
-    : "M446 582 L446 506 L536 506 L536 432 L612 432 L612 350 L662 350 L662 206";
+    ? "M430 632 L430 548 L486 548 L486 498 L568 498 L568 412 L564 394 L564 206 L662 206"
+    : "M430 632 L430 548 L486 548 L486 498 L568 498 L568 412 L564 394 L564 206 L662 206";
   const pin = "translate(662 206)";
 
   return (
@@ -32,14 +32,6 @@ function RouteOverlay({
       </defs>
 
       <path
-        d={route}
-        fill="none"
-        stroke="#ffffff"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth={compact ? "9" : "12"}
-      />
-      <path
         className={compact ? "hero-phone-route" : "hero-route-line"}
         d={route}
         fill="none"
@@ -47,7 +39,7 @@ function RouteOverlay({
         stroke="#147EFB"
         strokeLinecap="round"
         strokeLinejoin="round"
-        strokeWidth={compact ? "5.5" : "7"}
+        strokeWidth={compact ? "4.25" : "5"}
       />
 
       <g
@@ -130,7 +122,7 @@ export default function HeroBackground() {
       aria-hidden="true"
     >
       <div className="absolute inset-0">
-        <div className="absolute inset-0 origin-center scale-[1.24]">
+        <div className="absolute inset-0 origin-center scale-[1.45]">
           <img
             src={mapImage}
             alt=""
