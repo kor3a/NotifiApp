@@ -122,10 +122,10 @@ html {
 
 @keyframes hero-pin-pulse {
   0%, 42%, 100% {
-    transform: translate(662px, 206px) scale(1);
+    transform: translate(610px, 206px) scale(1);
   }
   48%, 60% {
-    transform: translate(662px, 206px) scale(1.08);
+    transform: translate(610px, 206px) scale(1.08);
   }
 }
 
