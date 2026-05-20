@@ -31,11 +31,13 @@ export function ShareScreen() {
             border: "1px solid rgba(0,0,0,0.08)",
           }}
         >
-          <div
-            className="w-[36px] h-[36px] rounded-full flex items-center justify-center shrink-0"
-            style={{ background: "linear-gradient(135deg, #34D399, #059669)" }}
-          >
-            <span className="text-white text-[14px] font-bold">W</span>
+          <div className="w-[36px] h-[36px] rounded-xl flex items-center justify-center overflow-hidden bg-white shadow-[0_2px_6px_rgba(0,0,0,0.10)] shrink-0">
+            <img
+              src="/store-logos/whole-foods.svg"
+              alt="Whole Foods"
+              className="h-full w-full object-cover"
+              draggable={false}
+            />
           </div>
           <div>
             <p className="text-[13px] font-semibold text-black">Whole Foods</p>
