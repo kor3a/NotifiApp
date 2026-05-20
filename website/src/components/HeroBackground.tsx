@@ -13,7 +13,7 @@ function RouteOverlay({
 }) {
   const route = compact
     ? "M526 632 L526 588 L616 588 L616 412 L612 394 L612 220 L662 220"
-    : "M100 520 L610 520 L610 215";
+    : "M220 470 L520 545 L610 575 L610 215";
   const pin = compact ? "translate(662 215)" : "translate(610 206)";
 
   return (
@@ -31,6 +31,7 @@ function RouteOverlay({
 
       <path
         d={route}
+        pathLength="1"
         fill="none"
         stroke="#0a3d7a"
         strokeOpacity="0.35"
@@ -42,6 +43,7 @@ function RouteOverlay({
       <path
         className={compact ? "hero-phone-route" : "hero-route-line"}
         d={route}
+        pathLength="1"
         fill="none"
         stroke="#147EFB"
         strokeLinecap="round"

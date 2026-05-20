@@ -99,11 +99,11 @@ html {
 
 @keyframes hero-route-draw {
   0% {
-    stroke-dashoffset: 900;
+    stroke-dashoffset: 1;
     opacity: 0;
   }
   5% {
-    stroke-dashoffset: 900;
+    stroke-dashoffset: 1;
     opacity: 1;
   }
   70%, 82% {
@@ -115,7 +115,7 @@ html {
     opacity: 0;
   }
   100% {
-    stroke-dashoffset: 900;
+    stroke-dashoffset: 1;
     opacity: 0;
   }
 }
@@ -184,8 +184,8 @@ html {
 }
 
 .hero-route-line {
-  stroke-dasharray: 900;
-  stroke-dashoffset: 900;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
   animation: hero-route-draw 8s linear infinite;
   will-change: stroke-dashoffset, opacity;
   transform: translateZ(0);
