@@ -1,4 +1,14 @@
-export default function NotificationScreen() {
+interface NotificationScreenProps {
+  notificationClassName?: string;
+  storeName?: string;
+  reminderCount?: number;
+}
+
+export default function NotificationScreen({
+  notificationClassName = "",
+  storeName = "Whole Foods",
+  reminderCount = 5,
+}: NotificationScreenProps) {
   return (
     <div
       className="flex-1 flex flex-col overflow-hidden relative"
@@ -44,7 +54,7 @@ export default function NotificationScreen() {
       </div>
 
       {/* iOS notification banner */}
-      <div className="absolute top-8 left-3 right-3 z-20">
+      <div className={`absolute top-8 left-3 right-3 z-20 ${notificationClassName}`}>
         <div
           className="rounded-[20px] p-3 flex items-start gap-2.5"
           style={{
@@ -69,10 +79,10 @@ export default function NotificationScreen() {
               <span className="text-[10px] text-black/40">now</span>
             </div>
             <p className="text-[13px] font-semibold text-black mt-0.5 leading-tight">
-              You're near Whole Foods
+              You're near {storeName}
             </p>
             <p className="text-[11px] text-black/60 mt-0.5 leading-snug">
-              You have 5 reminders waiting for you at this store.
+              You have {reminderCount} reminders waiting for you at this store.
             </p>
           </div>
         </div>

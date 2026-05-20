@@ -141,11 +141,11 @@ html {
 }
 
 @keyframes hero-phone-notification {
-  0%, 61%, 100% {
+  0%, 68%, 100% {
     opacity: 0;
     transform: translateY(-4px) scale(0.995);
   }
-  64%, 90% {
+  70%, 90% {
     opacity: 1;
     transform: translateY(0) scale(1);
   }

@@ -1,4 +1,5 @@
 import PhoneFrame from "./PhoneFrame";
+import NotificationScreen from "./screens/NotificationScreen";
 
 const mapImage = "/apple-maps-reference.png";
 const allimIcon = "/allimIcon.svg";
@@ -58,10 +59,10 @@ function RouteOverlay({
   );
 }
 
-function AllimNotification() {
+function AllimNotification({ className = "" }: { className?: string }) {
   return (
     <div
-      className="hero-phone-notification rounded-[20px] p-3 flex items-start gap-2.5"
+      className={`rounded-[20px] p-3 flex items-start gap-2.5 ${className}`}
       style={{
         background: "rgba(255,255,255,0.92)",
         backdropFilter: "blur(30px)",
@@ -97,21 +98,11 @@ function AllimNotification() {
 
 function HeroPhoneScreen() {
   return (
-    <div className="relative flex-1 overflow-hidden bg-[#f4f1e9]">
-      <div className="absolute inset-0 origin-center scale-[1.56]">
-        <img
-          src={mapImage}
-          alt=""
-          className="h-full w-full object-cover object-[45%_42%]"
-          draggable={false}
-        />
-        <RouteOverlay compact />
-      </div>
-      <div className="absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-white/58 to-transparent" />
-      <div className="absolute top-8 left-3 right-3 z-20">
-        <AllimNotification />
-      </div>
-    </div>
+    <NotificationScreen
+      notificationClassName="hero-phone-notification"
+      reminderCount={3}
+      storeName="Target"
+    />
   );
 }
 
@@ -147,10 +138,17 @@ export default function HeroBackground() {
 
       <div className="absolute inset-0 z-20 bg-[linear-gradient(90deg,rgba(8,18,31,0.92)_0%,rgba(8,18,31,0.62)_36%,rgba(8,18,31,0.18)_72%,rgba(8,18,31,0.04)_100%),linear-gradient(180deg,rgba(15,13,26,0.04)_0%,rgba(15,13,26,0.02)_45%,rgba(15,13,26,0.54)_100%)]" />
 
+      <div className="absolute left-[58%] top-[142px] z-30 hidden w-[310px] -translate-y-1/2 md:block xl:left-[55%]">
+        <AllimNotification className="hero-phone-notification" />
+      </div>
+
       <div className="absolute bottom-[-72px] right-[-20px] z-30 hidden rotate-[-6deg] opacity-95 drop-shadow-[0_38px_74px_rgba(0,0,0,0.50)] sm:block md:right-[5%] lg:bottom-[-52px] lg:right-[10%] xl:right-[13%]">
         <PhoneFrame
           className="mx-0 scale-[0.98] lg:scale-[1.05] origin-bottom-right"
-          screenClassName="pt-0"
+          screenBackgroundStyle={{
+            background:
+              "linear-gradient(to bottom, rgb(242,245,250), rgb(224,235,245))",
+          }}
         >
           <HeroPhoneScreen />
         </PhoneFrame>
