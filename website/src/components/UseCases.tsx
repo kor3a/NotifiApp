@@ -2,6 +2,29 @@ import { ListPlus, ChevronRight, Bell, Car } from "lucide-react";
 import PhoneFrame from "./PhoneFrame";
 import FadeIn from "./FadeIn";
 
+function StoreLogo({
+  alt,
+  className = "w-[42px] h-[42px] rounded-2xl",
+  src,
+}: {
+  alt: string;
+  className?: string;
+  src: string;
+}) {
+  return (
+    <div
+      className={`${className} flex items-center justify-center overflow-hidden bg-white shadow-[0_2px_6px_rgba(0,0,0,0.10)] shrink-0`}
+    >
+      <img
+        src={src}
+        alt={alt}
+        className="h-full w-full object-cover"
+        draggable={false}
+      />
+    </div>
+  );
+}
+
 /* ------------------------------------------------------------------ */
 /* Phone 1 – Family adding items to a shared Walmart list             */
 /* ------------------------------------------------------------------ */
@@ -29,12 +52,11 @@ function WalmartListScreen() {
 
       {/* Header */}
       <div className="px-4 pb-2 flex items-center gap-3">
-        <div
-          className="w-[40px] h-[40px] rounded-full flex items-center justify-center shrink-0"
-          style={{ background: "linear-gradient(135deg, #FBBF24, #2563EB)" }}
-        >
-          <span className="text-white text-[16px] font-bold">W</span>
-        </div>
+        <StoreLogo
+          alt="Walmart"
+          className="w-[40px] h-[40px] rounded-2xl"
+          src="/store-logos/walmart.svg"
+        />
         <div>
           <p className="text-[16px] font-bold text-black leading-tight">
             Walmart
@@ -146,12 +168,7 @@ function SwipeStoreScreen() {
                 "0 6px 14px rgba(0,0,0,0.18), 0 -2px 2px rgba(255,255,255,0.5)",
             }}
           >
-            <div
-              className="w-[42px] h-[42px] rounded-full flex items-center justify-center shrink-0"
-              style={{ background: "linear-gradient(135deg, #FBBF24, #2563EB)" }}
-            >
-              <span className="text-white text-[16px] font-bold">W</span>
-            </div>
+            <StoreLogo alt="Walmart" src="/store-logos/walmart.svg" />
             <span className="text-[15px] text-black/90 flex-1">Walmart</span>
             <svg viewBox="0 0 24 24" className="w-[13px] h-[13px]" fill="#3B82F6">
               <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z" />
@@ -171,8 +188,12 @@ function SwipeStoreScreen() {
         {/* Other stores, dimmer */}
         <div className="pt-6 space-y-2 opacity-60">
           {[
-            { n: "Whole Foods", l: "W", a: "#34D399", b: "#059669", c: 3 },
-            { n: "Costco", l: "C", a: "#60A5FA", b: "#2563EB", c: 8 },
+            {
+              n: "Whole Foods",
+              logo: "/store-logos/whole-foods.svg",
+              c: 3,
+            },
+            { n: "Costco", logo: "/store-logos/costco.svg", c: 8 },
           ].map((s) => (
             <div
               key={s.n}
@@ -182,12 +203,7 @@ function SwipeStoreScreen() {
                 border: "1.5px solid rgba(255,255,255,0.5)",
               }}
             >
-              <div
-                className="w-[42px] h-[42px] rounded-full flex items-center justify-center"
-                style={{ background: `linear-gradient(135deg, ${s.a}, ${s.b})` }}
-              >
-                <span className="text-white text-[16px] font-bold">{s.l}</span>
-              </div>
+              <StoreLogo alt={s.n} src={s.logo} />
               <span className="text-[15px] text-black/90 flex-1">{s.n}</span>
               <div className="w-[22px] h-[22px] rounded-full bg-red-500 flex items-center justify-center">
                 <span className="text-white text-[11px] font-semibold">
