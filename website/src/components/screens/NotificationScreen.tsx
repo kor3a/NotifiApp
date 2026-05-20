@@ -25,9 +25,8 @@ export default function NotificationScreen({
           dimBackground ? "opacity-40 blur-[1px]" : ""
         }`}
       >
-        <p className="text-[11px] text-black/40">Good morning</p>
         <h2 className="text-[22px] font-bold text-black tracking-tight">
-          Hi, Sarah
+          Hi, John
         </h2>
       </div>
 
