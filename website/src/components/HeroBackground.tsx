@@ -13,7 +13,7 @@ function RouteOverlay({
 }) {
   const route = compact
     ? "M526 632 L526 588 L616 588 L616 412 L612 394 L612 220 L662 220"
-    : "M463 632 L463 540 L576 540 L576 412 L573 394 L573 215 L610 215";
+    : "M463 632 L463 578 L576 578 L576 412 L573 394 L573 215 L610 215";
   const pin = compact ? "translate(662 215)" : "translate(610 206)";
 
   return (
@@ -24,9 +24,6 @@ function RouteOverlay({
       aria-hidden="true"
     >
       <defs>
-        <filter id={compact ? "phoneRouteGlow" : "heroRouteGlow"} x="-25%" y="-25%" width="150%" height="150%">
-          <feDropShadow dx="0" dy="2" floodColor="#004b9e" floodOpacity="0.28" stdDeviation="3" />
-        </filter>
         <filter id={compact ? "phoneMapPinShadow" : "heroMapPinShadow"} x="-60%" y="-60%" width="220%" height="220%">
           <feDropShadow dx="0" dy="8" floodColor="#2b3440" floodOpacity="0.35" stdDeviation="8" />
         </filter>
@@ -36,7 +33,6 @@ function RouteOverlay({
         className={compact ? "hero-phone-route" : "hero-route-line"}
         d={route}
         fill="none"
-        filter={`url(#${compact ? "phoneRouteGlow" : "heroRouteGlow"})`}
         stroke="#147EFB"
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -139,7 +135,7 @@ export default function HeroBackground() {
 
       <div className="absolute inset-0 z-20 bg-[linear-gradient(90deg,rgba(8,18,31,0.92)_0%,rgba(8,18,31,0.62)_36%,rgba(8,18,31,0.18)_72%,rgba(8,18,31,0.04)_100%),linear-gradient(180deg,rgba(15,13,26,0.04)_0%,rgba(15,13,26,0.02)_45%,rgba(15,13,26,0.54)_100%)]" />
 
-      <div className="absolute left-[58%] top-[142px] z-30 hidden w-[310px] -translate-y-1/2 md:block xl:left-[55%]">
+      <div className="absolute right-2 top-[200px] z-30 w-[230px] -translate-y-1/2 md:right-auto md:left-[58%] md:top-[142px] md:w-[310px] xl:left-[55%]">
         <AllimNotification className="hero-phone-notification" />
       </div>
 

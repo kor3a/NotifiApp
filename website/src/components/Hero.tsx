@@ -27,7 +27,10 @@ export default function Hero() {
           </h1>
 
           {/* Subheadline */}
-          <p className="mt-6 text-lg sm:text-xl text-allim-muted max-w-xl mx-auto lg:mx-0 leading-relaxed">
+          <p
+            className="mt-6 text-lg sm:text-xl text-white/95 max-w-xl mx-auto lg:mx-0 leading-relaxed"
+            style={{ textShadow: "0 1px 3px rgba(0,0,0,0.55), 0 0 18px rgba(0,0,0,0.35)" }}
+          >
             Your Geolist uses smart proximity reminders to alert you the moment
             you're near your favorite stores, so you never miss a shopping
             trip. Collaborate with family and friends, and let smart AI organize
