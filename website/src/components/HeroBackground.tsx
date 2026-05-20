@@ -135,7 +135,7 @@ export default function HeroBackground() {
 
       <div className="absolute inset-0 z-20 bg-[linear-gradient(90deg,rgba(8,18,31,0.92)_0%,rgba(8,18,31,0.62)_36%,rgba(8,18,31,0.18)_72%,rgba(8,18,31,0.04)_100%),linear-gradient(180deg,rgba(15,13,26,0.04)_0%,rgba(15,13,26,0.02)_45%,rgba(15,13,26,0.54)_100%)]" />
 
-      <div className="absolute right-3 top-[200px] z-30 w-[180px] -translate-y-1/2 md:right-auto md:left-[58%] md:top-[142px] md:w-[310px] xl:left-[55%]">
+      <div className="absolute right-2 top-[200px] z-30 w-[230px] -translate-y-1/2 md:right-auto md:left-[58%] md:top-[142px] md:w-[310px] xl:left-[55%]">
         <AllimNotification className="hero-phone-notification" />
       </div>
 
