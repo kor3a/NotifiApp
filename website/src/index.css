@@ -99,11 +99,11 @@ html {
 
 @keyframes hero-route-draw {
   0% {
-    stroke-dashoffset: 700;
+    stroke-dashoffset: 900;
     opacity: 0;
   }
   5% {
-    stroke-dashoffset: 700;
+    stroke-dashoffset: 900;
     opacity: 1;
   }
   70%, 82% {
@@ -115,7 +115,7 @@ html {
     opacity: 0;
   }
   100% {
-    stroke-dashoffset: 700;
+    stroke-dashoffset: 900;
     opacity: 0;
   }
 }
@@ -184,9 +184,11 @@ html {
 }
 
 .hero-route-line {
-  stroke-dasharray: 700;
-  stroke-dashoffset: 700;
+  stroke-dasharray: 900;
+  stroke-dashoffset: 900;
   animation: hero-route-draw 8s linear infinite;
+  will-change: stroke-dashoffset, opacity;
+  transform: translateZ(0);
 }
 
 .hero-destination-pin {
@@ -210,6 +212,8 @@ html {
   animation: hero-phone-route-draw 8s linear infinite;
   stroke-dasharray: 700;
   stroke-dashoffset: 700;
+  will-change: stroke-dashoffset, opacity;
+  transform: translateZ(0);
 }
 
 @media (prefers-reduced-motion: reduce) {
