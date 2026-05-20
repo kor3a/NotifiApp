@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Menu, X } from "lucide-react";
+import { APP_STORE_URL } from "../constants/links";
 
 export default function Navbar() {
   const [open, setOpen] = useState(false);
@@ -44,7 +45,9 @@ export default function Navbar() {
             Smart Tools
           </a>
           <a
-            href="#download"
+            href={APP_STORE_URL}
+            target="_blank"
+            rel="noopener noreferrer"
             className="inline-flex items-center px-5 py-2 rounded-full bg-gradient-to-r from-allim-blue to-allim-purple text-white text-sm font-medium hover:opacity-90 transition-opacity"
           >
             Download
@@ -91,7 +94,9 @@ export default function Navbar() {
             Smart Tools
           </a>
           <a
-            href="#download"
+            href={APP_STORE_URL}
+            target="_blank"
+            rel="noopener noreferrer"
             onClick={() => setOpen(false)}
             className="inline-flex items-center justify-center px-5 py-2.5 rounded-full bg-gradient-to-r from-allim-blue to-allim-purple text-white font-medium"
           >

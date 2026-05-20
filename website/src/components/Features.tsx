@@ -1,6 +1,9 @@
-import { MapPin, Users, Share2, ChefHat } from "lucide-react";
+import { MapPin, Users, Tag, ChefHat } from "lucide-react";
 import PhoneFrame from "./PhoneFrame";
 import NotificationScreen from "./screens/NotificationScreen";
+import SmartRecipeScreen from "./screens/SmartRecipeScreen";
+import ReminderScreen from "./screens/ReminderScreen";
+import { ShareScreen } from "./Collaboration";
 import { useInView } from "../hooks/useInView";
 import FadeIn from "./FadeIn";
 
@@ -27,15 +30,22 @@ const features = [
     gradient: "from-pink-500 to-rose-400",
   },
   {
-    icon: Share2,
-    title: "Shared Store Lists",
+    icon: Tag,
+    title: "Smart Category",
     description:
-      "Assign edit or view-only permissions when sharing stores. Send share requests through in-app messages, and keep everyone in sync with real-time updates.",
+      "Let Allim automatically organize every item into smart aisle categories. Your lists stay tidy and your shopping trips move faster.",
     gradient: "from-amber-500 to-orange-400",
   },
 ];
 
 type Feature = (typeof features)[number];
+
+const featureScreens = [
+  <NotificationScreen key="location-alerts" />,
+  <SmartRecipeScreen key="smart-recipe" />,
+  <ShareScreen key="collaboration" />,
+  <ReminderScreen key="smart-category" />,
+];
 
 function FeatureCard({ feature, index }: { feature: Feature; index: number }) {
   const { ref, inView } = useInView<HTMLDivElement>();
@@ -89,10 +99,26 @@ export default function Features() {
             ))}
           </div>
 
-          {/* Phone showing notification */}
+          {/* Phone carousel */}
           <FadeIn delay={300} className="hidden lg:flex justify-center">
-            <PhoneFrame>
-              <NotificationScreen />
+            <PhoneFrame
+              screenBackgroundStyle={{
+                background:
+                  "linear-gradient(to bottom, rgb(242,245,250), rgb(224,235,245))",
+              }}
+            >
+              <div className="flex-1 overflow-hidden">
+                <div className="features-phone-carousel-track flex h-full">
+                  {featureScreens.map((screen, index) => (
+                    <div
+                      key={index}
+                      className="h-full min-w-full flex flex-col overflow-hidden"
+                    >
+                      {screen}
+                    </div>
+                  ))}
+                </div>
+              </div>
             </PhoneFrame>
           </FadeIn>
         </div>

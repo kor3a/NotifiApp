@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 64" role="img" aria-label="Costco">
+  <rect width="96" height="64" rx="18" fill="#FFFFFF"/>
+  <text x="48" y="29" text-anchor="middle" font-family="Arial Black, Arial, Helvetica, sans-serif" font-size="21" font-weight="900" font-style="italic" fill="#E31837">COSTCO</text>
+  <rect x="15" y="36" width="66" height="4" rx="2" fill="#005DAA"/>
+  <rect x="20" y="43" width="56" height="4" rx="2" fill="#005DAA"/>
+</svg>
