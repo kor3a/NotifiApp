@@ -1,12 +1,15 @@
 import fs from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const dir = path.dirname(fileURLToPath(import.meta.url));
 const outDir = path.join(dir, "out");
 const templatePath = path.join(outDir, "index.html");
 
-const { render } = await import(path.join(dir, "out-server/entry-server.js"));
+const entryServerUrl = pathToFileURL(
+  path.join(dir, "out-server/entry-server.js"),
+).href;
+const { render } = await import(entryServerUrl);
 const appHtml = render();
 
 const splash = '<div id="app-splash"><div class="spinner"></div></div>';
