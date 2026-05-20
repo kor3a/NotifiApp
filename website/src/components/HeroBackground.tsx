@@ -99,6 +99,7 @@ function AllimNotification({ className = "" }: { className?: string }) {
 function HeroPhoneScreen() {
   return (
     <NotificationScreen
+      dimBackground={false}
       notificationClassName="hero-phone-notification"
       reminderCount={3}
       storeName="Target"

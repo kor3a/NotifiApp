@@ -1,10 +1,12 @@
 interface NotificationScreenProps {
+  dimBackground?: boolean;
   notificationClassName?: string;
   storeName?: string;
   reminderCount?: number;
 }
 
 export default function NotificationScreen({
+  dimBackground = true,
   notificationClassName = "",
   storeName = "Whole Foods",
   reminderCount = 5,
@@ -18,14 +20,22 @@ export default function NotificationScreen({
       }}
     >
       {/* Blurred store list behind notification */}
-      <div className="px-4 pt-2 pb-1 opacity-40 blur-[1px]">
+      <div
+        className={`px-4 pt-2 pb-1 ${
+          dimBackground ? "opacity-40 blur-[1px]" : ""
+        }`}
+      >
         <p className="text-[11px] text-black/40">Good morning</p>
         <h2 className="text-[22px] font-bold text-black tracking-tight">
           Hi, Sarah
         </h2>
       </div>
 
-      <div className="flex-1 px-3 space-y-2 opacity-30 blur-[1px]">
+      <div
+        className={`flex-1 px-3 space-y-2 ${
+          dimBackground ? "opacity-30 blur-[1px]" : ""
+        }`}
+      >
         {[
           { name: "Whole Foods", letter: "W", from: "#34D399", to: "#059669", n: 5 },
           { name: "Target", letter: "T", from: "#F87171", to: "#DC2626", n: 3 },
