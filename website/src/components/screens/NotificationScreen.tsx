@@ -1,4 +1,16 @@
-export default function NotificationScreen() {
+interface NotificationScreenProps {
+  dimBackground?: boolean;
+  notificationClassName?: string;
+  storeName?: string;
+  reminderCount?: number;
+}
+
+export default function NotificationScreen({
+  dimBackground = true,
+  notificationClassName = "",
+  storeName = "Whole Foods",
+  reminderCount = 5,
+}: NotificationScreenProps) {
   return (
     <div
       className="flex-1 flex flex-col overflow-hidden relative"
@@ -8,18 +20,25 @@ export default function NotificationScreen() {
       }}
     >
       {/* Blurred store list behind notification */}
-      <div className="px-4 pt-2 pb-1 opacity-40 blur-[1px]">
-        <p className="text-[11px] text-black/40">Good morning</p>
+      <div
+        className={`px-4 pt-2 pb-1 ${
+          dimBackground ? "opacity-40 blur-[1px]" : ""
+        }`}
+      >
         <h2 className="text-[22px] font-bold text-black tracking-tight">
-          Hi, Sarah
+          Hi, John
         </h2>
       </div>
 
-      <div className="flex-1 px-3 space-y-2 opacity-30 blur-[1px]">
+      <div
+        className={`flex-1 px-3 space-y-2 ${
+          dimBackground ? "opacity-30 blur-[1px]" : ""
+        }`}
+      >
         {[
-          { name: "Whole Foods", letter: "W", from: "#34D399", to: "#059669", n: 5 },
-          { name: "Target", letter: "T", from: "#F87171", to: "#DC2626", n: 3 },
-          { name: "Costco", letter: "C", from: "#60A5FA", to: "#2563EB", n: 8 },
+          { name: "Whole Foods", logo: "/store-logos/whole-foods.svg", n: 5 },
+          { name: "Target", logo: "/store-logos/target.svg", n: 3 },
+          { name: "Costco", logo: "/store-logos/costco.svg", n: 8 },
         ].map((s) => (
           <div
             key={s.name}
@@ -30,10 +49,14 @@ export default function NotificationScreen() {
             }}
           >
             <div
-              className="w-[42px] h-[42px] rounded-full flex items-center justify-center"
-              style={{ background: `linear-gradient(135deg, ${s.from}, ${s.to})` }}
+              className="w-[42px] h-[42px] rounded-2xl flex items-center justify-center overflow-hidden bg-white shadow-[0_2px_6px_rgba(0,0,0,0.10)] shrink-0"
             >
-              <span className="text-white text-[16px] font-bold">{s.letter}</span>
+              <img
+                src={s.logo}
+                alt={s.name}
+                className="h-full w-full object-cover"
+                draggable={false}
+              />
             </div>
             <span className="text-[15px] text-black/90 flex-1">{s.name}</span>
             <div className="w-[22px] h-[22px] rounded-full bg-red-500 flex items-center justify-center">
@@ -44,7 +67,7 @@ export default function NotificationScreen() {
       </div>
 
       {/* iOS notification banner */}
-      <div className="absolute top-8 left-3 right-3 z-20">
+      <div className={`absolute top-8 left-3 right-3 z-20 ${notificationClassName}`}>
         <div
           className="rounded-[20px] p-3 flex items-start gap-2.5"
           style={{
@@ -55,12 +78,11 @@ export default function NotificationScreen() {
           }}
         >
           {/* App icon */}
-          <div
-            className="w-[34px] h-[34px] rounded-[8px] flex items-center justify-center shrink-0"
-            style={{ background: "linear-gradient(135deg, #3B82F6, #8B5CF6)" }}
-          >
-            <span className="text-white text-[14px] font-bold">A</span>
-          </div>
+          <img
+            src="/allimIcon.svg"
+            alt="Allim"
+            className="w-[34px] h-[34px] rounded-[8px] shrink-0 object-cover"
+          />
 
           <div className="flex-1 min-w-0">
             <div className="flex items-center justify-between">
@@ -70,10 +92,10 @@ export default function NotificationScreen() {
               <span className="text-[10px] text-black/40">now</span>
             </div>
             <p className="text-[13px] font-semibold text-black mt-0.5 leading-tight">
-              You're near Whole Foods
+              You're near {storeName}
             </p>
             <p className="text-[11px] text-black/60 mt-0.5 leading-snug">
-              You have 5 reminders waiting for you at this store.
+              You have {reminderCount} reminders waiting for you at this store.
             </p>
           </div>
         </div>

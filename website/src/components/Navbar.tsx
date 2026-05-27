@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Menu, X } from "lucide-react";
+import { APP_STORE_URL } from "../constants/links";
 
 export default function Navbar() {
   const [open, setOpen] = useState(false);
@@ -8,9 +9,11 @@ export default function Navbar() {
     <nav className="fixed top-0 left-0 right-0 z-50 bg-allim-dark/80 backdrop-blur-xl border-b border-white/5">
       <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
         <a href="#" className="flex items-center gap-2">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-allim-blue to-allim-purple flex items-center justify-center">
-            <span className="text-white font-bold text-sm">A</span>
-          </div>
+          <img
+            src="/allimIcon.svg"
+            alt="Allim"
+            className="w-9 h-9 rounded-xl"
+          />
           <span className="text-white font-semibold text-xl tracking-tight">
             Allim
           </span>
@@ -42,7 +45,9 @@ export default function Navbar() {
             Smart Tools
           </a>
           <a
-            href="#download"
+            href={APP_STORE_URL}
+            target="_blank"
+            rel="noopener noreferrer"
             className="inline-flex items-center px-5 py-2 rounded-full bg-gradient-to-r from-allim-blue to-allim-purple text-white text-sm font-medium hover:opacity-90 transition-opacity"
           >
             Download
@@ -89,7 +94,9 @@ export default function Navbar() {
             Smart Tools
           </a>
           <a
-            href="#download"
+            href={APP_STORE_URL}
+            target="_blank"
+            rel="noopener noreferrer"
             onClick={() => setOpen(false)}
             className="inline-flex items-center justify-center px-5 py-2.5 rounded-full bg-gradient-to-r from-allim-blue to-allim-purple text-white font-medium"
           >

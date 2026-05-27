@@ -2,7 +2,7 @@ import { Users, Eye, Pencil, MessageCircle } from "lucide-react";
 import PhoneFrame from "./PhoneFrame";
 import FadeIn from "./FadeIn";
 
-function ShareScreen() {
+export function ShareScreen() {
   return (
     <div
       className="flex-1 flex flex-col overflow-hidden"
@@ -31,11 +31,13 @@ function ShareScreen() {
             border: "1px solid rgba(0,0,0,0.08)",
           }}
         >
-          <div
-            className="w-[36px] h-[36px] rounded-full flex items-center justify-center shrink-0"
-            style={{ background: "linear-gradient(135deg, #34D399, #059669)" }}
-          >
-            <span className="text-white text-[14px] font-bold">W</span>
+          <div className="w-[36px] h-[36px] rounded-xl flex items-center justify-center overflow-hidden bg-white shadow-[0_2px_6px_rgba(0,0,0,0.10)] shrink-0">
+            <img
+              src="/store-logos/whole-foods.svg"
+              alt="Whole Foods"
+              className="h-full w-full object-cover"
+              draggable={false}
+            />
           </div>
           <div>
             <p className="text-[13px] font-semibold text-black">Whole Foods</p>
@@ -146,7 +148,7 @@ function ShareScreen() {
 export default function Collaboration() {
   return (
     <section className="relative bg-allim-dark py-32 overflow-hidden">
-      <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-pink-500/5 rounded-full blur-[200px]" />
+      <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-pink-500/5 rounded-full blur-[60px]" />
 
       <div className="relative z-10 max-w-7xl mx-auto px-6">
         <div className="grid lg:grid-cols-2 gap-16 items-center">

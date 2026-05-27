@@ -2,6 +2,29 @@ import { ListPlus, ChevronRight, Bell, Car } from "lucide-react";
 import PhoneFrame from "./PhoneFrame";
 import FadeIn from "./FadeIn";
 
+function StoreLogo({
+  alt,
+  className = "w-[42px] h-[42px] rounded-2xl",
+  src,
+}: {
+  alt: string;
+  className?: string;
+  src: string;
+}) {
+  return (
+    <div
+      className={`${className} flex items-center justify-center overflow-hidden bg-white shadow-[0_2px_6px_rgba(0,0,0,0.10)] shrink-0`}
+    >
+      <img
+        src={src}
+        alt={alt}
+        className="h-full w-full object-cover"
+        draggable={false}
+      />
+    </div>
+  );
+}
+
 /* ------------------------------------------------------------------ */
 /* Phone 1 – Family adding items to a shared Walmart list             */
 /* ------------------------------------------------------------------ */
@@ -29,12 +52,11 @@ function WalmartListScreen() {
 
       {/* Header */}
       <div className="px-4 pb-2 flex items-center gap-3">
-        <div
-          className="w-[40px] h-[40px] rounded-full flex items-center justify-center shrink-0"
-          style={{ background: "linear-gradient(135deg, #FBBF24, #2563EB)" }}
-        >
-          <span className="text-white text-[16px] font-bold">W</span>
-        </div>
+        <StoreLogo
+          alt="Walmart"
+          className="w-[40px] h-[40px] rounded-2xl"
+          src="/store-logos/walmart.svg"
+        />
         <div>
           <p className="text-[16px] font-bold text-black leading-tight">
             Walmart
@@ -98,24 +120,105 @@ function WalmartListScreen() {
 }
 
 /* ------------------------------------------------------------------ */
-/* Phone 2 – Real screenshots animated as a swipe-right reveal        */
+/* Phone 2 – Stores list with the Walmart row mid-swipe to the right  */
 /* ------------------------------------------------------------------ */
 function SwipeStoreScreen() {
   return (
-    <div className="absolute inset-0 z-20 overflow-hidden bg-black">
-      {/* Resting state */}
-      <img
-        src="/StoresView.png"
-        alt="Allim stores list"
-        className="absolute inset-0 w-full h-full object-cover"
-      />
-      {/* Swiped state — wipes in left-to-right to reveal the green
-          "On My Way" pill, then the slid Trader Joe's row */}
-      <img
-        src="/OnMyWay.png"
-        alt="Trader Joe's row swiped right to reveal On My Way action"
-        className="absolute inset-0 w-full h-full object-cover animate-swipe-reveal"
-      />
+    <div
+      className="flex-1 flex flex-col overflow-hidden relative"
+      style={{
+        background:
+          "linear-gradient(to bottom, rgb(242,245,250), rgb(224,235,245))",
+      }}
+    >
+      {/* Header */}
+      <div className="px-4 pt-1 pb-2">
+        <p className="text-[11px] text-black/40">Good afternoon</p>
+        <h2 className="text-[22px] font-bold text-black tracking-tight">
+          Hi, John
+        </h2>
+      </div>
+
+      <div className="flex-1 px-3 space-y-2 overflow-hidden">
+        {/* Walmart row – revealed action behind */}
+        <div className="relative">
+          {/* Action background revealed by swipe */}
+          <div
+            className="absolute inset-0 rounded-2xl flex items-center pl-4 pr-3 gap-2"
+            style={{
+              background: "linear-gradient(90deg, #10B981, #059669)",
+              boxShadow: "inset 0 1px 2px rgba(255,255,255,0.2)",
+            }}
+          >
+            <Car size={18} className="text-white" />
+            <span className="text-white text-[12px] font-semibold">
+              Notify family · I'm on my way
+            </span>
+          </div>
+
+          {/* Foreground row, animated to reveal action */}
+          <div
+            className="flex items-center gap-3 px-3 py-2.5 rounded-2xl relative animate-swipe-right"
+            style={{
+              background: "rgba(255,255,255,0.95)",
+              backdropFilter: "blur(20px)",
+              WebkitBackdropFilter: "blur(20px)",
+              border: "1.5px solid rgba(255,255,255,0.5)",
+              boxShadow:
+                "0 6px 14px rgba(0,0,0,0.18), 0 -2px 2px rgba(255,255,255,0.5)",
+            }}
+          >
+            <StoreLogo alt="Walmart" src="/store-logos/walmart.svg" />
+            <span className="text-[15px] text-black/90 flex-1">Walmart</span>
+            <svg viewBox="0 0 24 24" className="w-[13px] h-[13px]" fill="#3B82F6">
+              <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z" />
+            </svg>
+            <div className="w-[22px] h-[22px] rounded-full bg-red-500 flex items-center justify-center">
+              <span className="text-white text-[11px] font-semibold">5</span>
+            </div>
+          </div>
+
+          {/* Swipe indicator arrow */}
+          <div className="absolute -bottom-5 right-2 flex items-center gap-1 text-emerald-500 animate-pulse">
+            <span className="text-[10px] font-semibold">Swipe right</span>
+            <ChevronRight size={14} />
+          </div>
+        </div>
+
+        {/* Other stores, dimmer */}
+        <div className="pt-6 space-y-2 opacity-60">
+          {[
+            {
+              n: "Whole Foods",
+              logo: "/store-logos/whole-foods.svg",
+              c: 3,
+            },
+            { n: "Costco", logo: "/store-logos/costco.svg", c: 8 },
+          ].map((s) => (
+            <div
+              key={s.n}
+              className="flex items-center gap-3 px-3 py-2.5 rounded-2xl"
+              style={{
+                background: "rgba(255,255,255,0.55)",
+                border: "1.5px solid rgba(255,255,255,0.5)",
+              }}
+            >
+              <StoreLogo alt={s.n} src={s.logo} />
+              <span className="text-[15px] text-black/90 flex-1">{s.n}</span>
+              <div className="w-[22px] h-[22px] rounded-full bg-red-500 flex items-center justify-center">
+                <span className="text-white text-[11px] font-semibold">
+                  {s.c}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Home indicator */}
+      <div className="flex justify-center py-2">
+        <div className="w-[100px] h-[4px] rounded-full bg-black/20" />
+      </div>
     </div>
   );
 }
@@ -155,12 +258,11 @@ function OnMyWayNotificationScreen() {
           }}
         >
           {/* App icon */}
-          <div
-            className="w-[34px] h-[34px] rounded-[8px] flex items-center justify-center shrink-0"
-            style={{ background: "linear-gradient(135deg, #3B82F6, #8B5CF6)" }}
-          >
-            <span className="text-white text-[14px] font-bold">A</span>
-          </div>
+          <img
+            src="/allimIcon.svg"
+            alt="Allim"
+            className="w-[34px] h-[34px] rounded-[8px] shrink-0 object-cover"
+          />
 
           <div className="flex-1 min-w-0">
             <div className="flex items-center justify-between">
@@ -241,8 +343,8 @@ export default function UseCases() {
       className="relative bg-allim-dark py-32 overflow-hidden"
     >
       {/* Background glows */}
-      <div className="absolute top-1/4 -left-32 w-[500px] h-[500px] bg-emerald-500/5 rounded-full blur-[180px]" />
-      <div className="absolute bottom-1/4 -right-32 w-[500px] h-[500px] bg-amber-500/5 rounded-full blur-[180px]" />
+      <div className="absolute top-1/4 -left-32 w-[500px] h-[500px] bg-emerald-500/5 rounded-full blur-[60px]" />
+      <div className="absolute bottom-1/4 -right-32 w-[500px] h-[500px] bg-amber-500/5 rounded-full blur-[60px]" />
 
       <div className="relative z-10 max-w-7xl mx-auto px-6">
         {/* Heading */}
@@ -270,6 +372,12 @@ export default function UseCases() {
               label: "1. Shared Walmart list",
               sub: "Mom, Dad & Sister keep adding items",
               screen: <WalmartListScreen />,
+              phoneFrameProps: {
+                screenBackgroundStyle: {
+                  background:
+                    "linear-gradient(to bottom, rgb(242,245,250), rgb(224,235,245))",
+                },
+              },
               chip: "from-amber-500/20 to-orange-500/20",
               chipText: "text-amber-300",
               delay: 0,
@@ -278,6 +386,12 @@ export default function UseCases() {
               label: "2. John swipes right",
               sub: "On his way — notify the family",
               screen: <SwipeStoreScreen />,
+              phoneFrameProps: {
+                screenBackgroundStyle: {
+                  background:
+                    "linear-gradient(to bottom, rgb(242,245,250), rgb(224,235,245))",
+                },
+              },
               chip: "from-emerald-500/20 to-teal-500/20",
               chipText: "text-emerald-300",
               delay: 150,
@@ -286,6 +400,13 @@ export default function UseCases() {
               label: "3. Family gets notified",
               sub: '"John is going to Walmart…"',
               screen: <OnMyWayNotificationScreen />,
+              phoneFrameProps: {
+                screenBackgroundStyle: {
+                  background:
+                    "linear-gradient(135deg, #1e3a8a 0%, #312e81 50%, #1e1b4b 100%)",
+                },
+                statusBarTone: "light" as const,
+              },
               chip: "from-blue-500/20 to-indigo-500/20",
               chipText: "text-blue-300",
               delay: 300,
@@ -301,7 +422,7 @@ export default function UseCases() {
               >
                 {stage.label}
               </span>
-              <PhoneFrame>{stage.screen}</PhoneFrame>
+              <PhoneFrame {...stage.phoneFrameProps}>{stage.screen}</PhoneFrame>
               <p className="mt-4 text-sm text-allim-muted text-center max-w-[240px]">
                 {stage.sub}
               </p>

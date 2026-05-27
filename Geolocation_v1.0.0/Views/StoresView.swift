@@ -7,7 +7,7 @@
 
 import SwiftUI
 
-enum StoreViewMode {
+enum StoreViewMode: String {
     case list
     case float
 }
@@ -34,7 +34,7 @@ struct StoresView: View {
     @State private var selectedOnMyWayStore: UserStoreItem?
     @State private var storeToDelete: UserStoreItem?
     @State private var notificationDestination: UserStoreItem? = nil
-    @State private var storeViewMode: StoreViewMode = .list
+    @AppStorage("storeViewMode") private var storeViewMode: StoreViewMode = .list
     @State private var isFloatEditMode: Bool = false
     @State private var isFabShrunk: Bool = false
     @State private var isAtScrollBottom: Bool = false

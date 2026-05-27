@@ -11,7 +11,7 @@ import Footer from "./components/Footer";
 import SupportPage from "./components/SupportPage";
 
 export default function App() {
-  if (window.location.pathname === "/support") {
+  if (typeof window !== "undefined" && window.location.pathname === "/support") {
     return <SupportPage />;
   }
 

@@ -36,27 +36,220 @@ html {
   }
 }
 
-@keyframes swipe-reveal {
-  0%, 12% {
-    clip-path: inset(0 100% 0 0);
+@keyframes swipe-right {
+  0%, 10% {
+    transform: translateX(0);
   }
-  38%, 72% {
-    clip-path: inset(0 0 0 0);
+  35%, 70% {
+    transform: translateX(72px);
   }
-  92%, 100% {
-    clip-path: inset(0 100% 0 0);
+  90%, 100% {
+    transform: translateX(0);
   }
 }
 
-.animate-swipe-reveal {
-  animation: swipe-reveal 3.5s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+.animate-swipe-right {
+  animation: swipe-right 3.2s cubic-bezier(0.65, 0, 0.35, 1) infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .animate-swipe-reveal {
+  .animate-swipe-right {
     animation: none;
-    clip-path: inset(0 0 0 0);
+    transform: translateX(72px);
   }
+}
+
+@keyframes features-phone-carousel {
+  0%, 20% {
+    transform: translateX(0);
+  }
+  25%, 45% {
+    transform: translateX(-100%);
+  }
+  50%, 70% {
+    transform: translateX(-200%);
+  }
+  75%, 95% {
+    transform: translateX(-300%);
+  }
+  100% {
+    transform: translateX(0);
+  }
+}
+
+.features-phone-carousel-track {
+  animation: features-phone-carousel 20s ease-in-out infinite;
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .features-phone-carousel-track {
+    animation: none;
+  }
+}
+
+@keyframes hero-map-drift {
+  0%, 100% {
+    transform: translate(-50%, -50%) scale(1);
+  }
+  50% {
+    transform: translate(-53%, -51%) scale(1.035);
+  }
+}
+
+@keyframes hero-route-draw {
+  0% {
+    stroke-dashoffset: 700;
+    opacity: 0;
+  }
+  5% {
+    stroke-dashoffset: 700;
+    opacity: 1;
+  }
+  70%, 82% {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+  86% {
+    stroke-dashoffset: 0;
+    opacity: 0;
+  }
+  100% {
+    stroke-dashoffset: 700;
+    opacity: 0;
+  }
+}
+
+@keyframes hero-pin-pulse {
+  0%, 42%, 100% {
+    transform: translate(610px, 206px) scale(1);
+  }
+  48%, 60% {
+    transform: translate(610px, 206px) scale(1.08);
+  }
+}
+
+@keyframes hero-arrival-toast {
+  0%, 46%, 100% {
+    opacity: 0;
+    transform: translateY(14px) scale(0.98);
+  }
+  54%, 78% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes hero-phone-notification {
+  0%, 68%, 100% {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.995);
+  }
+  70%, 90% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes hero-phone-route-draw {
+  0% {
+    stroke-dashoffset: 700;
+    opacity: 0;
+  }
+  5% {
+    stroke-dashoffset: 700;
+    opacity: 1;
+  }
+  70%, 82% {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+  86% {
+    stroke-dashoffset: 0;
+    opacity: 0;
+  }
+  100% {
+    stroke-dashoffset: 700;
+    opacity: 0;
+  }
+}
+
+.hero-map-drift {
+  animation: hero-map-drift 18s ease-in-out infinite;
+  will-change: transform;
+}
+
+.hero-route-base {
+  opacity: 0.88;
+}
+
+.hero-route-line {
+  stroke-dasharray: 700;
+  stroke-dashoffset: 700;
+  animation: hero-route-draw 8s linear infinite;
+  will-change: stroke-dashoffset, opacity;
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.hero-destination-pin {
+  animation: hero-pin-pulse 8s ease-in-out infinite;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.hero-arrival-toast {
+  animation: hero-arrival-toast 8s ease-in-out infinite;
+  will-change: opacity, transform;
+}
+
+.hero-phone-notification {
+  animation: hero-phone-notification 8s linear infinite;
+  transform-origin: top center;
+  will-change: opacity, transform;
+}
+
+.hero-phone-route {
+  animation: hero-phone-route-draw 8s linear infinite;
+  stroke-dasharray: 700;
+  stroke-dashoffset: 700;
+  will-change: stroke-dashoffset, opacity;
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-map-drift,
+  .hero-route-line,
+  .hero-destination-pin,
+  .hero-arrival-toast,
+  .hero-phone-notification,
+  .hero-phone-route {
+    animation: none;
+  }
+
+  .hero-route-line {
+    stroke-dashoffset: 0;
+  }
+
+  .hero-arrival-toast {
+    opacity: 1;
+    transform: none;
+  }
+
+  .hero-phone-notification {
+    opacity: 1;
+    transform: none;
+  }
+
+  .hero-phone-route {
+    stroke-dashoffset: 0;
+  }
+
 }
 
 body {
