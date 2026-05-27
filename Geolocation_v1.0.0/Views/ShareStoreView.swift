@@ -238,21 +238,28 @@ struct ShareStoreView: View {
                                         }) {
                                             VStack(spacing: 8) {
                                                 ZStack(alignment: .bottomTrailing) {
-                                                    Circle()
-                                                        .fill(isAlreadyShared ? Color.appSuccess.opacity(0.2) : Color.purple.opacity(0.2))
-                                                        .frame(width: 50, height: 50)
-                                                        .overlay(
-                                                            Group {
-                                                                if isAlreadyShared {
+                                                    Group {
+                                                        if isAlreadyShared {
+                                                            Circle()
+                                                                .fill(Color.appSuccess.opacity(0.2))
+                                                                .frame(width: 50, height: 50)
+                                                                .overlay(
                                                                     Image(systemName: "checkmark")
                                                                         .foregroundColor(.appSuccess)
-                                                                } else {
-                                                                    Text(String(contact.name.prefix(1)).uppercased())
-                                                                        .font(.headline)
-                                                                        .foregroundColor(.purple)
-                                                                }
+                                                                )
+                                                        } else {
+                                                            ProfilePictureView(profilePictureURL: contact.profilePictureURL, size: 50) {
+                                                                Circle()
+                                                                    .fill(Color.purple.opacity(0.2))
+                                                                    .frame(width: 50, height: 50)
+                                                                    .overlay(
+                                                                        Text(String(contact.name.prefix(1)).uppercased())
+                                                                            .font(.headline)
+                                                                            .foregroundColor(.purple)
+                                                                    )
                                                             }
-                                                        )
+                                                        }
+                                                    }
 
                                                     Image(systemName: "house.fill")
                                                         .font(.system(size: 8))
@@ -299,21 +306,26 @@ struct ShareStoreView: View {
                                             }
                                         }) {
                                             VStack(spacing: 8) {
-                                                Circle()
-                                                    .fill(isAlreadyShared ? Color.appSuccess.opacity(0.2) : Color.appAccent.opacity(0.2))
-                                                    .frame(width: 50, height: 50)
-                                                    .overlay(
-                                                        Group {
-                                                            if isAlreadyShared {
-                                                                Image(systemName: "checkmark")
-                                                                    .foregroundColor(.appSuccess)
-                                                            } else {
+                                                if isAlreadyShared {
+                                                    Circle()
+                                                        .fill(Color.appSuccess.opacity(0.2))
+                                                        .frame(width: 50, height: 50)
+                                                        .overlay(
+                                                            Image(systemName: "checkmark")
+                                                                .foregroundColor(.appSuccess)
+                                                        )
+                                                } else {
+                                                    ProfilePictureView(profilePictureURL: contact.profilePictureURL, size: 50) {
+                                                        Circle()
+                                                            .fill(Color.appAccent.opacity(0.2))
+                                                            .frame(width: 50, height: 50)
+                                                            .overlay(
                                                                 Text(String(contact.name.prefix(1)).uppercased())
                                                                     .font(.headline)
                                                                     .foregroundColor(.appAccent)
-                                                            }
-                                                        }
-                                                    )
+                                                            )
+                                                    }
+                                                }
 
                                                 Text(contact.name)
                                                     .font(.caption)
