@@ -38,6 +38,7 @@ struct ReminderView: View {
     @State private var customCategoryText = ""
     @State private var collapsedCategories: Set<String> = []
     @State private var autosaveWorkItem: DispatchWorkItem?
+    @State private var lastSubmittedAt: Date?
     @State private var showRemoveAllFavoritesConfirmation = false
     @State private var checkboxFrames: [String: CGRect] = [:]
     @State private var swipedIds: Set<String> = []
@@ -278,13 +279,20 @@ struct ReminderView: View {
         .onChange(of: isNewReminderFocused) { _, focused in
             if !focused && isAddingNewReminder {
                 let title = newReminderText.trimmingCharacters(in: .whitespaces)
-                if title.isEmpty {
+                // After a submission, the text is briefly empty before the user types
+                // the next item. AI categorization for the just-submitted reminder can
+                // land in that window and re-render the list, transiently dropping focus.
+                // Treat focus losses inside this grace window as incidental and re-focus.
+                let inSubmissionGrace = lastSubmittedAt.map { Date().timeIntervalSince($0) < 3.0 } ?? false
+                if title.isEmpty && !inSubmissionGrace {
                     isAddingNewReminder = false
                 } else {
                     // Focus was lost while actively typing (e.g. due to AI categorization
                     // triggering a Firestore update and SwiftUI re-render). Restore it.
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                        isNewReminderFocused = true
+                        if isAddingNewReminder {
+                            isNewReminderFocused = true
+                        }
                     }
                 }
             }
@@ -491,6 +499,22 @@ struct ReminderView: View {
                         withAnimation {
                             proxy.scrollTo("inlineAddRow", anchor: .bottom)
                         }
+                    }
+                }
+            }
+            // When AI categorization lands and reorders the list, keep the input row
+            // visible so the focused TextField cell isn't pushed off-screen and recycled.
+            .onChange(of: viewModel.displayedCategoryOrder) { _, _ in
+                if isNewReminderFocused {
+                    withAnimation {
+                        proxy.scrollTo("inlineAddRow", anchor: .bottom)
+                    }
+                }
+            }
+            .onChange(of: viewModel.displayedReminders.count) { _, _ in
+                if isNewReminderFocused {
+                    withAnimation {
+                        proxy.scrollTo("inlineAddRow", anchor: .bottom)
                     }
                 }
             }
@@ -1021,6 +1045,7 @@ struct ReminderView: View {
 
         // Clear text and keep focus for next reminder
         newReminderText = ""
+        lastSubmittedAt = Date()
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
             isNewReminderFocused = true
         }
