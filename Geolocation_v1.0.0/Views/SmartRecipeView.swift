@@ -460,14 +460,12 @@ struct MarkdownTextView: View {
                     result.append(.spacer)
                     lastWasSpacer = true
                 }
-            } else if trimmed.hasPrefix("### ") {
-                result.append(.h3(String(trimmed.dropFirst(4))))
-                lastWasSpacer = false
-            } else if trimmed.hasPrefix("## ") {
-                result.append(.h2(String(trimmed.dropFirst(3))))
-                lastWasSpacer = false
-            } else if trimmed.hasPrefix("# ") {
-                result.append(.h1(String(trimmed.dropFirst(2))))
+            } else if let heading = parseHeading(trimmed) {
+                switch heading.level {
+                case 1: result.append(.h1(heading.content))
+                case 2: result.append(.h2(heading.content))
+                default: result.append(.h3(heading.content))
+                }
                 lastWasSpacer = false
             } else if trimmed.hasPrefix("- ") || trimmed.hasPrefix("* ") {
                 result.append(.bullet(String(trimmed.dropFirst(2))))
@@ -483,6 +481,31 @@ struct MarkdownTextView: View {
 
         if case .spacer = result.last { result.removeLast() }
         return result
+    }
+
+    private func parseHeading(_ text: String) -> (level: Int, content: String)? {
+        // Strip surrounding bold/italic markers so "**### Ingredients**" still parses.
+        var stripped = text
+        while stripped.hasPrefix("**") && stripped.hasSuffix("**") && stripped.count > 4 {
+            stripped = String(stripped.dropFirst(2).dropLast(2)).trimmingCharacters(in: .whitespaces)
+        }
+        while stripped.hasPrefix("*") && stripped.hasSuffix("*") && stripped.count > 2 {
+            stripped = String(stripped.dropFirst().dropLast()).trimmingCharacters(in: .whitespaces)
+        }
+
+        var hashCount = 0
+        for char in stripped {
+            if char == "#" { hashCount += 1 } else { break }
+        }
+        guard hashCount > 0 else { return nil }
+
+        var content = String(stripped.dropFirst(hashCount))
+        // Strip trailing hashes (closed ATX headings like "### Foo ###").
+        while content.hasSuffix("#") { content = String(content.dropLast()) }
+        content = content.trimmingCharacters(in: .whitespaces)
+        guard !content.isEmpty else { return nil }
+
+        return (min(hashCount, 3), content)
     }
 
     private func parseNumbered(_ text: String) -> (Int, String)? {
@@ -506,17 +529,17 @@ struct MarkdownTextView: View {
         switch block {
         case .h1(let content):
             inlineText(content)
-                .font(.title3).fontWeight(.bold)
+                .font(.title2).fontWeight(.bold)
                 .padding(.top, 6)
                 .frame(maxWidth: .infinity, alignment: .leading)
         case .h2(let content):
             inlineText(content)
-                .font(.headline).fontWeight(.bold)
+                .font(.title3).fontWeight(.bold)
                 .padding(.top, 4)
                 .frame(maxWidth: .infinity, alignment: .leading)
         case .h3(let content):
             inlineText(content)
-                .font(.subheadline).fontWeight(.semibold)
+                .font(.headline).fontWeight(.bold)
                 .padding(.top, 4)
                 .frame(maxWidth: .infinity, alignment: .leading)
         case .bullet(let content):
