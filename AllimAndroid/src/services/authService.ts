@@ -1,5 +1,12 @@
 import auth from '@react-native-firebase/auth';
 import firestore from '@react-native-firebase/firestore';
+import functions from '@react-native-firebase/functions';
+
+// Sends a custom, mobile-friendly verification email via the
+// `sendVerificationEmail` Cloud Function (Resend) instead of Firebase Auth's
+// locked default template, whose link isn't tappable in many mobile mail apps.
+const sendVerificationEmail = () =>
+  functions().httpsCallable('sendVerificationEmail')();
 
 export const authService = {
   // Sign in with email/password
@@ -19,7 +26,7 @@ export const authService = {
     userId: string,
   ): Promise<void> {
     const result = await auth().createUserWithEmailAndPassword(email, password);
-    await result.user.sendEmailVerification();
+    await sendVerificationEmail();
 
     // Create user document in Firestore
     await firestore().collection('users').doc(result.user.uid).set({
@@ -42,7 +49,7 @@ export const authService = {
   async resendVerificationEmail(): Promise<void> {
     const user = auth().currentUser;
     if (!user) {throw new Error('No user logged in');}
-    await user.sendEmailVerification();
+    await sendVerificationEmail();
   },
 
   // Sign out
