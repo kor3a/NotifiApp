@@ -7,6 +7,7 @@
 
 import Foundation
 import FirebaseAuth
+import FirebaseFunctions
 
 class LoginViewModel: ObservableObject {
     @Published var email: String = ""
@@ -75,7 +76,7 @@ class LoginViewModel: ObservableObject {
                 return
             }
 
-            guard let user = Auth.auth().currentUser else {
+            guard Auth.auth().currentUser != nil else {
                 DispatchQueue.main.async {
                     self.isResendingVerification = false
                     self.errorMessage = "Unable to resend verification email."
@@ -83,7 +84,9 @@ class LoginViewModel: ObservableObject {
                 return
             }
 
-            user.sendEmailVerification { [weak self] error in
+            // Use the sendVerificationEmail Cloud Function (custom HTML email via
+            // Resend) so the link is tappable on mobile, matching signup.
+            Functions.functions().httpsCallable("sendVerificationEmail").call { [weak self] _, error in
                 // Sign out regardless
                 try? Auth.auth().signOut()
 
