@@ -8,6 +8,7 @@
 import Foundation
 import FirebaseAuth
 import FirebaseFirestore
+import FirebaseFunctions
 
 class SignupViewModel: ObservableObject {
 
@@ -150,14 +151,20 @@ class SignupViewModel: ObservableObject {
             }
     }
 
-    /// Send email verification and sign the user out so they must verify before logging in
+    /// Send email verification and sign the user out so they must verify before logging in.
+    ///
+    /// Uses the `sendVerificationEmail` Cloud Function (custom HTML email via Resend)
+    /// instead of `user.sendEmailVerification()`, because Firebase Auth's built-in
+    /// template is locked and its bare-URL link isn't tappable in many mobile mail
+    /// clients. The caller is authenticated here (right after createUser), so the
+    /// callable receives the auth context it needs.
     private func sendVerificationEmail() {
-        guard let user = Auth.auth().currentUser else {
+        guard Auth.auth().currentUser != nil else {
             self.finish(error: "Failed to send verification email.")
             return
         }
 
-        user.sendEmailVerification { [weak self] error in
+        Functions.functions().httpsCallable("sendVerificationEmail").call { [weak self] _, error in
             guard let self = self else { return }
 
             if let error = error {
