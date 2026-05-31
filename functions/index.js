@@ -51,7 +51,9 @@ const RESEND_API_KEY = defineSecret('RESEND_API_KEY');
 // Sender address for verification emails. MUST be on a domain you've verified in
 // Resend (https://resend.com/domains). For quick testing Resend also allows
 // "onboarding@resend.dev", but that can only deliver to your own Resend account
-// email. Override in production via the VERIFICATION_FROM_EMAIL env var.
+// email. Set this in production via functions/.env (see .env.example) — Firebase
+// loads that file into process.env at deploy time. A shell `export` before
+// `firebase deploy` does NOT reach the deployed Gen-2 runtime.
 const VERIFICATION_FROM_EMAIL =
     process.env.VERIFICATION_FROM_EMAIL || 'NotifiApp <onboarding@resend.dev>';
 
