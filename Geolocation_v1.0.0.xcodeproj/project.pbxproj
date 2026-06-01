@@ -16,6 +16,7 @@
 		011574882F69DC3900963138 /* FCMTokenManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 011574872F69DC3900963138 /* FCMTokenManager.swift */; };
 		0115748A2F69DC4D00963138 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 011574892F69DC4D00963138 /* AppDelegate.swift */; };
 		0115748D2F69DCAB00963138 /* FirebaseMessaging in Frameworks */ = {isa = PBXBuildFile; productRef = 0115748C2F69DCAB00963138 /* FirebaseMessaging */; };
+		A1B2C3D400000000000000F2 /* FirebaseFunctions in Frameworks */ = {isa = PBXBuildFile; productRef = A1B2C3D400000000000000F1 /* FirebaseFunctions */; };
 		011574932F69FD9700963138 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 011574922F69FD9700963138 /* GoogleService-Info.plist */; };
 		0119CD0D2F4CF95A00DEDEFD /* AutoDeleteSwipeRail.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0119CD0C2F4CF95A00DEDEFD /* AutoDeleteSwipeRail.swift */; };
 		0119CD0F2F4CF96000DEDEFD /* CachedLogoImage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0119CD0E2F4CF96000DEDEFD /* CachedLogoImage.swift */; };
@@ -267,6 +268,7 @@
 				0125A7A32F68345D0089F321 /* GoogleMobileAds in Frameworks */,
 				8278FE072C5DD4310017EB72 /* FirebaseAuth in Frameworks */,
 				0115748D2F69DCAB00963138 /* FirebaseMessaging in Frameworks */,
+				A1B2C3D400000000000000F2 /* FirebaseFunctions in Frameworks */,
 				8278FE092C5DD4310017EB72 /* FirebaseFirestore in Frameworks */,
 				8278FE0B2C5DD4310017EB72 /* FirebaseStorage in Frameworks */,
 			);
@@ -536,6 +538,7 @@
 			name = Allim;
 			packageProductDependencies = (
 				8278FE062C5DD4310017EB72 /* FirebaseAuth */,
+				A1B2C3D400000000000000F1 /* FirebaseFunctions */,
 				8278FE082C5DD4310017EB72 /* FirebaseFirestore */,
 				8278FE0A2C5DD4310017EB72 /* FirebaseStorage */,
 				0125A7A22F68345D0089F321 /* GoogleMobileAds */,
@@ -1106,6 +1109,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 8278FE052C5DD4310017EB72 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
 			productName = FirebaseMessaging;
+		};
+		A1B2C3D400000000000000F1 /* FirebaseFunctions */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 8278FE052C5DD4310017EB72 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseFunctions;
 		};
 		0125A7A22F68345D0089F321 /* GoogleMobileAds */ = {
 			isa = XCSwiftPackageProductDependency;

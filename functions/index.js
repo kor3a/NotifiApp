@@ -34,13 +34,28 @@
  */
 
 const { onDocumentCreated } = require('firebase-functions/v2/firestore');
+const { onCall, HttpsError } = require('firebase-functions/v2/https');
+const { defineSecret } = require('firebase-functions/params');
 const functions = require('firebase-functions');
 const { initializeApp } = require('firebase-admin/app');
 const { getFirestore } = require('firebase-admin/firestore');
 const { getMessaging } = require('firebase-admin/messaging');
 const { getStorage } = require('firebase-admin/storage');
+const { getAuth } = require('firebase-admin/auth');
 
 initializeApp();
+
+// Resend API key — set once with:  firebase functions:secrets:set RESEND_API_KEY
+const RESEND_API_KEY = defineSecret('RESEND_API_KEY');
+
+// Sender address for verification emails. MUST be on a domain you've verified in
+// Resend (https://resend.com/domains). For quick testing Resend also allows
+// "onboarding@resend.dev", but that can only deliver to your own Resend account
+// email. Set this in production via functions/.env (see .env.example) — Firebase
+// loads that file into process.env at deploy time. A shell `export` before
+// `firebase deploy` does NOT reach the deployed Gen-2 runtime.
+const VERIFICATION_FROM_EMAIL =
+    process.env.VERIFICATION_FROM_EMAIL || 'NotifiApp <onboarding@resend.dev>';
 
 const db = getFirestore();
 
@@ -316,5 +331,140 @@ exports.friendRequestNotification = onDocumentCreated(
             `${requesterName || 'Someone'} sent you a friend request`,
             { type: 'friend_request' }
         );
+    }
+);
+
+// ---------------------------------------------------------------------------
+// 6. Custom email verification
+//
+// WHY THIS EXISTS
+// ---------------
+// Firebase Auth's built-in verification email uses a locked template whose
+// message body cannot be edited ("To help prevent spam, the message can't be
+// edited on this email template"). The default body renders the link as a bare
+// URL, which desktop mail clients auto-link but many MOBILE clients leave as
+// plain, un-tappable text.
+//
+// To control the markup — and guarantee a real, tappable <a href> button on
+// phones — we generate the verification link with the Admin SDK and send our
+// own HTML email through Resend instead of calling user.sendEmailVerification()
+// from the client.
+//
+// The link still points at Firebase's standard action handler, so the existing
+// emailVerified flow (LoginScreen) keeps working unchanged.
+//
+// Callable from the app via:  functions().httpsCallable('sendVerificationEmail')()
+// The caller must be signed in (true right after createUserWithEmailAndPassword).
+// ---------------------------------------------------------------------------
+
+/**
+ * Build the verification email HTML. The link is wrapped in an explicit <a>
+ * anchor styled as a button so every mail client — mobile included — renders it
+ * as a tap target, with the raw URL repeated below as a copy/paste fallback.
+ */
+function buildVerificationEmailHtml(link) {
+    return `<!DOCTYPE html>
+<html>
+  <body style="margin:0;padding:0;background:#f4f4f7;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f7;padding:24px 0;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;background:#ffffff;border-radius:12px;padding:32px;">
+            <tr>
+              <td style="font-size:20px;font-weight:700;color:#111827;padding-bottom:12px;">
+                Confirm your email
+              </td>
+            </tr>
+            <tr>
+              <td style="font-size:15px;line-height:22px;color:#374151;padding-bottom:24px;">
+                Thanks for signing up for NotifiApp. Tap the button below to verify your email address and finish setting up your account.
+              </td>
+            </tr>
+            <tr>
+              <td align="center" style="padding-bottom:24px;">
+                <a href="${link}"
+                   style="display:inline-block;background:#2563eb;color:#ffffff;font-size:16px;font-weight:600;text-decoration:none;padding:14px 28px;border-radius:8px;">
+                  Verify my email
+                </a>
+              </td>
+            </tr>
+            <tr>
+              <td style="font-size:13px;line-height:20px;color:#6b7280;padding-bottom:8px;">
+                If the button doesn't work, copy and paste this link into your browser:
+              </td>
+            </tr>
+            <tr>
+              <td style="font-size:13px;line-height:20px;word-break:break-all;">
+                <a href="${link}" style="color:#2563eb;">${link}</a>
+              </td>
+            </tr>
+            <tr>
+              <td style="font-size:12px;line-height:18px;color:#9ca3af;padding-top:24px;">
+                If you didn't create a NotifiApp account, you can safely ignore this email.
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`;
+}
+
+exports.sendVerificationEmail = onCall(
+    { secrets: [RESEND_API_KEY] },
+    async (request) => {
+        const auth = request.auth;
+        if (!auth) {
+            throw new HttpsError(
+                'unauthenticated',
+                'You must be signed in to request a verification email.'
+            );
+        }
+
+        const email = auth.token.email;
+        if (!email) {
+            throw new HttpsError(
+                'failed-precondition',
+                'This account has no email address.'
+            );
+        }
+
+        // Nothing to do if the address is already verified.
+        if (auth.token.email_verified) {
+            console.log(`sendVerificationEmail: ${email} already verified, skipping`);
+            return { status: 'already_verified' };
+        }
+
+        // Generate the verification link using Firebase's standard action handler.
+        let link;
+        try {
+            link = await getAuth().generateEmailVerificationLink(email);
+        } catch (err) {
+            console.error('sendVerificationEmail: failed to generate link', err);
+            throw new HttpsError('internal', 'Could not generate verification link.');
+        }
+
+        // Send our own custom HTML email via Resend.
+        const { Resend } = require('resend');
+        const resend = new Resend(RESEND_API_KEY.value());
+
+        const { error } = await resend.emails.send({
+            from: VERIFICATION_FROM_EMAIL,
+            to: email,
+            subject: 'Verify your email for NotifiApp',
+            html: buildVerificationEmailHtml(link),
+            text:
+                `Confirm your email for NotifiApp by opening this link:\n\n${link}\n\n` +
+                `If you didn't create a NotifiApp account, you can ignore this email.`,
+        });
+
+        if (error) {
+            console.error('sendVerificationEmail: Resend send failed', error);
+            throw new HttpsError('internal', 'Failed to send verification email.');
+        }
+
+        console.log(`sendVerificationEmail: verification email sent to ${email}`);
+        return { status: 'sent' };
     }
 );
