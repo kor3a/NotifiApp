@@ -86,9 +86,43 @@ async function getFCMToken(userId) {
 
 /**
  * Send an FCM notification to a single device token.
- * `data` is an optional string→string map forwarded to the app.
+ *
+ * @param {string} token  Recipient device's FCM registration token.
+ * @param {string} title  Notification title.
+ * @param {string} body   Notification body.
+ * @param {Object} data    Optional string→string map forwarded to the app.
+ * @param {Object} options Optional APNs tuning:
+ *   - category {string}          APNs category. MUST match an identifier
+ *       registered in NotificationManager.registerNotificationCategories.
+ *       CarPlay visibility is decided app-side: only categories created with
+ *       the `.allowInCarPlay` option surface on the CarPlay screen. Setting the
+ *       category here also lets notification taps route correctly when the app
+ *       is cold-launched from a push (the delegate falls back to `data.type`
+ *       only when no categoryIdentifier is present).
+ *   - interruptionLevel {string} APNs interruption level. Defaults to
+ *       'time-sensitive' so reminders break through Focus modes — including the
+ *       Driving Focus that CarPlay auto-enables. Requires the
+ *       com.apple.developer.usernotifications.time-sensitive entitlement
+ *       (already present on the app target).
+ *   - threadId {string}          APNs thread id used to group related banners
+ *       (e.g. all pushes for one store or conversation).
  */
-async function sendFCM(token, title, body, data = {}) {
+async function sendFCM(token, title, body, data = {}, options = {}) {
+    const aps = {
+        sound: 'default',
+        // Increment the badge by 1 (FCM handles the actual count)
+        badge: 1,
+        // Default to time-sensitive so the notification is delivered even while
+        // Driving Focus is active. Callers can override per notification type.
+        'interruption-level': options.interruptionLevel || 'time-sensitive',
+    };
+    if (options.category) {
+        aps.category = options.category;
+    }
+    if (options.threadId) {
+        aps['thread-id'] = options.threadId;
+    }
+
     const message = {
         token,
         notification: { title, body },
@@ -97,16 +131,7 @@ async function sendFCM(token, title, body, data = {}) {
             Object.entries(data).map(([k, v]) => [k, String(v)])
         ),
         apns: {
-            payload: {
-                aps: {
-                    sound: 'default',
-                    // Increment the badge by 1 (FCM handles the actual count)
-                    badge: 1,
-                    // Allow the app's Notification Service Extension to process
-                    // the notification even when the app is suspended
-                    'content-available': 1,
-                },
-            },
+            payload: { aps },
         },
     };
 
@@ -148,6 +173,10 @@ exports.onMyWayNotification = onDocumentCreated(
         await sendFCM(token, '🚗 On My Way', body, {
             type: 'on_my_way',
             storeName: storeName || '',
+        }, {
+            // ON_MY_WAY is registered with .allowInCarPlay — shows on CarPlay.
+            category: 'ON_MY_WAY',
+            threadId: `on-my-way-${storeName || ''}`,
         });
     }
 );
@@ -178,6 +207,10 @@ exports.sharedReminderNotification = onDocumentCreated(
         await sendFCM(token, '📝 Reminder Updated', body, {
             type: 'reminder_change',
             storeName: storeName || '',
+        }, {
+            // SHARED_REMINDER_CHANGE is registered with .allowInCarPlay.
+            category: 'SHARED_REMINDER_CHANGE',
+            threadId: `shared-reminder-${storeName || ''}`,
         });
     }
 );
@@ -226,6 +259,15 @@ exports.newMessageNotification = onDocumentCreated(
                     type: 'message',
                     conversationId: conversationId,
                     isGroup: String(isGroup),
+                }, {
+                    // NEW_MESSAGE is intentionally NOT CarPlay-eligible: Apple
+                    // forbids showing message content on the CarPlay screen, and
+                    // the body here carries the message preview. The category is
+                    // still set so taps route to the conversation; CarPlay
+                    // visibility is suppressed app-side (the NEW_MESSAGE category
+                    // is registered WITHOUT .allowInCarPlay).
+                    category: 'NEW_MESSAGE',
+                    threadId: conversationId,
                 });
             })
         );
@@ -329,7 +371,9 @@ exports.friendRequestNotification = onDocumentCreated(
             token,
             '👋 Friend Request',
             `${requesterName || 'Someone'} sent you a friend request`,
-            { type: 'friend_request' }
+            { type: 'friend_request' },
+            // FRIEND_REQUEST is registered with .allowInCarPlay.
+            { category: 'FRIEND_REQUEST' }
         );
     }
 );

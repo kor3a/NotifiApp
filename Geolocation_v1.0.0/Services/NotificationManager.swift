@@ -121,12 +121,21 @@ class NotificationManager: NSObject, ObservableObject {
             options: [.customDismissAction, .allowInCarPlay, .allowAnnouncement]
         )
 
-        // Create a category for new message notifications
+        // Create a category for new message notifications.
+        //
+        // NOTE: NEW_MESSAGE is deliberately registered WITHOUT `.allowInCarPlay`.
+        // Apple's CarPlay guidelines state the contents of messages must never be
+        // shown on the CarPlay screen, and these notifications carry the message
+        // preview in their body. Omitting `.allowInCarPlay` keeps message content
+        // off the CarPlay display while still showing it normally on the iPhone.
+        // (To surface message notifications on CarPlay compliantly — sender/group
+        // name only — add a Notification Service Extension that re-donates the
+        // INSendMessageIntent so they become true communication notifications.)
         let newMessageCategory = UNNotificationCategory(
             identifier: "NEW_MESSAGE",
             actions: [],
             intentIdentifiers: [],
-            options: [.customDismissAction, .allowInCarPlay, .allowAnnouncement]
+            options: [.customDismissAction, .allowAnnouncement]
         )
 
         // Create a category for shared reminder change notifications
