@@ -106,6 +106,10 @@ async function getFCMToken(userId) {
  *       (already present on the app target).
  *   - threadId {string}          APNs thread id used to group related banners
  *       (e.g. all pushes for one store or conversation).
+ *   - mutableContent {boolean}   When true, sets aps.mutable-content so the
+ *       NotifiNotificationService extension can intercept and rewrite the
+ *       notification (used to turn message pushes into communication
+ *       notifications that are CarPlay-safe).
  */
 async function sendFCM(token, title, body, data = {}, options = {}) {
     const aps = {
@@ -121,6 +125,9 @@ async function sendFCM(token, title, body, data = {}, options = {}) {
     }
     if (options.threadId) {
         aps['thread-id'] = options.threadId;
+    }
+    if (options.mutableContent) {
+        aps['mutable-content'] = 1;
     }
 
     const message = {
@@ -259,15 +266,22 @@ exports.newMessageNotification = onDocumentCreated(
                     type: 'message',
                     conversationId: conversationId,
                     isGroup: String(isGroup),
+                    // Sender / group name forwarded so the NotifiNotificationService
+                    // extension can build the INSendMessageIntent without parsing
+                    // the (localized) title.
+                    senderName: senderName || '',
+                    groupName: groupName || '',
                 }, {
-                    // NEW_MESSAGE is intentionally NOT CarPlay-eligible: Apple
-                    // forbids showing message content on the CarPlay screen, and
-                    // the body here carries the message preview. The category is
-                    // still set so taps route to the conversation; CarPlay
-                    // visibility is suppressed app-side (the NEW_MESSAGE category
-                    // is registered WITHOUT .allowInCarPlay).
+                    // mutable-content lets the NotifiNotificationService extension
+                    // rewrite this push into a communication notification, which
+                    // renders sender-only on CarPlay (message body never shown).
+                    // The NEW_MESSAGE category must be registered WITH
+                    // .allowInCarPlay for CarPlay display — do that only once the
+                    // extension target is in the build (see the runbook), so the
+                    // raw body is never exposed on CarPlay in the meantime.
                     category: 'NEW_MESSAGE',
                     threadId: conversationId,
+                    mutableContent: true,
                 });
             })
         );

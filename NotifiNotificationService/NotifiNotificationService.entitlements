@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Lets the extension produce communication notifications (INSendMessageIntent).
+	     The main app already holds this entitlement; the extension needs it too. -->
+	<key>com.apple.developer.usernotifications.communication</key>
+	<true/>
+	<!-- Shared app group, kept in parity with the app and the widget so the
+	     extension can read shared data if needed later. -->
+	<key>com.apple.security.application-groups</key>
+	<array>
+		<string>group.com.kor3a.nearbuy</string>
+	</array>
+</dict>
+</plist>
