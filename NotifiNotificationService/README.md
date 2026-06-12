@@ -12,7 +12,10 @@ sender/group name — never the message body — per Apple's CarPlay guidelines.
       `INSendMessageIntent`, calls `content.updating(from:)`). Non-message
       notification types pass through untouched.
 - [x] `CODE_SIGN_ENTITLEMENTS` points at `NotifiNotificationService.entitlements`
-      (communication-notifications entitlement + app group) for Debug and Release.
+      (app group only) for Debug and Release. The Communication Notifications
+      capability stays on the **app** target — it's not valid in an extension's
+      profile, and the extension produces communication notifications via the
+      host app's capability regardless.
 - [x] Deployment target 17.5, matching the app and widget.
 - [x] `NEW_MESSAGE` category re-registered with `.allowInCarPlay` in
       `NotificationManager.swift` (safe now that both delivery paths are

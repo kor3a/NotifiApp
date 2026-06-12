@@ -2,10 +2,11 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<!-- Lets the extension produce communication notifications (INSendMessageIntent).
-	     The main app already holds this entitlement; the extension needs it too. -->
-	<key>com.apple.developer.usernotifications.communication</key>
-	<true/>
+	<!-- The Communication Notifications capability (com.apple.developer.usernotifications.communication)
+	     lives on the APP target only — it is not a valid entitlement for an
+	     extension's provisioning profile. The extension still produces
+	     communication notifications via INSendMessageIntent because the host app
+	     holds the capability. -->
 	<!-- Shared app group, kept in parity with the app and the widget so the
 	     extension can read shared data if needed later. -->
 	<key>com.apple.security.application-groups</key>
