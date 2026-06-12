@@ -376,10 +376,13 @@ private struct NotificationDebugTab: View {
     }
 
     private func fire(_ mode: NotificationManager.InterruptionMode) {
+        // 5s delay gives you time to background the app (or lock with ⌘L) so the
+        // system presents the banner on the CarPlay display, not just in-app.
         manager.scheduleStoreProximityNotification(
             storeName: storeName,
             reminderCount: reminderCount,
-            mode: mode
+            mode: mode,
+            delay: 5
         )
     }
 }

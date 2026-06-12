@@ -325,7 +325,7 @@ class NotificationManager: NSObject, ObservableObject {
 
     // MARK: - Notification Scheduling
 
-    func scheduleStoreProximityNotification(storeName: String, reminderCount: Int, mode: InterruptionMode? = nil) {
+    func scheduleStoreProximityNotification(storeName: String, reminderCount: Int, mode: InterruptionMode? = nil, delay: TimeInterval = 1) {
         #if DEBUG
         print("🔔 NotificationManager: Attempting to schedule notification for \(storeName)")
         #endif
@@ -369,7 +369,7 @@ class NotificationManager: NSObject, ObservableObject {
             content.userInfo = ["storeName": storeName]
 
             let identifier = "store_proximity_\(storeName)_\(Date().timeIntervalSince1970)"
-            let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
+            let trigger = UNTimeIntervalNotificationTrigger(timeInterval: max(1, delay), repeats: false)
 
             self.scheduleAsCommunicationNotification(
                 content: content,
