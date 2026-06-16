@@ -752,7 +752,12 @@ struct ShareStoreView: View {
                           let userEmail = data["userEmail"] as? String else {
                         return nil
                     }
-                    let permissionString = data["permission"] as? String ?? "edit"
+                    // Self-created (owner) stores have no `permission` field, so a missing
+                    // value means the recipient owns their store (a merged store), NOT an
+                    // edit recipient. Defaulting to "edit" here would misroute unsharing to
+                    // the regular delete path and wrongly delete the recipient's own store.
+                    // This mirrors the main store parser, which also defaults to "owner".
+                    let permissionString = data["permission"] as? String ?? "owner"
                     let permission = StorePermission(rawValue: permissionString) ?? .edit
 
                     let sharedAt = data["sharedAt"] as? TimeInterval

@@ -821,11 +821,17 @@ class StoresViewModel: ObservableObject {
 
                 // Separate merged stores (recipient keeps ownership of the store) from
                 // regular shared stores (recipient only has a dependent copy).
-                let mergedDocs = recipientDocs.filter {
-                    ($0.data()["permission"] as? String) == "owner"
-                }
+                // Only explicit "edit"/"view" recipients have a dependent copy that should be
+                // deleted. A missing permission means the recipient owns their own store (a
+                // merged store created via addStoreToUser, which never writes a permission
+                // field) — those must NOT be deleted, only unlinked.
                 let regularDocs = recipientDocs.filter {
-                    ($0.data()["permission"] as? String) != "owner"
+                    let permission = $0.data()["permission"] as? String
+                    return permission == "edit" || permission == "view"
+                }
+                let mergedDocs = recipientDocs.filter {
+                    let permission = $0.data()["permission"] as? String
+                    return !(permission == "edit" || permission == "view")
                 }
 
                 // Delete regular recipient user_stores in a batch
