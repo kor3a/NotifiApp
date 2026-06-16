@@ -864,8 +864,12 @@ struct ShareStoreView: View {
         #endif
     }
 
-    /// Deletes reminder items the owner added to the recipient's merged store,
-    /// and removes the owner from sharedWith on the recipient's own reminders.
+    /// Severs this owner's attribution from the recipient's merged store WITHOUT deleting
+    /// the recipient's reminders. The merge re-attributes the recipient's own duplicate
+    /// items to this owner (`sharedFromId == ownerUserId`), so deleting on that basis would
+    /// destroy the recipient's own data. Instead, items attributed to this owner are
+    /// un-attributed (they become the recipient's own items), and the owner's name is
+    /// removed from any `sharedWith`.
     private func removeOwnerRemindersFromMergedStore(mergedStoreId: String, ownerUserId: String, ownerName: String) {
         db.collection("reminders")
             .whereField("userStoreId", isEqualTo: mergedStoreId)
@@ -877,28 +881,39 @@ struct ShareStoreView: View {
                 for doc in documents {
                     let data = doc.data()
                     let sharedFromId = data["sharedFromId"] as? String
+                    let sharedFromName = data["sharedFrom"] as? String
                     var sharedWith = data["sharedWith"] as? [String] ?? []
 
-                    if sharedFromId == ownerUserId {
-                        // Came from the owner during merge — delete it
-                        batch.deleteDocument(doc.reference)
-                    } else if sharedWith.contains(ownerName) {
-                        // Recipient's own item shared WITH the owner — remove owner from sharedWith
+                    let attributedToOwner = (sharedFromId == ownerUserId && !ownerUserId.isEmpty)
+                        || (sharedFromId == nil && sharedFromName == ownerName && !ownerName.isEmpty)
+
+                    var updates: [String: Any] = [:]
+
+                    if attributedToOwner {
+                        // Item attributed to this owner — keep it as the recipient's own item
+                        updates["sharedFrom"] = FieldValue.delete()
+                        updates["sharedFromId"] = FieldValue.delete()
+                    }
+
+                    if sharedWith.contains(ownerName) {
                         sharedWith.removeAll { $0 == ownerName }
-                        if sharedWith.isEmpty {
-                            batch.updateData([
-                                "isShared": false,
-                                "sharedWith": FieldValue.delete()
-                            ], forDocument: doc.reference)
-                        } else {
-                            batch.updateData(["sharedWith": sharedWith], forDocument: doc.reference)
-                        }
+                        updates["sharedWith"] = sharedWith.isEmpty ? FieldValue.delete() : sharedWith
+                    }
+
+                    let stillSharedWithOthers = !sharedWith.isEmpty
+                    let stillSharedFromOther = !attributedToOwner && (sharedFromName != nil)
+                    if !stillSharedWithOthers && !stillSharedFromOther {
+                        updates["isShared"] = false
+                    }
+
+                    if !updates.isEmpty {
+                        batch.updateData(updates, forDocument: doc.reference)
                     }
                 }
                 batch.commit { error in
                     #if DEBUG
                     if let error = error {
-                        print("ShareStoreView: Error removing owner reminders from merged store: \(error.localizedDescription)")
+                        print("ShareStoreView: Error clearing owner attribution from merged store: \(error.localizedDescription)")
                     }
                     #endif
                 }
