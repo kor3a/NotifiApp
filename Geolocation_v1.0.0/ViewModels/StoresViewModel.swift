@@ -1216,13 +1216,17 @@ class StoresViewModel: ObservableObject {
                             #endif
                         }
                     } else {
-                        // B has their own items — keep the store but strip all sharing fields
+                        // B has their own items — keep the store and sever ONLY the link to
+                        // this former owner. B may independently be sharing this store with
+                        // other people (their name(s) live in `sharedWith`); deleting the whole
+                        // field would wrongly erase those shares. Remove just the former owner's
+                        // name so B stays the primary owner, still sharing with everyone else.
                         userStoreRef.updateData([
                             "sourceUserStoreId": FieldValue.delete(),
                             "sharedFrom":        FieldValue.delete(),
                             "sharedFromEmail":   FieldValue.delete(),
                             "sharedFromName":    FieldValue.delete(),
-                            "sharedWith":        FieldValue.delete()
+                            "sharedWith":        FieldValue.arrayRemove([ownerName])
                         ]) { error in
                             #if DEBUG
                             if let error = error {

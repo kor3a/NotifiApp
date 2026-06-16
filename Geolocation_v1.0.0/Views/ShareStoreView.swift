@@ -822,12 +822,18 @@ struct ShareStoreView: View {
         // Remove from local UI immediately
         sharedUsers.removeAll { $0.id == sharedUser.id }
 
-        // 1. Clear sharing fields on the recipient's merged user_store
+        // 1. Sever ONLY the link between this owner (the unsharer) and the recipient.
+        //    The recipient owns their store and may be sharing it with other people of
+        //    their own (e.g. user A shares with user B before merging with user C). We must
+        //    NOT wipe their entire `sharedWith` — that would erase those independent shares.
+        //    Remove just this owner's name from `sharedWith` so the recipient stays the
+        //    primary owner of their store, still sharing with everyone else.
         db.collection("user_stores").document(sharedUser.id).updateData([
             "sourceUserStoreId": FieldValue.delete(),
             "sharedFrom":        FieldValue.delete(),
             "sharedFromName":    FieldValue.delete(),
-            "sharedWith":        FieldValue.delete()
+            "sharedFromEmail":   FieldValue.delete(),
+            "sharedWith":        FieldValue.arrayRemove([currentUserName])
         ])
 
         // 2. Remove the owner's reminder items from the recipient's merged store
