@@ -662,7 +662,12 @@ class StoresViewModel: ObservableObject {
                     "storeId": normalizedStoreId,
                     "storeName": store.name,
                     "addedAt": Date().timeIntervalSince1970,
-                    "sortOrder": sortOrder
+                    "sortOrder": sortOrder,
+                    // Explicitly mark self-created stores as owned. Other users' devices key
+                    // off this field when deciding whether a shared store may be deleted, and
+                    // a missing value previously caused merged owner stores to be misclassified
+                    // as deletable recipients.
+                    "permission": "owner"
                 ]
 
                 // Add image URL if available
