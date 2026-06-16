@@ -121,7 +121,18 @@ class NotificationManager: NSObject, ObservableObject {
             options: [.customDismissAction, .allowInCarPlay, .allowAnnouncement]
         )
 
-        // Create a category for new message notifications
+        // Create a category for new message notifications.
+        //
+        // NOTE: message notifications are CarPlay-eligible only because both
+        // delivery paths present them as communication notifications, which
+        // surface sender/group name on the CarPlay screen — never the message
+        // body (Apple forbids showing message contents in CarPlay):
+        //  - local path: scheduleAsCommunicationNotification (below)
+        //  - remote path: the NotifiNotificationService extension rewrites the
+        //    push via INSendMessageIntent (requires aps.mutable-content, set in
+        //    functions/index.js)
+        // If either path stops producing communication notifications, remove
+        // `.allowInCarPlay` here again.
         let newMessageCategory = UNNotificationCategory(
             identifier: "NEW_MESSAGE",
             actions: [],
@@ -176,8 +187,10 @@ class NotificationManager: NSObject, ObservableObject {
     enum CarPlayNotificationStatus {
         case enabled    // Explicit per-app CarPlay toggle exists and is ON
         case disabled   // Per-app CarPlay toggle exists but is OFF
-        case notSupported  // No per-app toggle — normal for apps without CarPlay entitlement;
-                           // notifications still route to CarPlay via .allowInCarPlay category option
+        case notSupported  // CarPlay notifications are NOT available for the app. Usually means the
+                           // `.carPlay` authorization option wasn't captured at first grant (iOS
+                           // freezes options at the initial grant — delete + reinstall to re-capture),
+                           // or the CarPlay entitlement isn't live in the build. NOT a normal/healthy state.
     }
 
     @Published private(set) var _carPlaySetting: CarPlayNotificationStatus = .notSupported
@@ -211,7 +224,7 @@ class NotificationManager: NSObject, ObservableObject {
             case .disabled:
                 carPlayStatus = "❌ DISABLED — Go to Settings > Notifications > [App] > CarPlay and turn it on"
             case .notSupported:
-                carPlayStatus = "ℹ️ notSupported (expected for apps without CarPlay entitlement — notifications route via .allowInCarPlay category option)"
+                carPlayStatus = "❌ notSupported — CarPlay notifications NOT available. The `.carPlay` option likely wasn't captured at first grant (delete + reinstall to re-capture) or the CarPlay entitlement isn't live."
             @unknown default:
                 carPlayStatus = "❓ UNKNOWN (rawValue=\(settings.carPlaySetting.rawValue))"
             }
@@ -314,7 +327,7 @@ class NotificationManager: NSObject, ObservableObject {
 
     // MARK: - Notification Scheduling
 
-    func scheduleStoreProximityNotification(storeName: String, reminderCount: Int, mode: InterruptionMode? = nil) {
+    func scheduleStoreProximityNotification(storeName: String, reminderCount: Int, mode: InterruptionMode? = nil, delay: TimeInterval = 1) {
         #if DEBUG
         print("🔔 NotificationManager: Attempting to schedule notification for \(storeName)")
         #endif
@@ -358,7 +371,7 @@ class NotificationManager: NSObject, ObservableObject {
             content.userInfo = ["storeName": storeName]
 
             let identifier = "store_proximity_\(storeName)_\(Date().timeIntervalSince1970)"
-            let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
+            let trigger = UNTimeIntervalNotificationTrigger(timeInterval: max(1, delay), repeats: false)
 
             self.scheduleAsCommunicationNotification(
                 content: content,

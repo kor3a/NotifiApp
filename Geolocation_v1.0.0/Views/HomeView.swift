@@ -287,7 +287,8 @@ struct HomeView: View {
                 // Per-app CarPlay toggle exists but is explicitly turned off
                 showCarPlayAlert = true
             }
-            // .notSupported is normal for apps without a CarPlay entitlement — not an error
+            // .notSupported means CarPlay notifications aren't available — usually the `.carPlay`
+            // option wasn't captured at first grant (delete + reinstall) or the entitlement isn't live.
         }
 
         // Request location permission and start monitoring
@@ -376,10 +377,13 @@ private struct NotificationDebugTab: View {
     }
 
     private func fire(_ mode: NotificationManager.InterruptionMode) {
+        // 5s delay gives you time to background the app (or lock with ⌘L) so the
+        // system presents the banner on the CarPlay display, not just in-app.
         manager.scheduleStoreProximityNotification(
             storeName: storeName,
             reminderCount: reminderCount,
-            mode: mode
+            mode: mode,
+            delay: 5
         )
     }
 }
