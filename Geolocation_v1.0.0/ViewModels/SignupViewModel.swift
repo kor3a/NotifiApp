@@ -48,6 +48,15 @@ class SignupViewModel: ObservableObject {
             guard let self = self else { return }
 
             if let error = error {
+                // A common case: the email belongs to an account from an earlier
+                // signup that was never confirmed. Firebase reports this the same
+                // way as a fully-registered email ("already in use"), so check the
+                // verification status server-side and show a clearer message
+                // (and re-send the verification link) instead of a dead end.
+                if (error as NSError).code == AuthErrorCode.emailAlreadyInUse.rawValue {
+                    self.handleEmailAlreadyInUse(email: normalizedEmail)
+                    return
+                }
                 self.finish(error: "Error creating user: \(error.localizedDescription)")
                 return
             }
@@ -84,6 +93,40 @@ class SignupViewModel: ObservableObject {
         DispatchQueue.main.async {
             self.errorMessage = error
             self.isLoading = false
+        }
+    }
+
+    /// Resolve an `emailAlreadyInUse` signup failure into a helpful message.
+    ///
+    /// Asks the `checkEmailVerificationStatus` Cloud Function whether the existing
+    /// account has confirmed its email. If it hasn't, the function also re-sends
+    /// the verification link, so we tell the user their email is pending
+    /// verification rather than showing a generic "already in use" error.
+    private func handleEmailAlreadyInUse(email: String) {
+        Functions.functions().httpsCallable("checkEmailVerificationStatus").call(["email": email]) { [weak self] result, error in
+            guard let self = self else { return }
+
+            if let error = error {
+                #if DEBUG
+                print("SignupViewModel: checkEmailVerificationStatus failed: \(error.localizedDescription)")
+                #endif
+                // Fall back to the standard message if the check itself fails.
+                self.finish(error: "This email address is already registered. Please log in instead.")
+                return
+            }
+
+            let status = (result?.data as? [String: Any])?["status"] as? String
+
+            switch status {
+            case "pending":
+                self.finish(error: "This email is already signed up but not yet verified. We've re-sent the verification link to \(email) — please check your inbox (and spam folder) to finish setting up your account.")
+            case "verified":
+                self.finish(error: "This email address is already registered. Please log in instead.")
+            default:
+                // "available" shouldn't happen after an emailAlreadyInUse error,
+                // but treat any unexpected result as the generic case.
+                self.finish(error: "This email address is already registered. Please log in instead.")
+            }
         }
     }
     

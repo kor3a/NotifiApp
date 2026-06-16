@@ -25,7 +25,24 @@ export const authService = {
     name: string,
     userId: string,
   ): Promise<void> {
-    const result = await auth().createUserWithEmailAndPassword(email, password);
+    let result;
+    try {
+      result = await auth().createUserWithEmailAndPassword(email, password);
+    } catch (err: any) {
+      // The email may belong to an earlier signup that was never confirmed.
+      // Firebase reports that identically to a fully-registered email, so ask
+      // the backend whether it's still pending verification (which also
+      // re-sends the link) and surface a clearer error if so.
+      if (err?.code === 'auth/email-already-in-use') {
+        const {data} = await functions().httpsCallable(
+          'checkEmailVerificationStatus',
+        )({email});
+        if (data?.status === 'pending') {
+          throw new Error('EMAIL_PENDING_VERIFICATION');
+        }
+      }
+      throw err;
+    }
     await sendVerificationEmail();
 
     // Create user document in Firestore

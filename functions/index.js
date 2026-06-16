@@ -469,6 +469,45 @@ function buildVerificationEmailHtml(link) {
 </html>`;
 }
 
+/**
+ * Generate a fresh verification link for `email` and deliver our custom HTML
+ * email through Resend. Shared by `sendVerificationEmail` (authenticated resend)
+ * and `checkEmailVerificationStatus` (unauthenticated resend during signup).
+ *
+ * Throws an HttpsError on failure so callers can surface a consistent error.
+ */
+async function deliverVerificationEmail(email) {
+    // Generate the verification link using Firebase's standard action handler.
+    let link;
+    try {
+        link = await getAuth().generateEmailVerificationLink(email);
+    } catch (err) {
+        console.error('deliverVerificationEmail: failed to generate link', err);
+        throw new HttpsError('internal', 'Could not generate verification link.');
+    }
+
+    // Send our own custom HTML email via Resend.
+    const { Resend } = require('resend');
+    const resend = new Resend(RESEND_API_KEY.value());
+
+    const { error } = await resend.emails.send({
+        from: VERIFICATION_FROM_EMAIL,
+        to: email,
+        subject: 'Verify your email for NotifiApp',
+        html: buildVerificationEmailHtml(link),
+        text:
+            `Confirm your email for NotifiApp by opening this link:\n\n${link}\n\n` +
+            `If you didn't create a NotifiApp account, you can ignore this email.`,
+    });
+
+    if (error) {
+        console.error('deliverVerificationEmail: Resend send failed', error);
+        throw new HttpsError('internal', 'Failed to send verification email.');
+    }
+
+    console.log(`deliverVerificationEmail: verification email sent to ${email}`);
+}
+
 exports.sendVerificationEmail = onCall(
     { secrets: [RESEND_API_KEY] },
     async (request) => {
@@ -494,35 +533,74 @@ exports.sendVerificationEmail = onCall(
             return { status: 'already_verified' };
         }
 
-        // Generate the verification link using Firebase's standard action handler.
-        let link;
-        try {
-            link = await getAuth().generateEmailVerificationLink(email);
-        } catch (err) {
-            console.error('sendVerificationEmail: failed to generate link', err);
-            throw new HttpsError('internal', 'Could not generate verification link.');
-        }
-
-        // Send our own custom HTML email via Resend.
-        const { Resend } = require('resend');
-        const resend = new Resend(RESEND_API_KEY.value());
-
-        const { error } = await resend.emails.send({
-            from: VERIFICATION_FROM_EMAIL,
-            to: email,
-            subject: 'Verify your email for NotifiApp',
-            html: buildVerificationEmailHtml(link),
-            text:
-                `Confirm your email for NotifiApp by opening this link:\n\n${link}\n\n` +
-                `If you didn't create a NotifiApp account, you can ignore this email.`,
-        });
-
-        if (error) {
-            console.error('sendVerificationEmail: Resend send failed', error);
-            throw new HttpsError('internal', 'Failed to send verification email.');
-        }
-
-        console.log(`sendVerificationEmail: verification email sent to ${email}`);
+        await deliverVerificationEmail(email);
         return { status: 'sent' };
+    }
+);
+
+// ---------------------------------------------------------------------------
+// 7. Email verification status check (signup "email pending verification" UX)
+//
+// WHY THIS EXISTS
+// ---------------
+// When someone starts signing up but never confirms their email, their Firebase
+// Auth account (and Firestore user doc) still exist. A later signup attempt with
+// the same address fails with `auth/email-already-in-use`, which reads to the
+// user as "this email is taken" — confusing when it's *their own* unconfirmed
+// account.
+//
+// The client can't tell a verified account apart from an unverified one: Firebase
+// Auth deliberately hides `emailVerified` from unauthenticated callers (and the
+// signer-up doesn't necessarily know the original password). This callable uses
+// the Admin SDK to look it up and, when the account is unverified, re-sends the
+// verification link so the user can simply finish what they started.
+//
+// Callable from the app via:
+//   functions().httpsCallable('checkEmailVerificationStatus')({ email })
+//
+// NOTE: This intentionally reveals whether an email is registered/verified, which
+// is the product requirement here. The work it does (an Auth lookup plus, for
+// unverified accounts, one email) is the same a normal signup attempt triggers,
+// so it doesn't add meaningful enumeration or spam surface beyond signup itself.
+// ---------------------------------------------------------------------------
+exports.checkEmailVerificationStatus = onCall(
+    { secrets: [RESEND_API_KEY] },
+    async (request) => {
+        const rawEmail = request.data?.email;
+        if (!rawEmail || typeof rawEmail !== 'string') {
+            throw new HttpsError(
+                'invalid-argument',
+                'An email address is required.'
+            );
+        }
+        const email = rawEmail.trim().toLowerCase();
+
+        let userRecord;
+        try {
+            userRecord = await getAuth().getUserByEmail(email);
+        } catch (err) {
+            if (err.code === 'auth/user-not-found') {
+                // No account exists for this email — it's available to register.
+                return { status: 'available' };
+            }
+            console.error('checkEmailVerificationStatus: lookup failed', err);
+            throw new HttpsError('internal', 'Could not check this email address.');
+        }
+
+        if (userRecord.emailVerified) {
+            return { status: 'verified' };
+        }
+
+        // Unverified account: re-send the verification link so they can finish
+        // signing up. Surface a 'pending' status even if the resend itself fails,
+        // so the app can still explain why signup was blocked.
+        let resent = false;
+        try {
+            await deliverVerificationEmail(email);
+            resent = true;
+        } catch (err) {
+            console.error('checkEmailVerificationStatus: resend failed', err);
+        }
+        return { status: 'pending', resent };
     }
 );
