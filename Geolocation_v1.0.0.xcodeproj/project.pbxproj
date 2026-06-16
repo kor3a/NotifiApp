@@ -43,6 +43,8 @@
 		0183E1FD2F743B0C00AB9429 /* ReportFeedbackView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0183E1FC2F743B0C00AB9429 /* ReportFeedbackView.swift */; };
 		0188F8592F68568C007953B2 /* BannerAdView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0188F8582F68568C007953B2 /* BannerAdView.swift */; };
 		01897B5B2EBA4AB00038A4D1 /* StoresViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01897B5A2EBA4AB00038A4D1 /* StoresViewModel.swift */; };
+		01A339862FE191EB00207C36 /* Intents.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 01A339852FE191EB00207C36 /* Intents.framework */; };
+		01A3398D2FE191EB00207C36 /* NearBuyIntents.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = 01A339842FE191EB00207C36 /* NearBuyIntents.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		01B408232F3BECB100EA1F25 /* MessagesViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01B408222F3BECB100EA1F25 /* MessagesViewModel.swift */; };
 		01B408252F3BECB800EA1F25 /* FriendsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01B408242F3BECB800EA1F25 /* FriendsViewModel.swift */; };
 		01B408272F3BECC300EA1F25 /* Friend.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01B408262F3BECC300EA1F25 /* Friend.swift */; };
@@ -126,6 +128,13 @@
 			remoteGlobalIDString = 8278FDF32C5DD1C80017EB72;
 			remoteInfo = Allim;
 		};
+		01A3398B2FE191EB00207C36 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 8278FDEC2C5DD1C80017EB72 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 01A339832FE191EB00207C36;
+			remoteInfo = NearBuyIntents;
+		};
 		CC0800000000000000000001 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 8278FDEC2C5DD1C80017EB72 /* Project object */;
@@ -142,6 +151,7 @@
 			dstPath = "";
 			dstSubfolderSpec = 13;
 			files = (
+				01A3398D2FE191EB00207C36 /* NearBuyIntents.appex in Embed App Extensions */,
 				0133243C2FDCAE0D0074A818 /* NotifiNotificationService.appex in Embed App Extensions */,
 				CC0200000000000000000005 /* NotifiWidget.appex in Embed App Extensions */,
 			);
@@ -188,6 +198,8 @@
 		0188F8582F68568C007953B2 /* BannerAdView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BannerAdView.swift; sourceTree = "<group>"; };
 		01897B5A2EBA4AB00038A4D1 /* StoresViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoresViewModel.swift; sourceTree = "<group>"; };
 		018D77DF2ED7C43C00E767D6 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		01A339842FE191EB00207C36 /* NearBuyIntents.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = NearBuyIntents.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		01A339852FE191EB00207C36 /* Intents.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Intents.framework; path = System/Library/Frameworks/Intents.framework; sourceTree = SDKROOT; };
 		01B408212F3BEC7F00EA1F25 /* Secrets.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Secrets.xcconfig; sourceTree = "<group>"; };
 		01B408222F3BECB100EA1F25 /* MessagesViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessagesViewModel.swift; sourceTree = "<group>"; };
 		01B408242F3BECB800EA1F25 /* FriendsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FriendsViewModel.swift; sourceTree = "<group>"; };
@@ -272,6 +284,7 @@
 		011CF6042ED638ED009A31A6 /* Theme */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Theme; sourceTree = "<group>"; };
 		013324362FDCAE0D0074A818 /* NotifiNotificationService */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (0133243F2FDCAE0D0074A818 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = NotifiNotificationService; sourceTree = "<group>"; };
 		0176B3092F3CE658003B9C75 /* Geolocation_v1_0_0Tests */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Geolocation_v1_0_0Tests; sourceTree = "<group>"; };
+		01A339872FE191EB00207C36 /* NearBuyIntents */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = NearBuyIntents; sourceTree = "<group>"; };
 		01B408202F3BEBF400EA1F25 /* Geolocation_v1.0.0 */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Geolocation_v1.0.0; sourceTree = "<group>"; };
 /* End PBXFileSystemSynchronizedRootGroup section */
 
@@ -287,6 +300,14 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		01A339812FE191EB00207C36 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				01A339862FE191EB00207C36 /* Intents.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -316,6 +337,7 @@
 		0115748B2F69DCAB00963138 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				01A339852FE191EB00207C36 /* Intents.framework */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -351,6 +373,7 @@
 				CC0400000000000000000001 /* NotifiWidget */,
 				0176B3092F3CE658003B9C75 /* Geolocation_v1_0_0Tests */,
 				013324362FDCAE0D0074A818 /* NotifiNotificationService */,
+				01A339872FE191EB00207C36 /* NearBuyIntents */,
 				8278FDF52C5DD1C90017EB72 /* Products */,
 				01B408202F3BEBF400EA1F25 /* Geolocation_v1.0.0 */,
 				01B408212F3BEC7F00EA1F25 /* Secrets.xcconfig */,
@@ -365,6 +388,7 @@
 				0176B3082F3CE658003B9C75 /* Geolocation_v1_0_0Tests.xctest */,
 				CC0100000000000000000005 /* NotifiWidget.appex */,
 				013324352FDCAE0D0074A818 /* NotifiNotificationService.appex */,
+				01A339842FE191EB00207C36 /* NearBuyIntents.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -571,6 +595,28 @@
 			productReference = 0176B3082F3CE658003B9C75 /* Geolocation_v1_0_0Tests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
+		01A339832FE191EB00207C36 /* NearBuyIntents */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 01A339912FE191EB00207C36 /* Build configuration list for PBXNativeTarget "NearBuyIntents" */;
+			buildPhases = (
+				01A339802FE191EB00207C36 /* Sources */,
+				01A339812FE191EB00207C36 /* Frameworks */,
+				01A339822FE191EB00207C36 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				01A339872FE191EB00207C36 /* NearBuyIntents */,
+			);
+			name = NearBuyIntents;
+			packageProductDependencies = (
+			);
+			productName = NearBuyIntents;
+			productReference = 01A339842FE191EB00207C36 /* NearBuyIntents.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 		8278FDF32C5DD1C80017EB72 /* Allim */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 8278FE022C5DD1CB0017EB72 /* Build configuration list for PBXNativeTarget "Allim" */;
@@ -585,6 +631,7 @@
 			dependencies = (
 				CC0800000000000000000002 /* PBXTargetDependency */,
 				0133243B2FDCAE0D0074A818 /* PBXTargetDependency */,
+				01A3398C2FE191EB00207C36 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				011CF6042ED638ED009A31A6 /* Theme */,
@@ -638,6 +685,9 @@
 						CreatedOnToolsVersion = 26.2;
 						TestTargetID = 8278FDF32C5DD1C80017EB72;
 					};
+					01A339832FE191EB00207C36 = {
+						CreatedOnToolsVersion = 26.3;
+					};
 					8278FDF32C5DD1C80017EB72 = {
 						CreatedOnToolsVersion = 15.4;
 					};
@@ -667,6 +717,7 @@
 				CC0500000000000000000001 /* NotifiWidget */,
 				0176B3072F3CE658003B9C75 /* Geolocation_v1_0_0Tests */,
 				013324342FDCAE0D0074A818 /* NotifiNotificationService */,
+				01A339832FE191EB00207C36 /* NearBuyIntents */,
 			);
 		};
 /* End PBXProject section */
@@ -680,6 +731,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		0176B3062F3CE658003B9C75 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		01A339822FE191EB00207C36 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -718,6 +776,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		0176B3042F3CE658003B9C75 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		01A339802FE191EB00207C36 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -838,6 +903,11 @@
 			target = 8278FDF32C5DD1C80017EB72 /* Allim */;
 			targetProxy = 0176B30C2F3CE658003B9C75 /* PBXContainerItemProxy */;
 		};
+		01A3398C2FE191EB00207C36 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 01A339832FE191EB00207C36 /* NearBuyIntents */;
+			targetProxy = 01A3398B2FE191EB00207C36 /* PBXContainerItemProxy */;
+		};
 		CC0800000000000000000002 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = CC0500000000000000000001 /* NotifiWidget */;
@@ -948,6 +1018,65 @@
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Allim.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Allim";
+			};
+			name = Release;
+		};
+		01A3398E2FE191EB00207C36 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = XT28W79782;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = NearBuyIntents/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = NearBuyIntents;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.kor3a.nearbuy.NearBuyIntents;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		01A3398F2FE191EB00207C36 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = XT28W79782;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = NearBuyIntents/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = NearBuyIntents;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.kor3a.nearbuy.NearBuyIntents;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
 		};
@@ -1199,6 +1328,15 @@
 			buildConfigurations = (
 				0176B30E2F3CE658003B9C75 /* Debug */,
 				0176B30F2F3CE658003B9C75 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		01A339912FE191EB00207C36 /* Build configuration list for PBXNativeTarget "NearBuyIntents" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				01A3398E2FE191EB00207C36 /* Debug */,
+				01A3398F2FE191EB00207C36 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
