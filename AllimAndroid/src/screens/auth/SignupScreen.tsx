@@ -61,9 +61,19 @@ export default function SignupScreen({navigation}: Props) {
         [{text: 'OK', onPress: () => navigation.navigate('Login')}],
       );
     } catch (err: any) {
+      // An unverified account from a previous signup attempt — the backend has
+      // re-sent the verification link, so point the user back to their inbox.
+      if (err.message === 'EMAIL_PENDING_VERIFICATION') {
+        Alert.alert(
+          'Email Pending Verification',
+          `This email is already signed up but not yet verified. We've re-sent the verification link to ${email.trim()}. Please check your inbox (and spam folder) to finish setting up your account.`,
+          [{text: 'OK', onPress: () => navigation.navigate('Login')}],
+        );
+        return;
+      }
       const msg =
         err.code === 'auth/email-already-in-use'
-          ? 'This email is already registered.'
+          ? 'This email is already registered. Please log in instead.'
           : err.code === 'auth/weak-password'
           ? 'Password is too weak.'
           : err.message ?? 'Signup failed. Please try again.';

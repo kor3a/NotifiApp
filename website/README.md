@@ -84,15 +84,36 @@ npm run build
 ```
 
 2. Upload the contents of `out/` to your S3 bucket (not the folder itself, the files inside it).
-3. Configure S3 and CloudFront:
-   - **S3 Static website hosting**
-     - Index document: `index.html`
-     - Error document: `index.html` (for SPA routes)
-   - **CloudFront**
-     - Origin: your S3 bucket
-     - Default root object: `index.html`
-     - Custom error responses:
-       - `403` -> `/index.html` with response code `200`
-       - `404` -> `/index.html` with response code `200`
+### Current production setup (nearbuyallim.com)
 
-These settings ensure direct navigation to client-side routes works correctly.
+This site is **not** a single-page app — it ships two real, separate pages:
+`/index.html` (homepage) and `/verify/index.html` (the email-verification
+landing page). Because of that, the usual SPA "map every 403/404 to
+`/index.html`" trick is **wrong here** — it would serve the homepage when
+someone visits `/verify`.
+
+- **S3 bucket** `nearbuyallim.com` (region `us-east-1`), kept **private**
+  and served through CloudFront via Origin Access Control (OAC). The
+  CloudFront origin is the S3 **REST** endpoint
+  (`nearbuyallim.com.s3.us-east-1.amazonaws.com`).
+- **CloudFront** distribution `E1MCDD8F88E6T8`
+  - Default root object: `index.html`
+  - **Viewer-request function** `rewrite-index` (see
+    [`cloudfront-function.js`](./cloudfront-function.js)) that appends
+    `index.html` to directory-style URLs so `/verify/` resolves to
+    `/verify/index.html`. The REST origin does not do this on its own; the
+    S3 *website* endpoint would, but that requires a public bucket.
+
+After changing files in the bucket, invalidate the edge cache (the
+`deploy.sh` script does this automatically):
+
+```bash
+aws cloudfront create-invalidation --distribution-id E1MCDD8F88E6T8 --paths "/*"
+```
+
+### Generic S3 + CloudFront notes (for a pure SPA)
+
+If you ever convert this to a true client-side-routed SPA, the simpler
+config is S3 static website hosting (index + error document both
+`index.html`) or CloudFront custom error responses mapping `403`/`404` to
+`/index.html` with response code `200`.
