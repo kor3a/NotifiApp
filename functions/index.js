@@ -55,7 +55,7 @@ const RESEND_API_KEY = defineSecret('RESEND_API_KEY');
 // loads that file into process.env at deploy time. A shell `export` before
 // `firebase deploy` does NOT reach the deployed Gen-2 runtime.
 const VERIFICATION_FROM_EMAIL =
-    process.env.VERIFICATION_FROM_EMAIL || 'NotifiApp <onboarding@resend.dev>';
+    process.env.VERIFICATION_FROM_EMAIL || 'Allim <onboarding@resend.dev>';
 
 const db = getFirestore();
 
@@ -435,7 +435,7 @@ function buildVerificationEmailHtml(link) {
             </tr>
             <tr>
               <td style="font-size:15px;line-height:22px;color:#374151;padding-bottom:24px;">
-                Thanks for signing up for NotifiApp. Tap the button below to verify your email address and finish setting up your account.
+                Thanks for signing up for Allim. Tap the button below to verify your email address and finish setting up your account.
               </td>
             </tr>
             <tr>
@@ -458,7 +458,7 @@ function buildVerificationEmailHtml(link) {
             </tr>
             <tr>
               <td style="font-size:12px;line-height:18px;color:#9ca3af;padding-top:24px;">
-                If you didn't create a NotifiApp account, you can safely ignore this email.
+                If you didn't create an Allim account, you can safely ignore this email.
               </td>
             </tr>
           </table>
@@ -493,11 +493,11 @@ async function deliverVerificationEmail(email) {
     const { error } = await resend.emails.send({
         from: VERIFICATION_FROM_EMAIL,
         to: email,
-        subject: 'Verify your email for NotifiApp',
+        subject: 'Verify your email for Allim',
         html: buildVerificationEmailHtml(link),
         text:
-            `Confirm your email for NotifiApp by opening this link:\n\n${link}\n\n` +
-            `If you didn't create a NotifiApp account, you can ignore this email.`,
+            `Confirm your email for Allim by opening this link:\n\n${link}\n\n` +
+            `If you didn't create an Allim account, you can ignore this email.`,
     });
 
     if (error) {
