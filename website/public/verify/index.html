@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex" />
+    <title>Verify your email · Allim</title>
+    <link rel="icon" type="image/svg+xml" href="/allimIcon.svg" />
+    <style>
+      :root {
+        --bg: #0f0d1a;
+        --card: #1a1726;
+        --accent: #00fcfd;
+        --text: #ffffff;
+        --muted: rgba(255, 255, 255, 0.6);
+        --danger: #ff5d6c;
+      }
+      * { box-sizing: border-box; }
+      html, body {
+        margin: 0;
+        min-height: 100%;
+        background: var(--bg);
+        color: var(--text);
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      }
+      .wrap {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+      }
+      .card {
+        width: 100%;
+        max-width: 420px;
+        background: var(--card);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 16px;
+        padding: 32px 28px;
+        text-align: center;
+      }
+      .logo { width: 56px; height: 56px; margin-bottom: 16px; }
+      h1 { font-size: 22px; margin: 0 0 10px; }
+      p { font-size: 15px; line-height: 22px; color: var(--muted); margin: 0 0 8px; }
+      .btn {
+        display: inline-block;
+        margin-top: 20px;
+        background: var(--accent);
+        color: #03212a;
+        font-size: 16px;
+        font-weight: 700;
+        text-decoration: none;
+        padding: 14px 28px;
+        border-radius: 10px;
+      }
+      .btn.secondary {
+        background: transparent;
+        color: var(--accent);
+        border: 1px solid rgba(0, 252, 253, 0.4);
+        margin-top: 12px;
+        font-weight: 600;
+      }
+      .spinner {
+        width: 40px; height: 40px; margin: 8px auto 20px;
+        border-radius: 50%;
+        border: 3px solid rgba(255, 255, 255, 0.15);
+        border-top-color: var(--accent);
+        animation: spin 0.8s linear infinite;
+      }
+      @keyframes spin { to { transform: rotate(360deg); } }
+      .hidden { display: none; }
+      .err h1 { color: var(--danger); }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="card">
+        <img class="logo" src="/allimIcon.svg" alt="Allim" />
+
+        <!-- Loading -->
+        <div id="loading">
+          <div class="spinner"></div>
+          <h1>Verifying your email…</h1>
+          <p>Just a moment while we confirm your address.</p>
+        </div>
+
+        <!-- Success -->
+        <div id="success" class="hidden">
+          <h1>Email verified! 🎉</h1>
+          <p>Your email is confirmed. Opening Allim so you can log in…</p>
+          <a id="openApp" class="btn" href="#">Open Allim</a>
+          <a class="btn secondary" href="https://apps.apple.com/us/app/allim-smart-shopping-list/id6758680783">Get Allim on the App Store</a>
+        </div>
+
+        <!-- Error -->
+        <div id="error" class="hidden err">
+          <h1>Link expired</h1>
+          <p id="errorMsg">This verification link is invalid or has already been used. Open the Allim app and tap “Resend verification email” to get a fresh link.</p>
+          <a class="btn" href="allim://login">Open Allim</a>
+          <a class="btn secondary" href="https://apps.apple.com/us/app/allim-smart-shopping-list/id6758680783">Get Allim on the App Store</a>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // Deep link that opens the iOS app at the Login screen (custom URL scheme
+      // registered in the app's Info.plist as "allim").
+      var APP_DEEPLINK = "allim://login";
+
+      // Firebase's default email-action handler. Non-verifyEmail actions
+      // (password reset, email change) are forwarded here untouched so those
+      // flows keep working even though this page is the project's action URL.
+      var DEFAULT_HANDLER = "https://georeminder-pilot.firebaseapp.com/__/auth/action";
+
+      var params = new URLSearchParams(window.location.search);
+      var mode = params.get("mode");
+      var oobCode = params.get("oobCode");
+      // The Web API key is appended to every action link by Firebase, so we read
+      // it from the URL instead of hardcoding it.
+      var apiKey = params.get("apiKey");
+
+      function show(id) {
+        ["loading", "success", "error"].forEach(function (x) {
+          document.getElementById(x).classList.toggle("hidden", x !== id);
+        });
+      }
+
+      function showError(msg) {
+        if (msg) document.getElementById("errorMsg").textContent = msg;
+        show("error");
+      }
+
+      // Anything that isn't an email verification (e.g. resetPassword,
+      // recoverEmail, verifyAndChangeEmail) is handed back to Firebase's
+      // built-in handler with the original query string intact.
+      if (mode !== "verifyEmail") {
+        window.location.replace(DEFAULT_HANDLER + window.location.search);
+      } else if (!oobCode || !apiKey) {
+        showError("This verification link is missing required information. Please use the most recent link from your email.");
+      } else {
+        // Confirm the email by applying the action code via the Identity Toolkit
+        // REST API — equivalent to the Web SDK's applyActionCode(), but with no
+        // SDK bundle to download.
+        fetch(
+          "https://identitytoolkit.googleapis.com/v1/accounts:update?key=" + encodeURIComponent(apiKey),
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ oobCode: oobCode }),
+          }
+        )
+          .then(function (res) {
+            if (res.ok) return res.json();
+            return res.json().then(function (body) {
+              throw new Error((body && body.error && body.error.message) || "VERIFY_FAILED");
+            });
+          })
+          .then(function () {
+            document.getElementById("openApp").setAttribute("href", APP_DEEPLINK);
+            show("success");
+            // Auto-launch the app. The user just tapped the email link, so this
+            // navigation is user-initiated enough for iOS Safari to honor it.
+            setTimeout(function () {
+              window.location.href = APP_DEEPLINK;
+            }, 800);
+          })
+          .catch(function (err) {
+            // EXPIRED_OOB_CODE / INVALID_OOB_CODE land here. The address may
+            // already be verified from an earlier tap, which is fine — tell the
+            // user they can just log in.
+            var m = (err && err.message) || "";
+            if (m.indexOf("EXPIRED_OOB_CODE") !== -1 || m.indexOf("INVALID_OOB_CODE") !== -1) {
+              showError("This link has expired or was already used. If you've already verified, just open Allim and log in. Otherwise tap “Resend verification email” in the app for a fresh link.");
+            } else {
+              showError();
+            }
+          });
+      }
+    </script>
+  </body>
+</html>

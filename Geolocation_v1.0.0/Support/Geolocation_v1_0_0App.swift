@@ -41,6 +41,9 @@ struct Geolocation_v1_0_0App: App {
     var body: some Scene {
         WindowGroup {
             MainView()
+                .onOpenURL { url in
+                    handleDeepLink(url)
+                }
         }
         .onChange(of: scenePhase) { _, newPhase in
             if newPhase == .active {
@@ -50,4 +53,26 @@ struct Geolocation_v1_0_0App: App {
             }
         }
     }
+
+    /// Handle `allim://` deep links. Currently only `allim://login`, opened from
+    /// the email-verification web page (nearbuyallim.com/verify) after the user
+    /// confirms their email. Signup signs the user out, so MainView already shows
+    /// LoginView — simply bringing the app to the foreground lands the user there.
+    /// Posting the notification lets LoginView react (e.g. clear stale errors) if
+    /// it observes it.
+    private func handleDeepLink(_ url: URL) {
+        guard url.scheme == "allim" else { return }
+        #if DEBUG
+        print("🔗 App: opened via deep link \(url.absoluteString)")
+        #endif
+        if url.host == "login" {
+            NotificationCenter.default.post(name: .allimOpenLogin, object: nil)
+        }
+    }
+}
+
+extension Notification.Name {
+    /// Posted when the app is opened via `allim://login` (e.g. from the email
+    /// verification page). LoginView can observe this to reset its state.
+    static let allimOpenLogin = Notification.Name("allimOpenLogin")
 }
