@@ -48,6 +48,7 @@
 		01A339982FE19CA300207C36 /* FirebaseCore in Frameworks */ = {isa = PBXBuildFile; productRef = 01A339972FE19CA300207C36 /* FirebaseCore */; };
 		01A3399A2FE19CAA00207C36 /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = 01A339992FE19CAA00207C36 /* FirebaseFirestore */; };
 		01A3399C2FE19CBA00207C36 /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = 01A3399B2FE19CBA00207C36 /* FirebaseAuth */; };
+		01A339A52FE1A86E00207C36 /* AppIntentVocabulary.plist in Resources */ = {isa = PBXBuildFile; fileRef = 01A339A42FE1A86E00207C36 /* AppIntentVocabulary.plist */; };
 		01B408232F3BECB100EA1F25 /* MessagesViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01B408222F3BECB100EA1F25 /* MessagesViewModel.swift */; };
 		01B408252F3BECB800EA1F25 /* FriendsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01B408242F3BECB800EA1F25 /* FriendsViewModel.swift */; };
 		01B408272F3BECC300EA1F25 /* Friend.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01B408262F3BECC300EA1F25 /* Friend.swift */; };
@@ -203,6 +204,7 @@
 		018D77DF2ED7C43C00E767D6 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		01A339842FE191EB00207C36 /* NearBuyIntents.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = NearBuyIntents.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		01A339852FE191EB00207C36 /* Intents.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Intents.framework; path = System/Library/Frameworks/Intents.framework; sourceTree = SDKROOT; };
+		01A339A32FE1A86E00207C36 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = en; path = en.lproj/AppIntentVocabulary.plist; sourceTree = "<group>"; };
 		01B408212F3BEC7F00EA1F25 /* Secrets.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Secrets.xcconfig; sourceTree = "<group>"; };
 		01B408222F3BECB100EA1F25 /* MessagesViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessagesViewModel.swift; sourceTree = "<group>"; };
 		01B408242F3BECB800EA1F25 /* FriendsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FriendsViewModel.swift; sourceTree = "<group>"; };
@@ -409,6 +411,7 @@
 		8278FDF62C5DD1C90017EB72 /* Geolocation_v1.0.0 */ = {
 			isa = PBXGroup;
 			children = (
+				01A339A42FE1A86E00207C36 /* AppIntentVocabulary.plist */,
 				016FC87D2F97EACF005AD716 /* Allim.icon */,
 				DF66A9992E24C86100C15DA9 /* Geolocation_v1.0.0.entitlements */,
 				018D77DF2ED7C43C00E767D6 /* Info.plist */,
@@ -770,6 +773,7 @@
 				011CF60D2ED63A69009A31A6 /* NotifiApp.icon in Resources */,
 				011CF6092ED63945009A31A6 /* Notifi.icon in Resources */,
 				FF0200000001AABB00CC0001 /* SpecialElite-Regular.ttf in Resources */,
+				01A339A52FE1A86E00207C36 /* AppIntentVocabulary.plist in Resources */,
 				011574932F69FD9700963138 /* GoogleService-Info.plist in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -930,6 +934,17 @@
 			targetProxy = CC0800000000000000000001 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
+
+/* Begin PBXVariantGroup section */
+		01A339A42FE1A86E00207C36 /* AppIntentVocabulary.plist */ = {
+			isa = PBXVariantGroup;
+			children = (
+				01A339A32FE1A86E00207C36 /* en */,
+			);
+			name = AppIntentVocabulary.plist;
+			sourceTree = "<group>";
+		};
+/* End PBXVariantGroup section */
 
 /* Begin XCBuildConfiguration section */
 		0133243D2FDCAE0D0074A818 /* Debug */ = {
@@ -1223,7 +1238,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = AllimRelease.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_ASSET_PATHS = "\"Geolocation_v1.0.0/Preview Content\"";
 				DEVELOPMENT_TEAM = XT28W79782;
 				ENABLE_PREVIEWS = YES;
@@ -1254,7 +1269,7 @@
 				CODE_SIGN_ENTITLEMENTS = AllimRelease.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_ASSET_PATHS = "\"Geolocation_v1.0.0/Preview Content\"";
 				DEVELOPMENT_TEAM = XT28W79782;
