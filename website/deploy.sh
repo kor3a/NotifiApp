@@ -3,7 +3,7 @@ set -euo pipefail
 
 # ---- EDIT THESE TWO VALUES ----
 BUCKET="nearbuyallim.com"            # your S3 bucket name (check S3 console)
-DISTRIBUTION_ID="YOUR_CF_DISTRIBUTION_ID"  # CloudFront distribution ID
+DISTRIBUTION_ID="E1MCDD8F88E6T8"  # CloudFront distribution ID
 # -------------------------------
 
 # Run from the website/ directory: ./deploy.sh
