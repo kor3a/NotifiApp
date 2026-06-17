@@ -34,6 +34,7 @@ struct StoresView: View {
     @State private var selectedOnMyWayStore: UserStoreItem?
     @State private var storeToDelete: UserStoreItem?
     @State private var notificationDestination: UserStoreItem? = nil
+    @State private var pressedStoreId: String? = nil
     @AppStorage("storeViewMode") private var storeViewMode: StoreViewMode = .list
     @State private var isFloatEditMode: Bool = false
     @State private var isFabShrunk: Bool = false
@@ -61,7 +62,7 @@ struct StoresView: View {
                     .navigationDestination(item: $notificationDestination) { storeItem in
                         ReminderView(
                             userStoreItem: storeItem,
-                            availableStores: viewModel.userStoreItems.filter { $0.id != storeItem.id }
+                            availableStores: displayedStoreItems.filter { $0.id != storeItem.id }
                         )
                     }
 
@@ -369,6 +370,31 @@ struct StoresView: View {
         }
     }
 
+    // MARK: - Store Row Card
+
+    /// The full rectangular store row — the store info on top of the glass
+    /// card. Used as the Button label so the entire block (not just the text)
+    /// participates in the press animation.
+    @ViewBuilder
+    private func storeRowCard(for userStoreItem: UserStoreItem) -> some View {
+        StoreItemView(store: userStoreItem.store, isShared: userStoreItem.isShared)
+            .contentShape(Rectangle())
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(.ultraThinMaterial)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16)
+                            .stroke(
+                                Color.cardBorder(for: colorScheme),
+                                lineWidth: 1.5
+                            )
+                    )
+                    .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.3 : 0.1), radius: 8, x: 0, y: 4)
+                    .shadow(color: Color.white.opacity(colorScheme == .dark ? 0.05 : 0.5), radius: 2, x: 0, y: -2)
+            )
+            .padding(.vertical, 4)
+    }
+
     // MARK: - List Content
 
     private var listContent: some View {
@@ -376,33 +402,33 @@ struct StoresView: View {
             ForEach(Array(displayedStoreItems.enumerated()), id: \.element.id) { index, userStoreItem in
                 ZStack {
                     if editMode == .inactive {
-                        NavigationLink(destination: ReminderView(
-                            userStoreItem: userStoreItem,
-                            availableStores: displayedStoreItems.filter { $0.id != userStoreItem.id }
-                        )) {
-                            StoreItemView(store: userStoreItem.store, isShared: userStoreItem.isShared)
-                                .contentShape(Rectangle())
+                        // A plain Button (not a NavigationLink) so the List
+                        // still scrolls. The tap plays a quick press bounce and
+                        // navigation is briefly delayed so the animation is
+                        // actually visible before the next screen pushes in.
+                        Button {
+                            withAnimation(.spring(response: 0.2, dampingFraction: 0.5)) {
+                                pressedStoreId = userStoreItem.id
+                            }
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) {
+                                withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                                    pressedStoreId = nil
+                                }
+                                notificationDestination = userStoreItem
+                            }
+                        } label: {
+                            storeRowCard(for: userStoreItem)
+                                .scaleEffect(pressedStoreId == userStoreItem.id ? 0.95 : 1.0)
+                                .opacity(pressedStoreId == userStoreItem.id ? 0.9 : 1.0)
                         }
                         .buttonStyle(.plain)
                     } else {
-                        StoreItemView(store: userStoreItem.store, isShared: userStoreItem.isShared)
+                        storeRowCard(for: userStoreItem)
                     }
                 }
                 .tutorialHighlight(id: index == 0 ? "tutorial_storeRow" : "noop_store_\(index)")
-                .listRowBackground(
-                    RoundedRectangle(cornerRadius: 16)
-                        .fill(.ultraThinMaterial)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 16)
-                                .stroke(
-                                    Color.cardBorder(for: colorScheme),
-                                    lineWidth: 1.5
-                                )
-                        )
-                        .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.3 : 0.1), radius: 8, x: 0, y: 4)
-                        .shadow(color: Color.white.opacity(colorScheme == .dark ? 0.05 : 0.5), radius: 2, x: 0, y: -2)
-                        .padding(.vertical, 4)
-                )
+                .listRowBackground(Color.clear)
+                .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
                 .listRowSeparator(.hidden)
                 .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                     Button(role: .destructive) {

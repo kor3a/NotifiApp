@@ -18,6 +18,7 @@ struct StoreFloatView: View {
     @State private var wiggleAngle: Double = 0
     @State private var localStores: [UserStoreItem] = []
     @State private var draggingId: String? = nil
+    @State private var tappedId: String? = nil
     @State private var dragOffset: CGSize = .zero
     @State private var dragStartTargetPos: CGPoint = .zero
     @State private var containerSize: CGSize = .zero
@@ -137,7 +138,7 @@ struct StoreFloatView: View {
             x: isDragging ? target.x + dragOffset.width : (appeared ? target.x : center.x),
             y: isDragging ? target.y + dragOffset.height : (appeared ? target.y : center.y)
         )
-        .scaleEffect(isDragging ? 1.12 : (appeared ? 1.0 : 0.1))
+        .scaleEffect(isDragging ? 1.12 : (tappedId == item.id ? 0.85 : (appeared ? 1.0 : 0.1)))
         .opacity(appeared ? 1.0 : 0.0)
         .animation(
             isDragging ? nil : .spring(response: 0.55, dampingFraction: 0.70)
@@ -145,11 +146,18 @@ struct StoreFloatView: View {
             value: appeared
         )
         .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isDragging)
+        .animation(.spring(response: 0.25, dampingFraction: 0.5), value: tappedId)
         .zIndex(isDragging ? 10 : 0)
         // Tap to open store (only when not in edit mode)
         .onTapGesture {
             guard !isEditMode else { return }
-            onStoreTap(item)
+            // Brief press-down bounce before opening the store, mirroring the
+            // tactile feedback of the list-mode store rows.
+            tappedId = item.id
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
+                tappedId = nil
+                onStoreTap(item)
+            }
         }
         // Long-press enters edit mode while the finger is still held down.
         // onLongPressGesture's perform closure fires after minimumDuration
