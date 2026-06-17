@@ -131,24 +131,6 @@ struct SecondaryButtonStyle: ButtonStyle {
     }
 }
 
-/// A button style that gives a tappable row/card a press-down animation —
-/// the whole label scales down and dims slightly while held, then springs
-/// back on release. Mirrors the tactile feedback of system buttons (e.g. the
-/// Profile person icon). Unlike a NavigationLink + custom style inside a List,
-/// a plain Button reliably delivers `isPressed`, so the animation actually
-/// shows while still allowing the List to scroll and the tap to register.
-struct PressableScaleButtonStyle: ButtonStyle {
-    var pressedScale: CGFloat = 0.96
-    var pressedOpacity: Double = 0.9
-
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .scaleEffect(configuration.isPressed ? pressedScale : 1.0)
-            .opacity(configuration.isPressed ? pressedOpacity : 1.0)
-            .animation(.spring(response: 0.3, dampingFraction: 0.6), value: configuration.isPressed)
-    }
-}
-
 extension View {
     func cardStyle() -> some View {
         modifier(CardStyle())

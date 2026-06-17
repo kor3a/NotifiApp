@@ -34,6 +34,7 @@ struct StoresView: View {
     @State private var selectedOnMyWayStore: UserStoreItem?
     @State private var storeToDelete: UserStoreItem?
     @State private var notificationDestination: UserStoreItem? = nil
+    @State private var pressedStoreId: String? = nil
     @AppStorage("storeViewMode") private var storeViewMode: StoreViewMode = .list
     @State private var isFloatEditMode: Bool = false
     @State private var isFabShrunk: Bool = false
@@ -401,16 +402,26 @@ struct StoresView: View {
             ForEach(Array(displayedStoreItems.enumerated()), id: \.element.id) { index, userStoreItem in
                 ZStack {
                     if editMode == .inactive {
-                        // A plain Button (not a NavigationLink) so the press
-                        // animation reliably fires inside the List while still
-                        // allowing scrolling. Navigation is driven through the
-                        // existing `notificationDestination` navigation target.
+                        // A plain Button (not a NavigationLink) so the List
+                        // still scrolls. The tap plays a quick press bounce and
+                        // navigation is briefly delayed so the animation is
+                        // actually visible before the next screen pushes in.
                         Button {
-                            notificationDestination = userStoreItem
+                            withAnimation(.spring(response: 0.2, dampingFraction: 0.5)) {
+                                pressedStoreId = userStoreItem.id
+                            }
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) {
+                                withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                                    pressedStoreId = nil
+                                }
+                                notificationDestination = userStoreItem
+                            }
                         } label: {
                             storeRowCard(for: userStoreItem)
+                                .scaleEffect(pressedStoreId == userStoreItem.id ? 0.95 : 1.0)
+                                .opacity(pressedStoreId == userStoreItem.id ? 0.9 : 1.0)
                         }
-                        .buttonStyle(PressableScaleButtonStyle())
+                        .buttonStyle(.plain)
                     } else {
                         storeRowCard(for: userStoreItem)
                     }
