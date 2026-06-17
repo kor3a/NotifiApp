@@ -906,7 +906,7 @@ struct ReminderView: View {
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
         ToolbarItem(placement: .navigationBarLeading) {
-            if userStoreItem.permission != .view {
+            if userStoreItem.permission != .view && !viewModel.displayedReminders.isEmpty {
                 Toggle(isOn: $autoDeleteEnabled) {
                     Label("Auto-delete", systemImage: autoDeleteEnabled ? "trash.fill" : "trash")
                 }
@@ -923,15 +923,7 @@ struct ReminderView: View {
                         isReorderMode = false
                     }
                 }
-            } else if userStoreItem.permission != .view {
-                Button(action: {
-                    isAddingNewReminder = true
-                }) {
-                    Image(systemName: "plus")
-                        .frame(width: 22, height: 22)
-                }
-                .frame(width: 44, height: 44)
-            } else {
+            } else if userStoreItem.permission == .view {
                 Image(systemName: "eye.fill")
                     .foregroundStyle(.secondary)
                     .frame(width: 22, height: 22)
