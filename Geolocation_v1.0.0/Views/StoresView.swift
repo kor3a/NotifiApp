@@ -383,7 +383,8 @@ struct StoresView: View {
                             StoreItemView(store: userStoreItem.store, isShared: userStoreItem.isShared)
                                 .contentShape(Rectangle())
                         }
-                        .buttonStyle(PressableButtonStyle())
+                        .buttonStyle(.plain)
+                        .pressableRow()
                     } else {
                         StoreItemView(store: userStoreItem.store, isShared: userStoreItem.isShared)
                     }
