@@ -50,6 +50,28 @@ class StoreLogoProvider: ObservableObject {
     }()
     /// Tracks which logos are currently being downloaded to avoid duplicate requests.
     private var downloadingLogos: Set<String> = []
+    /// Tracks disk reads in flight so scrolling doesn't enqueue duplicate background loads.
+    private var diskLoadsInFlight: Set<String> = []
+    /// Serial background queue for disk reads + image decoding (keeps the main thread free).
+    private static let ioQueue = DispatchQueue(label: "StoreLogoProvider.io", qos: .userInitiated)
+
+    // MARK: - Resolution Memoization
+
+    /// Memoized result of `bestLogoKey(for:)`, keyed by normalizedId. The underlying
+    /// computation scans every key in `storeLogos` (and canonicalizes each one), which is
+    /// far too expensive to repeat on every SwiftUI row render. Cleared whenever the
+    /// logo data it depends on changes.
+    private var resolvedKeyCache: [String: String?] = [:]
+    /// Memoized result of `logoURL(for:)`, keyed by normalizedId. Avoids re-scanning the
+    /// Firebase keys and the static domain map on every render.
+    private var resolvedURLCache: [String: String?] = [:]
+
+    /// Invalidate the resolution caches after the data they depend on
+    /// (`storeLogos` / `searchedDomains`) changes. Must be called on the main thread.
+    private func invalidateResolutionCaches() {
+        resolvedKeyCache.removeAll()
+        resolvedURLCache.removeAll()
+    }
     /// Tracks in-flight Logo.dev name searches to avoid duplicate API calls.
     private var searchingStores: Set<String> = []
     /// normalizedId → domain discovered via Logo.dev Brand Search API (persisted to UserDefaults).
@@ -71,6 +93,15 @@ class StoreLogoProvider: ObservableObject {
     /// the Clearbit Logo API using the built-in domain map (no API key required).
     func logoURL(for storeName: String) -> String? {
         let normalizedId = Store.normalizedId(from: storeName)
+        if let cached = resolvedURLCache[normalizedId] {
+            return cached
+        }
+        let result = computeLogoURL(for: normalizedId)
+        resolvedURLCache[normalizedId] = result
+        return result
+    }
+
+    private func computeLogoURL(for normalizedId: String) -> String? {
         #if DEBUG
         print("StoreLogoProvider: Fetching store logo with ID: \(normalizedId)")
         #endif
@@ -107,7 +138,12 @@ class StoreLogoProvider: ObservableObject {
     /// accounting for prefix matching.
     func resolvedLogoId(for storeName: String) -> String? {
         let normalizedId = Store.normalizedId(from: storeName)
-        return bestLogoKey(for: normalizedId)
+        if let cached = resolvedKeyCache[normalizedId] {
+            return cached
+        }
+        let result = bestLogoKey(for: normalizedId)
+        resolvedKeyCache[normalizedId] = result
+        return result
     }
 
     /// Returns a canonical key for resilient matching across punctuation/symbol variants.
@@ -192,30 +228,56 @@ class StoreLogoProvider: ObservableObject {
         let logoId = resolvedLogoId(for: storeName) ?? normalizedId
         let cacheKey = logoId as NSString
 
-        // 1. Check in-memory cache
+        // 1. Check in-memory cache. This is the only synchronous path and is safe to run
+        //    on the main thread during scrolling (NSCache lookups are O(1) and lock-free
+        //    enough for our purposes).
         if let image = imageCache.object(forKey: cacheKey) {
             return image
         }
 
-        // 2. Check disk cache
-        let filePath = cacheDirectory.appendingPathComponent("\(logoId).jpg")
-        if let data = try? Data(contentsOf: filePath), let image = UIImage(data: data) {
-            imageCache.setObject(image, forKey: cacheKey)
-            return image
-        }
-
-        // 3. No cache hit — trigger background download if we have any URL
-        //    (logoURL covers Firebase, domain map, heuristics, and cached search results).
-        //    Pass the original store name so failed downloads can fall back to name search.
-        if let urlString = logoURL(for: storeName) {
-            downloadAndCacheLogo(id: logoId, urlString: urlString, fallbackStoreName: storeName)
-        } else {
-            // 4. Last resort: look up the store name via Logo.dev Brand Search API.
-            //    Results are cached to UserDefaults so each store is only searched once.
-            triggerNameSearch(for: storeName, normalizedId: normalizedId)
-        }
-
+        // 2. Not in memory: read from disk (and decode) OFF the main thread so file I/O
+        //    and JPEG decoding never block scrolling. The result is published via
+        //    objectWillChange once ready. If there's no disk copy, fall through to the
+        //    download / name-search path (which already de-duplicates in-flight work).
+        loadImageOffMainThread(logoId: logoId, storeName: storeName)
         return nil
+    }
+
+    /// Loads a logo image from disk on a background queue, decodes it, stores it in the
+    /// in-memory cache, and notifies observers. Falls back to a network download or
+    /// Logo.dev name search when no disk copy exists. Must be called on the main thread.
+    private func loadImageOffMainThread(logoId: String, storeName: String) {
+        // De-duplicate concurrent loads for the same logo while cells recycle during scroll.
+        guard !diskLoadsInFlight.contains(logoId) else { return }
+        diskLoadsInFlight.insert(logoId)
+
+        Self.ioQueue.async { [weak self] in
+            guard let self = self else { return }
+
+            let filePath = self.cacheDirectory.appendingPathComponent("\(logoId).jpg")
+            if let data = try? Data(contentsOf: filePath), let image = UIImage(data: data) {
+                // Force-decode now (off the main thread) so the first on-screen draw is cheap.
+                let decoded = image.preparingForDisplay() ?? image
+                self.imageCache.setObject(decoded, forKey: logoId as NSString)
+                DispatchQueue.main.async {
+                    self.diskLoadsInFlight.remove(logoId)
+                    self.objectWillChange.send()
+                }
+                return
+            }
+
+            // No disk copy — kick off a download / name search on the main thread, where
+            // those helpers manage their own in-flight de-duplication and caches.
+            DispatchQueue.main.async {
+                self.diskLoadsInFlight.remove(logoId)
+                let normalizedId = Store.normalizedId(from: storeName)
+                if let urlString = self.logoURL(for: storeName) {
+                    self.downloadAndCacheLogo(id: logoId, urlString: urlString, fallbackStoreName: storeName)
+                } else {
+                    self.triggerNameSearch(for: storeName, normalizedId: normalizedId)
+                }
+            }
+        }
     }
 
     /// Downloads a logo image and writes it to both disk and memory cache.
@@ -248,9 +310,10 @@ class StoreLogoProvider: ObservableObject {
             let filePath = self.cacheDirectory.appendingPathComponent("\(id).jpg")
             try? data.write(to: filePath)
 
-            // Update in-memory cache and notify UI
+            // Update in-memory cache and notify UI. Force-decode off the main thread
+            // (this runs on the URLSession background queue) so the first draw is cheap.
             let cacheKey = id as NSString
-            self.imageCache.setObject(image, forKey: cacheKey)
+            self.imageCache.setObject(image.preparingForDisplay() ?? image, forKey: cacheKey)
 
             DispatchQueue.main.async {
                 self.objectWillChange.send()
@@ -306,6 +369,8 @@ class StoreLogoProvider: ObservableObject {
             DispatchQueue.main.async {
                 self.storeLogos = logos
                 self.hasFetched = true
+                // The resolution caches were built against the old (possibly empty) data.
+                self.invalidateResolutionCaches()
 
                 // Persist URL mappings for instant availability on next launch
                 UserDefaults.standard.set(logos, forKey: Self.urlCacheKey)
@@ -382,6 +447,7 @@ class StoreLogoProvider: ObservableObject {
                     // Update local cache (memory, disk, and UserDefaults)
                     DispatchQueue.main.async {
                         self.storeLogos[normalizedId] = downloadURL
+                        self.invalidateResolutionCaches()
                         UserDefaults.standard.set(self.storeLogos, forKey: Self.urlCacheKey)
                     }
 
@@ -420,6 +486,7 @@ class StoreLogoProvider: ObservableObject {
 
                 DispatchQueue.main.async {
                     self?.storeLogos.removeValue(forKey: normalizedId)
+                    self?.invalidateResolutionCaches()
                     if let updatedLogos = self?.storeLogos {
                         UserDefaults.standard.set(updatedLogos, forKey: Self.urlCacheKey)
                     }
@@ -438,6 +505,7 @@ class StoreLogoProvider: ObservableObject {
             for file in files { try? FileManager.default.removeItem(at: file) }
         }
         imageCache.removeAllObjects()
+        invalidateResolutionCaches()
         fetchStoreLogos()
     }
 
@@ -605,6 +673,7 @@ class StoreLogoProvider: ObservableObject {
 
             DispatchQueue.main.async {
                 self.searchedDomains[normalizedId] = top.domain
+                self.invalidateResolutionCaches()
                 UserDefaults.standard.set(self.searchedDomains, forKey: Self.searchCacheKey)
                 self.downloadAndCacheLogo(id: normalizedId, urlString: logoURL)
                 self.objectWillChange.send()
