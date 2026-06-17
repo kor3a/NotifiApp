@@ -61,7 +61,7 @@ struct StoresView: View {
                     .navigationDestination(item: $notificationDestination) { storeItem in
                         ReminderView(
                             userStoreItem: storeItem,
-                            availableStores: viewModel.userStoreItems.filter { $0.id != storeItem.id }
+                            availableStores: displayedStoreItems.filter { $0.id != storeItem.id }
                         )
                     }
 
@@ -369,6 +369,31 @@ struct StoresView: View {
         }
     }
 
+    // MARK: - Store Row Card
+
+    /// The full rectangular store row — the store info on top of the glass
+    /// card. Used as the Button label so the entire block (not just the text)
+    /// participates in the press animation.
+    @ViewBuilder
+    private func storeRowCard(for userStoreItem: UserStoreItem) -> some View {
+        StoreItemView(store: userStoreItem.store, isShared: userStoreItem.isShared)
+            .contentShape(Rectangle())
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(.ultraThinMaterial)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16)
+                            .stroke(
+                                Color.cardBorder(for: colorScheme),
+                                lineWidth: 1.5
+                            )
+                    )
+                    .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.3 : 0.1), radius: 8, x: 0, y: 4)
+                    .shadow(color: Color.white.opacity(colorScheme == .dark ? 0.05 : 0.5), radius: 2, x: 0, y: -2)
+            )
+            .padding(.vertical, 4)
+    }
+
     // MARK: - List Content
 
     private var listContent: some View {
@@ -376,34 +401,23 @@ struct StoresView: View {
             ForEach(Array(displayedStoreItems.enumerated()), id: \.element.id) { index, userStoreItem in
                 ZStack {
                     if editMode == .inactive {
-                        NavigationLink(destination: ReminderView(
-                            userStoreItem: userStoreItem,
-                            availableStores: displayedStoreItems.filter { $0.id != userStoreItem.id }
-                        )) {
-                            StoreItemView(store: userStoreItem.store, isShared: userStoreItem.isShared)
-                                .contentShape(Rectangle())
+                        // A plain Button (not a NavigationLink) so the press
+                        // animation reliably fires inside the List while still
+                        // allowing scrolling. Navigation is driven through the
+                        // existing `notificationDestination` navigation target.
+                        Button {
+                            notificationDestination = userStoreItem
+                        } label: {
+                            storeRowCard(for: userStoreItem)
                         }
-                        .buttonStyle(.plain)
-                        .pressableRow()
+                        .buttonStyle(PressableScaleButtonStyle())
                     } else {
-                        StoreItemView(store: userStoreItem.store, isShared: userStoreItem.isShared)
+                        storeRowCard(for: userStoreItem)
                     }
                 }
                 .tutorialHighlight(id: index == 0 ? "tutorial_storeRow" : "noop_store_\(index)")
-                .listRowBackground(
-                    RoundedRectangle(cornerRadius: 16)
-                        .fill(.ultraThinMaterial)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 16)
-                                .stroke(
-                                    Color.cardBorder(for: colorScheme),
-                                    lineWidth: 1.5
-                                )
-                        )
-                        .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.3 : 0.1), radius: 8, x: 0, y: 4)
-                        .shadow(color: Color.white.opacity(colorScheme == .dark ? 0.05 : 0.5), radius: 2, x: 0, y: -2)
-                        .padding(.vertical, 4)
-                )
+                .listRowBackground(Color.clear)
+                .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
                 .listRowSeparator(.hidden)
                 .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                     Button(role: .destructive) {

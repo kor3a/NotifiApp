@@ -131,41 +131,27 @@ struct SecondaryButtonStyle: ButtonStyle {
     }
 }
 
-/// Adds a press-down scale/dim animation to any tappable view. Unlike a
-/// `ButtonStyle`, this works reliably for `NavigationLink`s inside a `List`,
-/// where the List intercepts the touch and a custom style's `isPressed`
-/// state is never delivered. The press is detected with a zero-distance drag
-/// gesture run simultaneously, so it doesn't block tapping, scrolling, or
-/// swipe actions.
-struct PressableRowStyle: ViewModifier {
-    var pressedScale: CGFloat = 0.95
-    var pressedOpacity: Double = 0.7
-    @GestureState private var isPressed = false
+/// A button style that gives a tappable row/card a press-down animation —
+/// the whole label scales down and dims slightly while held, then springs
+/// back on release. Mirrors the tactile feedback of system buttons (e.g. the
+/// Profile person icon). Unlike a NavigationLink + custom style inside a List,
+/// a plain Button reliably delivers `isPressed`, so the animation actually
+/// shows while still allowing the List to scroll and the tap to register.
+struct PressableScaleButtonStyle: ButtonStyle {
+    var pressedScale: CGFloat = 0.96
+    var pressedOpacity: Double = 0.9
 
-    func body(content: Content) -> some View {
-        content
-            .scaleEffect(isPressed ? pressedScale : 1.0)
-            .opacity(isPressed ? pressedOpacity : 1.0)
-            .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isPressed)
-            .simultaneousGesture(
-                DragGesture(minimumDistance: 0)
-                    .updating($isPressed) { value, state, _ in
-                        // Treat as a press until the finger moves far enough to
-                        // be a scroll or swipe, so list scrolling stays smooth.
-                        state = abs(value.translation.width) < 12 && abs(value.translation.height) < 12
-                    }
-            )
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? pressedScale : 1.0)
+            .opacity(configuration.isPressed ? pressedOpacity : 1.0)
+            .animation(.spring(response: 0.3, dampingFraction: 0.6), value: configuration.isPressed)
     }
 }
 
 extension View {
     func cardStyle() -> some View {
         modifier(CardStyle())
-    }
-
-    /// Applies a press-down scale/dim animation that works inside Lists.
-    func pressableRow(scale: CGFloat = 0.95, opacity: Double = 0.7) -> some View {
-        modifier(PressableRowStyle(pressedScale: scale, pressedOpacity: opacity))
     }
 }
 
