@@ -1451,6 +1451,14 @@ class StoresViewModel: ObservableObject {
         }
     }
 
+    /// Sort stores by reminder count (highest first) and persist the new order.
+    /// This is a one-shot action: the resulting order is written to Firestore as the
+    /// stores' permanent sortOrder, exactly as if the user had dragged them into place.
+    func sortByReminderCount() {
+        let sorted = userStoreItems.sorted { $0.store.reminderCount > $1.store.reminderCount }
+        reorderStores(newOrder: sorted)
+    }
+
     /// Reorder stores using a fully-specified new order (used by Float view drag-to-reorder)
     func reorderStores(newOrder: [UserStoreItem]) {
         isManuallyReordering = true

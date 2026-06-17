@@ -40,15 +40,7 @@ struct StoresView: View {
     @State private var isFabShrunk: Bool = false
     @State private var isAtScrollBottom: Bool = false
     @State private var fabInactivityTimer: Timer? = nil
-    @State private var isSortedByReminderCount: Bool = false
     @Environment(\.colorScheme) var colorScheme
-
-    private var displayedStoreItems: [UserStoreItem] {
-        if isSortedByReminderCount {
-            return viewModel.userStoreItems.sorted { $0.store.reminderCount > $1.store.reminderCount }
-        }
-        return viewModel.userStoreItems
-    }
 
     var body: some View {
         NavigationStack {
@@ -62,7 +54,7 @@ struct StoresView: View {
                     .navigationDestination(item: $notificationDestination) { storeItem in
                         ReminderView(
                             userStoreItem: storeItem,
-                            availableStores: displayedStoreItems.filter { $0.id != storeItem.id }
+                            availableStores: viewModel.userStoreItems.filter { $0.id != storeItem.id }
                         )
                     }
 
@@ -76,7 +68,7 @@ struct StoresView: View {
                         listContent
                     } else {
                         StoreFloatView(
-                            stores: displayedStoreItems,
+                            stores: viewModel.userStoreItems,
                             onStoreTap: { item in
                                 notificationDestination = item
                             },
@@ -141,16 +133,14 @@ struct StoresView: View {
                 if !viewModel.userStoreItems.isEmpty || tutorialManager.isActive {
                     ToolbarItem(placement: .navigationBarTrailing) {
                         HStack(spacing: 4) {
-                            // Sort by reminder count
+                            // Sort by reminder count — one tap permanently reorders the stores
                             Button(action: {
                                 withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                                    isSortedByReminderCount.toggle()
-                                    if isSortedByReminderCount {
-                                        editMode = .inactive
-                                    }
+                                    editMode = .inactive
+                                    viewModel.sortByReminderCount()
                                 }
                             }) {
-                                Image(systemName: isSortedByReminderCount ? "arrow.up.arrow.down.circle.fill" : "arrow.up.arrow.down.circle")
+                                Image(systemName: "arrow.up.arrow.down.circle")
                                     .imageScale(.large)
                             }
 
@@ -399,7 +389,7 @@ struct StoresView: View {
 
     private var listContent: some View {
         List {
-            ForEach(Array(displayedStoreItems.enumerated()), id: \.element.id) { index, userStoreItem in
+            ForEach(Array(viewModel.userStoreItems.enumerated()), id: \.element.id) { index, userStoreItem in
                 ZStack {
                     if editMode == .inactive {
                         // A plain Button (not a NavigationLink) so the List
@@ -464,7 +454,6 @@ struct StoresView: View {
                 .simultaneousGesture(
                     LongPressGesture(minimumDuration: 0.5)
                         .onEnded { _ in
-                            guard !isSortedByReminderCount else { return }
                             withAnimation {
                                 editMode = .active
                                 longPressedItemId = userStoreItem.id
@@ -472,7 +461,7 @@ struct StoresView: View {
                         }
                 )
             }
-            .onMove(perform: isSortedByReminderCount ? nil : moveStore)
+            .onMove(perform: moveStore)
 
         Color.clear
             .frame(height: 1)
