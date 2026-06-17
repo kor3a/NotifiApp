@@ -131,6 +131,22 @@ struct SecondaryButtonStyle: ButtonStyle {
     }
 }
 
+/// A button style that gives tappable rows/icons a subtle "press" animation —
+/// the content scales down and dims slightly while the finger is held, then
+/// springs back on release. Mirrors the tactile feedback of system buttons
+/// (e.g. the Profile person icon) while keeping the label's own styling.
+struct PressableButtonStyle: ButtonStyle {
+    var pressedScale: CGFloat = 0.96
+    var pressedOpacity: Double = 0.85
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? pressedScale : 1.0)
+            .opacity(configuration.isPressed ? pressedOpacity : 1.0)
+            .animation(.spring(response: 0.3, dampingFraction: 0.6), value: configuration.isPressed)
+    }
+}
+
 extension View {
     func cardStyle() -> some View {
         modifier(CardStyle())

@@ -62,6 +62,11 @@ struct ReminderItemView: View {
 
                 Image(systemName: item.isOutOfStock == true ? "xmark.square" : (item.isDone ? "checkmark.square" : "square"))
                     .foregroundStyle(item.isOutOfStock == true ? .red : .primary)
+                    // Animate the symbol swap and add a little pop when the
+                    // checkbox is checked/unchecked or toggled out of stock.
+                    .contentTransition(.symbolEffect(.replace))
+                    .symbolEffect(.bounce, value: item.isDone)
+                    .symbolEffect(.bounce, value: item.isOutOfStock)
                     .contentShape(Rectangle())
                     .background(
                         GeometryReader { geo in
