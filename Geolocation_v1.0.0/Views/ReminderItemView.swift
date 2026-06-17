@@ -51,9 +51,9 @@ struct ReminderItemView: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 if autoDeleteEnabled {
-                    Image(systemName: "line.3.horizontal")
+                    Image(systemName: "trash")
                         .font(.caption)
-                        .foregroundStyle(.secondary.opacity(0.5))
+                        .foregroundStyle(.red.opacity(0.7))
                         .frame(width: 20, height: 30)
                         // Visual affordance only. The AutoDeleteSwipeRail overlay
                         // in ReminderView owns the gesture at the ZStack level so
