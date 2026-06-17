@@ -34,6 +34,18 @@
 				<string>allim</string>
 			</array>
 		</dict>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>GoogleSignIn</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<!-- REVERSED_CLIENT_ID from GoogleService-Info.plist; receives the
+				     Google Sign-In OAuth callback. -->
+				<string>com.googleusercontent.apps.903190692128-h6gt4jvvnqvk791o2nndnnuurprgl0tc</string>
+			</array>
+		</dict>
 	</array>
 	<key>OPENAI_API_KEY</key>
 	<string>$(OPENAI_API_KEY)</string>
