@@ -92,6 +92,7 @@
 		82D289B52C61D52F009F357F /* MainViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82D289B42C61D52F009F357F /* MainViewModel.swift */; };
 		82D289B72C61D631009F357F /* ProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82D289B62C61D631009F357F /* ProfileView.swift */; };
 		82D715C62C8D6B230000D1E3 /* MapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82D715C52C8D6B230000D1E3 /* MapView.swift */; };
+		AA1234560001AABB00CC0101 /* MapboxMapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0102 /* MapboxMapView.swift */; };
 		82EC11832C64755300A6CD8C /* LocationDetailsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82EC11822C64755300A6CD8C /* LocationDetailsView.swift */; };
 		A1B2C3D400000000000000F2 /* FirebaseFunctions in Frameworks */ = {isa = PBXBuildFile; productRef = A1B2C3D400000000000000F1 /* FirebaseFunctions */; };
 		AA1234560001AABB00CC0004 /* OpenAIService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0001 /* OpenAIService.swift */; };
@@ -247,6 +248,7 @@
 		82D289B42C61D52F009F357F /* MainViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainViewModel.swift; sourceTree = "<group>"; };
 		82D289B62C61D631009F357F /* ProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileView.swift; sourceTree = "<group>"; };
 		82D715C52C8D6B230000D1E3 /* MapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapView.swift; sourceTree = "<group>"; };
+		AA1234560001AABB00CC0102 /* MapboxMapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapboxMapView.swift; sourceTree = "<group>"; };
 		82EC11822C64755300A6CD8C /* LocationDetailsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationDetailsView.swift; sourceTree = "<group>"; };
 		AA1234560001AABB00CC0001 /* OpenAIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenAIService.swift; sourceTree = "<group>"; };
 		AA1234560001AABB00CC0002 /* SmartRecipeViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SmartRecipeViewModel.swift; sourceTree = "<group>"; };
@@ -473,6 +475,7 @@
 				748542B22CB5307000C58D9B /* HomeView.swift */,
 				82D289B62C61D631009F357F /* ProfileView.swift */,
 				82D715C52C8D6B230000D1E3 /* MapView.swift */,
+				AA1234560001AABB00CC0102 /* MapboxMapView.swift */,
 				82EC11822C64755300A6CD8C /* LocationDetailsView.swift */,
 				7498B0832CC2D49A0003C68F /* StoresView.swift */,
 				744091EB2DE57AB500ACC67A /* StoreItemView.swift */,
@@ -822,6 +825,7 @@
 				82D289AE2C61CEBD009F357F /* SignupViewModel.swift in Sources */,
 				748542B32CB5307000C58D9B /* HomeView.swift in Sources */,
 				82D715C62C8D6B230000D1E3 /* MapView.swift in Sources */,
+				AA1234560001AABB00CC0101 /* MapboxMapView.swift in Sources */,
 				74A79E832CBDAC7500713F0E /* ReminderItemViewModel.swift in Sources */,
 				0119CD0D2F4CF95A00DEDEFD /* AutoDeleteSwipeRail.swift in Sources */,
 				01B4082B2F3BECCF00EA1F25 /* Message.swift in Sources */,

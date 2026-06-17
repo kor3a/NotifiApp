@@ -41,6 +41,8 @@
 	<string>$(LOGO_DEV_TOKEN)</string>
 	<key>LOGO_DEV_SECRET_KEY</key>
 	<string>$(LOGO_DEV_SECRET_KEY)</string>
+	<key>MBXAccessToken</key>
+	<string>$(MAPBOX_ACCESS_TOKEN)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>

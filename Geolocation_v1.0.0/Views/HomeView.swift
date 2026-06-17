@@ -101,7 +101,10 @@ struct HomeView: View {
                 .tag(2)
 
                 NavigationStack {
-                    MapView(
+                    // Renders with Mapbox when the SDK + access token are configured,
+                    // otherwise transparently falls back to the MapKit MapView.
+                    // See MAPBOX_SETUP.md.
+                    MapboxMapView(
                         selectedTab: $selectedTab,
                         isSearchExpanded: $isSearchExpanded,
                         searchQuery: $searchQuery,
