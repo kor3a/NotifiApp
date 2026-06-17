@@ -1148,43 +1148,122 @@ class MessagingService: ObservableObject {
                         print("🟢 MessagingService.acceptSharedStore: sortOrder=\(sortOrder), permission=\(linkedStore.permission)")
                         #endif
 
-                        // Create the user_store based on permission
-                        if linkedStore.permission == "edit" {
-                            #if DEBUG
-                            print("🟢 MessagingService.acceptSharedStore: Creating with EDIT permission...")
-                            #endif
-                            self.createSharedStoreWithEditPermission(
-                                linkedStore: linkedStore,
-                                currentUserId: currentUserId,
-                                currentUserEmail: currentUserEmail,
-                                senderUserId: senderUserId,
-                                senderUserStoreId: senderUserStoreId,
-                                senderName: senderName,
-                                senderEmail: linkedStore.senderEmail,
-                                sortOrder: sortOrder,
-                                messageId: messageId,
-                                recipientName: recipientName,
-                                completion: completion
-                            )
-                        } else {
-                            #if DEBUG
-                            print("🟢 MessagingService.acceptSharedStore: Creating with VIEW permission...")
-                            #endif
-                            self.createSharedStoreWithViewPermission(
-                                linkedStore: linkedStore,
-                                currentUserId: currentUserId,
-                                currentUserEmail: currentUserEmail,
-                                senderUserId: senderUserId,
-                                senderUserStoreId: senderUserStoreId,
-                                senderName: senderName,
-                                senderEmail: linkedStore.senderEmail,
-                                sortOrder: sortOrder,
-                                messageId: messageId,
-                                recipientName: recipientName,
-                                completion: completion
-                            )
+                        // Create the user_store based on permission.
+                        // Recipients (edit + view) read their reminders directly from the sender's
+                        // store via sourceUserStoreId, so the sender's reminder docs are the source
+                        // of truth for the shared badge on BOTH sides.
+                        let createStore: () -> Void = {
+                            if linkedStore.permission == "edit" {
+                                #if DEBUG
+                                print("🟢 MessagingService.acceptSharedStore: Creating with EDIT permission...")
+                                #endif
+                                self.createSharedStoreWithEditPermission(
+                                    linkedStore: linkedStore,
+                                    currentUserId: currentUserId,
+                                    currentUserEmail: currentUserEmail,
+                                    senderUserId: senderUserId,
+                                    senderUserStoreId: senderUserStoreId,
+                                    senderName: senderName,
+                                    senderEmail: linkedStore.senderEmail,
+                                    sortOrder: sortOrder,
+                                    messageId: messageId,
+                                    recipientName: recipientName,
+                                    completion: completion
+                                )
+                            } else {
+                                #if DEBUG
+                                print("🟢 MessagingService.acceptSharedStore: Creating with VIEW permission...")
+                                #endif
+                                self.createSharedStoreWithViewPermission(
+                                    linkedStore: linkedStore,
+                                    currentUserId: currentUserId,
+                                    currentUserEmail: currentUserEmail,
+                                    senderUserId: senderUserId,
+                                    senderUserStoreId: senderUserStoreId,
+                                    senderName: senderName,
+                                    senderEmail: linkedStore.senderEmail,
+                                    sortOrder: sortOrder,
+                                    messageId: messageId,
+                                    recipientName: recipientName,
+                                    completion: completion
+                                )
+                            }
                         }
+
+                        // Re-mark the sender's reminders as shared before creating the store.
+                        // The sender marks reminders as shared at send time, but any reminders
+                        // added AFTER sending and BEFORE the recipient accepts are missed. This
+                        // ensures those in-between reminders also get the shared badge.
+                        self.markSourceStoreRemindersAsShared(
+                            senderUserStoreId: senderUserStoreId,
+                            recipientName: recipientName,
+                            completion: createStore
+                        )
                     }
+            }
+    }
+
+    /// Mark all active reminders in the sender's store as shared.
+    ///
+    /// Mirrors `MessagesViewModel.markRemindersAsShared`, but runs at accept time so that
+    /// reminders the sender added between sending the share request and the recipient
+    /// accepting it also receive the shared badge. Recipients read reminders directly from
+    /// the sender's store (via sourceUserStoreId), so marking the sender's docs updates the
+    /// badge on both sides. Idempotent — already-shared reminders keep the same metadata.
+    private func markSourceStoreRemindersAsShared(
+        senderUserStoreId: String?,
+        recipientName: String,
+        completion: @escaping () -> Void
+    ) {
+        guard let senderUserStoreId = senderUserStoreId else {
+            completion()
+            return
+        }
+
+        db.collection("reminders")
+            .whereField("userStoreId", isEqualTo: senderUserStoreId)
+            .whereField("isDone", isEqualTo: false)
+            .getDocuments { [weak self] snapshot, error in
+                guard let self = self else { completion(); return }
+
+                if let error = error {
+                    #if DEBUG
+                    print("🔖 markSourceStoreRemindersAsShared: ERROR fetching reminders - \(error)")
+                    #endif
+                    completion()
+                    return
+                }
+
+                guard let documents = snapshot?.documents, !documents.isEmpty else {
+                    #if DEBUG
+                    print("🔖 markSourceStoreRemindersAsShared: No reminders to mark")
+                    #endif
+                    completion()
+                    return
+                }
+
+                let batch = self.db.batch()
+                for doc in documents {
+                    var sharedWith = doc.data()["sharedWith"] as? [String] ?? []
+                    if !sharedWith.contains(recipientName) {
+                        sharedWith.append(recipientName)
+                    }
+                    batch.updateData([
+                        "isShared": true,
+                        "sharedWith": sharedWith
+                    ], forDocument: doc.reference)
+                }
+
+                batch.commit { commitError in
+                    #if DEBUG
+                    if let commitError = commitError {
+                        print("🔖 markSourceStoreRemindersAsShared: ERROR committing - \(commitError)")
+                    } else {
+                        print("🔖 markSourceStoreRemindersAsShared: SUCCESS - marked \(documents.count) reminders")
+                    }
+                    #endif
+                    completion()
+                }
             }
     }
 
