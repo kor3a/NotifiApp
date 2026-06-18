@@ -37,7 +37,12 @@ struct MapView: View {
     @ObservedObject var messagesViewModel: MessagesViewModel
 
     // Store location search
-    private let clusterManager = StoreClusterManager()
+    // @State so the manager (and its result cache) persists across view
+    // re-inits. As a plain `let` it was recreated every time the parent
+    // re-rendered (e.g. on messagesViewModel updates), wiping the cache and
+    // forcing a fresh MKLocalSearch for every store on each region change —
+    // which tripped MKLocalSearch's rate limit and made markers vanish.
+    @State private var clusterManager = StoreClusterManager()
     @State private var clusteredAnnotations: [StoreAnnotation] = []
     @State private var storeLocations: [StoreLocation] = []
     @State private var storeSearchTask: Task<Void, Never>?
@@ -77,6 +82,28 @@ struct MapView: View {
                 .annotationTitles(.hidden)
             }
         }//:MAP
+        .simultaneousGesture(
+            // Tapping the map while the search field is focused dismisses the
+            // keyboard and shrinks the search bar back to the tab bar.
+            // We use simultaneousGesture instead of .onTapGesture because a
+            // plain tap gesture on a Map hijacks its gesture pipeline and
+            // suppresses onMapCameraChange — which would stop store clustering
+            // and hide all store annotations. Gating on isSearchFocused keeps
+            // this from interfering with taps on search-result pins.
+            TapGesture().onEnded {
+                guard isSearchFocused else { return }
+                // Dismiss the keyboard on a map tap. If there's text in the
+                // field, keep the bar extended and its result pins on the map
+                // (the user is still viewing those results) — only shrink the
+                // bar back to the tab bar when the field is empty.
+                isSearchFocused = false
+                if searchQuery.isEmpty {
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                        isSearchExpanded = false
+                    }
+                }
+            }
+        )
         .onMapCameraChange(frequency: .continuous) { context in
             viewingRegion = context.region
 
@@ -177,6 +204,10 @@ struct MapView: View {
                 results.removeAll(keepingCapacity: false)
                 previousSearchRegion = nil
                 searchTask?.cancel()
+                // Removing the search-result pins can leave the map blank until
+                // the next camera change. Force a clustering refresh so the
+                // user's saved store markers reappear immediately.
+                updateClustering(for: viewingRegion ?? viewModel.region, force: true)
             }
         }
         .onChange(of: isSearchExpanded) { oldValue, newValue in
@@ -229,16 +260,14 @@ struct MapView: View {
         .onAppear {
             // Fetch user's stores when view appears
             storesViewModel.fetchUserStores()
-            // Initial clustering
-            if let region = viewingRegion {
-                updateClustering(for: region)
-            }
+            // Initial clustering. Fall back to the view model's region so we
+            // can start searching before the first camera callback arrives.
+            updateClustering(for: viewingRegion ?? viewModel.region, force: storeLocations.isEmpty)
         }
         .onChange(of: storesViewModel.userStoreItems) { oldValue, newValue in
-            // Update clustering when stores change
-            if let region = viewingRegion {
-                updateClustering(for: region)
-            }
+            // Stores just finished loading — kick off clustering right away
+            // (skip the debounce on the first batch so markers appear fast).
+            updateClustering(for: viewingRegion ?? viewModel.region, force: storeLocations.isEmpty)
         }
     }
 
@@ -250,77 +279,81 @@ struct MapView: View {
             HStack(spacing: 12) {
                 // Stores tab
                 Button(action: {
-                    withAnimation(.spring(response: 0.3)) {
-                        selectedTab = 0
-                        // Close search when switching tabs
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
                         if isSearchExpanded {
+                            // Tapping the shrunk store icon restores the full tab bar
+                            // by collapsing the search field.
                             isSearchExpanded = false
                             searchQuery = ""
+                            isSearchFocused = false
+                        } else {
+                            selectedTab = 0
                         }
                     }
                 }) {
                     VStack(spacing: 4) {
                         Image(systemName: "storefront")
                             .font(.system(size: 20))
-                        Text("Stores")
-                            .font(.system(size: 11))
+                        // Hide the label while search is expanded so the
+                        // tab bar shrinks down to just the store icon.
+                        if !isSearchExpanded {
+                            Text("Stores")
+                                .font(.system(size: 11))
+                        }
                     }
                     .foregroundColor(selectedTab == 0 ? .blue : .primary)
-                    .frame(width: 60, height: 50)
+                    .frame(width: isSearchExpanded ? 44 : 60, height: 50)
                 }
 
-                // Messages tab
-                Button(action: {
-                    withAnimation(.spring(response: 0.3)) {
-                        selectedTab = 1
-                        // Close search when switching tabs
-                        if isSearchExpanded {
-                            isSearchExpanded = false
-                            searchQuery = ""
+                // Messages and Friends tabs collapse away while searching to
+                // make room for the expanding search bar.
+                if !isSearchExpanded {
+                    // Messages tab
+                    Button(action: {
+                        withAnimation(.spring(response: 0.3)) {
+                            selectedTab = 1
                         }
-                    }
-                }) {
-                    VStack(spacing: 4) {
-                        ZStack(alignment: .topTrailing) {
-                            Image(systemName: "message")
-                                .font(.system(size: 20))
-                            // Unread badge
-                            if messagesViewModel.totalUnreadCount > 0 {
-                                Text("\(messagesViewModel.totalUnreadCount)")
-                                    .font(.system(size: 10, weight: .bold))
-                                    .foregroundColor(.white)
-                                    .padding(.horizontal, 5)
-                                    .padding(.vertical, 2)
-                                    .background(Color.red)
-                                    .clipShape(Capsule())
-                                    .offset(x: 10, y: -8)
+                    }) {
+                        VStack(spacing: 4) {
+                            ZStack(alignment: .topTrailing) {
+                                Image(systemName: "message")
+                                    .font(.system(size: 20))
+                                // Unread badge
+                                if messagesViewModel.totalUnreadCount > 0 {
+                                    Text("\(messagesViewModel.totalUnreadCount)")
+                                        .font(.system(size: 10, weight: .bold))
+                                        .foregroundColor(.white)
+                                        .padding(.horizontal, 5)
+                                        .padding(.vertical, 2)
+                                        .background(Color.red)
+                                        .clipShape(Capsule())
+                                        .offset(x: 10, y: -8)
+                                }
                             }
+                            Text("Messages")
+                                .font(.system(size: 11))
                         }
-                        Text("Messages")
-                            .font(.system(size: 11))
+                        .foregroundColor(selectedTab == 1 ? .blue : .primary)
+                        .frame(width: 60, height: 50)
                     }
-                    .foregroundColor(selectedTab == 1 ? .blue : .primary)
-                    .frame(width: 60, height: 50)
-                }
+                    .transition(.move(edge: .leading).combined(with: .opacity))
 
-                // Friends tab
-                Button(action: {
-                    withAnimation(.spring(response: 0.3)) {
-                        selectedTab = 2
-                        if isSearchExpanded {
-                            isSearchExpanded = false
-                            searchQuery = ""
+                    // Friends tab
+                    Button(action: {
+                        withAnimation(.spring(response: 0.3)) {
+                            selectedTab = 2
                         }
+                    }) {
+                        VStack(spacing: 4) {
+                            Image(systemName: "person.2")
+                                .font(.system(size: 20))
+                            Text("Friends")
+                                .font(.system(size: 11))
+                        }
+                        .foregroundColor(selectedTab == 2 ? .blue : .primary)
+                        .frame(width: 60, height: 50)
                     }
-                }) {
-                    VStack(spacing: 4) {
-                        Image(systemName: "person.2")
-                            .font(.system(size: 20))
-                        Text("Friends")
-                            .font(.system(size: 11))
-                    }
-                    .foregroundColor(selectedTab == 2 ? .blue : .primary)
-                    .frame(width: 60, height: 50)
+                    .transition(.move(edge: .leading).combined(with: .opacity))
                 }
             }
             .padding(.horizontal, 16)
@@ -347,8 +380,15 @@ struct MapView: View {
                                 Task {
                                     await searchPlaces()
                                 }
+                                isSearchFocused = false
+                            } else {
+                                // Pressing return with no text shrinks the
+                                // search bar back to the tab bar.
+                                isSearchFocused = false
+                                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                                    isSearchExpanded = false
+                                }
                             }
-                            isSearchFocused = false
                         }
                         .transition(.move(edge: .trailing).combined(with: .opacity))
                 }
@@ -407,7 +447,11 @@ extension MapView {
     }
 
     /// Search for nearby store locations based on current map region
-    func updateClustering(for region: MKCoordinateRegion) {
+    /// - Parameter force: when true, skips the debounce delay and always
+    ///   re-assigns `storeLocations` (even if the IDs are unchanged) so the
+    ///   map re-renders markers immediately — used on first load and when
+    ///   clearing the search so pins don't vanish until a manual map gesture.
+    func updateClustering(for region: MKCoordinateRegion, force: Bool = false) {
         // Don't update locations while details sheet is showing or a store is selected
         guard !showDetails && selectedStoreLocation == nil else { return }
 
@@ -416,8 +460,11 @@ extension MapView {
 
         // Debounce: wait 600ms after the last camera change so we don't
         // fire dozens of MKLocalSearch requests during a pinch-to-zoom gesture.
+        // A forced refresh (first load / search cleared) skips the wait.
         storeSearchTask = Task {
-            try? await Task.sleep(nanoseconds: 600_000_000)
+            if !force {
+                try? await Task.sleep(nanoseconds: 600_000_000)
+            }
 
             guard !Task.isCancelled else { return }
 
@@ -432,7 +479,7 @@ extension MapView {
                 let newIds = Set(locations.map { $0.id })
                 let currentIds = Set(storeLocations.map { $0.id })
 
-                if newIds != currentIds {
+                if force || newIds != currentIds {
                     withAnimation(.easeInOut(duration: 0.3)) {
                         storeLocations = locations
                     }
@@ -515,7 +562,13 @@ extension MapView {
             }
         }
 
-        self.results = foundResults
+        // Don't wipe existing result pins if an auto-search (triggered by
+        // panning/zooming) comes back empty — keep the current pins on screen
+        // until the user changes the query. Always update on an explicit
+        // search (previousSearchRegion == nil) or when we actually found something.
+        if !foundResults.isEmpty || previousSearchRegion == nil {
+            self.results = foundResults
+        }
 
         /// Only zoom to show results on initial search (not when auto-searching)
         /// This prevents the map from jumping when user is exploring
