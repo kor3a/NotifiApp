@@ -86,8 +86,13 @@ struct MapView: View {
             // and hide all store annotations. Gating on isSearchFocused keeps
             // this from interfering with taps on search-result pins.
             TapGesture().onEnded {
-                if isSearchFocused {
-                    isSearchFocused = false
+                guard isSearchFocused else { return }
+                // Dismiss the keyboard on a map tap. If there's text in the
+                // field, keep the bar extended and its result pins on the map
+                // (the user is still viewing those results) — only shrink the
+                // bar back to the tab bar when the field is empty.
+                isSearchFocused = false
+                if searchQuery.isEmpty {
                     withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
                         isSearchExpanded = false
                     }
@@ -194,6 +199,10 @@ struct MapView: View {
                 results.removeAll(keepingCapacity: false)
                 previousSearchRegion = nil
                 searchTask?.cancel()
+                // Removing the search-result pins can leave the map blank until
+                // the next camera change. Force a clustering refresh so the
+                // user's saved store markers reappear immediately.
+                updateClustering(for: viewingRegion ?? viewModel.region, force: true)
             }
         }
         .onChange(of: isSearchExpanded) { oldValue, newValue in
@@ -246,16 +255,14 @@ struct MapView: View {
         .onAppear {
             // Fetch user's stores when view appears
             storesViewModel.fetchUserStores()
-            // Initial clustering
-            if let region = viewingRegion {
-                updateClustering(for: region)
-            }
+            // Initial clustering. Fall back to the view model's region so we
+            // can start searching before the first camera callback arrives.
+            updateClustering(for: viewingRegion ?? viewModel.region, force: storeLocations.isEmpty)
         }
         .onChange(of: storesViewModel.userStoreItems) { oldValue, newValue in
-            // Update clustering when stores change
-            if let region = viewingRegion {
-                updateClustering(for: region)
-            }
+            // Stores just finished loading — kick off clustering right away
+            // (skip the debounce on the first batch so markers appear fast).
+            updateClustering(for: viewingRegion ?? viewModel.region, force: storeLocations.isEmpty)
         }
     }
 
@@ -435,7 +442,11 @@ extension MapView {
     }
 
     /// Search for nearby store locations based on current map region
-    func updateClustering(for region: MKCoordinateRegion) {
+    /// - Parameter force: when true, skips the debounce delay and always
+    ///   re-assigns `storeLocations` (even if the IDs are unchanged) so the
+    ///   map re-renders markers immediately — used on first load and when
+    ///   clearing the search so pins don't vanish until a manual map gesture.
+    func updateClustering(for region: MKCoordinateRegion, force: Bool = false) {
         // Don't update locations while details sheet is showing or a store is selected
         guard !showDetails && selectedStoreLocation == nil else { return }
 
@@ -444,8 +455,11 @@ extension MapView {
 
         // Debounce: wait 600ms after the last camera change so we don't
         // fire dozens of MKLocalSearch requests during a pinch-to-zoom gesture.
+        // A forced refresh (first load / search cleared) skips the wait.
         storeSearchTask = Task {
-            try? await Task.sleep(nanoseconds: 600_000_000)
+            if !force {
+                try? await Task.sleep(nanoseconds: 600_000_000)
+            }
 
             guard !Task.isCancelled else { return }
 
@@ -460,7 +474,7 @@ extension MapView {
                 let newIds = Set(locations.map { $0.id })
                 let currentIds = Set(storeLocations.map { $0.id })
 
-                if newIds != currentIds {
+                if force || newIds != currentIds {
                     withAnimation(.easeInOut(duration: 0.3)) {
                         storeLocations = locations
                     }
@@ -543,7 +557,13 @@ extension MapView {
             }
         }
 
-        self.results = foundResults
+        // Don't wipe existing result pins if an auto-search (triggered by
+        // panning/zooming) comes back empty — keep the current pins on screen
+        // until the user changes the query. Always update on an explicit
+        // search (previousSearchRegion == nil) or when we actually found something.
+        if !foundResults.isEmpty || previousSearchRegion == nil {
+            self.results = foundResults
+        }
 
         /// Only zoom to show results on initial search (not when auto-searching)
         /// This prevents the map from jumping when user is exploring
