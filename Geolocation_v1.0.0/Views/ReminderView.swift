@@ -1331,8 +1331,10 @@ struct ReminderView: View {
                         .buttonStyle(.plain)
                     }
 
-                    // Store app / website row
-                    if userStoreItem.store.appURL != nil || userStoreItem.store.websiteURL != nil {
+                    // Store app / website row. The URL is derived from the store name
+                    // (no per-store data to maintain); iOS opens the store's app via
+                    // universal links when installed, otherwise falls back to Safari.
+                    if let storeURL = storeWebsiteURL {
                         Divider()
                             .padding(.horizontal, 16)
 
@@ -1340,7 +1342,7 @@ struct ReminderView: View {
                             withAnimation(.easeInOut(duration: 0.18)) {
                                 showInfoPanel = false
                             }
-                            openStoreLink()
+                            openURL(storeURL)
                         } label: {
                             HStack(spacing: 12) {
                                 Image(systemName: "safari")
@@ -1381,26 +1383,13 @@ struct ReminderView: View {
         .allowsHitTesting(true)
     }
 
-    /// Opens the store's app first, falling back to its website if the app
-    /// isn't installed (or no app URL is configured).
-    private func openStoreLink() {
-        let store = userStoreItem.store
-
-        func openWebsite() {
-            if let websiteURL = store.websiteURL, let url = URL(string: websiteURL) {
-                openURL(url)
-            }
+    /// The store's website URL, derived from its name via the shared domain map.
+    /// Returns `nil` when no domain is known, in which case the link row is hidden.
+    private var storeWebsiteURL: URL? {
+        guard let urlString = StoreLogoProvider.shared.websiteURL(for: userStoreItem.store.name) else {
+            return nil
         }
-
-        if let appURLString = store.appURL, let appURL = URL(string: appURLString) {
-            openURL(appURL) { accepted in
-                if !accepted {
-                    openWebsite()
-                }
-            }
-        } else {
-            openWebsite()
-        }
+        return URL(string: urlString)
     }
 
     /// Send shared store notifications if the store is shared and changes were made.

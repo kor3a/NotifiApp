@@ -134,6 +134,58 @@ class StoreLogoProvider: ObservableObject {
         return nil
     }
 
+    // MARK: - Store Website
+
+    /// Returns the store's website URL (`https://domain`) derived from its name using
+    /// the same domain map that powers logos, or `nil` if no confident match exists.
+    ///
+    /// Opening this URL lets iOS hand off to the store's app via universal links when
+    /// the app is installed, and otherwise falls back to Safari — so it gives an
+    /// "app first, website fallback" experience with no per-store data to maintain.
+    func websiteURL(for storeName: String) -> String? {
+        guard let domain = resolvedDomain(for: Store.normalizedId(from: storeName)) else {
+            return nil
+        }
+        return "https://\(domain)"
+    }
+
+    /// Resolves a store's canonical web domain from the built-in domain map
+    /// (exact match, leading "the-" strip, and longest-prefix match) plus any
+    /// domain previously discovered via the Logo.dev Brand Search API.
+    private func resolvedDomain(for normalizedId: String) -> String? {
+        // 1. Explicit map entry
+        if let domain = Self.storeDomains[normalizedId] {
+            return domain
+        }
+
+        // 2. Strip a leading "the-" and re-check ("the-home-depot" -> "home-depot")
+        let withoutThe = normalizedId.hasPrefix("the-") ? String(normalizedId.dropFirst(4)) : normalizedId
+        if withoutThe != normalizedId, let domain = Self.storeDomains[withoutThe] {
+            return domain
+        }
+
+        // 3. Longest-prefix match ("walmart-supercenter" -> "walmart")
+        let candidates = withoutThe != normalizedId ? [normalizedId, withoutThe] : [normalizedId]
+        for candidate in candidates {
+            var bestPrefixMatch: (key: String, domain: String)?
+            for (key, domain) in Self.storeDomains where candidate.hasPrefix(key) {
+                if bestPrefixMatch == nil || key.count > bestPrefixMatch!.key.count {
+                    bestPrefixMatch = (key, domain)
+                }
+            }
+            if let match = bestPrefixMatch {
+                return match.domain
+            }
+        }
+
+        // 4. Domain discovered earlier via Logo.dev Brand Search
+        if let domain = searchedDomains[normalizedId] {
+            return domain
+        }
+
+        return nil
+    }
+
     /// Resolves which cache key (normalized ID) to use for a given store name,
     /// accounting for prefix matching.
     func resolvedLogoId(for storeName: String) -> String? {

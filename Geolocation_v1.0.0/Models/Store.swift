@@ -13,8 +13,6 @@ struct Store: Codable, Identifiable, Hashable {
     var reminderCount: Int = 0
     var sortOrder: Int? = nil
     var imageURL: String? = nil
-    var websiteURL: String? = nil
-    var appURL: String? = nil
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -22,8 +20,6 @@ struct Store: Codable, Identifiable, Hashable {
         case reminderCount
         case sortOrder
         case imageURL
-        case websiteURL
-        case appURL
     }
 
     /// Generate a normalized store ID from a store name
@@ -40,24 +36,20 @@ struct Store: Codable, Identifiable, Hashable {
     }
 
     /// Create a Store from just a name (for name-based store tracking)
-    init(name: String, reminderCount: Int = 0, sortOrder: Int? = nil, imageURL: String? = nil, websiteURL: String? = nil, appURL: String? = nil) {
+    init(name: String, reminderCount: Int = 0, sortOrder: Int? = nil, imageURL: String? = nil) {
         self.id = Store.normalizedId(from: name)
         self.name = name
         self.reminderCount = reminderCount
         self.sortOrder = sortOrder
         self.imageURL = imageURL
-        self.websiteURL = websiteURL
-        self.appURL = appURL
     }
 
     /// Full initializer for backward compatibility and explicit ID setting
-    init(id: String, name: String, reminderCount: Int = 0, sortOrder: Int? = nil, imageURL: String? = nil, websiteURL: String? = nil, appURL: String? = nil) {
+    init(id: String, name: String, reminderCount: Int = 0, sortOrder: Int? = nil, imageURL: String? = nil) {
         self.id = id
         self.name = name
         self.reminderCount = reminderCount
         self.sortOrder = sortOrder
         self.imageURL = imageURL
-        self.websiteURL = websiteURL
-        self.appURL = appURL
     }
 }
