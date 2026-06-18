@@ -13,16 +13,17 @@ import CryptoKit
 
 struct LoginView: View {
     @State private var alertMsg: String = ""
-    @State private var errorMessage: String = ""
     @State private var showAlert: Bool = false
     @State private var isSignup: Bool = false
     @State private var isForgotPassword: Bool = false
-    @State private var currentNonce: String?
     @State private var showSignupConfirmation: Bool = false
     @State private var signupConfirmationEmail: String = ""
     @Environment(\.colorScheme) var colorScheme
 
     @StateObject private var viewModel = LoginViewModel()
+    // Use the shared instance (not a view-owned one): provisioning a brand-new
+    // social profile continues after LoginView is torn down on successful sign-in.
+    @ObservedObject private var authManager = AuthenticationManager.shared
 
     var body: some View {
         NavigationStack {
@@ -151,26 +152,7 @@ struct LoginView: View {
                     .padding(.horizontal, 20)
                     .padding(.top, 8)
 
-                    /*
-                    Text("Or")
-                        .font(.footnote)
-                        .frame(height:5)
-
-                    // Only works with Apple Developer account ($99/yr)
-                    SignInWithAppleButton(.signIn) { request in
-                        request.requestedScopes = [.email, .fullName]
-                    } onCompletion: { result in
-                        switch result {
-                        case .success(let authorization):
-                            loginWithFirebase(authorization)
-                        case .failure(let error):
-                            showError(error.localizedDescription)
-                        }
-                    }
-                    .frame(width: 150, height: 36)
-                    .clipShape(.capsule)
-                    .padding(.top, 10)
-                    */
+                    socialSignInSection
 
                     if viewModel.showEmailNotVerified {
                         Button(action: {
@@ -225,6 +207,45 @@ struct LoginView: View {
                     showAlert = true
                 }
             })
+            .onReceive(authManager.$errorMessage, perform: { errorMessage in
+                if !errorMessage.isEmpty {
+                    alertMsg = errorMessage
+                    showAlert = true
+                    // Reset so the (now-singleton) manager doesn't re-alert when
+                    // LoginView reappears after a later sign-out.
+                    authManager.errorMessage = ""
+                }
+            })
+            .overlay {
+                if authManager.isLoading {
+                    ZStack {
+                        Color.black.opacity(0.25).ignoresSafeArea()
+                        ProgressView()
+                            .padding(24)
+                            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
+                    }
+                }
+            }
+            .sheet(item: $authManager.pendingLink) { link in
+                LinkAccountSheet(authManager: authManager, link: link)
+            }
+            .alert(
+                "Link your accounts?",
+                isPresented: Binding(
+                    get: { authManager.crossProviderLink != nil },
+                    set: { _ in } // dismissal is driven by the buttons below
+                ),
+                presenting: authManager.crossProviderLink
+            ) { link in
+                Button("Continue with \(link.existingProviderLabel)") {
+                    authManager.confirmCrossProviderLink()
+                }
+                Button("Cancel", role: .cancel) {
+                    authManager.cancelCrossProviderLink()
+                }
+            } message: { link in
+                Text("\(link.email) is already registered with \(link.existingProviderLabel). Sign in with \(link.existingProviderLabel) to link your \(link.newProviderLabel) account — no duplicate account will be created.")
+            }
             .navigationDestination(isPresented: $isSignup) {
                 SignupView(onSignupComplete: { email in
                     signupConfirmationEmail = email
@@ -236,40 +257,167 @@ struct LoginView: View {
         }//:NAVIGATIONVIEW
 
     }//:BODY
-    
-    
-    /// Presenting error message alert
-    func showError(_ message: String){
-        errorMessage = message
-        showAlert.toggle()
-    }
-    
-    /// Login with Firebase with Apple
-    func loginWithFirebase(_ authorization: ASAuthorization) {
-        if let userCredential = authorization.credential as? ASAuthorizationAppleIDCredential {
-            #if DEBUG
-            print(userCredential.user)
-            #endif
 
-            if userCredential.authorizedScopes.contains(.fullName) {
-                #if DEBUG
-                print(userCredential.fullName?.givenName ?? "No given name")
-                #endif
+    /// "or" divider plus the Google and Apple sign-in buttons, shown beneath the
+    /// email/password Login button. Both routes flow through AuthenticationManager,
+    /// which dedupes against existing Firebase Auth and Firestore accounts.
+    private var socialSignInSection: some View {
+        VStack(spacing: 14) {
+            HStack(spacing: 12) {
+                Rectangle()
+                    .fill(Color.secondary.opacity(0.3))
+                    .frame(height: 1)
+                Text("or")
+                    .font(.footnote)
+                    .foregroundColor(.secondary)
+                Rectangle()
+                    .fill(Color.secondary.opacity(0.3))
+                    .frame(height: 1)
             }
+            .padding(.horizontal, 20)
+            .padding(.top, 4)
 
-            if userCredential.authorizedScopes.contains(.email) {
-                #if DEBUG
-                print(userCredential.email ?? "No email")
-                #endif
+            // Continue with Google
+            Button(action: {
+                authManager.signInWithGoogle()
+            }) {
+                HStack(spacing: 10) {
+                    Text("G")
+                        .font(.system(size: 18, weight: .bold, design: .rounded))
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: [.blue, .red, .yellow, .green],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                    Text("Continue with Google")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundColor(.primary)
+                }
+                .frame(maxWidth: .infinity)
+                .frame(height: 50)
+                .background(
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(.ultraThinMaterial)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10)
+                                .stroke(Color.cardBorder(for: colorScheme), lineWidth: 1.5)
+                        )
+                )
             }
-            
+            .disabled(authManager.isLoading)
+            .padding(.horizontal, 20)
+
+            // Sign in with Apple
+            SignInWithAppleButton(.continue) { request in
+                authManager.configureAppleRequest(request)
+            } onCompletion: { result in
+                authManager.handleAppleCompletion(result)
+            }
+            .signInWithAppleButtonStyle(colorScheme == .dark ? .white : .black)
+            .frame(height: 50)
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .disabled(authManager.isLoading)
+            .padding(.horizontal, 20)
         }
+        .padding(.top, 4)
     }
-    
+
     func forgotPasswordTapped() {
         isForgotPassword.toggle()
     }
-    
+
+}
+
+/// Password prompt shown when a Google/Apple email already belongs to an existing
+/// email/password account. Confirming the password lets us LINK the social
+/// provider onto that same account instead of creating a duplicate.
+private struct LinkAccountSheet: View {
+    @ObservedObject var authManager: AuthenticationManager
+    let link: AuthenticationManager.PendingLink
+
+    @State private var password: String = ""
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 20) {
+                Image(systemName: "link.circle.fill")
+                    .font(.system(size: 48))
+                    .foregroundStyle(
+                        LinearGradient(colors: [.blue, .purple], startPoint: .leading, endPoint: .trailing)
+                    )
+                    .padding(.top, 24)
+
+                Text("Link your account")
+                    .font(.title3.bold())
+
+                Text("You already have an account for \(link.email). Enter your password to connect \(link.providerLabel) to it — no duplicate account will be created.")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal)
+
+                SecureField("Password", text: $password)
+                    .textFieldStyle(.plain)
+                    .padding()
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(.ultraThinMaterial)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(Color.cardBorder(for: colorScheme), lineWidth: 1.5)
+                            )
+                    )
+                    .padding(.horizontal)
+
+                if !authManager.linkErrorMessage.isEmpty {
+                    Text(authManager.linkErrorMessage)
+                        .font(.caption)
+                        .foregroundColor(.red)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal)
+                }
+
+                Button(action: {
+                    authManager.completeLinkWithPassword(password)
+                }) {
+                    ZStack {
+                        Text("Link & Continue")
+                            .font(.headline)
+                            .foregroundColor(.white)
+                            .opacity(authManager.isLoading ? 0 : 1)
+                        if authManager.isLoading {
+                            ProgressView().tint(.white)
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 50)
+                    .background(
+                        RoundedRectangle(cornerRadius: 10)
+                            .fill(
+                                LinearGradient(colors: [.blue, .purple], startPoint: .leading, endPoint: .trailing)
+                            )
+                    )
+                }
+                .disabled(password.isEmpty || authManager.isLoading)
+                .padding(.horizontal)
+
+                Spacer()
+            }
+            .interactiveDismissDisabled(authManager.isLoading)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        authManager.cancelPendingLink()
+                    }
+                    .disabled(authManager.isLoading)
+                }
+            }
+        }
+    }
 }
 
 struct ScaleButtonStyle: ButtonStyle {

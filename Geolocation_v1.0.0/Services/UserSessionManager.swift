@@ -19,6 +19,13 @@ class UserSessionManager: ObservableObject {
     @Published var isLoading: Bool = false
     @Published var errorMessage: String = ""
 
+    /// Set by AuthenticationManager while a brand-new social account is being
+    /// provisioned. The auth-state listener fires `fetchUser()` the instant a
+    /// social sign-in completes — before the Firestore profile exists — so this
+    /// flag suppresses the otherwise-misleading "profile not found" error during
+    /// that brief window. AuthenticationManager clears it once the profile is ready.
+    var isProvisioningProfile: Bool = false
+
     private init() {
         // Private initializer for singleton
     }
@@ -38,6 +45,8 @@ class UserSessionManager: ObservableObject {
         print("UserSessionManager: Fetching user with email: \(currentUserEmail)")
         #endif
         isLoading = true
+        // Clear any stale error from a previous (e.g. provisioning) attempt.
+        errorMessage = ""
         let db = Firestore.firestore()
 
         // Query to find user by email since we store documents by username
@@ -65,6 +74,12 @@ class UserSessionManager: ObservableObject {
                     #if DEBUG
                     print("UserSessionManager: No documents found for email: \(currentUserEmail)")
                     #endif
+                    // A brand-new social account's profile is still being created
+                    // by AuthenticationManager; don't surface a "not found" error.
+                    if self.isProvisioningProfile {
+                        DispatchQueue.main.async { self.isLoading = false }
+                        return
+                    }
                     // Try to fetch all users to debug
                     self.debugFetchAllUsers(email: currentUserEmail)
                     return

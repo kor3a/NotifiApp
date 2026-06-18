@@ -10,6 +10,7 @@ import FirebaseCore
 import WidgetKit
 import UIKit
 import GoogleMobileAds
+import GoogleSignIn
 
 @main
 struct Geolocation_v1_0_0App: App {
@@ -23,6 +24,11 @@ struct Geolocation_v1_0_0App: App {
 
     init() {
         FirebaseApp.configure()
+
+        // Configure Google Sign-In with the OAuth client ID from GoogleService-Info.plist.
+        if let clientID = FirebaseApp.app()?.options.clientID {
+            GIDSignIn.sharedInstance.configuration = GIDConfiguration(clientID: clientID)
+        }
 
         // Initialize Google Mobile Ads SDK
         MobileAds.shared.start(completionHandler: nil)
@@ -42,6 +48,11 @@ struct Geolocation_v1_0_0App: App {
         WindowGroup {
             MainView()
                 .onOpenURL { url in
+                    // Let Google Sign-In claim its OAuth callback URL first;
+                    // fall through to our own deep links otherwise.
+                    if GIDSignIn.sharedInstance.handle(url) {
+                        return
+                    }
                     handleDeepLink(url)
                 }
         }
