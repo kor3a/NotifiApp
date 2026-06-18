@@ -1331,9 +1331,8 @@ struct ReminderView: View {
                         .buttonStyle(.plain)
                     }
 
-                    // Store website / app row
-                    if let websiteURL = userStoreItem.store.websiteURL,
-                       let url = URL(string: websiteURL) {
+                    // Store app / website row
+                    if userStoreItem.store.appURL != nil || userStoreItem.store.websiteURL != nil {
                         Divider()
                             .padding(.horizontal, 16)
 
@@ -1341,7 +1340,7 @@ struct ReminderView: View {
                             withAnimation(.easeInOut(duration: 0.18)) {
                                 showInfoPanel = false
                             }
-                            openURL(url)
+                            openStoreLink()
                         } label: {
                             HStack(spacing: 12) {
                                 Image(systemName: "safari")
@@ -1353,7 +1352,7 @@ struct ReminderView: View {
                                         .font(.subheadline)
                                         .fontWeight(.medium)
                                         .foregroundStyle(Color.primary)
-                                    Text("Open the store's website or app")
+                                    Text("Open the store's app or website")
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
                                 }
@@ -1380,6 +1379,28 @@ struct ReminderView: View {
         }
         .padding(.top, 8)
         .allowsHitTesting(true)
+    }
+
+    /// Opens the store's app first, falling back to its website if the app
+    /// isn't installed (or no app URL is configured).
+    private func openStoreLink() {
+        let store = userStoreItem.store
+
+        func openWebsite() {
+            if let websiteURL = store.websiteURL, let url = URL(string: websiteURL) {
+                openURL(url)
+            }
+        }
+
+        if let appURLString = store.appURL, let appURL = URL(string: appURLString) {
+            openURL(appURL) { accepted in
+                if !accepted {
+                    openWebsite()
+                }
+            }
+        } else {
+            openWebsite()
+        }
     }
 
     /// Send shared store notifications if the store is shared and changes were made.
