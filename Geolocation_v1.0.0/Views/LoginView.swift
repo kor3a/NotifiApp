@@ -21,7 +21,9 @@ struct LoginView: View {
     @Environment(\.colorScheme) var colorScheme
 
     @StateObject private var viewModel = LoginViewModel()
-    @StateObject private var authManager = AuthenticationManager()
+    // Use the shared instance (not a view-owned one): provisioning a brand-new
+    // social profile continues after LoginView is torn down on successful sign-in.
+    @ObservedObject private var authManager = AuthenticationManager.shared
 
     var body: some View {
         NavigationStack {
@@ -209,6 +211,9 @@ struct LoginView: View {
                 if !errorMessage.isEmpty {
                     alertMsg = errorMessage
                     showAlert = true
+                    // Reset so the (now-singleton) manager doesn't re-alert when
+                    // LoginView reappears after a later sign-out.
+                    authManager.errorMessage = ""
                 }
             })
             .overlay {

@@ -31,6 +31,13 @@ import UIKit
 
 class AuthenticationManager: ObservableObject {
 
+    /// Shared singleton. AuthenticationManager must outlive LoginView: the moment
+    /// a social sign-in succeeds, MainView swaps LoginView out for HomeView, which
+    /// would deallocate a view-owned instance *while the Firestore profile write
+    /// is still in flight* — silently dropping the write. A singleton survives the
+    /// view teardown so provisioning always completes.
+    static let shared = AuthenticationManager()
+
     /// Shown over the login form while a social sign-in is in flight.
     @Published var isLoading: Bool = false
     /// User-facing error message; LoginView surfaces it like the other forms.
@@ -58,6 +65,8 @@ class AuthenticationManager: ObservableObject {
     private var currentNonce: String?
 
     private let db = Firestore.firestore()
+
+    private init() {}
 
     // MARK: - Google
 
