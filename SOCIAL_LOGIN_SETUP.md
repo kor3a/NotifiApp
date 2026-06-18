@@ -11,11 +11,13 @@ and Firebase's consoles and can't be committed to git.
 The flow lives in `Geolocation_v1.0.0/Services/AuthenticationManager.swift`:
 
 1. **One Firebase Auth account per email.** Firebase's default "one account per
-   email address" setting is respected. If someone who already has an
-   email/password account signs in with Google/Apple using the same email,
-   Firebase returns `accountExistsWithDifferentCredential`. We then ask for their
-   existing password and **link** the social provider onto that same account —
-   no second Auth user is created.
+   email address" setting is respected. If someone signs in with Google/Apple
+   using an email that already belongs to another account, Firebase returns
+   `accountExistsWithDifferentCredential` and we **link** the new provider onto
+   the existing account instead of creating a second one:
+   - existing **email/password** account → we ask for the password, then link;
+   - existing **Google/Apple** account → we ask the user to confirm, re-authenticate
+     with that original provider, then link the new credential onto it.
 2. **One Firestore `users` profile per email.** After Firebase sign-in we look up
    the profile by email. If it exists we load it; only if none exists do we
    create a single new profile with an auto-generated unique username.
@@ -70,11 +72,24 @@ The **GoogleSignIn-iOS** package (`https://github.com/google/GoogleSignIn-iOS`,
 7.x) is referenced in the Xcode project. On the next build, Xcode/SPM will
 resolve it automatically (requires network access the first time).
 
-## Edge case worth knowing
+## Apple "Hide My Email" and re-prompting consent
 
-If a user signs up with email/password using their real email, then later uses
-**Sign in with Apple and chooses "Hide My Email"**, Apple supplies a private
-relay address that differs from their real email. Because the emails don't match,
-Firebase treats it as a separate account. This is an inherent limitation of
-Apple's private relay and can't be deduped purely client-side. All cases where
-the emails *do* match are handled and de-duplicated automatically.
+If a user chooses **Hide My Email** with Apple, Apple supplies a private relay
+address (`…@privaterelay.appleid.com`) that differs from their real email.
+Because the emails don't match, Firebase treats it as a separate account — this
+is an inherent limitation of Apple's private relay and can't be deduped purely
+client-side. All cases where the emails *do* match are linked automatically
+(including across Google/Apple).
+
+Once a user has authorized Sign in with Apple for the app, **iOS will not show
+the Hide/Share-email consent screen again** until they revoke the app's access.
+This is an Apple-account setting, not an app cache. To get the prompt back:
+
+- On device: **Settings → [your name] → Sign-In & Security → Sign in with Apple
+  → Allim → Stop Using Apple ID**, or
+- On the web: [appleid.apple.com](https://appleid.apple.com) → Sign-In & Security
+  → Sign in with Apple → select the app → Stop using.
+
+If a "Hide My Email" attempt created an unwanted account, delete it in
+**Firebase Console → Authentication → Users** (the `…@privaterelay.appleid.com`
+user) and remove the matching document in **Firestore → `users`**.

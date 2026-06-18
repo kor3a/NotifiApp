@@ -229,6 +229,23 @@ struct LoginView: View {
             .sheet(item: $authManager.pendingLink) { link in
                 LinkAccountSheet(authManager: authManager, link: link)
             }
+            .alert(
+                "Link your accounts?",
+                isPresented: Binding(
+                    get: { authManager.crossProviderLink != nil },
+                    set: { _ in } // dismissal is driven by the buttons below
+                ),
+                presenting: authManager.crossProviderLink
+            ) { link in
+                Button("Continue with \(link.existingProviderLabel)") {
+                    authManager.confirmCrossProviderLink()
+                }
+                Button("Cancel", role: .cancel) {
+                    authManager.cancelCrossProviderLink()
+                }
+            } message: { link in
+                Text("\(link.email) is already registered with \(link.existingProviderLabel). Sign in with \(link.existingProviderLabel) to link your \(link.newProviderLabel) account — no duplicate account will be created.")
+            }
             .navigationDestination(isPresented: $isSignup) {
                 SignupView(onSignupComplete: { email in
                     signupConfirmationEmail = email

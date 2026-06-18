@@ -3,13 +3,14 @@
 //  Geolocation_v1.0.0
 //
 //  Handles "Continue with Google" and "Sign in with Apple" on top of the
-//  existing Firebase email/password auth. The two hard requirements are:
+//  existing Firebase email/password auth. The hard requirements are:
 //
 //   1. No duplicate Firebase Auth accounts. If the social email already belongs
-//      to an email/password account (Firebase's default "one account per email
-//      address" setting), we LINK the social provider to that existing account
-//      instead of creating a second one — asking the user to confirm their
-//      password so the link is authorized.
+//      to another account, we LINK the new provider onto the existing account
+//      instead of creating a second one:
+//        - existing email/password account  -> ask for the password, then link
+//        - existing Google/Apple account     -> re-authenticate with that
+//          provider, then link the new credential onto it
 //
 //   2. No duplicate Firestore `users` profiles. After Firebase sign-in we look
 //      up the profile by email; if one already exists we just load it, otherwise
@@ -18,6 +19,10 @@
 //  Google and Apple both return verified emails, so `isEmailVerified` is true
 //  and MainViewModel routes the user straight to HomeView — no email
 //  verification step is needed for social sign-in.
+//
+//  This is a singleton: it must outlive LoginView, which is torn down the moment
+//  a social sign-in succeeds (MainView swaps in HomeView) — a view-owned instance
+//  would be deallocated mid-write and silently drop the Firestore profile.
 //
 
 import Foundation
@@ -29,26 +34,23 @@ import AuthenticationServices
 import CryptoKit
 import UIKit
 
-class AuthenticationManager: ObservableObject {
+class AuthenticationManager: NSObject, ObservableObject {
 
-    /// Shared singleton. AuthenticationManager must outlive LoginView: the moment
-    /// a social sign-in succeeds, MainView swaps LoginView out for HomeView, which
-    /// would deallocate a view-owned instance *while the Firestore profile write
-    /// is still in flight* — silently dropping the write. A singleton survives the
-    /// view teardown so provisioning always completes.
     static let shared = AuthenticationManager()
 
     /// Shown over the login form while a social sign-in is in flight.
     @Published var isLoading: Bool = false
     /// User-facing error message; LoginView surfaces it like the other forms.
     @Published var errorMessage: String = ""
-    /// Set when a social email collides with an existing password account and we
-    /// need the user's password to LINK (not duplicate) the accounts. LoginView
-    /// observes this to present the password sheet.
+    /// Set when a social email collides with an existing *password* account and we
+    /// need the user's password to LINK (not duplicate) the accounts.
     @Published var pendingLink: PendingLink? = nil
-    /// Error shown inside the link sheet (kept separate from `errorMessage` so it
-    /// doesn't trigger the login screen's alert behind the sheet).
+    /// Error shown inside the password link sheet (kept separate from
+    /// `errorMessage` so it doesn't trigger the login alert behind the sheet).
     @Published var linkErrorMessage: String = ""
+    /// Set when a social email collides with an existing *Google/Apple* account.
+    /// LoginView shows a confirmation, then we re-auth with that provider to link.
+    @Published var crossProviderLink: CrossProviderLink? = nil
 
     /// A social credential waiting to be linked to an existing password account.
     struct PendingLink: Identifiable {
@@ -60,20 +62,51 @@ class AuthenticationManager: ObservableObject {
         let displayName: String?
     }
 
+    /// A social credential waiting to be linked onto an existing OAuth account.
+    struct CrossProviderLink: Identifiable {
+        let id = UUID()
+        let email: String
+        /// Provider that already owns the email, e.g. "Google" / "Apple".
+        let existingProviderLabel: String
+        /// Provider the user just tried to sign in with.
+        let newProviderLabel: String
+        /// Firebase sign-in method id of the existing account ("google.com"/"apple.com").
+        let existingMethod: String
+        let pendingCredential: AuthCredential
+        let displayName: String?
+    }
+
+    /// Carries a credential to be linked after re-authenticating with the
+    /// existing provider, plus the email that re-auth must match.
+    private struct LinkAfter {
+        let credential: AuthCredential
+        let expectedEmail: String
+        let displayName: String?
+    }
+
     /// Raw nonce for the in-flight Apple request; validated by Firebase against
     /// the hashed nonce embedded in the returned identity token.
     private var currentNonce: String?
+    /// Set when a *programmatic* Apple sign-in is being used to re-auth for linking.
+    private var appleLinkAfter: LinkAfter?
 
     private let db = Firestore.firestore()
 
-    private init() {}
+    private override init() {
+        super.init()
+    }
 
     // MARK: - Google
 
     /// Starts the Google sign-in flow and exchanges the result for a Firebase
-    /// credential. Safe to call from the LoginView button.
+    /// credential. `linkAfter` is set when Google is being used to re-authenticate
+    /// an existing account so another provider's credential can be linked onto it.
     func signInWithGoogle() {
-        guard !isLoading else { return }
+        startGoogleSignIn(linkAfter: nil)
+    }
+
+    private func startGoogleSignIn(linkAfter: LinkAfter?) {
+        guard !isLoading || linkAfter != nil else { return }
 
         guard let clientID = FirebaseApp.app()?.options.clientID else {
             self.errorMessage = "Google Sign-In is not configured correctly. Please try again later."
@@ -96,9 +129,8 @@ class AuthenticationManager: ObservableObject {
 
             if let error = error {
                 // The user cancelling the sheet isn't an error worth surfacing.
-                let nsError = error as NSError
-                if nsError.code == GIDSignInError.canceled.rawValue {
-                    DispatchQueue.main.async { self.isLoading = false }
+                if (error as NSError).code == GIDSignInError.canceled.rawValue {
+                    self.abort()
                     return
                 }
                 self.finish(error: "Google Sign-In failed: \(error.localizedDescription)")
@@ -118,11 +150,12 @@ class AuthenticationManager: ObservableObject {
 
             self.firebaseSignIn(with: credential,
                                 displayName: gidUser.profile?.name,
-                                providerLabel: "Google")
+                                providerLabel: "Google",
+                                linkAfter: linkAfter)
         }
     }
 
-    // MARK: - Apple
+    // MARK: - Apple (SwiftUI button — initial sign-in)
 
     /// Configure the `SignInWithAppleButton` request: request name/email and bind
     /// a fresh hashed nonce so Firebase can verify the returned token.
@@ -133,12 +166,10 @@ class AuthenticationManager: ObservableObject {
         request.nonce = Self.sha256(nonce)
     }
 
-    /// Handle the `SignInWithAppleButton` completion and exchange the Apple
-    /// credential for a Firebase credential.
+    /// Handle the `SignInWithAppleButton` completion (initial, non-linking flow).
     func handleAppleCompletion(_ result: Result<ASAuthorization, Error>) {
         switch result {
         case .failure(let error):
-            // Cancellation surfaces as ASAuthorizationError.canceled — stay quiet.
             if let authError = error as? ASAuthorizationError, authError.code == .canceled {
                 return
             }
@@ -149,38 +180,58 @@ class AuthenticationManager: ObservableObject {
                 self.errorMessage = "Sign in with Apple failed: unexpected credential."
                 return
             }
-            guard let nonce = currentNonce else {
-                self.errorMessage = "Sign in with Apple failed: invalid state. Please try again."
-                return
-            }
-            guard let appleIDToken = appleIDCredential.identityToken,
-                  let idTokenString = String(data: appleIDToken, encoding: .utf8) else {
-                self.errorMessage = "Sign in with Apple failed: unable to read identity token."
-                return
-            }
-
             isLoading = true
             errorMessage = ""
-
-            let credential = OAuthProvider.appleCredential(
-                withIDToken: idTokenString,
-                rawNonce: nonce,
-                fullName: appleIDCredential.fullName
-            )
-
-            // Apple only sends the full name on the very first authorization, so
-            // capture it here to seed a brand-new profile.
-            let displayName = Self.formattedName(from: appleIDCredential.fullName)
-
-            firebaseSignIn(with: credential, displayName: displayName, providerLabel: "Apple")
+            processAppleCredential(appleIDCredential, linkAfter: nil)
         }
     }
 
-    // MARK: - Account linking (no duplicate Auth accounts)
+    // MARK: - Apple (programmatic — re-auth for linking)
+
+    /// Trigger Sign in with Apple from code (used to re-authenticate an existing
+    /// Apple account so another provider's credential can be linked onto it).
+    private func performAppleSignIn(linkAfter: LinkAfter?) {
+        let nonce = Self.randomNonceString()
+        currentNonce = nonce
+        appleLinkAfter = linkAfter
+
+        let request = ASAuthorizationAppleIDProvider().createRequest()
+        request.requestedScopes = [.fullName, .email]
+        request.nonce = Self.sha256(nonce)
+
+        let controller = ASAuthorizationController(authorizationRequests: [request])
+        controller.delegate = self
+        controller.presentationContextProvider = self
+        controller.performRequests()
+    }
+
+    /// Shared Apple credential handling for both the button and programmatic paths.
+    private func processAppleCredential(_ appleIDCredential: ASAuthorizationAppleIDCredential, linkAfter: LinkAfter?) {
+        guard let nonce = currentNonce else {
+            self.finish(error: "Sign in with Apple failed: invalid state. Please try again.")
+            return
+        }
+        guard let appleIDToken = appleIDCredential.identityToken,
+              let idTokenString = String(data: appleIDToken, encoding: .utf8) else {
+            self.finish(error: "Sign in with Apple failed: unable to read identity token.")
+            return
+        }
+
+        let credential = OAuthProvider.appleCredential(
+            withIDToken: idTokenString,
+            rawNonce: nonce,
+            fullName: appleIDCredential.fullName
+        )
+
+        // Apple only sends the full name on the very first authorization.
+        let displayName = Self.formattedName(from: appleIDCredential.fullName)
+
+        firebaseSignIn(with: credential, displayName: displayName, providerLabel: "Apple", linkAfter: linkAfter)
+    }
+
+    // MARK: - Password account linking
 
     /// Finish linking a pending social credential to an existing password account.
-    /// Called by LoginView's password sheet. Signs in with the password, links the
-    /// social provider onto that same account, then ensures the profile is loaded.
     func completeLinkWithPassword(_ password: String) {
         guard let pending = pendingLink else { return }
         guard !password.isEmpty else {
@@ -190,8 +241,6 @@ class AuthenticationManager: ObservableObject {
 
         isLoading = true
         linkErrorMessage = ""
-        // The password account is an existing user, but guard the brief window in
-        // case its Firestore profile is somehow missing.
         UserSessionManager.shared.isProvisioningProfile = true
 
         Auth.auth().signIn(withEmail: pending.email, password: password) { [weak self] result, error in
@@ -212,7 +261,6 @@ class AuthenticationManager: ObservableObject {
 
                 if let linkError = linkError {
                     let code = (linkError as NSError).code
-                    // Already linked (e.g. a previous attempt succeeded) — treat as success.
                     if code == AuthErrorCode.providerAlreadyLinked.rawValue ||
                        code == AuthErrorCode.credentialAlreadyInUse.rawValue {
                         DispatchQueue.main.async { self.pendingLink = nil }
@@ -229,9 +277,8 @@ class AuthenticationManager: ObservableObject {
         }
     }
 
-    /// Abandon a pending link (user dismissed the password sheet).
+    /// Abandon a pending password link (user dismissed the sheet).
     func cancelPendingLink() {
-        // Sign out the half-finished social attempt so no stale session lingers.
         try? Auth.auth().signOut()
         UserSessionManager.shared.isProvisioningProfile = false
         DispatchQueue.main.async {
@@ -241,12 +288,49 @@ class AuthenticationManager: ObservableObject {
         }
     }
 
+    // MARK: - Cross-provider (OAuth ↔ OAuth) linking
+
+    /// User confirmed they want to link onto their existing Google/Apple account.
+    /// Re-authenticate with the existing provider, then link the pending credential.
+    func confirmCrossProviderLink() {
+        guard let link = crossProviderLink else { return }
+        let linkAfter = LinkAfter(credential: link.pendingCredential,
+                                  expectedEmail: link.email,
+                                  displayName: link.displayName)
+
+        DispatchQueue.main.async { self.crossProviderLink = nil }
+        isLoading = true
+        errorMessage = ""
+        UserSessionManager.shared.isProvisioningProfile = true
+
+        switch link.existingMethod {
+        case "google.com":
+            startGoogleSignIn(linkAfter: linkAfter)
+        case "apple.com":
+            performAppleSignIn(linkAfter: linkAfter)
+        default:
+            finish(error: "Couldn't link your account. Please sign in with your original provider.")
+        }
+    }
+
+    /// User declined the cross-provider link.
+    func cancelCrossProviderLink() {
+        try? Auth.auth().signOut()
+        UserSessionManager.shared.isProvisioningProfile = false
+        DispatchQueue.main.async {
+            self.crossProviderLink = nil
+            self.isLoading = false
+        }
+    }
+
     // MARK: - Shared Firebase sign-in
 
-    private func firebaseSignIn(with credential: AuthCredential, displayName: String?, providerLabel: String) {
+    private func firebaseSignIn(with credential: AuthCredential,
+                                displayName: String?,
+                                providerLabel: String,
+                                linkAfter: LinkAfter?) {
         // Suppress the transient "profile not found" error that the auth-state
-        // listener would otherwise show for a brand-new social user before we've
-        // had a chance to create their Firestore profile.
+        // listener would otherwise show before we've created the Firestore profile.
         UserSessionManager.shared.isProvisioningProfile = true
 
         Auth.auth().signIn(with: credential) { [weak self] result, error in
@@ -255,21 +339,46 @@ class AuthenticationManager: ObservableObject {
             if let error = error {
                 let nsError = error as NSError
 
-                // The email already belongs to a different provider (typically an
-                // email/password account). Link instead of creating a duplicate.
-                if nsError.code == AuthErrorCode.accountExistsWithDifferentCredential.rawValue {
+                // Only resolve conflicts on an *initial* sign-in. During a linking
+                // re-auth we're signing into the owning account, so a conflict here
+                // is unexpected and should surface.
+                if linkAfter == nil,
+                   nsError.code == AuthErrorCode.accountExistsWithDifferentCredential.rawValue {
                     self.handleExistingAccount(error: nsError, displayName: displayName, providerLabel: providerLabel)
                     return
                 }
 
-                UserSessionManager.shared.isProvisioningProfile = false
                 self.finish(error: "\(providerLabel) Sign-In failed: \(error.localizedDescription)")
                 return
             }
 
             guard let user = result?.user else {
-                UserSessionManager.shared.isProvisioningProfile = false
                 self.finish(error: "\(providerLabel) Sign-In failed. Please try again.")
+                return
+            }
+
+            // Linking re-auth path: verify the right account, then attach the
+            // pending credential from the provider the user originally tried.
+            if let linkAfter = linkAfter {
+                if let email = user.email,
+                   email.lowercased() != linkAfter.expectedEmail.lowercased() {
+                    try? Auth.auth().signOut()
+                    self.finish(error: "To link your accounts, please sign in with the account for \(linkAfter.expectedEmail).")
+                    return
+                }
+
+                user.link(with: linkAfter.credential) { [weak self] _, linkError in
+                    guard let self = self else { return }
+                    if let linkError = linkError {
+                        let code = (linkError as NSError).code
+                        if code != AuthErrorCode.providerAlreadyLinked.rawValue &&
+                           code != AuthErrorCode.credentialAlreadyInUse.rawValue {
+                            self.finish(error: "Couldn't link your accounts: \(linkError.localizedDescription)")
+                            return
+                        }
+                    }
+                    self.ensureUserDocument(for: user, displayName: linkAfter.displayName ?? displayName)
+                }
                 return
             }
 
@@ -283,7 +392,6 @@ class AuthenticationManager: ObservableObject {
         let pendingCredential = nsError.userInfo[AuthErrorUserInfoUpdatedCredentialKey] as? AuthCredential
 
         guard !email.isEmpty, let pendingCredential = pendingCredential else {
-            UserSessionManager.shared.isProvisioningProfile = false
             self.finish(error: "An account already exists with this email. Please sign in with your original method.")
             return
         }
@@ -293,11 +401,19 @@ class AuthenticationManager: ObservableObject {
             UserSessionManager.shared.isProvisioningProfile = false
 
             let methods = methods ?? []
-            let passwordMethod = EmailAuthProvider.id // "password"
 
-            // If a password account exists (or email-enumeration protection hid
-            // the methods list), ask for the password to authorize linking.
-            if methods.contains(passwordMethod) || methods.isEmpty {
+            // Existing Google/Apple account -> offer to re-auth with it and link.
+            if methods.contains("google.com") {
+                self.presentCrossProviderLink(email: email, existingMethod: "google.com",
+                                              existingLabel: "Google", newLabel: providerLabel,
+                                              credential: pendingCredential, displayName: displayName)
+            } else if methods.contains("apple.com") {
+                self.presentCrossProviderLink(email: email, existingMethod: "apple.com",
+                                              existingLabel: "Apple", newLabel: providerLabel,
+                                              credential: pendingCredential, displayName: displayName)
+            } else {
+                // Password account (or email-enumeration protection hid the list):
+                // ask for the password to authorize linking.
                 DispatchQueue.main.async {
                     self.isLoading = false
                     self.pendingLink = PendingLink(
@@ -307,24 +423,31 @@ class AuthenticationManager: ObservableObject {
                         displayName: displayName
                     )
                 }
-            } else if methods.contains("google.com") {
-                self.finish(error: "This email is already registered with Google. Please use \"Continue with Google\".")
-            } else if methods.contains("apple.com") {
-                self.finish(error: "This email is already registered with Apple. Please use \"Sign in with Apple\".")
-            } else {
-                self.finish(error: "An account already exists with this email. Please sign in with your original provider.")
             }
+        }
+    }
+
+    private func presentCrossProviderLink(email: String, existingMethod: String,
+                                          existingLabel: String, newLabel: String,
+                                          credential: AuthCredential, displayName: String?) {
+        DispatchQueue.main.async {
+            self.isLoading = false
+            self.crossProviderLink = CrossProviderLink(
+                email: email,
+                existingProviderLabel: existingLabel,
+                newProviderLabel: newLabel,
+                existingMethod: existingMethod,
+                pendingCredential: credential,
+                displayName: displayName
+            )
         }
     }
 
     // MARK: - Firestore profile (no duplicate profiles)
 
     /// Ensure exactly one Firestore `users` profile exists for this account.
-    /// Looks up by email (profiles are keyed by username, so this is how the rest
-    /// of the app resolves them too). Creates one only when none is found.
     private func ensureUserDocument(for user: FirebaseAuth.User, displayName: String?) {
         guard let email = user.email, !email.isEmpty else {
-            UserSessionManager.shared.isProvisioningProfile = false
             self.finish(error: "Your account is missing an email address and can't be set up.")
             return
         }
@@ -335,7 +458,6 @@ class AuthenticationManager: ObservableObject {
                 guard let self = self else { return }
 
                 if let error = error {
-                    UserSessionManager.shared.isProvisioningProfile = false
                     self.finish(error: "Couldn't load your profile: \(error.localizedDescription)")
                     return
                 }
@@ -363,7 +485,6 @@ class AuthenticationManager: ObservableObject {
                         .setData(newUser.asDict()) { [weak self] error in
                             guard let self = self else { return }
                             if let error = error {
-                                UserSessionManager.shared.isProvisioningProfile = false
                                 self.finish(error: "Couldn't create your profile: \(error.localizedDescription)")
                                 return
                             }
@@ -383,8 +504,6 @@ class AuthenticationManager: ObservableObject {
     }
 
     /// Produce a Firestore-safe username that isn't already taken.
-    /// Sanitizes the seed to `[a-z0-9]` (3–20 chars) and appends random digits
-    /// on collision, falling back to a fully random handle after a few tries.
     private func generateUniqueUsername(seed: String, attempt: Int = 0, completion: @escaping (String) -> Void) {
         let candidate: String
         if attempt == 0 {
@@ -397,13 +516,11 @@ class AuthenticationManager: ObservableObject {
             let suffix = String(Int.random(in: 1000...9999))
             candidate = String(base.prefix(20 - suffix.count)) + suffix
         } else {
-            // Give up on the seed and use a guaranteed-unique-ish random handle.
             candidate = "user" + String(UUID().uuidString.prefix(8)).lowercased()
         }
 
         db.collection("users").document(candidate).getDocument { [weak self] document, error in
             guard let self = self else { return }
-            // On read error, fall back to the candidate rather than blocking signup.
             if error != nil || document?.exists == false {
                 completion(candidate)
             } else {
@@ -414,16 +531,24 @@ class AuthenticationManager: ObservableObject {
 
     // MARK: - Helpers
 
+    /// Quietly reset to idle (e.g. user cancelled a provider sheet).
+    private func abort() {
+        UserSessionManager.shared.isProvisioningProfile = false
+        appleLinkAfter = nil
+        DispatchQueue.main.async { self.isLoading = false }
+    }
+
     private func finish(error: String) {
         UserSessionManager.shared.isProvisioningProfile = false
+        appleLinkAfter = nil
         DispatchQueue.main.async {
             self.isLoading = false
             self.errorMessage = error
         }
     }
 
-    /// Error terminus for the link sheet — keeps the sheet open and shows the
-    /// message inline instead of via the login screen's alert.
+    /// Error terminus for the password link sheet — keeps the sheet open and shows
+    /// the message inline instead of via the login screen's alert.
     private func finishLink(error: String) {
         UserSessionManager.shared.isProvisioningProfile = false
         DispatchQueue.main.async {
@@ -451,16 +576,17 @@ class AuthenticationManager: ObservableObject {
         return name.isEmpty ? nil : name
     }
 
-    /// Find the top-most view controller to present the Google sign-in sheet from.
-    private static func topViewController() -> UIViewController? {
+    private static func keyWindow() -> UIWindow? {
         let scene = UIApplication.shared.connectedScenes
             .compactMap { $0 as? UIWindowScene }
             .first { $0.activationState == .foregroundActive }
             ?? UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first
+        return scene?.windows.first(where: { $0.isKeyWindow }) ?? scene?.windows.first
+    }
 
-        var top = scene?.windows.first(where: { $0.isKeyWindow })?.rootViewController
-            ?? scene?.windows.first?.rootViewController
-
+    /// Find the top-most view controller to present the Google sign-in sheet from.
+    private static func topViewController() -> UIViewController? {
+        var top = keyWindow()?.rootViewController
         while let presented = top?.presentedViewController {
             top = presented
         }
@@ -501,5 +627,36 @@ class AuthenticationManager: ObservableObject {
         let inputData = Data(input.utf8)
         let hashed = SHA256.hash(data: inputData)
         return hashed.compactMap { String(format: "%02x", $0) }.joined()
+    }
+}
+
+// MARK: - ASAuthorizationController delegate (programmatic Apple re-auth)
+
+extension AuthenticationManager: ASAuthorizationControllerDelegate, ASAuthorizationControllerPresentationContextProviding {
+
+    func authorizationController(controller: ASAuthorizationController,
+                                 didCompleteWithAuthorization authorization: ASAuthorization) {
+        let linkAfter = appleLinkAfter
+        appleLinkAfter = nil
+
+        guard let appleIDCredential = authorization.credential as? ASAuthorizationAppleIDCredential else {
+            self.finish(error: "Sign in with Apple failed: unexpected credential.")
+            return
+        }
+        DispatchQueue.main.async { self.isLoading = true }
+        processAppleCredential(appleIDCredential, linkAfter: linkAfter)
+    }
+
+    func authorizationController(controller: ASAuthorizationController, didCompleteWithError error: Error) {
+        appleLinkAfter = nil
+        if let authError = error as? ASAuthorizationError, authError.code == .canceled {
+            self.abort()
+            return
+        }
+        self.finish(error: "Sign in with Apple failed: \(error.localizedDescription)")
+    }
+
+    func presentationAnchor(for controller: ASAuthorizationController) -> ASPresentationAnchor {
+        return Self.keyWindow() ?? ASPresentationAnchor()
     }
 }
