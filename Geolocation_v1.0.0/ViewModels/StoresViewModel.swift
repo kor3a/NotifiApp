@@ -155,6 +155,7 @@ class StoresViewModel: ObservableObject {
                     let userStoreId = doc.documentID
                     let sortOrder = data["sortOrder"] as? Int
                     let imageURL = data["imageURL"] as? String
+                    let websiteURL = data["websiteURL"] as? String
                     let permissionString = data["permission"] as? String ?? "owner"
                     let permission = StorePermission(rawValue: permissionString) ?? .owner
                     let sharedStoreGroupId = data["sharedStoreGroupId"] as? String
@@ -177,7 +178,8 @@ class StoresViewModel: ObservableObject {
                         name: storeName,
                         reminderCount: existingReminderCounts[reminderStoreId] ?? 0,
                         sortOrder: sortOrder,
-                        imageURL: imageURL
+                        imageURL: imageURL,
+                        websiteURL: websiteURL
                     )
                     let userStoreItem = UserStoreItem(
                         id: userStoreId,
@@ -284,7 +286,8 @@ class StoresViewModel: ObservableObject {
                     name: item.store.name,
                     reminderCount: count,
                     sortOrder: item.store.sortOrder,
-                    imageURL: item.store.imageURL
+                    imageURL: item.store.imageURL,
+                    websiteURL: item.store.websiteURL
                 )
                 let updatedItem = UserStoreItem(
                     id: item.id,
@@ -603,12 +606,14 @@ class StoresViewModel: ObservableObject {
                     return nil
                 }
                 let imageURL = data["imageURL"] as? String
+                let websiteURL = data["websiteURL"] as? String
                 return Store(
                     id: doc.documentID,
                     name: name,
                     reminderCount: 0,
                     sortOrder: nil,
-                    imageURL: imageURL
+                    imageURL: imageURL,
+                    websiteURL: websiteURL
                 )
             }
 
@@ -673,6 +678,11 @@ class StoresViewModel: ObservableObject {
                 // Add image URL if available
                 if let imageURL = store.imageURL {
                     userStore["imageURL"] = imageURL
+                }
+
+                // Add website URL if available
+                if let websiteURL = store.websiteURL {
+                    userStore["websiteURL"] = websiteURL
                 }
 
                 self.db.collection("user_stores").addDocument(data: userStore) { error in

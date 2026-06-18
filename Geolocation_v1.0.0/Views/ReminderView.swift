@@ -11,6 +11,7 @@ struct ReminderView: View {
     let userStoreItem: UserStoreItem
     var availableStores: [UserStoreItem] = []
     @StateObject private var viewModel = ReminderViewModel()
+    @Environment(\.openURL) private var openURL
     @State private var isAddingNewReminder = false
     @State private var newReminderText = ""
     @FocusState private var isNewReminderFocused: Bool
@@ -1321,6 +1322,43 @@ struct ReminderView: View {
                                 }
                                 Spacer()
                                 Image(systemName: "chevron.right")
+                                    .font(.caption)
+                                    .foregroundStyle(.tertiary)
+                            }
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 12)
+                        }
+                        .buttonStyle(.plain)
+                    }
+
+                    // Store website / app row
+                    if let websiteURL = userStoreItem.store.websiteURL,
+                       let url = URL(string: websiteURL) {
+                        Divider()
+                            .padding(.horizontal, 16)
+
+                        Button {
+                            withAnimation(.easeInOut(duration: 0.18)) {
+                                showInfoPanel = false
+                            }
+                            openURL(url)
+                        } label: {
+                            HStack(spacing: 12) {
+                                Image(systemName: "safari")
+                                    .font(.body)
+                                    .foregroundColor(Color.appAccent)
+                                    .frame(width: 24)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Visit store")
+                                        .font(.subheadline)
+                                        .fontWeight(.medium)
+                                        .foregroundStyle(Color.primary)
+                                    Text("Open the store's website or app")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                                Spacer()
+                                Image(systemName: "arrow.up.right")
                                     .font(.caption)
                                     .foregroundStyle(.tertiary)
                             }
