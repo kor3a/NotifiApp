@@ -150,21 +150,35 @@ class StoreLogoProvider: ObservableObject {
     }
 
     /// Resolves a store's canonical web domain from the built-in domain map
-    /// (exact match, leading "the-" strip, and longest-prefix match) plus any
-    /// domain previously discovered via the Logo.dev Brand Search API.
+    /// (exact match, canonical match for punctuation/symbol variants like "85°C",
+    /// leading "the-" strip, and longest-prefix match) plus any domain previously
+    /// discovered via the Logo.dev Brand Search API.
     private func resolvedDomain(for normalizedId: String) -> String? {
-        // 1. Explicit map entry
+        // 1. Explicit map entry (fast path)
         if let domain = Self.storeDomains[normalizedId] {
             return domain
         }
 
-        // 2. Strip a leading "the-" and re-check ("the-home-depot" -> "home-depot")
+        // 2. Canonical exact match — handles symbols/punctuation the raw normalized ID
+        //    keeps (e.g. "85°c-bakery-cafe" canonicalizes to "85c-bakery-cafe").
+        let canonicalId = canonicalLogoKey(normalizedId)
+        var canonicalExact: (key: String, domain: String)?
+        for (key, domain) in Self.storeDomains where canonicalLogoKey(key) == canonicalId {
+            if canonicalExact == nil || key.count > canonicalExact!.key.count {
+                canonicalExact = (key, domain)
+            }
+        }
+        if let match = canonicalExact {
+            return match.domain
+        }
+
+        // 3. Strip a leading "the-" and re-check ("the-home-depot" -> "home-depot")
         let withoutThe = normalizedId.hasPrefix("the-") ? String(normalizedId.dropFirst(4)) : normalizedId
         if withoutThe != normalizedId, let domain = Self.storeDomains[withoutThe] {
             return domain
         }
 
-        // 3. Longest-prefix match ("walmart-supercenter" -> "walmart")
+        // 4. Longest-prefix match ("walmart-supercenter" -> "walmart")
         let candidates = withoutThe != normalizedId ? [normalizedId, withoutThe] : [normalizedId]
         for candidate in candidates {
             var bestPrefixMatch: (key: String, domain: String)?
@@ -178,7 +192,21 @@ class StoreLogoProvider: ObservableObject {
             }
         }
 
-        // 4. Domain discovered earlier via Logo.dev Brand Search
+        // 5. Canonical longest-prefix match (canonicalized on both sides)
+        var bestCanonicalPrefix: (key: String, domain: String)?
+        for (key, domain) in Self.storeDomains {
+            let canonicalKey = canonicalLogoKey(key)
+            if canonicalId.hasPrefix(canonicalKey) {
+                if bestCanonicalPrefix == nil || canonicalKey.count > canonicalLogoKey(bestCanonicalPrefix!.key).count {
+                    bestCanonicalPrefix = (key, domain)
+                }
+            }
+        }
+        if let match = bestCanonicalPrefix {
+            return match.domain
+        }
+
+        // 6. Domain discovered earlier via Logo.dev Brand Search
         if let domain = searchedDomains[normalizedId] {
             return domain
         }
@@ -968,6 +996,9 @@ class StoreLogoProvider: ObservableObject {
         "etsy": "etsy.com",
 
         // Coffee / Food Service
+        "85c-bakery-cafe": "85cbakerycafe.com",
+        "85c-bakery": "85cbakerycafe.com",
+        "85c": "85cbakerycafe.com",
         "starbucks": "starbucks.com",
         "dunkin": "dunkindonuts.com",
         "dunkin-donuts": "dunkindonuts.com",
