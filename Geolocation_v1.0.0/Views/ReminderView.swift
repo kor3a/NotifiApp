@@ -11,6 +11,7 @@ struct ReminderView: View {
     let userStoreItem: UserStoreItem
     var availableStores: [UserStoreItem] = []
     @StateObject private var viewModel = ReminderViewModel()
+    @Environment(\.openURL) private var openURL
     @State private var isAddingNewReminder = false
     @State private var newReminderText = ""
     @FocusState private var isNewReminderFocused: Bool
@@ -18,6 +19,8 @@ struct ReminderView: View {
     @State private var smartCategoryEnabled = true
     @State private var showInfoPanel = false
     @State private var showingRecipePicker = false
+    @State private var showingEditWebsite = false
+    @State private var websiteInputText = ""
     @State private var fadingReminderIds: Set<String> = []
     @State private var reminderToShare: Reminder?
     @State private var reminderToDelete: Reminder?
@@ -59,6 +62,7 @@ struct ReminderView: View {
     }
 
     @ObservedObject private var subscriptionManager = SubscriptionManager.shared
+    @ObservedObject private var logoProvider = StoreLogoProvider.shared
 
     private var isSubscribed: Bool {
         subscriptionManager.isSubscribed
@@ -67,6 +71,15 @@ struct ReminderView: View {
     /// Smart Category is active only when the user is subscribed AND has the toggle enabled.
     private var effectiveSmartCategoryEnabled: Bool {
         isSubscribed && smartCategoryEnabled
+    }
+
+    /// Email allowed to edit shared store website overrides (writes to `store_websites`,
+    /// which applies for every user). Restricted to the app owner.
+    private static let adminEmail = "kor3a5@gmail.com"
+
+    /// Whether the current user may set/edit shared store website overrides.
+    private var isStoreAdmin: Bool {
+        UserSessionManager.shared.currentUser?.email.lowercased() == Self.adminEmail
     }
 
     private var smartCategoryKey: String {
@@ -174,6 +187,27 @@ struct ReminderView: View {
                 }
             } message: {
                 Text("Enter a custom category for this item.")
+            }
+            .alert("Store Website", isPresented: $showingEditWebsite) {
+                TextField("https://example.com", text: $websiteInputText)
+                    .keyboardType(.URL)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled(true)
+                Button("Save") {
+                    let trimmed = websiteInputText.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if !trimmed.isEmpty {
+                        StoreLogoProvider.shared.setStoreWebsite(
+                            storeName: userStoreItem.store.name,
+                            websiteURL: trimmed
+                        )
+                    }
+                    websiteInputText = ""
+                }
+                Button("Cancel", role: .cancel) {
+                    websiteInputText = ""
+                }
+            } message: {
+                Text("Set the website for \(userStoreItem.store.name). This applies for everyone who has this store, and the app opens it in the store's app when installed.")
             }
     }
 
@@ -1329,6 +1363,83 @@ struct ReminderView: View {
                         }
                         .buttonStyle(.plain)
                     }
+
+                    // Store app / website row. The URL is derived from the store name
+                    // (no per-store data to maintain); iOS opens the store's app via
+                    // universal links when installed, otherwise falls back to Safari.
+                    if let storeURL = storeWebsiteURL {
+                        Divider()
+                            .padding(.horizontal, 16)
+
+                        Button {
+                            withAnimation(.easeInOut(duration: 0.18)) {
+                                showInfoPanel = false
+                            }
+                            openURL(storeURL)
+                        } label: {
+                            HStack(spacing: 12) {
+                                Image(systemName: "safari")
+                                    .font(.body)
+                                    .foregroundColor(Color.appAccent)
+                                    .frame(width: 24)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Visit store")
+                                        .font(.subheadline)
+                                        .fontWeight(.medium)
+                                        .foregroundStyle(Color.primary)
+                                    Text("Open the store's app or website")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                                Spacer()
+                                Image(systemName: "arrow.up.right")
+                                    .font(.caption)
+                                    .foregroundStyle(.tertiary)
+                            }
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 12)
+                        }
+                        .buttonStyle(.plain)
+                    }
+
+                    // Set / edit store website (admin only). Writes a shared override to
+                    // the store_websites collection so it applies for everyone with this
+                    // store, so it is restricted to the app owner's account.
+                    if isStoreAdmin {
+                        Divider()
+                            .padding(.horizontal, 16)
+
+                        Button {
+                            websiteInputText = storeWebsiteURL?.absoluteString ?? ""
+                            withAnimation(.easeInOut(duration: 0.18)) {
+                                showInfoPanel = false
+                            }
+                            showingEditWebsite = true
+                        } label: {
+                            HStack(spacing: 12) {
+                                Image(systemName: "link")
+                                    .font(.body)
+                                    .foregroundColor(Color.appAccent)
+                                    .frame(width: 24)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(storeWebsiteURL == nil ? "Set store website" : "Edit store website")
+                                        .font(.subheadline)
+                                        .fontWeight(.medium)
+                                        .foregroundStyle(Color.primary)
+                                    Text("Add a link to this store's website or app")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .font(.caption)
+                                    .foregroundStyle(.tertiary)
+                            }
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 12)
+                        }
+                        .buttonStyle(.plain)
+                    }
                 }
                 .background(
                     RoundedRectangle(cornerRadius: 16)
@@ -1342,6 +1453,15 @@ struct ReminderView: View {
         }
         .padding(.top, 8)
         .allowsHitTesting(true)
+    }
+
+    /// The store's website URL, derived from its name via the shared domain map.
+    /// Returns `nil` when no domain is known, in which case the link row is hidden.
+    private var storeWebsiteURL: URL? {
+        guard let urlString = StoreLogoProvider.shared.websiteURL(for: userStoreItem.store.name) else {
+            return nil
+        }
+        return URL(string: urlString)
     }
 
     /// Send shared store notifications if the store is shared and changes were made.

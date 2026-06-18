@@ -136,6 +136,23 @@ service cloud.firestore {
     }
 
     // ============================================================
+    // Store Websites (shared store -> website URL overrides)
+    // ============================================================
+    match /store_websites/{doc} {
+      // Any authenticated user can read website overrides (used to build
+      // the "Visit store" link). Consistent with the rest of this file.
+      allow read: if request.auth != null;
+
+      // Only the app owner may add/edit/delete overrides, since each
+      // document applies for every user who has that store.
+      allow create, update: if request.auth != null &&
+                               request.auth.token.email == "kor3a5@gmail.com" &&
+                               request.resource.data.websiteURL is string;
+      allow delete: if request.auth != null &&
+                       request.auth.token.email == "kor3a5@gmail.com";
+    }
+
+    // ============================================================
     // Favorite Tags (persistent, reusable reminder shortcuts)
     // ============================================================
     match /favorite_tags/{tagId} {
