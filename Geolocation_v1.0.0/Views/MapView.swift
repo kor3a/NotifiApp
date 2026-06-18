@@ -250,77 +250,81 @@ struct MapView: View {
             HStack(spacing: 12) {
                 // Stores tab
                 Button(action: {
-                    withAnimation(.spring(response: 0.3)) {
-                        selectedTab = 0
-                        // Close search when switching tabs
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
                         if isSearchExpanded {
+                            // Tapping the shrunk store icon restores the full tab bar
+                            // by collapsing the search field.
                             isSearchExpanded = false
                             searchQuery = ""
+                            isSearchFocused = false
+                        } else {
+                            selectedTab = 0
                         }
                     }
                 }) {
                     VStack(spacing: 4) {
                         Image(systemName: "storefront")
                             .font(.system(size: 20))
-                        Text("Stores")
-                            .font(.system(size: 11))
+                        // Hide the label while search is expanded so the
+                        // tab bar shrinks down to just the store icon.
+                        if !isSearchExpanded {
+                            Text("Stores")
+                                .font(.system(size: 11))
+                        }
                     }
                     .foregroundColor(selectedTab == 0 ? .blue : .primary)
-                    .frame(width: 60, height: 50)
+                    .frame(width: isSearchExpanded ? 44 : 60, height: 50)
                 }
 
-                // Messages tab
-                Button(action: {
-                    withAnimation(.spring(response: 0.3)) {
-                        selectedTab = 1
-                        // Close search when switching tabs
-                        if isSearchExpanded {
-                            isSearchExpanded = false
-                            searchQuery = ""
+                // Messages and Friends tabs collapse away while searching to
+                // make room for the expanding search bar.
+                if !isSearchExpanded {
+                    // Messages tab
+                    Button(action: {
+                        withAnimation(.spring(response: 0.3)) {
+                            selectedTab = 1
                         }
-                    }
-                }) {
-                    VStack(spacing: 4) {
-                        ZStack(alignment: .topTrailing) {
-                            Image(systemName: "message")
-                                .font(.system(size: 20))
-                            // Unread badge
-                            if messagesViewModel.totalUnreadCount > 0 {
-                                Text("\(messagesViewModel.totalUnreadCount)")
-                                    .font(.system(size: 10, weight: .bold))
-                                    .foregroundColor(.white)
-                                    .padding(.horizontal, 5)
-                                    .padding(.vertical, 2)
-                                    .background(Color.red)
-                                    .clipShape(Capsule())
-                                    .offset(x: 10, y: -8)
+                    }) {
+                        VStack(spacing: 4) {
+                            ZStack(alignment: .topTrailing) {
+                                Image(systemName: "message")
+                                    .font(.system(size: 20))
+                                // Unread badge
+                                if messagesViewModel.totalUnreadCount > 0 {
+                                    Text("\(messagesViewModel.totalUnreadCount)")
+                                        .font(.system(size: 10, weight: .bold))
+                                        .foregroundColor(.white)
+                                        .padding(.horizontal, 5)
+                                        .padding(.vertical, 2)
+                                        .background(Color.red)
+                                        .clipShape(Capsule())
+                                        .offset(x: 10, y: -8)
+                                }
                             }
+                            Text("Messages")
+                                .font(.system(size: 11))
                         }
-                        Text("Messages")
-                            .font(.system(size: 11))
+                        .foregroundColor(selectedTab == 1 ? .blue : .primary)
+                        .frame(width: 60, height: 50)
                     }
-                    .foregroundColor(selectedTab == 1 ? .blue : .primary)
-                    .frame(width: 60, height: 50)
-                }
+                    .transition(.move(edge: .leading).combined(with: .opacity))
 
-                // Friends tab
-                Button(action: {
-                    withAnimation(.spring(response: 0.3)) {
-                        selectedTab = 2
-                        if isSearchExpanded {
-                            isSearchExpanded = false
-                            searchQuery = ""
+                    // Friends tab
+                    Button(action: {
+                        withAnimation(.spring(response: 0.3)) {
+                            selectedTab = 2
                         }
+                    }) {
+                        VStack(spacing: 4) {
+                            Image(systemName: "person.2")
+                                .font(.system(size: 20))
+                            Text("Friends")
+                                .font(.system(size: 11))
+                        }
+                        .foregroundColor(selectedTab == 2 ? .blue : .primary)
+                        .frame(width: 60, height: 50)
                     }
-                }) {
-                    VStack(spacing: 4) {
-                        Image(systemName: "person.2")
-                            .font(.system(size: 20))
-                        Text("Friends")
-                            .font(.system(size: 11))
-                    }
-                    .foregroundColor(selectedTab == 2 ? .blue : .primary)
-                    .frame(width: 60, height: 50)
+                    .transition(.move(edge: .leading).combined(with: .opacity))
                 }
             }
             .padding(.horizontal, 16)
