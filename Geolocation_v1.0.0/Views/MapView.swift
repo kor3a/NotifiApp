@@ -77,6 +77,18 @@ struct MapView: View {
                 .annotationTitles(.hidden)
             }
         }//:MAP
+        .onTapGesture {
+            // Tapping anywhere on the map while searching dismisses the
+            // keyboard and shrinks the search bar back to the tab bar.
+            // Annotation taps have their own gesture and take priority, so
+            // this only fires for taps on empty map areas.
+            if isSearchExpanded {
+                isSearchFocused = false
+                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                    isSearchExpanded = false
+                }
+            }
+        }
         .onMapCameraChange(frequency: .continuous) { context in
             viewingRegion = context.region
 
@@ -351,8 +363,15 @@ struct MapView: View {
                                 Task {
                                     await searchPlaces()
                                 }
+                                isSearchFocused = false
+                            } else {
+                                // Pressing return with no text shrinks the
+                                // search bar back to the tab bar.
+                                isSearchFocused = false
+                                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                                    isSearchExpanded = false
+                                }
                             }
-                            isSearchFocused = false
                         }
                         .transition(.move(edge: .trailing).combined(with: .opacity))
                 }
