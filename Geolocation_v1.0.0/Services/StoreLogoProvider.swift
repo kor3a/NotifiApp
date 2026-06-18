@@ -36,6 +36,15 @@ class StoreLogoProvider: ObservableObject {
     private var hasFetched = false
     private var isFetching = false
 
+    /// Store website overrides loaded from the Firestore `store_websites` collection
+    /// (normalizedId -> full website URL). These take precedence over the built-in
+    /// domain map, so non-derivable domains (e.g. "snrtea.com" for Sunright Tea Studio)
+    /// can be added without an app update.
+    @Published private(set) var storeWebsites: [String: String] = [:]
+    private var hasFetchedWebsites = false
+    private var isFetchingWebsites = false
+    private static let websiteCacheKey = "StoreLogoProvider.cachedWebsites"
+
     // MARK: - Image Disk Cache
 
     private static let urlCacheKey = "StoreLogoProvider.cachedURLs"
@@ -85,7 +94,11 @@ class StoreLogoProvider: ObservableObject {
         if let searched = UserDefaults.standard.dictionary(forKey: Self.searchCacheKey) as? [String: String] {
             searchedDomains = searched
         }
+        if let cachedWebsites = UserDefaults.standard.dictionary(forKey: Self.websiteCacheKey) as? [String: String] {
+            storeWebsites = cachedWebsites
+        }
         fetchStoreLogos()
+        fetchStoreWebsites()
     }
 
     /// Look up a logo URL for a store name.
@@ -136,17 +149,118 @@ class StoreLogoProvider: ObservableObject {
 
     // MARK: - Store Website
 
-    /// Returns the store's website URL (`https://domain`) derived from its name using
-    /// the same domain map that powers logos, or `nil` if no confident match exists.
+    /// Returns the store's website URL, or `nil` if none can be determined.
+    ///
+    /// Resolution order:
+    ///   1. Firestore `store_websites` override (exact, then canonical match) — for
+    ///      non-derivable domains like "snrtea.com" (Sunright Tea Studio).
+    ///   2. Built-in domain map derived from the store name.
     ///
     /// Opening this URL lets iOS hand off to the store's app via universal links when
-    /// the app is installed, and otherwise falls back to Safari — so it gives an
-    /// "app first, website fallback" experience with no per-store data to maintain.
+    /// the app is installed, and otherwise falls back to Safari.
     func websiteURL(for storeName: String) -> String? {
-        guard let domain = resolvedDomain(for: Store.normalizedId(from: storeName)) else {
-            return nil
+        let normalizedId = Store.normalizedId(from: storeName)
+
+        // 1. Firestore override — exact match
+        if let url = storeWebsites[normalizedId] {
+            return url
         }
-        return "https://\(domain)"
+
+        // 2. Firestore override — canonical match (handles symbols/punctuation)
+        if !storeWebsites.isEmpty {
+            let canonicalId = canonicalLogoKey(normalizedId)
+            var bestMatch: (key: String, url: String)?
+            for (key, url) in storeWebsites where canonicalLogoKey(key) == canonicalId {
+                if bestMatch == nil || key.count > bestMatch!.key.count {
+                    bestMatch = (key, url)
+                }
+            }
+            if let match = bestMatch {
+                return match.url
+            }
+        }
+
+        // 3. Built-in domain map
+        if let domain = resolvedDomain(for: normalizedId) {
+            return "https://\(domain)"
+        }
+
+        return nil
+    }
+
+    /// Fetch store website overrides from Firestore.
+    ///
+    /// ## Firestore document structure
+    ///   Collection: `store_websites`
+    ///   Document ID: normalized store name (e.g. "sunright-tea-studio")
+    ///   Fields: { "websiteURL": "https://www.snrtea.com" }
+    func fetchStoreWebsites() {
+        guard !hasFetchedWebsites, !isFetchingWebsites else { return }
+        isFetchingWebsites = true
+
+        db.collection("store_websites").getDocuments { [weak self] snapshot, error in
+            guard let self = self else { return }
+            self.isFetchingWebsites = false
+
+            if let error = error {
+                #if DEBUG
+                print("StoreLogoProvider: Error fetching store websites: \(error.localizedDescription)")
+                #endif
+                return // Don't set hasFetched so it can be retried
+            }
+
+            guard let documents = snapshot?.documents, !documents.isEmpty else {
+                return // Retry on next call when the collection is still empty
+            }
+
+            var websites: [String: String] = [:]
+            for doc in documents {
+                if let url = doc.data()["websiteURL"] as? String, !url.isEmpty {
+                    websites[doc.documentID] = url
+                }
+            }
+
+            DispatchQueue.main.async {
+                self.storeWebsites = websites
+                self.hasFetchedWebsites = true
+                UserDefaults.standard.set(websites, forKey: Self.websiteCacheKey)
+                #if DEBUG
+                print("StoreLogoProvider: Loaded \(websites.count) store websites from Firestore")
+                #endif
+            }
+        }
+    }
+
+    /// Add or update a store's website override in Firestore (and the local cache).
+    /// The store name is normalized for the document ID; a missing scheme defaults to https.
+    func setStoreWebsite(storeName: String, websiteURL: String, completion: ((Result<Void, Error>) -> Void)? = nil) {
+        let normalizedId = Store.normalizedId(from: storeName)
+        var urlString = websiteURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !urlString.lowercased().hasPrefix("http") {
+            urlString = "https://\(urlString)"
+        }
+
+        db.collection("store_websites").document(normalizedId).setData([
+            "websiteURL": urlString
+        ]) { [weak self] error in
+            if let error = error {
+                completion?(.failure(error))
+                return
+            }
+            DispatchQueue.main.async {
+                self?.storeWebsites[normalizedId] = urlString
+                if let updated = self?.storeWebsites {
+                    UserDefaults.standard.set(updated, forKey: Self.websiteCacheKey)
+                }
+                completion?(.success(()))
+            }
+        }
+    }
+
+    /// Force refresh store website overrides from Firestore.
+    func refreshStoreWebsites() {
+        hasFetchedWebsites = false
+        fetchStoreWebsites()
     }
 
     /// Resolves a store's canonical web domain from the built-in domain map
@@ -999,6 +1113,12 @@ class StoreLogoProvider: ObservableObject {
         "85c-bakery-cafe": "85cbakerycafe.com",
         "85c-bakery": "85cbakerycafe.com",
         "85c": "85cbakerycafe.com",
+        "sunright-tea-studio": "snrtea.com",
+        "sunright-tea": "snrtea.com",
+        "sunright": "snrtea.com",
+        "omomo-tea-shoppe": "omomoteashoppe.com",
+        "omomo-tea": "omomoteashoppe.com",
+        "omomo": "omomoteashoppe.com",
         "starbucks": "starbucks.com",
         "dunkin": "dunkindonuts.com",
         "dunkin-donuts": "dunkindonuts.com",
