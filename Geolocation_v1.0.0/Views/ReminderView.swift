@@ -73,6 +73,15 @@ struct ReminderView: View {
         isSubscribed && smartCategoryEnabled
     }
 
+    /// Email allowed to edit shared store website overrides (writes to `store_websites`,
+    /// which applies for every user). Restricted to the app owner.
+    private static let adminEmail = "kor3a5@gmail.com"
+
+    /// Whether the current user may set/edit shared store website overrides.
+    private var isStoreAdmin: Bool {
+        UserSessionManager.shared.currentUser?.email.lowercased() == Self.adminEmail
+    }
+
     private var smartCategoryKey: String {
         "smartCategoryEnabled_\(userStoreItem.id)"
     }
@@ -1393,9 +1402,10 @@ struct ReminderView: View {
                         .buttonStyle(.plain)
                     }
 
-                    // Set / edit store website (admin). Writes a shared override to the
-                    // store_websites collection so it applies for everyone with this store.
-                    if userStoreItem.permission != .view {
+                    // Set / edit store website (admin only). Writes a shared override to
+                    // the store_websites collection so it applies for everyone with this
+                    // store, so it is restricted to the app owner's account.
+                    if isStoreAdmin {
                         Divider()
                             .padding(.horizontal, 16)
 
