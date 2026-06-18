@@ -77,18 +77,23 @@ struct MapView: View {
                 .annotationTitles(.hidden)
             }
         }//:MAP
-        .onTapGesture {
-            // Tapping anywhere on the map while searching dismisses the
+        .simultaneousGesture(
+            // Tapping the map while the search field is focused dismisses the
             // keyboard and shrinks the search bar back to the tab bar.
-            // Annotation taps have their own gesture and take priority, so
-            // this only fires for taps on empty map areas.
-            if isSearchExpanded {
-                isSearchFocused = false
-                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                    isSearchExpanded = false
+            // We use simultaneousGesture instead of .onTapGesture because a
+            // plain tap gesture on a Map hijacks its gesture pipeline and
+            // suppresses onMapCameraChange — which would stop store clustering
+            // and hide all store annotations. Gating on isSearchFocused keeps
+            // this from interfering with taps on search-result pins.
+            TapGesture().onEnded {
+                if isSearchFocused {
+                    isSearchFocused = false
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                        isSearchExpanded = false
+                    }
                 }
             }
-        }
+        )
         .onMapCameraChange(frequency: .continuous) { context in
             viewingRegion = context.region
 
