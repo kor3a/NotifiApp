@@ -19,6 +19,8 @@ struct ReminderView: View {
     @State private var smartCategoryEnabled = true
     @State private var showInfoPanel = false
     @State private var showingRecipePicker = false
+    @State private var showingEditWebsite = false
+    @State private var websiteInputText = ""
     @State private var fadingReminderIds: Set<String> = []
     @State private var reminderToShare: Reminder?
     @State private var reminderToDelete: Reminder?
@@ -60,6 +62,7 @@ struct ReminderView: View {
     }
 
     @ObservedObject private var subscriptionManager = SubscriptionManager.shared
+    @ObservedObject private var logoProvider = StoreLogoProvider.shared
 
     private var isSubscribed: Bool {
         subscriptionManager.isSubscribed
@@ -175,6 +178,27 @@ struct ReminderView: View {
                 }
             } message: {
                 Text("Enter a custom category for this item.")
+            }
+            .alert("Store Website", isPresented: $showingEditWebsite) {
+                TextField("https://example.com", text: $websiteInputText)
+                    .keyboardType(.URL)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled(true)
+                Button("Save") {
+                    let trimmed = websiteInputText.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if !trimmed.isEmpty {
+                        StoreLogoProvider.shared.setStoreWebsite(
+                            storeName: userStoreItem.store.name,
+                            websiteURL: trimmed
+                        )
+                    }
+                    websiteInputText = ""
+                }
+                Button("Cancel", role: .cancel) {
+                    websiteInputText = ""
+                }
+            } message: {
+                Text("Set the website for \(userStoreItem.store.name). This applies for everyone who has this store, and the app opens it in the store's app when installed.")
             }
     }
 
@@ -1360,6 +1384,44 @@ struct ReminderView: View {
                                 }
                                 Spacer()
                                 Image(systemName: "arrow.up.right")
+                                    .font(.caption)
+                                    .foregroundStyle(.tertiary)
+                            }
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 12)
+                        }
+                        .buttonStyle(.plain)
+                    }
+
+                    // Set / edit store website (admin). Writes a shared override to the
+                    // store_websites collection so it applies for everyone with this store.
+                    if userStoreItem.permission != .view {
+                        Divider()
+                            .padding(.horizontal, 16)
+
+                        Button {
+                            websiteInputText = storeWebsiteURL?.absoluteString ?? ""
+                            withAnimation(.easeInOut(duration: 0.18)) {
+                                showInfoPanel = false
+                            }
+                            showingEditWebsite = true
+                        } label: {
+                            HStack(spacing: 12) {
+                                Image(systemName: "link")
+                                    .font(.body)
+                                    .foregroundColor(Color.appAccent)
+                                    .frame(width: 24)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(storeWebsiteURL == nil ? "Set store website" : "Edit store website")
+                                        .font(.subheadline)
+                                        .fontWeight(.medium)
+                                        .foregroundStyle(Color.primary)
+                                    Text("Add a link to this store's website or app")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                                Spacer()
+                                Image(systemName: "chevron.right")
                                     .font(.caption)
                                     .foregroundStyle(.tertiary)
                             }
