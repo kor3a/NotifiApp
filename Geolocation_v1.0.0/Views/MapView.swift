@@ -37,7 +37,12 @@ struct MapView: View {
     @ObservedObject var messagesViewModel: MessagesViewModel
 
     // Store location search
-    private let clusterManager = StoreClusterManager()
+    // @State so the manager (and its result cache) persists across view
+    // re-inits. As a plain `let` it was recreated every time the parent
+    // re-rendered (e.g. on messagesViewModel updates), wiping the cache and
+    // forcing a fresh MKLocalSearch for every store on each region change —
+    // which tripped MKLocalSearch's rate limit and made markers vanish.
+    @State private var clusterManager = StoreClusterManager()
     @State private var clusteredAnnotations: [StoreAnnotation] = []
     @State private var storeLocations: [StoreLocation] = []
     @State private var storeSearchTask: Task<Void, Never>?
