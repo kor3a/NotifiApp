@@ -6,6 +6,13 @@ function normalizeStoreName(name: string): string {
   return name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
 }
 
+// Compares two name lists ignoring order/duplicates.
+function sameNameSet(a: string[], b: string[]): boolean {
+  const sa = Array.from(new Set(a)).sort();
+  const sb = Array.from(new Set(b)).sort();
+  return sa.length === sb.length && sa.every((v, i) => v === sb[i]);
+}
+
 export const storeService = {
   // Subscribe to user's stores
   subscribeToUserStores(
@@ -125,6 +132,52 @@ export const storeService = {
   // Remove a shared store (view/edit permission)
   async removeSharedStore(userStoreId: string): Promise<void> {
     await firestore().collection('user_stores').doc(userStoreId).delete();
+  },
+
+  // Keep each owner store's `sharedWith` name list in sync with its actual
+  // recipients (user_stores whose sourceUserStoreId points back to the owner
+  // store). Mirrors the iOS app's shared-status listener so the "Shared with …"
+  // label stays accurate even when the owner only uses Android.
+  //
+  // A recipient's sourceUserStoreId belongs to exactly one owner store, so each
+  // owner id lives in exactly one query chunk and can be reconciled independently.
+  subscribeOwnerSharedWith(ownerStoreIds: string[]): () => void {
+    const reconcile = async (ownerId: string, names: string[]) => {
+      const ref = firestore().collection('user_stores').doc(ownerId);
+      const snap = await ref.get();
+      if (!snap.exists) {return;}
+      const current = (snap.data()?.sharedWith ?? []) as string[];
+      if (sameNameSet(current, names)) {return;}
+      if (names.length === 0) {
+        await ref.update({sharedWith: firestore.FieldValue.delete()});
+      } else {
+        await ref.update({sharedWith: Array.from(new Set(names))});
+      }
+    };
+
+    const unsubs: Array<() => void> = [];
+    for (let i = 0; i < ownerStoreIds.length; i += 10) {
+      const chunk = ownerStoreIds.slice(i, i + 10);
+      const unsub = firestore()
+        .collection('user_stores')
+        .where('sourceUserStoreId', 'in', chunk)
+        .onSnapshot(
+          snap => {
+            const byOwner: Record<string, string[]> = {};
+            snap.docs.forEach(d => {
+              const data = d.data();
+              const src = data.sourceUserStoreId as string | undefined;
+              const name = (data.userName ?? data.userEmail) as string | undefined;
+              if (!src || !name) {return;}
+              (byOwner[src] ??= []).push(name);
+            });
+            chunk.forEach(ownerId => reconcile(ownerId, byOwner[ownerId] ?? []));
+          },
+          err => console.warn('sharedWith listener error:', err),
+        );
+      unsubs.push(unsub);
+    }
+    return () => unsubs.forEach(u => u());
   },
 
   // Toggle smart category for a user store

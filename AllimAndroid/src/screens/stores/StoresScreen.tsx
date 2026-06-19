@@ -80,6 +80,21 @@ export default function StoresScreen() {
     return unsub;
   }, [firebaseUser, currentUser]);
 
+  // Keep the "Shared with …" labels on owned stores in sync with their
+  // current recipients (ported from the iOS shared-status listener).
+  const ownerStoreKey = stores
+    .filter(s => s.permission === 'owner')
+    .map(s => s.id)
+    .sort()
+    .join(',');
+  useEffect(() => {
+    if (!ownerStoreKey) {return;}
+    const unsub = storeService.subscribeOwnerSharedWith(
+      ownerStoreKey.split(','),
+    );
+    return unsub;
+  }, [ownerStoreKey]);
+
   function handleAddStore() {
     setMenuOpen(false);
     setNewStoreName('');

@@ -1,4 +1,4 @@
-import React, {useEffect, useState, useRef} from 'react';
+import React, {useEffect, useState, useRef, useCallback} from 'react';
 import {
   View,
   Text,
@@ -6,8 +6,6 @@ import {
   TouchableOpacity,
   TextInput,
   useColorScheme,
-  ActivityIndicator,
-  Alert,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import MapView, {Marker, PROVIDER_GOOGLE, Region} from 'react-native-maps';
@@ -23,17 +21,18 @@ import {
 } from '../../theme/AppTheme';
 import {useSession} from '../../context/SessionContext';
 import {locationService, Coordinates} from '../../services/locationService';
+import {placesService, StoreLocation} from '../../services/placesService';
 import {storeService} from '../../services/storeService';
 import {UserStoreItem} from '../../models';
 
 export default function MapScreen() {
   const scheme = useColorScheme();
-  const {currentUser, firebaseUser} = useSession();
+  const {currentUser} = useSession();
 
   const mapRef = useRef<MapView>(null);
   const [stores, setStores] = useState<UserStoreItem[]>([]);
+  const [storeLocations, setStoreLocations] = useState<StoreLocation[]>([]);
   const [currentLocation, setCurrentLocation] = useState<Coordinates | null>(null);
-  const [loading, setLoading] = useState(true);
   const [region, setRegion] = useState<Region>({
     latitude: 37.7749,
     longitude: -122.4194,
@@ -41,30 +40,28 @@ export default function MapScreen() {
     longitudeDelta: 0.05,
   });
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedStore, setSelectedStore] = useState<UserStoreItem | null>(null);
+  const [selectedLocation, setSelectedLocation] = useState<StoreLocation | null>(
+    null,
+  );
+
+  const lastSearchCenter = useRef<Coordinates | null>(null);
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     requestLocationAndLoad();
-    // Load user stores for map markers
     if (currentUser) {
       const unsub = storeService.subscribeToUserStores(
         currentUser.userId,
         currentUser.email,
-        items => {
-          setStores(items);
-          setLoading(false);
-        },
+        setStores,
       );
       return unsub;
     }
-  }, [firebaseUser, currentUser]);
+  }, [currentUser]);
 
   async function requestLocationAndLoad() {
     const granted = await locationService.requestPermission();
-    if (!granted) {
-      setLoading(false);
-      return;
-    }
+    if (!granted) {return;}
     try {
       const coords = await locationService.getCurrentPosition();
       setCurrentLocation(coords);
@@ -76,10 +73,54 @@ export default function MapScreen() {
       });
     } catch (err) {
       console.warn('Could not get location:', err);
-    } finally {
-      setLoading(false);
     }
   }
+
+  // Resolve nearby branches of each saved store via Places, biased to `center`.
+  const runStoreSearch = useCallback(
+    async (center: Coordinates, items: UserStoreItem[]) => {
+      // De-duplicate by store name so a chain is only searched once.
+      const seen = new Set<string>();
+      const unique = items.filter(s => {
+        const key = s.store.name.toLowerCase();
+        if (seen.has(key)) {return false;}
+        seen.add(key);
+        return true;
+      });
+
+      const results = await Promise.all(
+        unique.map(s =>
+          placesService.searchStoreLocations(s.store.name, center, {
+            userStoreId: s.id,
+            storeId: s.store.id,
+          }),
+        ),
+      );
+      setStoreLocations(results.flat());
+    },
+    [],
+  );
+
+  // Search when stores change or the map is panned far enough (debounced).
+  useEffect(() => {
+    if (stores.length === 0) {
+      setStoreLocations([]);
+      return;
+    }
+    if (searchTimer.current) {clearTimeout(searchTimer.current);}
+    searchTimer.current = setTimeout(() => {
+      const center = {latitude: region.latitude, longitude: region.longitude};
+      const last = lastSearchCenter.current;
+      const movedFar =
+        !last || locationService.distanceBetween(last, center) > 2000;
+      if (!movedFar) {return;}
+      lastSearchCenter.current = center;
+      runStoreSearch(center, stores);
+    }, 700);
+    return () => {
+      if (searchTimer.current) {clearTimeout(searchTimer.current);}
+    };
+  }, [stores, region, runStoreSearch]);
 
   function centerOnUser() {
     if (currentLocation) {
@@ -91,31 +132,28 @@ export default function MapScreen() {
     }
   }
 
+  const visibleLocations = searchQuery.trim()
+    ? storeLocations.filter(l =>
+        l.storeName.toLowerCase().includes(searchQuery.trim().toLowerCase()),
+      )
+    : storeLocations;
+
   // Dark map style for Android
   const darkMapStyle = [
     {elementType: 'geometry', stylers: [{color: '#242f3e'}]},
     {elementType: 'labels.text.stroke', stylers: [{color: '#242f3e'}]},
     {elementType: 'labels.text.fill', stylers: [{color: '#746855'}]},
-    {
-      featureType: 'road',
-      elementType: 'geometry',
-      stylers: [{color: '#38414e'}],
-    },
+    {featureType: 'road', elementType: 'geometry', stylers: [{color: '#38414e'}]},
     {
       featureType: 'road',
       elementType: 'geometry.stroke',
       stylers: [{color: '#212a37'}],
     },
-    {
-      featureType: 'water',
-      elementType: 'geometry',
-      stylers: [{color: '#17263c'}],
-    },
+    {featureType: 'water', elementType: 'geometry', stylers: [{color: '#17263c'}]},
   ];
 
   return (
     <View style={{flex: 1}}>
-      {/* Map takes full screen */}
       <MapView
         ref={mapRef}
         style={StyleSheet.absoluteFill}
@@ -125,19 +163,15 @@ export default function MapScreen() {
         customMapStyle={scheme === 'dark' ? darkMapStyle : []}
         showsUserLocation
         showsMyLocationButton={false}>
-
-        {/* Store markers */}
-        {stores.map(store => (
+        {visibleLocations.map(loc => (
           <Marker
-            key={store.id}
-            coordinate={{
-              // Placeholder coords — real app would geocode store addresses
-              latitude: region.latitude + (Math.random() - 0.5) * 0.02,
-              longitude: region.longitude + (Math.random() - 0.5) * 0.02,
-            }}
-            onPress={() => setSelectedStore(store)}
-            pinColor={Colors.blue}>
-          </Marker>
+            key={loc.id}
+            coordinate={loc.coordinate}
+            title={loc.name}
+            description={loc.address}
+            onPress={() => setSelectedLocation(loc)}
+            pinColor={Colors.blue}
+          />
         ))}
       </MapView>
 
@@ -161,8 +195,8 @@ export default function MapScreen() {
           <Icon name="locate" size={22} color={Colors.blue} />
         </TouchableOpacity>
 
-        {/* Selected store info card */}
-        {selectedStore && (
+        {/* Selected location info card */}
+        {selectedLocation && (
           <View style={styles.storeCard}>
             <View
               style={[
@@ -173,14 +207,17 @@ export default function MapScreen() {
                 <Icon name="cart" size={20} color={Colors.blue} />
                 <View style={{marginLeft: Spacing.md, flex: 1}}>
                   <Text style={[styles.storeCardName, {color: textPrimary(scheme)}]}>
-                    {selectedStore.store.name}
+                    {selectedLocation.name}
                   </Text>
-                  <Text style={[styles.storeCardSub, {color: textSecondary(scheme)}]}>
-                    {selectedStore.store.reminderCount} reminder
-                    {selectedStore.store.reminderCount !== 1 ? 's' : ''}
-                  </Text>
+                  {!!selectedLocation.address && (
+                    <Text
+                      style={[styles.storeCardSub, {color: textSecondary(scheme)}]}
+                      numberOfLines={2}>
+                      {selectedLocation.address}
+                    </Text>
+                  )}
                 </View>
-                <TouchableOpacity onPress={() => setSelectedStore(null)}>
+                <TouchableOpacity onPress={() => setSelectedLocation(null)}>
                   <Icon name="close" size={20} color={textSecondary(scheme)} />
                 </TouchableOpacity>
               </View>
