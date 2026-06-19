@@ -57,6 +57,16 @@ const RESEND_API_KEY = defineSecret('RESEND_API_KEY');
 const VERIFICATION_FROM_EMAIL =
     process.env.VERIFICATION_FROM_EMAIL || 'Allim <onboarding@resend.dev>';
 
+// Sender + destination for in-app "Report & Feedback" submissions. The sender
+// MUST be on a domain you've verified in Resend (the onboarding@resend.dev
+// fallback only delivers to your own Resend account email — fine for testing).
+// Set both in functions/.env (see .env.example). FEEDBACK_TO_EMAIL is the inbox
+// that receives user reports.
+const FEEDBACK_FROM_EMAIL =
+    process.env.FEEDBACK_FROM_EMAIL || 'Allim Feedback <onboarding@resend.dev>';
+const FEEDBACK_TO_EMAIL =
+    process.env.FEEDBACK_TO_EMAIL || 'jjamesubongdev@gmail.com';
+
 const db = getFirestore();
 
 // ---------------------------------------------------------------------------
@@ -602,5 +612,175 @@ exports.checkEmailVerificationStatus = onCall(
             console.error('checkEmailVerificationStatus: resend failed', err);
         }
         return { status: 'pending', resent };
+    }
+);
+
+// ---------------------------------------------------------------------------
+// 8. In-app "Report & Feedback" submissions
+//
+// WHY THIS EXISTS
+// ---------------
+// The Report & Feedback screen used to hand off to the system Mail app via a
+// mailto: link, which fails silently on devices with no mail account and forces
+// the user to leave the app. Instead the app now calls this function directly:
+// the user stays in the app, gets an immediate success/failure result, and the
+// feedback is both archived in Firestore and emailed to the team via Resend.
+//
+// Callable from the app via:
+//   functions().httpsCallable('submitFeedback')({ category, message, appVersion })
+// The caller must be signed in.
+// ---------------------------------------------------------------------------
+
+const ALLOWED_FEEDBACK_CATEGORIES = [
+    'General Feedback',
+    'Report a Bug',
+    'Feature Request',
+];
+const MAX_FEEDBACK_LENGTH = 5000;
+
+/** Minimal HTML-escape so user text can't inject markup into the email body. */
+function escapeHtml(str) {
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+/** Build the feedback notification email sent to the team inbox. */
+function buildFeedbackEmailHtml({ category, message, reporterName, reporterEmail, reporterUserId, appVersion }) {
+    const safeMessage = escapeHtml(message).replace(/\n/g, '<br>');
+    const row = (label, value) => `
+            <tr>
+              <td style="font-size:13px;color:#6b7280;padding:4px 12px 4px 0;white-space:nowrap;vertical-align:top;">${label}</td>
+              <td style="font-size:14px;color:#111827;padding:4px 0;">${escapeHtml(value || '—')}</td>
+            </tr>`;
+    return `<!DOCTYPE html>
+<html>
+  <body style="margin:0;padding:0;background:#f4f4f7;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f7;padding:24px 0;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:12px;padding:32px;">
+            <tr>
+              <td style="font-size:20px;font-weight:700;color:#111827;padding-bottom:4px;">
+                New ${escapeHtml(category)}
+              </td>
+            </tr>
+            <tr>
+              <td style="font-size:13px;color:#6b7280;padding-bottom:20px;">
+                Submitted from the Allim app
+              </td>
+            </tr>
+            <tr>
+              <td style="padding-bottom:20px;">
+                <table role="presentation" cellpadding="0" cellspacing="0">
+                  ${row('Category', category)}
+                  ${row('From', reporterName)}
+                  ${row('Email', reporterEmail)}
+                  ${row('Username', reporterUserId)}
+                  ${row('App version', appVersion)}
+                </table>
+              </td>
+            </tr>
+            <tr>
+              <td style="font-size:13px;font-weight:600;color:#6b7280;padding-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;">
+                Message
+              </td>
+            </tr>
+            <tr>
+              <td style="font-size:15px;line-height:22px;color:#111827;background:#f9fafb;border-radius:8px;padding:16px;">
+                ${safeMessage}
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`;
+}
+
+exports.submitFeedback = onCall(
+    { secrets: [RESEND_API_KEY] },
+    async (request) => {
+        const auth = request.auth;
+        if (!auth) {
+            throw new HttpsError(
+                'unauthenticated',
+                'You must be signed in to send feedback.'
+            );
+        }
+
+        // Validate inputs.
+        const category = String(request.data?.category || '').trim();
+        const message = String(request.data?.message || '').trim();
+        const appVersion = String(request.data?.appVersion || '').trim().slice(0, 50);
+
+        if (!ALLOWED_FEEDBACK_CATEGORIES.includes(category)) {
+            throw new HttpsError('invalid-argument', 'Unknown feedback category.');
+        }
+        if (!message) {
+            throw new HttpsError('invalid-argument', 'The message cannot be empty.');
+        }
+        if (message.length > MAX_FEEDBACK_LENGTH) {
+            throw new HttpsError(
+                'invalid-argument',
+                `The message is too long (max ${MAX_FEEDBACK_LENGTH} characters).`
+            );
+        }
+
+        // Reporter identity comes from the verified auth token (email is trusted);
+        // the human-readable name/username are best-effort from the client.
+        const reporterEmail = auth.token.email || '';
+        const reporterName = String(request.data?.reporterName || '').trim().slice(0, 200);
+        const reporterUserId = String(request.data?.reporterUserId || '').trim().slice(0, 200);
+
+        // Archive the submission first so nothing is lost even if email delivery
+        // fails. The Admin SDK bypasses Firestore security rules.
+        const docRef = await db.collection('feedback').add({
+            category,
+            message,
+            appVersion: appVersion || null,
+            reporterAuthUid: auth.uid,
+            reporterEmail,
+            reporterName: reporterName || null,
+            reporterUserId: reporterUserId || null,
+            status: 'pending',
+            createdAt: new Date(),
+        });
+
+        // Email the team inbox via Resend.
+        const { Resend } = require('resend');
+        const resend = new Resend(RESEND_API_KEY.value());
+
+        const { error } = await resend.emails.send({
+            from: FEEDBACK_FROM_EMAIL,
+            to: FEEDBACK_TO_EMAIL,
+            // Let the team reply straight to the user when an address is present.
+            replyTo: reporterEmail || undefined,
+            subject: `[Allim ${category}] from ${reporterName || reporterEmail || 'a user'}`,
+            html: buildFeedbackEmailHtml({
+                category, message, reporterName, reporterEmail, reporterUserId, appVersion,
+            }),
+            text:
+                `New ${category} from the Allim app\n\n` +
+                `From: ${reporterName || '—'}\n` +
+                `Email: ${reporterEmail || '—'}\n` +
+                `Username: ${reporterUserId || '—'}\n` +
+                `App version: ${appVersion || '—'}\n\n` +
+                `Message:\n${message}\n`,
+        });
+
+        if (error) {
+            console.error('submitFeedback: Resend send failed', error);
+            await docRef.update({ status: 'email_failed' }).catch(() => {});
+            throw new HttpsError('internal', 'Could not send your feedback. Please try again.');
+        }
+
+        await docRef.update({ status: 'sent' }).catch(() => {});
+        console.log(`submitFeedback: feedback ${docRef.id} sent (category="${category}")`);
+        return { status: 'sent' };
     }
 );

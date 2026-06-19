@@ -4,13 +4,17 @@
 //
 
 import SwiftUI
+import FirebaseFunctions
 
 struct ReportFeedbackView: View {
 
     @State private var selectedCategory: FeedbackCategory = .feedback
     @State private var messageText: String = ""
+    @State private var isSending = false
     @State private var showConfirmation = false
-    @Environment(\.openURL) private var openURL
+    @State private var showError = false
+    @State private var errorMessage = ""
+    @ObservedObject private var sessionManager = UserSessionManager.shared
 
     enum FeedbackCategory: String, CaseIterable, Identifiable {
         case feedback = "General Feedback"
@@ -26,6 +30,14 @@ struct ReportFeedbackView: View {
             case .feature: return "lightbulb.fill"
             }
         }
+    }
+
+    private var trimmedMessage: String {
+        messageText.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private var canSubmit: Bool {
+        !trimmedMessage.isEmpty && !isSending
     }
 
     var body: some View {
@@ -44,15 +56,27 @@ struct ReportFeedbackView: View {
             Section(header: Text("Message"), footer: Text("Describe your feedback or issue in as much detail as possible.")) {
                 TextEditor(text: $messageText)
                     .frame(minHeight: 120)
+                    .disabled(isSending)
             }
 
             Section {
-                Button("Send via Email") {
-                    sendEmail()
+                Button {
+                    submitFeedback()
+                } label: {
+                    HStack {
+                        Spacer()
+                        if isSending {
+                            ProgressView()
+                                .padding(.trailing, 8)
+                            Text("Sending…")
+                        } else {
+                            Text("Submit Feedback")
+                        }
+                        Spacer()
+                    }
                 }
-                .frame(maxWidth: .infinity, alignment: .center)
-                .foregroundStyle(messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? Color.secondary : Color.blue)
-                .disabled(messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                .foregroundStyle(canSubmit ? Color.blue : Color.secondary)
+                .disabled(!canSubmit)
             }
         }
         .navigationTitle("Report & Feedback")
@@ -62,16 +86,50 @@ struct ReportFeedbackView: View {
         } message: {
             Text("Your feedback has been submitted. We appreciate you helping improve Allim!")
         }
+        .alert("Couldn't Send Feedback", isPresented: $showError) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text(errorMessage)
+        }
     }
 
-    private func sendEmail() {
-        let subject = selectedCategory.rawValue
-        let body = messageText
-        let encodedSubject = subject.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
-        let encodedBody = body.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
-        let mailtoString = "mailto:support@allimapp.com?subject=\(encodedSubject)&body=\(encodedBody)"
-        if let url = URL(string: mailtoString) {
-            openURL(url)
+    private var appVersion: String {
+        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?"
+        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "?"
+        return "\(version) (\(build))"
+    }
+
+    /// Sends the feedback to the backend `submitFeedback` Cloud Function, which
+    /// archives it in Firestore and emails the team. The user stays in the app
+    /// and gets an immediate success or failure alert.
+    private func submitFeedback() {
+        let message = trimmedMessage
+        guard !message.isEmpty else { return }
+
+        isSending = true
+
+        let payload: [String: Any] = [
+            "category": selectedCategory.rawValue,
+            "message": message,
+            "appVersion": appVersion,
+            "reporterName": sessionManager.currentUser?.name ?? "",
+            "reporterUserId": sessionManager.currentUser?.userId ?? "",
+        ]
+
+        Functions.functions().httpsCallable("submitFeedback").call(payload) { _, error in
+            isSending = false
+
+            if let error = error {
+                #if DEBUG
+                print("ReportFeedbackView: submitFeedback failed: \(error.localizedDescription)")
+                #endif
+                errorMessage = "Something went wrong while sending your feedback. Please check your connection and try again."
+                showError = true
+                return
+            }
+
+            messageText = ""
+            showConfirmation = true
         }
     }
 }
