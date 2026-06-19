@@ -83,7 +83,14 @@ export const reminderService = {
     userStoreId: string,
     storeId: string,
     title: string,
-    category?: string,
+    options?: {
+      category?: string;
+      isSharedStore?: boolean;
+      sharedWith?: string[];
+      sharedFromName?: string;
+      currentUserName?: string;
+      currentUserId?: string;
+    },
   ): Promise<Reminder> {
     const existing = await firestore()
       .collection('reminders')
@@ -93,18 +100,41 @@ export const reminderService = {
       return Math.max(max, d.data().order ?? 0);
     }, -1);
 
-    const ref = await firestore().collection('reminders').add({
+    const reminderData: any = {
       title,
       isDone: false,
       userStoreId,
       storeId,
       order: maxOrder + 1,
-      category: category ?? null,
+      category: options?.category ?? null,
       quantity: null,
       photoURLs: [],
       isShared: false,
       createdAt: firestore.FieldValue.serverTimestamp(),
-    });
+    };
+
+    // When the store is shared, stamp the reminder with sharing metadata so the
+    // other members see it attributed correctly and get a push notification
+    // (mirrors the iOS app's addReminder behaviour).
+    if (options?.isSharedStore) {
+      reminderData.isShared = true;
+      reminderData.sharedAt = Date.now() / 1000;
+      if (options.sharedFromName) {
+        // Recipient adding: share back to the owner.
+        reminderData.sharedWith = [options.sharedFromName];
+      } else if (options.sharedWith && options.sharedWith.length > 0) {
+        // Owner adding: use the full recipient list.
+        reminderData.sharedWith = options.sharedWith;
+      }
+      if (options.currentUserName) {
+        reminderData.sharedFrom = options.currentUserName;
+      }
+      if (options.currentUserId) {
+        reminderData.sharedFromId = options.currentUserId;
+      }
+    }
+
+    const ref = await firestore().collection('reminders').add(reminderData);
 
     // Update store reminder count
     await firestore()

@@ -31,7 +31,16 @@ export type AuthStackParamList = {
 
 export type StoresStackParamList = {
   StoresList: undefined;
-  Reminders: {userStoreId: string; storeName: string; storeId: string; permission: string};
+  Reminders: {
+    userStoreId: string; // this user's user_store doc (per-user settings)
+    reminderStoreId: string; // where the reminders actually live (shared-aware)
+    storeName: string;
+    storeId: string;
+    permission: string;
+    isSharedStore?: boolean;
+    sharedWith?: string[];
+    sharedFromName?: string;
+  };
   Profile: undefined;
 };
 

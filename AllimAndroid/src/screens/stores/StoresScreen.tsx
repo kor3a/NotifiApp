@@ -31,10 +31,27 @@ import {
 } from '../../theme/AppTheme';
 import {useSession} from '../../context/SessionContext';
 import {storeService} from '../../services/storeService';
-import {UserStoreItem} from '../../models';
+import {UserStoreItem, reminderStoreIdFor} from '../../models';
 import {StoresStackParamList} from '../../navigation/AppNavigator';
 
 type Nav = NativeStackNavigationProp<StoresStackParamList, 'StoresList'>;
+
+// Subtitle suffix describing the store's sharing status.
+function sharingLabel(item: UserStoreItem): string {
+  // Recipient: this store was shared to the current user.
+  if (item.sharedFromName) {
+    return ` · Shared by ${item.sharedFromName}`;
+  }
+  // Owner: this store is being shared with one or more people.
+  const names = item.sharedWith ?? [];
+  if (names.length === 1) {
+    return ` · Shared with ${names[0]}`;
+  }
+  if (names.length > 1) {
+    return ` · Shared with ${names.length} people`;
+  }
+  return '';
+}
 
 export default function StoresScreen() {
   const scheme = useColorScheme();
@@ -128,9 +145,13 @@ export default function StoresScreen() {
         onPress={() =>
           navigation.navigate('Reminders', {
             userStoreId: item.id,
+            reminderStoreId: reminderStoreIdFor(item),
             storeName: item.store.name,
             storeId: item.store.id,
             permission: item.permission,
+            isSharedStore: item.isShared,
+            sharedWith: item.sharedWith,
+            sharedFromName: item.sharedFromName,
           })
         }
         onLongPress={() => handleDeleteStore(item)}
@@ -151,7 +172,7 @@ export default function StoresScreen() {
               {reminderCount === 0
                 ? 'No reminders'
                 : `${reminderCount} reminder${reminderCount !== 1 ? 's' : ''}`}
-              {item.isShared ? ' · Shared' : ''}
+              {sharingLabel(item)}
             </Text>
           </View>
 

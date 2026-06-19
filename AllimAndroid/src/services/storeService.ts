@@ -37,8 +37,13 @@ export const storeService = {
             permission: us.permission,
             sharedWith: us.sharedWith,
             sharedFromName: us.sharedFromName,
+            sourceUserStoreId: us.sourceUserStoreId,
             sharedStoreGroupId: us.sharedStoreGroupId,
-            isShared: !!us.sharedFromEmail,
+            // A store is shared if the owner is sharing it with others
+            // (sharedWith populated) OR it was shared to this user (recipient).
+            isShared:
+              (!!us.sharedWith && us.sharedWith.length > 0) ||
+              !!us.sharedFromEmail,
             sortOrder: (us as any).sortOrder ?? 0,
           } as any);
         }

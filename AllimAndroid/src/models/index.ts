@@ -50,8 +50,19 @@ export interface UserStoreItem {
   permission: StorePermission;
   sharedWith?: string[];
   sharedFromName?: string;
+  sourceUserStoreId?: string; // recipient: owner's user_store id (where reminders live)
   sharedStoreGroupId?: string;
   isShared: boolean;
+}
+
+// Returns the user_store id under which a store's reminders actually live.
+// Owners always use their own id; recipients funnel to the owner's store via
+// sourceUserStoreId (or the shared group). Mirrors the iOS app's reminderStoreId.
+export function reminderStoreIdFor(item: UserStoreItem): string {
+  if (item.permission === 'owner') {
+    return item.id;
+  }
+  return item.sourceUserStoreId ?? item.sharedStoreGroupId ?? item.id;
 }
 
 // ─── Reminder ─────────────────────────────────────────────────────────────────
