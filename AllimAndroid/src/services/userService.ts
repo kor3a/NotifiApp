@@ -11,6 +11,21 @@ export const userService = {
     return {id: snap.id, ...snap.data()} as unknown as User;
   },
 
+  // Fetch the profile for a signed-in account by email.
+  // The `users` collection is keyed by username (matching the iOS app), not by
+  // the Firebase Auth UID, so we must look the profile up by email — the same
+  // mapping the iOS app uses to go from an authenticated account to its doc.
+  async fetchUserByEmail(email: string): Promise<User | null> {
+    const snap = await firestore()
+      .collection('users')
+      .where('email', '==', email)
+      .limit(1)
+      .get();
+    if (snap.empty) {return null;}
+    const doc = snap.docs[0];
+    return {id: doc.id, ...doc.data()} as unknown as User;
+  },
+
   // Subscribe to user changes
   subscribeToUser(uid: string, callback: (user: User | null) => void) {
     return firestore()

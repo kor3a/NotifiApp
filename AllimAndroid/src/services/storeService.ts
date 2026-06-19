@@ -39,10 +39,11 @@ export const storeService = {
             sharedFromName: us.sharedFromName,
             sharedStoreGroupId: us.sharedStoreGroupId,
             isShared: !!us.sharedFromEmail,
-          });
+            sortOrder: (us as any).sortOrder ?? 0,
+          } as any);
         }
-        // Sort by order field
-        items.sort((a: any, b: any) => (a.order ?? 0) - (b.order ?? 0));
+        // Sort by sortOrder field (matches the iOS app's ordering)
+        items.sort((a: any, b: any) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
         callback(items);
       });
   },
@@ -68,19 +69,21 @@ export const storeService = {
       .where('userId', '==', uid)
       .get();
     const maxOrder = existing.docs.reduce((max, d) => {
-      const o = (d.data().order ?? 0) as number;
+      const o = (d.data().sortOrder ?? 0) as number;
       return Math.max(max, o);
     }, -1);
 
-    // Add user_store doc
+    // Add user_store doc. Field names must match the iOS app + Firestore rules:
+    // `userEmail` (not `email`) is required by the create rule, and ordering
+    // uses `sortOrder`/`addedAt` so iOS and Android stay in sync.
     await firestore().collection('user_stores').add({
       userId: uid,
-      email: email,
+      userEmail: email,
       storeId: storeId,
       storeName: storeName,
       permission: 'owner',
-      order: maxOrder + 1,
-      createdAt: firestore.FieldValue.serverTimestamp(),
+      sortOrder: maxOrder + 1,
+      addedAt: Date.now() / 1000,
     });
   },
 

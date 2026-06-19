@@ -32,11 +32,11 @@ export function SessionProvider({children}: {children: React.ReactNode}) {
 
   async function refreshUser() {
     const fbUser = auth().currentUser;
-    if (!fbUser) {
+    if (!fbUser || !fbUser.email) {
       setCurrentUser(null);
       return;
     }
-    const user = await userService.fetchUserByUid(fbUser.uid);
+    const user = await userService.fetchUserByEmail(fbUser.email);
     setCurrentUser(user);
   }
 
@@ -50,7 +50,9 @@ export function SessionProvider({children}: {children: React.ReactNode}) {
           await userService.saveFCMToken(fbUser.uid, token);
         } catch (_) {}
 
-        const user = await userService.fetchUserByUid(fbUser.uid);
+        const user = fbUser.email
+          ? await userService.fetchUserByEmail(fbUser.email)
+          : null;
         setCurrentUser(user);
       } else {
         setCurrentUser(null);
