@@ -81,8 +81,13 @@ export const authService = {
     const credential = auth.EmailAuthProvider.credential(user.email, password);
     await user.reauthenticateWithCredential(credential);
 
-    // Delete Firestore user doc
-    await firestore().collection('users').doc(user.uid).delete();
+    // Delete the Firestore user doc. It's keyed by username, so find it by
+    // email rather than assuming the doc id is the auth uid.
+    const userDocs = await firestore()
+      .collection('users')
+      .where('email', '==', user.email)
+      .get();
+    await Promise.all(userDocs.docs.map(d => d.ref.delete()));
     await user.delete();
   },
 

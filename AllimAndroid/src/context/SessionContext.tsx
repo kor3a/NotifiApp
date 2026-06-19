@@ -44,16 +44,18 @@ export function SessionProvider({children}: {children: React.ReactNode}) {
     const unsubscribe = auth().onAuthStateChanged(async fbUser => {
       setFirebaseUser(fbUser);
       if (fbUser) {
-        // Save FCM token
-        try {
-          const token = await messaging().getToken();
-          await userService.saveFCMToken(fbUser.uid, token);
-        } catch (_) {}
-
         const user = fbUser.email
           ? await userService.fetchUserByEmail(fbUser.email)
           : null;
         setCurrentUser(user);
+
+        // Save FCM token against the users doc (keyed by username, not uid).
+        if (user) {
+          try {
+            const token = await messaging().getToken();
+            await userService.saveFCMToken(user.userId, token);
+          } catch (_) {}
+        }
       } else {
         setCurrentUser(null);
       }

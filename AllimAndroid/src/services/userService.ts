@@ -40,26 +40,27 @@ export const userService = {
       });
   },
 
-  // Update profile
-  async updateProfile(uid: string, updates: Partial<User>): Promise<void> {
-    await firestore().collection('users').doc(uid).update(updates);
+  // Update profile. userId is the users doc id (username), not the auth uid.
+  async updateProfile(userId: string, updates: Partial<User>): Promise<void> {
+    await firestore().collection('users').doc(userId).update(updates);
   },
 
-  // Upload profile picture
-  async uploadProfilePicture(uid: string, uri: string): Promise<string> {
-    const ref = storage().ref(`profile_pictures/${uid}.jpg`);
+  // Upload profile picture. userId is the users doc id (username), matching the
+  // iOS storage path (profile_pictures/{username}.jpg).
+  async uploadProfilePicture(userId: string, uri: string): Promise<string> {
+    const ref = storage().ref(`profile_pictures/${userId}.jpg`);
     await ref.putFile(uri);
     const url = await ref.getDownloadURL();
     await firestore()
       .collection('users')
-      .doc(uid)
+      .doc(userId)
       .update({profilePictureURL: url});
     return url;
   },
 
-  // Save FCM token
-  async saveFCMToken(uid: string, token: string): Promise<void> {
-    await firestore().collection('users').doc(uid).update({fcmToken: token});
+  // Save FCM token. userId is the users doc id (username), not the auth uid.
+  async saveFCMToken(userId: string, token: string): Promise<void> {
+    await firestore().collection('users').doc(userId).update({fcmToken: token});
   },
 
   // Search users by email
