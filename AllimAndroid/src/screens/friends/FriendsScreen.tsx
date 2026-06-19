@@ -44,15 +44,16 @@ export default function FriendsScreen() {
   const [searching, setSearching] = useState(false);
 
   useEffect(() => {
-    if (!firebaseUser) {return;}
+    // Friendships are keyed by username (userId), not the Firebase Auth uid.
+    if (!currentUser) {return;}
 
-    const unsubFriends = friendService.subscribeToFriends(firebaseUser.uid, f => {
+    const unsubFriends = friendService.subscribeToFriends(currentUser.userId, f => {
       setFriends(f);
       setLoading(false);
     });
 
     const unsubRequests = friendService.subscribeToPendingRequests(
-      firebaseUser.uid,
+      currentUser.userId,
       r => setPendingRequests(r),
     );
 
@@ -60,7 +61,7 @@ export default function FriendsScreen() {
       unsubFriends();
       unsubRequests();
     };
-  }, [firebaseUser]);
+  }, [currentUser]);
 
   async function handleAddFriend() {
     if (!searchEmail.trim() || !currentUser || !firebaseUser) {return;}
@@ -114,22 +115,22 @@ export default function FriendsScreen() {
   }
 
   async function handleMessage(friendship: Friendship) {
-    if (!firebaseUser || !currentUser) {return;}
+    if (!currentUser) {return;}
     const otherId =
-      friendship.requesterId === firebaseUser.uid
+      friendship.requesterId === currentUser.userId
         ? friendship.receiverId
         : friendship.requesterId;
     const otherName =
-      friendship.requesterId === firebaseUser.uid
+      friendship.requesterId === currentUser.userId
         ? friendship.receiverName ?? 'Friend'
         : friendship.requesterName ?? 'Friend';
     const otherPhoto =
-      friendship.requesterId === firebaseUser.uid
+      friendship.requesterId === currentUser.userId
         ? friendship.receiverPhoto
         : friendship.requesterPhoto;
 
     const convoId = await messageService.getOrCreateConversation(
-      firebaseUser.uid,
+      currentUser.userId,
       otherId,
       currentUser.name,
       otherName,
@@ -148,8 +149,8 @@ export default function FriendsScreen() {
   }
 
   function getFriendInfo(f: Friendship) {
-    if (!firebaseUser) {return {name: 'Friend', photo: undefined};}
-    const isMeRequester = f.requesterId === firebaseUser.uid;
+    if (!currentUser) {return {name: 'Friend', photo: undefined};}
+    const isMeRequester = f.requesterId === currentUser.userId;
     return {
       name: isMeRequester ? f.receiverName ?? 'Friend' : f.requesterName ?? 'Friend',
       photo: isMeRequester ? f.receiverPhoto : f.requesterPhoto,

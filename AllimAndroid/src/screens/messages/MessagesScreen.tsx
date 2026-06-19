@@ -40,20 +40,21 @@ export default function MessagesScreen() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!firebaseUser) {return;}
+    // Conversations are keyed by username (userId), not the Firebase Auth uid.
+    if (!currentUser) {return;}
     const unsub = messageService.subscribeToConversations(
-      firebaseUser.uid,
+      currentUser.userId,
       convos => {
         setConversations(convos);
         setLoading(false);
       },
     );
     return unsub;
-  }, [firebaseUser]);
+  }, [currentUser]);
 
   function getOtherUser(convo: Conversation) {
-    if (!firebaseUser) {return {id: '', name: 'Unknown', photo: undefined};}
-    const otherId = convo.participantIds.find(id => id !== firebaseUser.uid) ?? '';
+    if (!currentUser) {return {id: '', name: 'Unknown', photo: undefined};}
+    const otherId = convo.participantIds.find(id => id !== currentUser.userId) ?? '';
     return {
       id: otherId,
       name: convo.participantNames?.[otherId] ?? 'Unknown',
@@ -63,7 +64,7 @@ export default function MessagesScreen() {
 
   function renderConvo({item}: {item: Conversation}) {
     const other = getOtherUser(item);
-    const unread = (item.unreadCount?.[firebaseUser?.uid ?? ''] ?? 0) as number;
+    const unread = (item.unreadCount?.[currentUser?.userId ?? ''] ?? 0) as number;
     const timeStr = item.lastMessageAt?.toDate
       ? format(item.lastMessageAt.toDate(), 'MMM d')
       : '';

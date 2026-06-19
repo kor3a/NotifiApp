@@ -84,6 +84,8 @@ android {
         applicationId "com.allimandroid"
         minSdk rootProject.ext.minSdkVersion
         targetSdk rootProject.ext.targetSdkVersion
+        // Injects the Google Maps key into AndroidManifest's geo.API_KEY meta-data.
+        manifestPlaceholders = [MAPS_API_KEY: (project.findProperty("MAPS_API_KEY") ?: "")]
         versionCode 1
         versionName "1.0"
         externalNativeBuild {

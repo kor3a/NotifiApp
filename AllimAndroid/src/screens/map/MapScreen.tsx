@@ -46,9 +46,9 @@ export default function MapScreen() {
   useEffect(() => {
     requestLocationAndLoad();
     // Load user stores for map markers
-    if (firebaseUser && currentUser) {
+    if (currentUser) {
       const unsub = storeService.subscribeToUserStores(
-        firebaseUser.uid,
+        currentUser.userId,
         currentUser.email,
         items => {
           setStores(items);
