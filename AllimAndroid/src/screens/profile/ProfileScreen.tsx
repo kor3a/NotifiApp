@@ -151,7 +151,12 @@ export default function ProfileScreen() {
           </View>
 
           {/* Edit name */}
-          <View style={[styles.section, cardStyle(scheme)]}>
+          <View
+            style={[
+              styles.section,
+              cardStyle(scheme),
+              scheme !== 'dark' && {backgroundColor: Colors.backgroundBottomLight},
+            ]}>
             <Text style={[styles.sectionLabel, {color: textSecondary(scheme)}]}>
               Display Name
             </Text>
@@ -173,7 +178,12 @@ export default function ProfileScreen() {
           </View>
 
           {/* Account info */}
-          <View style={[styles.section, cardStyle(scheme)]}>
+          <View
+            style={[
+              styles.section,
+              cardStyle(scheme),
+              scheme !== 'dark' && {backgroundColor: Colors.backgroundBottomLight},
+            ]}>
             <View style={styles.infoRow}>
               <Icon name="mail-outline" size={18} color={Colors.blue} />
               <Text style={[styles.infoText, {color: textPrimary(scheme)}]}>

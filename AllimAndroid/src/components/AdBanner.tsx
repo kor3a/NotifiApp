@@ -7,7 +7,12 @@ export default function AdBanner() {
   const scheme = useColorScheme();
 
   return (
-    <View style={[styles.container, cardStyle(scheme)]}>
+    <View
+      style={[
+        styles.container,
+        cardStyle(scheme),
+        scheme !== 'dark' && {backgroundColor: Colors.backgroundBottomLight},
+      ]}>
       <View style={styles.adLabel}>
         <Text style={styles.adLabelText}>AD</Text>
       </View>
