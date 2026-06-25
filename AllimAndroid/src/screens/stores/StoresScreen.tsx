@@ -6,8 +6,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   Alert,
-  Modal,
-  TextInput,
   Animated,
   useColorScheme,
   ActivityIndicator,
@@ -20,6 +18,7 @@ import LinearGradient from 'react-native-linear-gradient';
 
 import GradientBackground from '../../components/GradientBackground';
 import ProfileAvatar from '../../components/ProfileAvatar';
+import AddStoreSheet from './AddStoreSheet';
 import {
   Colors,
   Spacing,
@@ -31,27 +30,10 @@ import {
 } from '../../theme/AppTheme';
 import {useSession} from '../../context/SessionContext';
 import {storeService} from '../../services/storeService';
-import {UserStoreItem, reminderStoreIdFor} from '../../models';
+import {UserStoreItem} from '../../models';
 import {StoresStackParamList} from '../../navigation/AppNavigator';
 
 type Nav = NativeStackNavigationProp<StoresStackParamList, 'StoresList'>;
-
-// Subtitle suffix describing the store's sharing status.
-function sharingLabel(item: UserStoreItem): string {
-  // Recipient: this store was shared to the current user.
-  if (item.sharedFromName) {
-    return ` · Shared by ${item.sharedFromName}`;
-  }
-  // Owner: this store is being shared with one or more people.
-  const names = item.sharedWith ?? [];
-  if (names.length === 1) {
-    return ` · Shared with ${names[0]}`;
-  }
-  if (names.length > 1) {
-    return ` · Shared with ${names.length} people`;
-  }
-  return '';
-}
 
 export default function StoresScreen() {
   const scheme = useColorScheme();
@@ -60,9 +42,7 @@ export default function StoresScreen() {
 
   const [stores, setStores] = useState<UserStoreItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [newStoreName, setNewStoreName] = useState('');
-  const [addLoading, setAddLoading] = useState(false);
+  const [showAddSheet, setShowAddSheet] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
   const fabScale = useRef(new Animated.Value(1)).current;
@@ -70,7 +50,7 @@ export default function StoresScreen() {
   useEffect(() => {
     if (!firebaseUser || !currentUser) {return;}
     const unsub = storeService.subscribeToUserStores(
-      currentUser.userId,
+      firebaseUser.uid,
       currentUser.email,
       items => {
         setStores(items);
@@ -82,26 +62,16 @@ export default function StoresScreen() {
 
   function handleAddStore() {
     setMenuOpen(false);
-    setNewStoreName('');
-    setShowAddModal(true);
+    setShowAddSheet(true);
   }
 
-  async function submitAddStore() {
-    if (!newStoreName.trim()) {return;}
+  async function handleSelectStore(storeName: string) {
     if (!firebaseUser || !currentUser) {return;}
-    setAddLoading(true);
-    try {
-      await storeService.addStore(
-        currentUser.userId,
-        currentUser.email,
-        newStoreName.trim(),
-      );
-      setShowAddModal(false);
-    } catch (err: any) {
-      Alert.alert('Error', err.message ?? 'Failed to add store.');
-    } finally {
-      setAddLoading(false);
-    }
+    await storeService.addStore(
+      firebaseUser.uid,
+      currentUser.email,
+      storeName,
+    );
   }
 
   async function handleDeleteStore(item: UserStoreItem) {
@@ -124,7 +94,7 @@ export default function StoresScreen() {
               } else {
                 await storeService.deleteStore(
                   item.id,
-                  currentUser.userId,
+                  firebaseUser.uid,
                   currentUser.email,
                 );
               }
@@ -145,13 +115,9 @@ export default function StoresScreen() {
         onPress={() =>
           navigation.navigate('Reminders', {
             userStoreId: item.id,
-            reminderStoreId: reminderStoreIdFor(item),
             storeName: item.store.name,
             storeId: item.store.id,
             permission: item.permission,
-            isSharedStore: item.isShared,
-            sharedWith: item.sharedWith,
-            sharedFromName: item.sharedFromName,
           })
         }
         onLongPress={() => handleDeleteStore(item)}
@@ -172,7 +138,7 @@ export default function StoresScreen() {
               {reminderCount === 0
                 ? 'No reminders'
                 : `${reminderCount} reminder${reminderCount !== 1 ? 's' : ''}`}
-              {sharingLabel(item)}
+              {item.isShared ? ' · Shared' : ''}
             </Text>
           </View>
 
@@ -294,50 +260,13 @@ export default function StoresScreen() {
         )}
       </SafeAreaView>
 
-      {/* Add Store Modal */}
-      <Modal
-        visible={showAddModal}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowAddModal(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalCard, {backgroundColor: cardBackground(scheme)}]}>
-            <Text style={[styles.modalTitle, {color: textPrimary(scheme)}]}>
-              Add Store
-            </Text>
-            <TextInput
-              placeholder="Store name (e.g. Walmart)"
-              placeholderTextColor={textSecondary(scheme)}
-              value={newStoreName}
-              onChangeText={setNewStoreName}
-              style={[styles.modalInput, {color: textPrimary(scheme), borderColor: Colors.blue + '44'}]}
-              autoFocus
-              onSubmitEditing={submitAddStore}
-            />
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={[styles.modalBtn, {backgroundColor: Colors.blue + '1A'}]}
-                onPress={() => setShowAddModal(false)}>
-                <Text style={{color: Colors.blue, fontSize: 16, fontWeight: '600'}}>
-                  Cancel
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalBtn, {backgroundColor: Colors.blue}]}
-                onPress={submitAddStore}
-                disabled={addLoading}>
-                {addLoading ? (
-                  <ActivityIndicator color="#fff" />
-                ) : (
-                  <Text style={{color: '#fff', fontSize: 16, fontWeight: '600'}}>
-                    Add
-                  </Text>
-                )}
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
+      {/* Add Store Sheet */}
+      <AddStoreSheet
+        visible={showAddSheet}
+        onClose={() => setShowAddSheet(false)}
+        onSelectStore={handleSelectStore}
+        existingStores={stores}
+      />
     </View>
   );
 }
@@ -484,41 +413,5 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 6,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalCard: {
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: Spacing.lg,
-    paddingBottom: 40,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    marginBottom: Spacing.lg,
-    textAlign: 'center',
-  },
-  modalInput: {
-    borderWidth: 1.5,
-    borderRadius: Radius.md,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.md,
-    fontSize: 17,
-    marginBottom: Spacing.lg,
-  },
-  modalButtons: {
-    flexDirection: 'row',
-    gap: Spacing.md,
-  },
-  modalBtn: {
-    flex: 1,
-    height: 50,
-    borderRadius: Radius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
 });
