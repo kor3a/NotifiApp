@@ -184,21 +184,6 @@ export default function AddStoreSheet({
   }
 
   function renderBody() {
-    if (!placesSearchService.isConfigured()) {
-      return (
-        <View style={styles.stateContainer}>
-          <Icon name="key-outline" size={50} color={Colors.orange} />
-          <Text style={[styles.stateTitle, {color: textPrimary(scheme)}]}>
-            Search not configured
-          </Text>
-          <Text style={[styles.stateSubtitle, {color: textSecondary(scheme)}]}>
-            A Google Places API key is required to search nearby stores.{'\n'}
-            See src/services/placesSearchService.ts.
-          </Text>
-        </View>
-      );
-    }
-
     if (!permissionGranted || locationError) {
       return (
         <View style={styles.stateContainer}>
