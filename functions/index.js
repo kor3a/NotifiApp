@@ -48,6 +48,11 @@ initializeApp();
 // Resend API key — set once with:  firebase functions:secrets:set RESEND_API_KEY
 const RESEND_API_KEY = defineSecret('RESEND_API_KEY');
 
+// Google Places API key — set once with:
+//   firebase functions:secrets:set GOOGLE_PLACES_API_KEY
+// Enable "Places API (New)" + billing on the Google Cloud project first.
+const GOOGLE_PLACES_API_KEY = defineSecret('GOOGLE_PLACES_API_KEY');
+
 // Sender address for verification emails. MUST be on a domain you've verified in
 // Resend (https://resend.com/domains). For quick testing Resend also allows
 // "onboarding@resend.dev", but that can only deliver to your own Resend account
@@ -782,5 +787,156 @@ exports.submitFeedback = onCall(
         await docRef.update({ status: 'sent' }).catch(() => {});
         console.log(`submitFeedback: feedback ${docRef.id} sent (category="${category}")`);
         return { status: 'sent' };
+    }
+);
+
+// ---------------------------------------------------------------------------
+// 9. Nearby store search proxy (Places API)
+//
+// WHY THIS EXISTS
+// ---------------
+// The Android Add Store sheet searches nearby places by name (e.g. "Walmart")
+// to add a store to the user's list. Anything shipped in the React Native
+// bundle — including a Google Places API key — can be extracted from the APK,
+// so we proxy the request through this callable instead. The key lives in
+// Functions secrets and never reaches the device.
+//
+// Restrict the key in Google Cloud Console to the Places API only and set a
+// daily quota even though the key is server-side; the Function itself runs
+// under an authenticated callable so anonymous callers can't burn quota.
+//
+// Callable from the app via:
+//   functions().httpsCallable('searchNearbyStores')({ query, latitude, longitude })
+// ---------------------------------------------------------------------------
+
+const PLACES_SEARCH_RADIUS_METERS = 20000;
+
+function normalizeStoreId(name) {
+    return name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+}
+
+function haversineMeters(a, b) {
+    const R = 6371e3;
+    const φ1 = (a.latitude * Math.PI) / 180;
+    const φ2 = (b.latitude * Math.PI) / 180;
+    const Δφ = ((b.latitude - a.latitude) * Math.PI) / 180;
+    const Δλ = ((b.longitude - a.longitude) * Math.PI) / 180;
+    const x =
+        Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+        Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+    return R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
+}
+
+exports.searchNearbyStores = onCall(
+    { secrets: [GOOGLE_PLACES_API_KEY] },
+    async (request) => {
+        if (!request.auth) {
+            throw new HttpsError(
+                'unauthenticated',
+                'You must be signed in to search for stores.'
+            );
+        }
+
+        const { query, latitude, longitude } = request.data ?? {};
+        if (!query || typeof query !== 'string' || !query.trim()) {
+            throw new HttpsError('invalid-argument', 'query is required.');
+        }
+        if (typeof latitude !== 'number' || typeof longitude !== 'number') {
+            throw new HttpsError(
+                'invalid-argument',
+                'latitude and longitude are required numbers.'
+            );
+        }
+
+        const apiKey = GOOGLE_PLACES_API_KEY.value();
+        if (!apiKey) {
+            throw new HttpsError(
+                'failed-precondition',
+                'Places API key is not configured on the server.'
+            );
+        }
+
+        const userLocation = { latitude, longitude };
+
+        let response;
+        try {
+            response = await fetch(
+                'https://places.googleapis.com/v1/places:searchText',
+                {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Goog-Api-Key': apiKey,
+                        'X-Goog-FieldMask':
+                            'places.displayName,places.location',
+                    },
+                    body: JSON.stringify({
+                        textQuery: query.trim(),
+                        locationBias: {
+                            circle: {
+                                center: userLocation,
+                                radius: PLACES_SEARCH_RADIUS_METERS,
+                            },
+                        },
+                    }),
+                }
+            );
+        } catch (err) {
+            console.error('searchNearbyStores: fetch failed', err);
+            throw new HttpsError('unavailable', 'Search request failed.');
+        }
+
+        if (!response.ok) {
+            const body = await response.text().catch(() => '');
+            console.error(
+                `searchNearbyStores: Places API ${response.status} — ${body}`
+            );
+            throw new HttpsError(
+                'internal',
+                `Places API error (${response.status}).`
+            );
+        }
+
+        const json = await response.json();
+        const places = Array.isArray(json.places) ? json.places : [];
+
+        // Group by normalized store name — each chain appears once with the
+        // nearest distance and total location count, matching the iOS UX.
+        const groups = new Map();
+        for (const p of places) {
+            const name = p?.displayName?.text;
+            const loc = p?.location;
+            if (
+                !name ||
+                !loc ||
+                typeof loc.latitude !== 'number' ||
+                typeof loc.longitude !== 'number'
+            ) {
+                continue;
+            }
+            const dist = haversineMeters(userLocation, loc);
+            const id = normalizeStoreId(name);
+            const existing = groups.get(id);
+            if (existing) {
+                existing.distances.push(dist);
+            } else {
+                groups.set(id, { displayName: name, distances: [dist] });
+            }
+        }
+
+        const results = [];
+        for (const [id, data] of groups.entries()) {
+            results.push({
+                id,
+                name: data.displayName,
+                nearestDistanceMeters: Math.min(...data.distances),
+                locationCount: data.distances.length,
+            });
+        }
+        results.sort(
+            (a, b) => a.nearestDistanceMeters - b.nearestDistanceMeters
+        );
+
+        return { results };
     }
 );
