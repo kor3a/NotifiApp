@@ -214,7 +214,7 @@ struct ShareStoreView: View {
                     .overlay(
                         Text(String(sharedByName.prefix(1)).uppercased())
                             .font(.headline)
-                            .foregroundStyle(.appAccent)
+                            .foregroundStyle(Color.appAccent)
                     )
 
                 VStack(alignment: .leading, spacing: 2) {
@@ -266,7 +266,7 @@ struct ShareStoreView: View {
                         }) {
                             Image(systemName: "xmark.circle.fill")
                                 .font(.title3)
-                                .foregroundStyle(.appError.opacity(0.8))
+                                .foregroundStyle(Color.appError.opacity(0.8))
                         }
                         .buttonStyle(.plain)
                     }
@@ -308,16 +308,17 @@ struct ShareStoreView: View {
                             avatarChip(
                                 name: "All Family",
                                 isShared: allFamilyAlreadyShared,
-                                tint: .purple
-                            ) {
-                                Circle()
-                                    .fill(Color.purple.opacity(0.15))
-                                    .overlay(
-                                        Image(systemName: "person.3.fill")
-                                            .font(.system(size: 18))
-                                            .foregroundStyle(.purple)
-                                    )
-                            }
+                                tint: .purple,
+                                avatar: AnyView(
+                                    Circle()
+                                        .fill(Color.purple.opacity(0.15))
+                                        .overlay(
+                                            Image(systemName: "person.3.fill")
+                                                .font(.system(size: 18))
+                                                .foregroundStyle(.purple)
+                                        )
+                                )
+                            )
                         }
                         .buttonStyle(.plain)
                         .disabled(isSharingWithAllFamily || isSharing || allFamilyAlreadyShared)
@@ -337,18 +338,19 @@ struct ShareStoreView: View {
                                     isShared: isAlreadyShared,
                                     tint: .purple,
                                     badge: "house.fill",
-                                    badgeTint: .purple
-                                ) {
-                                    ProfilePictureView(profilePictureURL: contact.profilePictureURL, size: 56) {
-                                        Circle()
-                                            .fill(Color.purple.opacity(0.15))
-                                            .overlay(
-                                                Text(String(contact.name.prefix(1)).uppercased())
-                                                    .font(.headline)
-                                                    .foregroundStyle(.purple)
-                                            )
-                                    }
-                                }
+                                    badgeTint: .purple,
+                                    avatar: AnyView(
+                                        ProfilePictureView(profilePictureURL: contact.profilePictureURL, size: 56) {
+                                            Circle()
+                                                .fill(Color.purple.opacity(0.15))
+                                                .overlay(
+                                                    Text(String(contact.name.prefix(1)).uppercased())
+                                                        .font(.headline)
+                                                        .foregroundStyle(.purple)
+                                                )
+                                        }
+                                    )
+                                )
                             }
                             .buttonStyle(.plain)
                             .disabled(isAlreadyShared)
@@ -378,18 +380,19 @@ struct ShareStoreView: View {
                             avatarChip(
                                 name: contact.name,
                                 isShared: isAlreadyShared,
-                                tint: .appAccent
-                            ) {
-                                ProfilePictureView(profilePictureURL: contact.profilePictureURL, size: 56) {
-                                    Circle()
-                                        .fill(Color.appAccent.opacity(0.15))
-                                        .overlay(
-                                            Text(String(contact.name.prefix(1)).uppercased())
-                                                .font(.headline)
-                                                .foregroundStyle(.appAccent)
-                                        )
-                                }
-                            }
+                                tint: .appAccent,
+                                avatar: AnyView(
+                                    ProfilePictureView(profilePictureURL: contact.profilePictureURL, size: 56) {
+                                        Circle()
+                                            .fill(Color.appAccent.opacity(0.15))
+                                            .overlay(
+                                                Text(String(contact.name.prefix(1)).uppercased())
+                                                    .font(.headline)
+                                                    .foregroundStyle(Color.appAccent)
+                                            )
+                                    }
+                                )
+                            )
                         }
                         .buttonStyle(.plain)
                         .disabled(isAlreadyShared)
@@ -404,7 +407,7 @@ struct ShareStoreView: View {
     private var selectedFriendChip: some View {
         HStack(spacing: 10) {
             Image(systemName: "person.fill.checkmark")
-                .foregroundStyle(.appAccent)
+                .foregroundStyle(Color.appAccent)
             Text("Selected: \(selectedFriend?.name ?? "")")
                 .font(.subheadline)
                 .fontWeight(.medium)
@@ -527,31 +530,18 @@ struct ShareStoreView: View {
     }
 
     /// A circular avatar chip with a name label and a shared/selectable state.
-    private func avatarChip<Avatar: View>(
+    /// `avatar` is type-erased to keep the call sites' type-checking cheap.
+    private func avatarChip(
         name: String,
         isShared: Bool,
         tint: Color,
         badge: String? = nil,
         badgeTint: Color = .purple,
-        @ViewBuilder avatar: () -> Avatar
+        avatar: AnyView
     ) -> some View {
         VStack(spacing: 8) {
             ZStack(alignment: .bottomTrailing) {
-                Group {
-                    if isShared {
-                        Circle()
-                            .fill(Color.appSuccess.opacity(0.18))
-                            .overlay(
-                                Image(systemName: "checkmark")
-                                    .font(.system(size: 18, weight: .bold))
-                                    .foregroundStyle(.appSuccess)
-                            )
-                    } else {
-                        avatar()
-                    }
-                }
-                .frame(width: 56, height: 56)
-                .clipShape(Circle())
+                avatarCircle(isShared: isShared, avatar: avatar)
 
                 if let badge, !isShared {
                     Image(systemName: badge)
@@ -567,11 +557,31 @@ struct ShareStoreView: View {
 
             Text(name)
                 .font(.caption)
-                .foregroundStyle(isShared ? .secondary : .primary)
+                .foregroundStyle(isShared ? Color.secondary : Color.primary)
                 .lineLimit(1)
                 .frame(width: 64)
         }
         .opacity(isShared ? 0.7 : 1.0)
+    }
+
+    /// The 56pt circular avatar, showing a checkmark when already shared.
+    @ViewBuilder
+    private func avatarCircle(isShared: Bool, avatar: AnyView) -> some View {
+        Group {
+            if isShared {
+                Circle()
+                    .fill(Color.appSuccess.opacity(0.18))
+                    .overlay(
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 18, weight: .bold))
+                            .foregroundStyle(Color.appSuccess)
+                    )
+            } else {
+                avatar
+            }
+        }
+        .frame(width: 56, height: 56)
+        .clipShape(Circle())
     }
 
     /// A tinted informational callout row.
