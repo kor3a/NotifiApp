@@ -239,45 +239,53 @@ struct ShareStoreView: View {
         sectionContainer(title: "Shared With", icon: "person.2.fill", tint: .appSuccess) {
             VStack(spacing: 10) {
                 ForEach(sharedUsers) { sharedUser in
-                    HStack(spacing: 12) {
-                        Circle()
-                            .fill((sharedUser.permission == .view ? Color.appWarning : Color.appSuccess).opacity(0.15))
-                            .frame(width: 44, height: 44)
-                            .overlay(
-                                Image(systemName: sharedUser.permission == .view ? "eye.fill" : "person.fill.checkmark")
-                                    .foregroundStyle(sharedUser.permission == .view ? .appWarning : .appSuccess)
-                            )
-
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(sharedUser.userEmail)
-                                .font(.subheadline)
-                                .fontWeight(.medium)
-                                .lineLimit(1)
-
-                            Text(sharedUser.permission == .view ? "View Only" : "Can Edit")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-
-                        Spacer(minLength: 0)
-
-                        Button(action: {
-                            unshareWithUser(sharedUser)
-                        }) {
-                            Image(systemName: "xmark.circle.fill")
-                                .font(.title3)
-                                .foregroundStyle(Color.appError.opacity(0.8))
-                        }
-                        .buttonStyle(.plain)
-                    }
-                    .padding(12)
-                    .background(
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .fill(Color.primary.opacity(colorScheme == .dark ? 0.06 : 0.03))
-                    )
+                    sharedUserRow(sharedUser)
                 }
             }
         }
+    }
+
+    /// A single row in the "Shared With" list.
+    private func sharedUserRow(_ sharedUser: SharedUser) -> some View {
+        let isView = sharedUser.permission == .view
+        let tint: Color = isView ? .appWarning : .appSuccess
+
+        return HStack(spacing: 12) {
+            Circle()
+                .fill(tint.opacity(0.15))
+                .frame(width: 44, height: 44)
+                .overlay(
+                    Image(systemName: isView ? "eye.fill" : "person.fill.checkmark")
+                        .foregroundStyle(tint)
+                )
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(sharedUser.userEmail)
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .lineLimit(1)
+
+                Text(isView ? "View Only" : "Can Edit")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer(minLength: 0)
+
+            Button(action: {
+                unshareWithUser(sharedUser)
+            }) {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.title3)
+                    .foregroundStyle(Color.appError.opacity(0.8))
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(Color.primary.opacity(colorScheme == .dark ? 0.06 : 0.03))
+        )
     }
 
     /// Horizontally scrolling family member avatars.
@@ -301,59 +309,14 @@ struct ShareStoreView: View {
 
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 16) {
-                        // Share with all family button
-                        Button(action: {
-                            shareWithAllFamily()
-                        }) {
-                            avatarChip(
-                                name: "All Family",
-                                isShared: allFamilyAlreadyShared,
-                                tint: .purple,
-                                avatar: AnyView(
-                                    Circle()
-                                        .fill(Color.purple.opacity(0.15))
-                                        .overlay(
-                                            Image(systemName: "person.3.fill")
-                                                .font(.system(size: 18))
-                                                .foregroundStyle(.purple)
-                                        )
-                                )
-                            )
-                        }
-                        .buttonStyle(.plain)
-                        .disabled(isSharingWithAllFamily || isSharing || allFamilyAlreadyShared)
+                        allFamilyButton
 
                         ForEach(friendsViewModel.familyMembers) { friendship in
-                            let contact = friendship.toContact(currentUserId: viewModel.sessionManager.currentUser?.userId ?? "")
-                            let isAlreadyShared = sharedUsers.contains { $0.userEmail.lowercased() == contact.email.lowercased() }
-
-                            Button(action: {
-                                if !isAlreadyShared {
-                                    selectedFriend = contact
-                                    recipientEmail = contact.email
-                                }
-                            }) {
-                                avatarChip(
-                                    name: contact.name,
-                                    isShared: isAlreadyShared,
-                                    tint: .purple,
-                                    badge: "house.fill",
-                                    badgeTint: .purple,
-                                    avatar: AnyView(
-                                        ProfilePictureView(profilePictureURL: contact.profilePictureURL, size: 56) {
-                                            Circle()
-                                                .fill(Color.purple.opacity(0.15))
-                                                .overlay(
-                                                    Text(String(contact.name.prefix(1)).uppercased())
-                                                        .font(.headline)
-                                                        .foregroundStyle(.purple)
-                                                )
-                                        }
-                                    )
-                                )
-                            }
-                            .buttonStyle(.plain)
-                            .disabled(isAlreadyShared)
+                            contactAvatarButton(
+                                contact: friendship.toContact(currentUserId: currentUserId),
+                                tint: .purple,
+                                badge: "house.fill"
+                            )
                         }
                     }
                     .padding(.vertical, 4)
@@ -362,45 +325,79 @@ struct ShareStoreView: View {
         }
     }
 
+    /// The "All Family" quick-share chip.
+    private var allFamilyButton: some View {
+        Button(action: {
+            shareWithAllFamily()
+        }) {
+            avatarChip(
+                name: "All Family",
+                isShared: allFamilyAlreadyShared,
+                tint: .purple,
+                avatar: AnyView(
+                    Circle()
+                        .fill(Color.purple.opacity(0.15))
+                        .overlay(
+                            Image(systemName: "person.3.fill")
+                                .font(.system(size: 18))
+                                .foregroundStyle(.purple)
+                        )
+                )
+            )
+        }
+        .buttonStyle(.plain)
+        .disabled(isSharingWithAllFamily || isSharing || allFamilyAlreadyShared)
+    }
+
     /// Horizontally scrolling friend avatars.
     private var friendsSection: some View {
         sectionContainer(title: "Share with Friends", icon: "person.2.fill", tint: .appAccent) {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 16) {
                     ForEach(friendsViewModel.friends) { friendship in
-                        let contact = friendship.toContact(currentUserId: viewModel.sessionManager.currentUser?.userId ?? "")
-                        let isAlreadyShared = sharedUsers.contains { $0.userEmail.lowercased() == contact.email.lowercased() }
-
-                        Button(action: {
-                            if !isAlreadyShared {
-                                selectedFriend = contact
-                                recipientEmail = contact.email
-                            }
-                        }) {
-                            avatarChip(
-                                name: contact.name,
-                                isShared: isAlreadyShared,
-                                tint: .appAccent,
-                                avatar: AnyView(
-                                    ProfilePictureView(profilePictureURL: contact.profilePictureURL, size: 56) {
-                                        Circle()
-                                            .fill(Color.appAccent.opacity(0.15))
-                                            .overlay(
-                                                Text(String(contact.name.prefix(1)).uppercased())
-                                                    .font(.headline)
-                                                    .foregroundStyle(Color.appAccent)
-                                            )
-                                    }
-                                )
-                            )
-                        }
-                        .buttonStyle(.plain)
-                        .disabled(isAlreadyShared)
+                        contactAvatarButton(
+                            contact: friendship.toContact(currentUserId: currentUserId),
+                            tint: .appAccent
+                        )
                     }
                 }
                 .padding(.vertical, 4)
             }
         }
+    }
+
+    /// A tappable avatar button for a single contact, used by the family and
+    /// friends rows. Selecting it pre-fills the recipient email.
+    private func contactAvatarButton(contact: Contact, tint: Color, badge: String? = nil) -> some View {
+        let isAlreadyShared = sharedUsers.contains { $0.userEmail.lowercased() == contact.email.lowercased() }
+
+        return Button(action: {
+            if !isAlreadyShared {
+                selectedFriend = contact
+                recipientEmail = contact.email
+            }
+        }) {
+            avatarChip(
+                name: contact.name,
+                isShared: isAlreadyShared,
+                tint: tint,
+                badge: badge,
+                badgeTint: tint,
+                avatar: AnyView(
+                    ProfilePictureView(profilePictureURL: contact.profilePictureURL, size: 56) {
+                        Circle()
+                            .fill(tint.opacity(0.15))
+                            .overlay(
+                                Text(String(contact.name.prefix(1)).uppercased())
+                                    .font(.headline)
+                                    .foregroundStyle(tint)
+                            )
+                    }
+                )
+            )
+        }
+        .buttonStyle(.plain)
+        .disabled(isAlreadyShared)
     }
 
     /// Chip confirming the currently selected friend/family recipient.
@@ -469,7 +466,7 @@ struct ShareStoreView: View {
 
                 HStack(alignment: .top, spacing: 10) {
                     Image(systemName: selectedPermission == .edit ? "pencil.circle.fill" : "eye.circle.fill")
-                        .foregroundStyle(selectedPermission == .edit ? .appSuccess : .appWarning)
+                        .foregroundStyle(selectedPermission == .edit ? Color.appSuccess : Color.appWarning)
 
                     Text(selectedPermission == .edit
                         ? "Can Edit: Recipient gets full ownership. Changes and deletions sync between both users."
@@ -604,10 +601,13 @@ struct ShareStoreView: View {
 
     // MARK: - Computed Properties
 
+    private var currentUserId: String {
+        viewModel.sessionManager.currentUser?.userId ?? ""
+    }
+
     private var allFamilyAlreadyShared: Bool {
-        let userId = viewModel.sessionManager.currentUser?.userId ?? ""
-        return friendsViewModel.familyMembers.allSatisfy { friendship in
-            let contact = friendship.toContact(currentUserId: userId)
+        friendsViewModel.familyMembers.allSatisfy { friendship in
+            let contact = friendship.toContact(currentUserId: currentUserId)
             return sharedUsers.contains { $0.userEmail.lowercased() == contact.email.lowercased() }
         }
     }
