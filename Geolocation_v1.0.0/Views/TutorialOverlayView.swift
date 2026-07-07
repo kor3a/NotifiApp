@@ -32,17 +32,34 @@ struct TutorialOverlayView: View {
     var body: some View {
         GeometryReader { geo in
             ZStack {
-                // Dimmed backdrop with cutout
-                dimmingLayer(in: geo)
+                if step.isReminderScene {
+                    // Full-screen simulated Reminders walkthrough. It draws its
+                    // own opaque screen over the live app, so no dimming cutout.
+                    TutorialReminderScene(step: step)
+                        .transition(.opacity)
 
-                // Animated highlight border
-                if let rect = paddedRect {
-                    highlightBorder(rect: rect)
-                }
+                    // Light scrim at the bottom so the callout card stays legible
+                    // over the mock list.
+                    LinearGradient(
+                        colors: [Color.black.opacity(0), Color.black.opacity(0.55)],
+                        startPoint: .center,
+                        endPoint: .bottom
+                    )
+                    .ignoresSafeArea()
+                    .allowsHitTesting(false)
+                } else {
+                    // Dimmed backdrop with cutout
+                    dimmingLayer(in: geo)
 
-                // Family action popover — shown anchored to the friend card
-                if step == .friendsFamily, let rect = paddedRect {
-                    familyActionPopover(anchoredTo: rect, in: geo)
+                    // Animated highlight border
+                    if let rect = paddedRect {
+                        highlightBorder(rect: rect)
+                    }
+
+                    // Family action popover — shown anchored to the friend card
+                    if step == .friendsFamily, let rect = paddedRect {
+                        familyActionPopover(anchoredTo: rect, in: geo)
+                    }
                 }
 
                 // Callout card (above or below the highlight)
@@ -124,8 +141,12 @@ struct TutorialOverlayView: View {
         let cardWidth: CGFloat = min(geo.size.width - 40, 340)
         let cardX: CGFloat = geo.size.width / 2
 
-        // Decide whether the card goes above or below the highlight
-        let cardY: CGFloat = cardVerticalPosition(in: geo, cardHeight: 180)
+        // Decide whether the card goes above or below the highlight. Reminder
+        // scenes pin the card near the bottom so the mock screen stays visible.
+        let cardHeight: CGFloat = 180
+        let cardY: CGFloat = step.isReminderScene
+            ? geo.size.height - cardHeight / 2 - 70
+            : cardVerticalPosition(in: geo, cardHeight: cardHeight)
 
         VStack(spacing: 0) {
             calloutCardContent(cardWidth: cardWidth)
