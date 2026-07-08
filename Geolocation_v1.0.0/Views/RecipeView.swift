@@ -341,10 +341,12 @@ struct RecipeEditView: View {
 struct RecipePickerView: View {
     let userStoreItem: UserStoreItem
     @StateObject private var viewModel = RecipeViewModel()
+    @ObservedObject private var subscriptionManager = SubscriptionManager.shared
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) var colorScheme
     @State private var addedCount: Int?
     @State private var addedForRecipeName: String?
+    @State private var showingLimitPaywall = false
 
     var body: some View {
         NavigationStack {
@@ -393,6 +395,9 @@ struct RecipePickerView: View {
                 }
             }
         }
+        .sheet(isPresented: $showingLimitPaywall) {
+            SubscriptionPaywallView()
+        }
         .onAppear { viewModel.fetchRecipes() }
     }
 
@@ -402,10 +407,18 @@ struct RecipePickerView: View {
                 RecipePickerRowView(recipe: recipe)
                     .contentShape(Rectangle())
                     .onTapGesture {
-                        viewModel.addIngredientsToStore(recipe, userStoreItem: userStoreItem) { count in
-                            addedCount = count
-                            addedForRecipeName = recipe.name
-                        }
+                        viewModel.addIngredientsToStore(
+                            recipe,
+                            userStoreItem: userStoreItem,
+                            isSubscribed: subscriptionManager.isSubscribed,
+                            completion: { count in
+                                addedCount = count
+                                addedForRecipeName = recipe.name
+                            },
+                            onLimitExceeded: {
+                                showingLimitPaywall = true
+                            }
+                        )
                     }
                     .listRowBackground(
                         RoundedRectangle(cornerRadius: 16)

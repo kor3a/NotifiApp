@@ -150,4 +150,68 @@ final class SubscriptionManagerTests: XCTestCase {
         )
         XCTAssertTrue(SubscriptionManager.shouldQueryStoreKit(for: user))
     }
+
+    // MARK: - Free Tier Limits (canAddStore)
+
+    func testCanAddStore_freeUserUnderLimit() {
+        XCTAssertTrue(SubscriptionManager.canAddStore(isSubscribed: false, currentStoreCount: 0))
+        XCTAssertTrue(SubscriptionManager.canAddStore(
+            isSubscribed: false,
+            currentStoreCount: SubscriptionManager.freeStoreLimit - 1
+        ))
+    }
+
+    func testCanAddStore_freeUserAtLimitIsBlocked() {
+        XCTAssertFalse(SubscriptionManager.canAddStore(
+            isSubscribed: false,
+            currentStoreCount: SubscriptionManager.freeStoreLimit
+        ))
+    }
+
+    func testCanAddStore_grandfatheredFreeUserOverLimitIsBlockedFromAddingMore() {
+        // A user who had 10 stores before the limit existed keeps them all,
+        // but adding an 11th requires a subscription.
+        XCTAssertFalse(SubscriptionManager.canAddStore(isSubscribed: false, currentStoreCount: 10))
+    }
+
+    func testCanAddStore_subscriberIsUnlimited() {
+        XCTAssertTrue(SubscriptionManager.canAddStore(isSubscribed: true, currentStoreCount: 0))
+        XCTAssertTrue(SubscriptionManager.canAddStore(
+            isSubscribed: true,
+            currentStoreCount: SubscriptionManager.freeStoreLimit
+        ))
+        XCTAssertTrue(SubscriptionManager.canAddStore(isSubscribed: true, currentStoreCount: 500))
+    }
+
+    // MARK: - Free Tier Limits (canAddReminder)
+
+    func testCanAddReminder_freeUserUnderLimit() {
+        XCTAssertTrue(SubscriptionManager.canAddReminder(isSubscribed: false, currentReminderCount: 0))
+        XCTAssertTrue(SubscriptionManager.canAddReminder(
+            isSubscribed: false,
+            currentReminderCount: SubscriptionManager.freeReminderLimitPerStore - 1
+        ))
+    }
+
+    func testCanAddReminder_freeUserAtLimitIsBlocked() {
+        XCTAssertFalse(SubscriptionManager.canAddReminder(
+            isSubscribed: false,
+            currentReminderCount: SubscriptionManager.freeReminderLimitPerStore
+        ))
+    }
+
+    func testCanAddReminder_grandfatheredFreeUserOverLimitIsBlockedFromAddingMore() {
+        // A store that had 20 items before the limit existed keeps them all,
+        // but adding a 21st requires a subscription.
+        XCTAssertFalse(SubscriptionManager.canAddReminder(isSubscribed: false, currentReminderCount: 20))
+    }
+
+    func testCanAddReminder_subscriberIsUnlimited() {
+        XCTAssertTrue(SubscriptionManager.canAddReminder(isSubscribed: true, currentReminderCount: 0))
+        XCTAssertTrue(SubscriptionManager.canAddReminder(
+            isSubscribed: true,
+            currentReminderCount: SubscriptionManager.freeReminderLimitPerStore
+        ))
+        XCTAssertTrue(SubscriptionManager.canAddReminder(isSubscribed: true, currentReminderCount: 500))
+    }
 }

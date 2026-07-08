@@ -82,7 +82,18 @@ class RecipeViewModel: ObservableObject {
 
     /// Adds all ingredients from the recipe to the given store as reminders (skips duplicates).
     /// Calls completion with the number of ingredients actually added.
-    func addIngredientsToStore(_ recipe: Recipe, userStoreItem: UserStoreItem, completion: @escaping (Int) -> Void) {
+    ///
+    /// Free-tier accounts are limited to `SubscriptionManager.freeReminderLimitPerStore`
+    /// items per store: when the bulk add would push the store past the limit,
+    /// nothing is added and `onLimitExceeded` is called instead (stores already
+    /// over the limit keep their existing items).
+    func addIngredientsToStore(
+        _ recipe: Recipe,
+        userStoreItem: UserStoreItem,
+        isSubscribed: Bool,
+        completion: @escaping (Int) -> Void,
+        onLimitExceeded: @escaping () -> Void
+    ) {
         let userStoreId = userStoreItem.reminderStoreId
         let sharedWith = userStoreItem.sharedWith
         let sharedFromName = userStoreItem.sharedFromName
@@ -150,6 +161,18 @@ class RecipeViewModel: ObservableObject {
                     DispatchQueue.main.async {
                         self.isSavingIngredients = false
                         completion(0)
+                    }
+                    return
+                }
+
+                // Free-tier item limit: block the bulk add when it would push the
+                // store past the per-store limit for non-subscribed users.
+                let existingCount = snapshot?.documents.count ?? 0
+                if !isSubscribed
+                    && existingCount + addedCount > SubscriptionManager.freeReminderLimitPerStore {
+                    DispatchQueue.main.async {
+                        self.isSavingIngredients = false
+                        onLimitExceeded()
                     }
                     return
                 }

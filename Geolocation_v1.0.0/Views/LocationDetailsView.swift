@@ -15,7 +15,18 @@ struct LocationDetailsView: View {
     @ObservedObject var viewModel: StoresViewModel
     var onViewReminders: ((UserStoreItem) -> Void)? = nil
     @ObservedObject private var logoProvider = StoreLogoProvider.shared
+    @ObservedObject private var subscriptionManager = SubscriptionManager.shared
     @Environment(\.colorScheme) private var colorScheme
+    @State private var showingPaywall = false
+
+    /// Free-tier store limit check. Existing stores over the limit are kept
+    /// (grandfathered), but adding another store requires a subscription.
+    private var canAddStore: Bool {
+        TutorialManager.shared.isActive || SubscriptionManager.canAddStore(
+            isSubscribed: subscriptionManager.isSubscribed,
+            currentStoreCount: viewModel.userStoreItems.count
+        )
+    }
 
     // Find the matching UserStoreItem for the currently selected store (by normalized name)
     private var matchingUserStoreItem: UserStoreItem? {
@@ -230,6 +241,11 @@ struct LocationDetailsView: View {
                 Button {
                     guard let selectedItem = mapSelection else { return }
 
+                    guard canAddStore else {
+                        showingPaywall = true
+                        return
+                    }
+
                     // Create a Store object from the MKMapItem (name-based, no address/coords stored)
                     let store = Store(
                         name: selectedItem.name ?? "Unknown Store",
@@ -246,6 +262,9 @@ struct LocationDetailsView: View {
                     Label("Add to My Stores", systemImage: "plus.circle.fill")
                 }
                 .buttonStyle(GradientActionButtonStyle(gradient: accentGradient))
+                .sheet(isPresented: $showingPaywall) {
+                    SubscriptionPaywallView()
+                }
             }
 
             Button {

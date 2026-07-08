@@ -525,7 +525,16 @@ struct StoresView: View {
                                         isFabShrunk = true
                                     }
                                 }
-                                showingAddStore = true
+                                // Free-tier store limit: existing stores over the limit are
+                                // kept, but adding another requires a subscription.
+                                if tutorialManager.isActive || SubscriptionManager.canAddStore(
+                                    isSubscribed: subscriptionManager.isSubscribed,
+                                    currentStoreCount: viewModel.userStoreItems.count
+                                ) {
+                                    showingAddStore = true
+                                } else {
+                                    showingPaywall = true
+                                }
                             }) {
                                 HStack {
                                     Image(systemName: "cart.badge.plus")

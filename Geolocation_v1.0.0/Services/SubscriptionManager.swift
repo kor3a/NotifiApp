@@ -18,6 +18,30 @@ class SubscriptionManager: ObservableObject {
     static let monthlyProductID = "com.kor3a.nearbuy.premium.monthly"
     static let annualProductID  = "com.kor3a.nearbuy.premium.annual"
 
+    // MARK: - Free Tier Limits
+
+    /// Maximum number of stores a non-subscribed account can have.
+    static let freeStoreLimit = 3
+    /// Maximum number of reminder items per store for a non-subscribed account.
+    static let freeReminderLimitPerStore = 8
+
+    /// Whether a user may add another store to their list.
+    ///
+    /// The check is made against the CURRENT count at add time, so existing
+    /// users who already exceed the limit are grandfathered in: they keep all
+    /// their stores, but adding one more requires a subscription.
+    static func canAddStore(isSubscribed: Bool, currentStoreCount: Int) -> Bool {
+        return isSubscribed || currentStoreCount < freeStoreLimit
+    }
+
+    /// Whether a user may add another reminder item to a store.
+    ///
+    /// Same grandfathering behavior as `canAddStore`: stores already over the
+    /// limit keep their items, but adding more requires a subscription.
+    static func canAddReminder(isSubscribed: Bool, currentReminderCount: Int) -> Bool {
+        return isSubscribed || currentReminderCount < freeReminderLimitPerStore
+    }
+
     // MARK: - Published State
     @Published var isSubscribed: Bool = false
     @Published var product: Product? = nil
