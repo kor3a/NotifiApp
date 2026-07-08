@@ -17,15 +17,18 @@ struct MapView: View {
     @State private var viewingRegion: MKCoordinateRegion?
     @State private var searchText = ""
     @State private var results = [MKMapItem]()
-    // Dedicated selection state for a tapped search-result pin.
-    //
-    // This intentionally does NOT use the Map's `selection:` binding. Custom
-    // `Annotation`s aren't registered as selectable annotations, so when we set
-    // the Map's selection manually MapKit writes `nil` back on the next update
-    // (e.g. when the continuous camera change rebuilds the `results` array as
-    // the sheet resizes the map) — which was instantly dismissing the details
-    // sheet. Managing our own state decouples the sheet from MapKit's selection
-    // lifecycle, exactly like `selectedStoreLocation` already does for stores.
+    // The Map's own selection binding. Kept so MapKit renders and handles the
+    // annotations exactly as before, but it is NOT used to drive the details
+    // sheet — see `selectedSearchItem` below.
+    @State private var mapSelection: MKMapItem?
+    // Dedicated state for a tapped search-result pin that drives the details
+    // sheet. This intentionally does NOT rely on the Map's `selection:` binding:
+    // custom `Annotation`s aren't registered as selectable, so MapKit writes
+    // `nil` back into its selection on the next update (e.g. when the continuous
+    // camera change rebuilds the `results` array as the sheet resizes the map) —
+    // which was instantly dismissing the sheet. Managing our own state decouples
+    // the sheet from MapKit's selection lifecycle, exactly like
+    // `selectedStoreLocation` already does for stores.
     @State private var selectedSearchItem: MKMapItem?
     @State private var showDetails = false
     @State private var wasTrackingBeforeSearch = true // Track if we were in userLocation mode before search opened
@@ -59,7 +62,7 @@ struct MapView: View {
     @State private var storeItemForReminders: UserStoreItem?
 
     var body: some View {
-        Map(position: $cameraPosition, scope: mapScope){
+        Map(position: $cameraPosition, selection: $mapSelection, scope: mapScope){
             UserAnnotation()
 
             // User's saved store locations (found via search)
@@ -72,6 +75,7 @@ struct MapView: View {
                     .onTapGesture {
                         // Set selection first; onChange(of: selectedStoreLocation)
                         // will open the sheet after the state is committed.
+                        mapSelection = nil       // Clear any Map selection
                         selectedSearchItem = nil // Clear any search result selection
                         selectedStoreLocation = storeLocation
                     }
@@ -185,9 +189,10 @@ struct MapView: View {
         }
         .mapScope(mapScope)
         .sheet(isPresented: $showDetails, onDismiss: {
-            // Clear both selection sources when sheet is dismissed
+            // Clear all selection sources when sheet is dismissed
             selectedStoreLocation = nil
             selectedSearchItem = nil
+            mapSelection = nil
         }, content: {
             LocationDetailsView(
                 mapSelection: effectiveMapSelectionBinding,
@@ -455,6 +460,7 @@ extension MapView {
                 if newValue == nil {
                     selectedStoreLocation = nil
                     selectedSearchItem = nil
+                    mapSelection = nil
                 }
             }
         )
