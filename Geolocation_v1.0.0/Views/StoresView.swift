@@ -336,7 +336,7 @@ struct StoresView: View {
                         .fontWeight(.semibold)
                         .foregroundColor(.primary)
 
-                    Text("Add your favourite grocery stores\nto start managing your shopping reminders.")
+                    Text("Add your favorite grocery stores\nto start managing your shopping reminders.")
                         .font(.body)
                         .foregroundColor(.secondary)
                         .multilineTextAlignment(.center)
