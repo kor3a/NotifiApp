@@ -95,9 +95,8 @@ class RecipeViewModel: ObservableObject {
         onLimitExceeded: @escaping () -> Void
     ) {
         let userStoreId = userStoreItem.reminderStoreId
-        let sharedWith = userStoreItem.sharedWith
+        let storeSharedWith = userStoreItem.sharedWith
         let sharedFromName = userStoreItem.sharedFromName
-        let isSharedStore = (sharedWith != nil && !sharedWith!.isEmpty) || sharedFromName != nil
 
         isSavingIngredients = true
 
@@ -114,6 +113,27 @@ class RecipeViewModel: ObservableObject {
                 let maxSortOrder = (snapshot?.documents ?? []).compactMap {
                     $0.data()["sortOrder"] as? Int
                 }.max() ?? -1
+
+                // Owner's user_store.sharedWith is only written when the recipient
+                // accepts and userStoreItem may be stale, so recover the recipient
+                // list from reminders already marked shared (excluding the current
+                // user) when the store's own sharedWith is empty. This keeps
+                // bulk-added ingredients flagged shared like existing items.
+                let sharedWith: [String]?
+                if let storeSharedWith = storeSharedWith, !storeSharedWith.isEmpty {
+                    sharedWith = storeSharedWith
+                } else {
+                    let currentUserName = UserSessionManager.shared.currentUser?.name
+                    let recovered = Set(
+                        (snapshot?.documents ?? []).compactMap { doc -> [String]? in
+                            (doc.data()["isShared"] as? Bool) == true
+                                ? doc.data()["sharedWith"] as? [String]
+                                : nil
+                        }.flatMap { $0 }
+                    ).subtracting([currentUserName].compactMap { $0 })
+                    sharedWith = recovered.isEmpty ? nil : Array(recovered)
+                }
+                let isSharedStore = (sharedWith != nil && !sharedWith!.isEmpty) || sharedFromName != nil
 
                 let batch = self.db.batch()
                 var addedCount = 0

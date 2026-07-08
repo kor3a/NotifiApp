@@ -85,6 +85,28 @@ struct ReminderView: View {
         )
     }
 
+    /// Recipient names this (owner's) store is shared with, used to flag newly
+    /// added reminders as shared so they get the shared icon.
+    ///
+    /// The owner's `user_store.sharedWith` is only written when the recipient
+    /// accepts the invite, and `userStoreItem` is a snapshot that can be stale,
+    /// so relying on it alone leaves reminders added later unflagged. When it's
+    /// empty we recover the recipient list from reminders already marked shared
+    /// (stamped at share time by `markRemindersAsShared`), excluding the current
+    /// user's own name. Returns nil only when the store truly isn't shared.
+    private var effectiveSharedWith: [String]? {
+        if let sharedWith = userStoreItem.sharedWith, !sharedWith.isEmpty {
+            return sharedWith
+        }
+        let currentUserName = UserSessionManager.shared.currentUser?.name
+        let recovered = Set(
+            viewModel.reminders
+                .filter { $0.isShared == true }
+                .flatMap { $0.sharedWith ?? [] }
+        ).subtracting([currentUserName].compactMap { $0 })
+        return recovered.isEmpty ? nil : Array(recovered)
+    }
+
     /// Email allowed to edit shared store website overrides (writes to `store_websites`,
     /// which applies for every user). Restricted to the app owner.
     private static let adminEmail = "kor3a5@gmail.com"
@@ -370,7 +392,7 @@ struct ReminderView: View {
 
             let vm = viewModel
             let storeId = userStoreItem.reminderStoreId
-            let shared = userStoreItem.sharedWith
+            let shared = effectiveSharedWith
             let sharedFrom = userStoreItem.sharedFromName
             let userName = UserSessionManager.shared.currentUser?.name
 
@@ -416,7 +438,7 @@ struct ReminderView: View {
                     viewModel.autosaveReminder(
                         userStoreId: userStoreItem.reminderStoreId,
                         title: title,
-                        sharedWith: userStoreItem.sharedWith,
+                        sharedWith: effectiveSharedWith,
                         sharedFromName: userStoreItem.sharedFromName,
                         currentUserName: UserSessionManager.shared.currentUser?.name
                     )
@@ -813,7 +835,7 @@ struct ReminderView: View {
                                 }
                                 viewModel.addReminderFromFavorite(
                                     tag: tag,
-                                    sharedWith: userStoreItem.sharedWith,
+                                    sharedWith: effectiveSharedWith,
                                     sharedFromName: userStoreItem.sharedFromName,
                                     currentUserName: UserSessionManager.shared.currentUser?.name,
                                     useSmartCategory: effectiveSmartCategoryEnabled
@@ -1113,7 +1135,7 @@ struct ReminderView: View {
             viewModel.addReminder(
                 userStoreId: userStoreItem.reminderStoreId,
                 title: title,
-                sharedWith: userStoreItem.sharedWith,
+                sharedWith: effectiveSharedWith,
                 sharedFromName: userStoreItem.sharedFromName,
                 currentUserName: UserSessionManager.shared.currentUser?.name,
                 useSmartCategory: effectiveSmartCategoryEnabled
