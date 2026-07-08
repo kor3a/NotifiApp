@@ -17,7 +17,16 @@ struct MapView: View {
     @State private var viewingRegion: MKCoordinateRegion?
     @State private var searchText = ""
     @State private var results = [MKMapItem]()
-    @State private var mapSelection: MKMapItem?
+    // Dedicated selection state for a tapped search-result pin.
+    //
+    // This intentionally does NOT use the Map's `selection:` binding. Custom
+    // `Annotation`s aren't registered as selectable annotations, so when we set
+    // the Map's selection manually MapKit writes `nil` back on the next update
+    // (e.g. when the continuous camera change rebuilds the `results` array as
+    // the sheet resizes the map) — which was instantly dismissing the details
+    // sheet. Managing our own state decouples the sheet from MapKit's selection
+    // lifecycle, exactly like `selectedStoreLocation` already does for stores.
+    @State private var selectedSearchItem: MKMapItem?
     @State private var showDetails = false
     @State private var wasTrackingBeforeSearch = true // Track if we were in userLocation mode before search opened
     @State private var previousSearchRegion: MKCoordinateRegion?
@@ -50,7 +59,7 @@ struct MapView: View {
     @State private var storeItemForReminders: UserStoreItem?
 
     var body: some View {
-        Map(position: $cameraPosition, selection: $mapSelection, scope: mapScope){
+        Map(position: $cameraPosition, scope: mapScope){
             UserAnnotation()
 
             // User's saved store locations (found via search)
@@ -63,7 +72,7 @@ struct MapView: View {
                     .onTapGesture {
                         // Set selection first; onChange(of: selectedStoreLocation)
                         // will open the sheet after the state is committed.
-                        mapSelection = nil // Clear any search result selection
+                        selectedSearchItem = nil // Clear any search result selection
                         selectedStoreLocation = storeLocation
                     }
                 }
@@ -76,7 +85,11 @@ struct MapView: View {
                 Annotation(placemark.name ?? "", coordinate: placemark.coordinate) {
                     SearchResultPinView(name: placemark.name ?? "Location")
                         .onTapGesture {
-                            mapSelection = item
+                            // Drive the sheet from our own state (not the Map's
+                            // selection binding) so a subsequent camera-change
+                            // auto-search can't clear it and dismiss the sheet.
+                            selectedStoreLocation = nil
+                            selectedSearchItem = item
                         }
                 }
                 .annotationTitles(.hidden)
@@ -174,7 +187,7 @@ struct MapView: View {
         .sheet(isPresented: $showDetails, onDismiss: {
             // Clear both selection sources when sheet is dismissed
             selectedStoreLocation = nil
-            mapSelection = nil
+            selectedSearchItem = nil
         }, content: {
             LocationDetailsView(
                 mapSelection: effectiveMapSelectionBinding,
@@ -238,8 +251,9 @@ struct MapView: View {
                 }
             }
         }
-        .onChange(of: mapSelection, { oldValue, newValue in
-            // Only update showDetails from mapSelection if we don't have a store location selected
+        .onChange(of: selectedSearchItem, { oldValue, newValue in
+            // Only update showDetails from the search selection if we don't have
+            // a store location selected
             if selectedStoreLocation == nil {
                 showDetails = newValue != nil
             }
@@ -435,12 +449,12 @@ extension MapView {
                 if let storeLocation = selectedStoreLocation {
                     return createMapItemForStoreLocation(storeLocation)
                 }
-                return mapSelection
+                return selectedSearchItem
             },
             set: { newValue in
                 if newValue == nil {
                     selectedStoreLocation = nil
-                    mapSelection = nil
+                    selectedSearchItem = nil
                 }
             }
         )
