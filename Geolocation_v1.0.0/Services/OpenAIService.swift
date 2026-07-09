@@ -119,8 +119,12 @@ class OpenAIService {
             Given a JSON array of item names, return a JSON object mapping each item to exactly one category. \
             Use these categories when they fit: Produce, Dairy, Meat & Seafood, Bakery, Beverages, \
             Snacks, Frozen, Canned Goods, Condiments & Sauces, Grains & Pasta, Household, \
-            Personal Care, Baby, Pet, Health, Electronics, Clothing. \
-            If an item does not clearly fit any category, map it to "Uncategorized". \
+            Personal Care, Baby, Pet, Health, Electronics, Clothing, \
+            Office & Stationery, Furniture, Hardware & Tools, Home & Kitchen, \
+            Toys & Games, Sports & Outdoors, Automotive, Garden & Outdoor, Books & Media, Craft & Hobby. \
+            These items are not limited to groceries — categorize everyday non-food items too \
+            (e.g. "pencil" and "paper" are Office & Stationery, "desk" is Furniture, "screwdriver" is Hardware & Tools). \
+            Only map an item to "Uncategorized" as a last resort when it genuinely fits none of the categories above. \
             Return ONLY the JSON object, no other text.
             """
         )
