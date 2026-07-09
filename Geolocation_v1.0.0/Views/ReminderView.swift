@@ -24,7 +24,6 @@ struct ReminderView: View {
     @State private var fadingReminderIds: Set<String> = []
     @State private var reminderToShare: Reminder?
     @State private var reminderToDelete: Reminder?
-    @State private var showingSharedInfo: Reminder?
     @State private var reminderForPhoto: Reminder?
     @State private var selectedImage: UIImage?
     @State private var enlargedPhotoURL: String?
@@ -35,6 +34,7 @@ struct ReminderView: View {
     @State private var isReorderMode = false
     @State private var showDuplicateAlert = false
     @State private var duplicateTitle = ""
+    @State private var showingLimitPaywall = false
     @State private var reminderForQuantity: Reminder?
     @State private var quantityText = ""
     @State private var reminderForCategory: Reminder?
@@ -73,6 +73,39 @@ struct ReminderView: View {
         isSubscribed && smartCategoryEnabled
     }
 
+    /// Free-tier item limit check for this store. `displayedReminders` excludes
+    /// the in-progress autosaved item and items staged for deletion, so it
+    /// reflects committed items. Stores already over the limit keep their items
+    /// (grandfathered), but adding another requires a subscription.
+    private var canAddMoreItems: Bool {
+        TutorialManager.shared.isActive || SubscriptionManager.canAddReminder(
+            isSubscribed: isSubscribed,
+            currentReminderCount: viewModel.displayedReminders.count
+        )
+    }
+
+    /// Recipient names this (owner's) store is shared with, used to flag newly
+    /// added reminders as shared so they get the shared icon.
+    ///
+    /// The owner's `user_store.sharedWith` is only written when the recipient
+    /// accepts the invite, and `userStoreItem` is a snapshot that can be stale,
+    /// so relying on it alone leaves reminders added later unflagged. When it's
+    /// empty we recover the recipient list from reminders already marked shared
+    /// (stamped at share time by `markRemindersAsShared`), excluding the current
+    /// user's own name. Returns nil only when the store truly isn't shared.
+    private var effectiveSharedWith: [String]? {
+        if let sharedWith = userStoreItem.sharedWith, !sharedWith.isEmpty {
+            return sharedWith
+        }
+        let currentUserName = UserSessionManager.shared.currentUser?.name
+        let recovered = Set(
+            viewModel.reminders
+                .filter { $0.isShared == true }
+                .flatMap { $0.sharedWith ?? [] }
+        ).subtracting([currentUserName].compactMap { $0 })
+        return recovered.isEmpty ? nil : Array(recovered)
+    }
+
     /// Email allowed to edit shared store website overrides (writes to `store_websites`,
     /// which applies for every user). Restricted to the app owner.
     private static let adminEmail = "kor3a5@gmail.com"
@@ -94,6 +127,9 @@ struct ReminderView: View {
             .sheet(isPresented: $showingRecipePicker) {
                 RecipePickerView(userStoreItem: userStoreItem)
             }
+            .sheet(isPresented: $showingLimitPaywall) {
+                SubscriptionPaywallView()
+            }
             .sheet(item: $reminderForPhoto) { reminder in
                 ImagePicker(selectedImage: $selectedImage) { image in
                     viewModel.uploadPhoto(for: reminder, image: image)
@@ -114,16 +150,6 @@ struct ReminderView: View {
                 }
             } message: {
                 deleteSharedReminderMessage
-            }
-            .alert("Shared Reminder", isPresented: .init(
-                get: { showingSharedInfo != nil },
-                set: { if !$0 { showingSharedInfo = nil } }
-            )) {
-                Button("OK", role: .cancel) {
-                    showingSharedInfo = nil
-                }
-            } message: {
-                sharedReminderInfoMessage
             }
             .alert("Duplicate Reminder", isPresented: $showDuplicateAlert) {
                 Button("OK", role: .cancel) {
@@ -342,9 +368,20 @@ struct ReminderView: View {
 
             guard isAddingNewReminder else { return }
 
+            // Free-tier item limit: block creation of a NEW autosaved item once the
+            // store is at the limit (e.g. the user just submitted the last allowed
+            // item and kept typing). Updates to an existing autosave pass through.
+            if viewModel.autosavedReminderId == nil && !canAddMoreItems {
+                newReminderText = ""
+                isAddingNewReminder = false
+                isNewReminderFocused = false
+                showingLimitPaywall = true
+                return
+            }
+
             let vm = viewModel
             let storeId = userStoreItem.reminderStoreId
-            let shared = userStoreItem.sharedWith
+            let shared = effectiveSharedWith
             let sharedFrom = userStoreItem.sharedFromName
             let userName = UserSessionManager.shared.currentUser?.name
 
@@ -390,7 +427,7 @@ struct ReminderView: View {
                     viewModel.autosaveReminder(
                         userStoreId: userStoreItem.reminderStoreId,
                         title: title,
-                        sharedWith: userStoreItem.sharedWith,
+                        sharedWith: effectiveSharedWith,
                         sharedFromName: userStoreItem.sharedFromName,
                         currentUserName: UserSessionManager.shared.currentUser?.name
                     )
@@ -444,7 +481,11 @@ struct ReminderView: View {
 
             if userStoreItem.permission != .view {
                 Button {
-                    isAddingNewReminder = true
+                    if canAddMoreItems {
+                        isAddingNewReminder = true
+                    } else {
+                        showingLimitPaywall = true
+                    }
                 } label: {
                     Label("Add Reminder", systemImage: "plus")
                 }
@@ -732,15 +773,6 @@ struct ReminderView: View {
                 Image(systemName: "square.and.arrow.up")
             }
             .tint(.blue)
-
-            if reminder.isShared == true {
-                Button {
-                    showingSharedInfo = reminder
-                } label: {
-                    Image(systemName: "person.2.fill")
-                }
-                .tint(.appAccent)
-            }
         }
     }
 
@@ -775,9 +807,15 @@ struct ReminderView: View {
                         let alreadyExists = viewModel.isDuplicateReminder(title: tag.title)
                         FavoriteTagView(title: tag.title, isActive: !alreadyExists)
                             .onTapGesture {
+                                // Duplicates are skipped inside addReminderFromFavorite;
+                                // only enforce the item limit for taps that would add.
+                                guard alreadyExists || canAddMoreItems else {
+                                    showingLimitPaywall = true
+                                    return
+                                }
                                 viewModel.addReminderFromFavorite(
                                     tag: tag,
-                                    sharedWith: userStoreItem.sharedWith,
+                                    sharedWith: effectiveSharedWith,
                                     sharedFromName: userStoreItem.sharedFromName,
                                     currentUserName: UserSessionManager.shared.currentUser?.name,
                                     useSmartCategory: effectiveSmartCategoryEnabled
@@ -833,7 +871,11 @@ struct ReminderView: View {
             }
         } else {
             Button {
-                isAddingNewReminder = true
+                if canAddMoreItems {
+                    isAddingNewReminder = true
+                } else {
+                    showingLimitPaywall = true
+                }
             } label: {
                 HStack {
                     Image(systemName: "plus")
@@ -992,42 +1034,6 @@ struct ReminderView: View {
         }
     }
 
-    @ViewBuilder
-    private var sharedReminderInfoMessage: some View {
-        if let reminder = showingSharedInfo {
-            let currentUserName = UserSessionManager.shared.currentUser?.name
-            let currentUserId = UserSessionManager.shared.currentUser?.userId
-            // Prefer ID-based comparison (reliable after name changes), fall back to name
-            let isCurrentUserTheSharer: Bool = {
-                if let sharedFromId = reminder.sharedFromId, !sharedFromId.isEmpty,
-                   let currentUserId = currentUserId {
-                    return sharedFromId == currentUserId
-                }
-                return reminder.sharedFrom != nil &&
-                    !reminder.sharedFrom!.isEmpty &&
-                    reminder.sharedFrom == currentUserName
-            }()
-
-            if isCurrentUserTheSharer {
-                if let sharedWith = reminder.sharedWith, !sharedWith.isEmpty {
-                    Text("You shared this reminder with:\n\(sharedWith.joined(separator: "\n"))\n\nChanges sync automatically.")
-                } else {
-                    Text("You shared this reminder.\n\nChanges sync automatically.")
-                }
-            } else if let sharedFrom = reminder.sharedFrom, !sharedFrom.isEmpty {
-                if let sharedWith = reminder.sharedWith, !sharedWith.isEmpty {
-                    Text("Shared by: \(sharedFrom)\nAlso shared with: \(sharedWith.filter { $0 != sharedFrom }.joined(separator: ", "))\n\nChanges sync automatically.")
-                } else {
-                    Text("Shared by: \(sharedFrom)\n\nChanges sync automatically.")
-                }
-            } else if let sharedWith = reminder.sharedWith, !sharedWith.isEmpty {
-                Text("You shared this reminder with:\n\(sharedWith.joined(separator: "\n"))\n\nChanges sync automatically.")
-            } else {
-                Text("This reminder is synced across users.")
-            }
-        }
-    }
-
     private func submitNewReminder() {
         let title = newReminderText.trimmingCharacters(in: .whitespaces)
 
@@ -1050,6 +1056,17 @@ struct ReminderView: View {
             return
         }
 
+        // Free-tier item limit: block adding a brand-new item once the store is
+        // at the limit (Return pressed before the autosave debounce fired). An
+        // existing autosave was already created under the limit, so it may finalize.
+        if viewModel.autosavedReminderId == nil && !canAddMoreItems {
+            newReminderText = ""
+            isAddingNewReminder = false
+            isNewReminderFocused = false
+            showingLimitPaywall = true
+            return
+        }
+
         if viewModel.autosavedReminderId != nil {
             // Finalize the autosaved reminder with the final title
             viewModel.finalizeAutosave(
@@ -1062,7 +1079,7 @@ struct ReminderView: View {
             viewModel.addReminder(
                 userStoreId: userStoreItem.reminderStoreId,
                 title: title,
-                sharedWith: userStoreItem.sharedWith,
+                sharedWith: effectiveSharedWith,
                 sharedFromName: userStoreItem.sharedFromName,
                 currentUserName: UserSessionManager.shared.currentUser?.name,
                 useSmartCategory: effectiveSmartCategoryEnabled

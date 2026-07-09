@@ -82,11 +82,21 @@ class RecipeViewModel: ObservableObject {
 
     /// Adds all ingredients from the recipe to the given store as reminders (skips duplicates).
     /// Calls completion with the number of ingredients actually added.
-    func addIngredientsToStore(_ recipe: Recipe, userStoreItem: UserStoreItem, completion: @escaping (Int) -> Void) {
+    ///
+    /// Free-tier accounts are limited to `SubscriptionManager.freeReminderLimitPerStore`
+    /// items per store: when the bulk add would push the store past the limit,
+    /// nothing is added and `onLimitExceeded` is called instead (stores already
+    /// over the limit keep their existing items).
+    func addIngredientsToStore(
+        _ recipe: Recipe,
+        userStoreItem: UserStoreItem,
+        isSubscribed: Bool,
+        completion: @escaping (Int) -> Void,
+        onLimitExceeded: @escaping () -> Void
+    ) {
         let userStoreId = userStoreItem.reminderStoreId
-        let sharedWith = userStoreItem.sharedWith
+        let storeSharedWith = userStoreItem.sharedWith
         let sharedFromName = userStoreItem.sharedFromName
-        let isSharedStore = (sharedWith != nil && !sharedWith!.isEmpty) || sharedFromName != nil
 
         isSavingIngredients = true
 
@@ -103,6 +113,27 @@ class RecipeViewModel: ObservableObject {
                 let maxSortOrder = (snapshot?.documents ?? []).compactMap {
                     $0.data()["sortOrder"] as? Int
                 }.max() ?? -1
+
+                // Owner's user_store.sharedWith is only written when the recipient
+                // accepts and userStoreItem may be stale, so recover the recipient
+                // list from reminders already marked shared (excluding the current
+                // user) when the store's own sharedWith is empty. This keeps
+                // bulk-added ingredients flagged shared like existing items.
+                let sharedWith: [String]?
+                if let storeSharedWith = storeSharedWith, !storeSharedWith.isEmpty {
+                    sharedWith = storeSharedWith
+                } else {
+                    let currentUserName = UserSessionManager.shared.currentUser?.name
+                    let recovered = Set(
+                        (snapshot?.documents ?? []).compactMap { doc -> [String]? in
+                            (doc.data()["isShared"] as? Bool) == true
+                                ? doc.data()["sharedWith"] as? [String]
+                                : nil
+                        }.flatMap { $0 }
+                    ).subtracting([currentUserName].compactMap { $0 })
+                    sharedWith = recovered.isEmpty ? nil : Array(recovered)
+                }
+                let isSharedStore = (sharedWith != nil && !sharedWith!.isEmpty) || sharedFromName != nil
 
                 let batch = self.db.batch()
                 var addedCount = 0
@@ -150,6 +181,18 @@ class RecipeViewModel: ObservableObject {
                     DispatchQueue.main.async {
                         self.isSavingIngredients = false
                         completion(0)
+                    }
+                    return
+                }
+
+                // Free-tier item limit: block the bulk add when it would push the
+                // store past the per-store limit for non-subscribed users.
+                let existingCount = snapshot?.documents.count ?? 0
+                if !isSubscribed
+                    && existingCount + addedCount > SubscriptionManager.freeReminderLimitPerStore {
+                    DispatchQueue.main.async {
+                        self.isSavingIngredients = false
+                        onLimitExceeded()
                     }
                     return
                 }

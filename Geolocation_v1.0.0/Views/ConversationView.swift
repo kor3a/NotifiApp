@@ -406,8 +406,11 @@ struct ReminderCard: View {
     let reminder: LinkedReminder
     let isFromCurrentUser: Bool
     @ObservedObject var viewModel: MessagesViewModel
+    @ObservedObject private var subscriptionManager = SubscriptionManager.shared
     @Environment(\.colorScheme) var colorScheme
     @State private var isProcessing = false
+    @State private var showStoreLimitAlert = false
+    @State private var showingPaywall = false
 
     // Determine if accept/reject buttons should be shown
     private var showActionButtons: Bool {
@@ -555,22 +558,41 @@ struct ReminderCard: View {
                         .stroke(Color.appAccent.opacity(0.3), lineWidth: 1)
                 )
         )
+        .alert("Store Limit Reached", isPresented: $showStoreLimitAlert) {
+            Button("Upgrade to Premium") {
+                showingPaywall = true
+            }
+            Button("Not Now", role: .cancel) { }
+        } message: {
+            Text("Accepting this reminder would add \(reminder.storeName) as a new store, but free accounts are limited to \(SubscriptionManager.freeStoreLimit) stores. Remove one of your stores to make room, or upgrade to Premium for unlimited stores. This request will stay here so you can accept it later.")
+        }
+        .sheet(isPresented: $showingPaywall) {
+            SubscriptionPaywallView()
+        }
     }
 
     private func acceptReminder() {
         isProcessing = true
-        viewModel.acceptSharedReminder(message: message) { success in
-            isProcessing = false
-            if success {
-                #if DEBUG
-                print("ReminderCard: Successfully accepted reminder")
-                #endif
-            } else {
-                #if DEBUG
-                print("ReminderCard: Failed to accept reminder")
-                #endif
+        viewModel.acceptSharedReminder(
+            message: message,
+            isSubscribed: subscriptionManager.isSubscribed,
+            completion: { success in
+                isProcessing = false
+                if success {
+                    #if DEBUG
+                    print("ReminderCard: Successfully accepted reminder")
+                    #endif
+                } else {
+                    #if DEBUG
+                    print("ReminderCard: Failed to accept reminder")
+                    #endif
+                }
+            },
+            onStoreLimitExceeded: {
+                isProcessing = false
+                showStoreLimitAlert = true
             }
-        }
+        )
     }
 
     private func rejectReminder() {
@@ -597,9 +619,12 @@ struct StoreCard: View {
     let store: LinkedStore
     let isFromCurrentUser: Bool
     @ObservedObject var viewModel: MessagesViewModel
+    @ObservedObject private var subscriptionManager = SubscriptionManager.shared
     @Environment(\.colorScheme) var colorScheme
     @State private var isProcessing = false
     @State private var showMergeAlert = false
+    @State private var showStoreLimitAlert = false
+    @State private var showingPaywall = false
 
     // Determine if accept/reject buttons should be shown
     private var showActionButtons: Bool {
@@ -771,6 +796,17 @@ struct StoreCard: View {
         } message: {
             Text("You already have \(store.storeName) in your list. Accepting will merge the reminder lists — items from \(message.senderName) that you don't have yet will be added with a shared indicator.")
         }
+        .alert("Store Limit Reached", isPresented: $showStoreLimitAlert) {
+            Button("Upgrade to Premium") {
+                showingPaywall = true
+            }
+            Button("Not Now", role: .cancel) { }
+        } message: {
+            Text("Free accounts are limited to \(SubscriptionManager.freeStoreLimit) stores. Remove one of your stores to make room for \(store.storeName), or upgrade to Premium for unlimited stores. This request will stay here so you can accept it later.")
+        }
+        .sheet(isPresented: $showingPaywall) {
+            SubscriptionPaywallView()
+        }
     }
 
     private func acceptStore() {
@@ -787,16 +823,24 @@ struct StoreCard: View {
 
     private func performAccept() {
         isProcessing = true
-        viewModel.acceptSharedStore(message: message) { success in
-            isProcessing = false
-            #if DEBUG
-            if success {
-                print("StoreCard: Successfully accepted store")
-            } else {
-                print("StoreCard: Failed to accept store")
+        viewModel.acceptSharedStore(
+            message: message,
+            isSubscribed: subscriptionManager.isSubscribed,
+            completion: { success in
+                isProcessing = false
+                #if DEBUG
+                if success {
+                    print("StoreCard: Successfully accepted store")
+                } else {
+                    print("StoreCard: Failed to accept store")
+                }
+                #endif
+            },
+            onStoreLimitExceeded: {
+                isProcessing = false
+                showStoreLimitAlert = true
             }
-            #endif
-        }
+        )
     }
 
     private func rejectStore() {
