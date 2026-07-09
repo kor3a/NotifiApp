@@ -337,67 +337,39 @@ struct SharedBadge: View {
         return sharedFrom == currentUserName
     }
 
-    // Determine if user is recipient (received from someone else)
-    private var isRecipient: Bool {
-        // If sharedFrom is set AND it's not the current user, they're a recipient
+    /// The person who created/shared this reminder — its author. Everyone (the
+    /// sharer and every recipient) sees the same author initial for a given item,
+    /// so a reminder User A shared always shows A's initial, on A's device and B's.
+    ///
+    /// For the current user's own items we prefer the live session name so a name
+    /// change reflects immediately; for others we use the stored `sharedFrom`,
+    /// which `propagateNameChange` rewrites (and the snapshot listener refreshes)
+    /// when that user renames themselves.
+    private var authorName: String? {
+        if isCurrentUserTheSharer,
+           let currentUserName = currentUserName, !currentUserName.isEmpty {
+            return currentUserName
+        }
         if let sharedFrom = sharedFrom, !sharedFrom.isEmpty {
-            return !isCurrentUserTheSharer
+            return sharedFrom
         }
-        return false
-    }
-
-    /// The other people involved in this share (excluding the current user),
-    /// shown as small initial avatars. A recipient sees the person who shared
-    /// it; an owner/sharer sees whoever it's shared with.
-    private var participantNames: [String] {
-        var names: [String] = []
-
-        // Recipient perspective: lead with the person who shared it.
-        if isRecipient, let sharedFrom = sharedFrom, !sharedFrom.isEmpty {
-            names.append(sharedFrom)
-        }
-
-        // Everyone this reminder is shared with, minus the current user and
-        // anyone already added (case-insensitive de-dupe).
-        let others = (sharedWith ?? []).filter {
-            $0.lowercased() != (currentUserName ?? "").lowercased()
-        }
-        for name in others where !names.contains(where: { $0.lowercased() == name.lowercased() }) {
-            names.append(name)
-        }
-
-        // Fallback so a shared reminder always shows at least one avatar.
-        if names.isEmpty, let sharedFrom = sharedFrom, !sharedFrom.isEmpty {
-            names.append(sharedFrom)
-        }
-        return names
+        // Legacy/owner-created reminder with no recorded author: on the owner's
+        // own store the current user is the author.
+        return currentUserName
     }
 
     var body: some View {
-        let names = participantNames
-        let shown = Array(names.prefix(3))
-        let overflow = names.count - shown.count
-
-        return HStack(spacing: -6) {
-            if shown.isEmpty {
-                // Shared but no known participant name — keep a visible indicator.
+        Group {
+            if let name = authorName,
+               !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                InitialAvatar(name: name)
+            } else {
+                // Shared but no known author — keep a visible indicator.
                 Image(systemName: "person.fill")
                     .font(.system(size: 11, weight: .bold))
                     .foregroundColor(.white)
                     .frame(width: 22, height: 22)
                     .background(Circle().fill(Color.appAccent))
-                    .overlay(Circle().stroke(Color(.systemBackground), lineWidth: 1.5))
-            }
-            ForEach(Array(shown.enumerated()), id: \.offset) { index, name in
-                InitialAvatar(name: name)
-                    .zIndex(Double(shown.count - index))
-            }
-            if overflow > 0 {
-                Text("+\(overflow)")
-                    .font(.system(size: 10, weight: .bold))
-                    .foregroundColor(.white)
-                    .frame(width: 22, height: 22)
-                    .background(Circle().fill(Color.secondary))
                     .overlay(Circle().stroke(Color(.systemBackground), lineWidth: 1.5))
             }
         }
