@@ -24,7 +24,6 @@ struct ReminderView: View {
     @State private var fadingReminderIds: Set<String> = []
     @State private var reminderToShare: Reminder?
     @State private var reminderToDelete: Reminder?
-    @State private var showingSharedInfo: Reminder?
     @State private var reminderForPhoto: Reminder?
     @State private var selectedImage: UIImage?
     @State private var enlargedPhotoURL: String?
@@ -151,16 +150,6 @@ struct ReminderView: View {
                 }
             } message: {
                 deleteSharedReminderMessage
-            }
-            .alert("Shared Reminder", isPresented: .init(
-                get: { showingSharedInfo != nil },
-                set: { if !$0 { showingSharedInfo = nil } }
-            )) {
-                Button("OK", role: .cancel) {
-                    showingSharedInfo = nil
-                }
-            } message: {
-                sharedReminderInfoMessage
             }
             .alert("Duplicate Reminder", isPresented: $showDuplicateAlert) {
                 Button("OK", role: .cancel) {
@@ -784,15 +773,6 @@ struct ReminderView: View {
                 Image(systemName: "square.and.arrow.up")
             }
             .tint(.blue)
-
-            if reminder.isShared == true {
-                Button {
-                    showingSharedInfo = reminder
-                } label: {
-                    Image(systemName: "person.2.fill")
-                }
-                .tint(.appAccent)
-            }
         }
     }
 
@@ -1050,42 +1030,6 @@ struct ReminderView: View {
                 Text("This reminder was shared by \(sharedFrom). Deleting it will remove it for everyone.")
             } else {
                 Text("This reminder is shared. Deleting it will remove it for everyone.")
-            }
-        }
-    }
-
-    @ViewBuilder
-    private var sharedReminderInfoMessage: some View {
-        if let reminder = showingSharedInfo {
-            let currentUserName = UserSessionManager.shared.currentUser?.name
-            let currentUserId = UserSessionManager.shared.currentUser?.userId
-            // Prefer ID-based comparison (reliable after name changes), fall back to name
-            let isCurrentUserTheSharer: Bool = {
-                if let sharedFromId = reminder.sharedFromId, !sharedFromId.isEmpty,
-                   let currentUserId = currentUserId {
-                    return sharedFromId == currentUserId
-                }
-                return reminder.sharedFrom != nil &&
-                    !reminder.sharedFrom!.isEmpty &&
-                    reminder.sharedFrom == currentUserName
-            }()
-
-            if isCurrentUserTheSharer {
-                if let sharedWith = reminder.sharedWith, !sharedWith.isEmpty {
-                    Text("You shared this reminder with:\n\(sharedWith.joined(separator: "\n"))\n\nChanges sync automatically.")
-                } else {
-                    Text("You shared this reminder.\n\nChanges sync automatically.")
-                }
-            } else if let sharedFrom = reminder.sharedFrom, !sharedFrom.isEmpty {
-                if let sharedWith = reminder.sharedWith, !sharedWith.isEmpty {
-                    Text("Shared by: \(sharedFrom)\nAlso shared with: \(sharedWith.filter { $0 != sharedFrom }.joined(separator: ", "))\n\nChanges sync automatically.")
-                } else {
-                    Text("Shared by: \(sharedFrom)\n\nChanges sync automatically.")
-                }
-            } else if let sharedWith = reminder.sharedWith, !sharedWith.isEmpty {
-                Text("You shared this reminder with:\n\(sharedWith.joined(separator: "\n"))\n\nChanges sync automatically.")
-            } else {
-                Text("This reminder is synced across users.")
             }
         }
     }
