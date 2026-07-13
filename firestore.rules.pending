@@ -1,3 +1,35 @@
+// ============================================================================
+// firestore.rules.pending  —  STRICT read-privacy rules (NOT YET DEPLOYED)
+// ============================================================================
+//
+// This is the hardened successor to firestore.rules. It closes the remaining
+// read-privacy gaps for the messaging feature: only conversation participants
+// can read a conversation and its messages, and only participants can update or
+// delete them. Membership is verified via a `participantEmails` array on each
+// conversation document.
+//
+// DO NOT DEPLOY THIS FILE UNTIL ALL of the following are true, or messaging
+// WILL BREAK for users on older builds:
+//   1. The app build that writes `participantEmails` on conversation create /
+//      member add / member remove is live AND adopted by ~all active users
+//      (MessagingService.resolveParticipantEmails).
+//   2. The one-time backfill has been run so existing conversations carry
+//      `participantEmails`:
+//         Functions.functions().httpsCallable("backfillMessagingIdentity")()
+//      (run once from the owner account; safe to re-run).
+//
+// To deploy, point firebase.json's firestore.rules at this file (or copy its
+// contents over firestore.rules) and `firebase deploy --only firestore:rules`.
+//
+// STILL OPEN after this file (see SECURITY_REMEDIATION.md):
+//   - reminders: read/write remain broad because the shared-store model keys
+//     reminders by the OWNER's user_store id. Needs an ownerEmail/editorEmails
+//     field on reminders (app change) before rules can enforce it.
+//   - on_my_way_notifications / reminder_change_notifications: create is still
+//     open (sender not verified). Add a senderEmail field == auth email, then
+//     require it here, to stop spoofed push notifications.
+// ============================================================================
+
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -253,17 +285,20 @@ service cloud.firestore {
     // ============================================================
     // Conversations (messaging feature — 1:1 and group)
     // ============================================================
-    // LIMITATION: participantIds uses usernames, not emails.
-    // Without a participantEmails array field, rules cannot verify
-    // the authenticated user is a conversation participant.
-    // TODO: Add participantEmails array for stricter enforcement.
+    // Membership is verified via participantEmails (written by the app and
+    // backfilled onto legacy docs). Only participants may read/update/delete.
     match /conversations/{conversationId} {
-      allow read: if request.auth != null;
+      allow read: if request.auth != null &&
+                     resource.data.participantEmails is list &&
+                     request.auth.token.email in resource.data.participantEmails;
 
       // 1:1 conversations require exactly 2 participants.
       // Group conversations (isGroup == true) require 2 or more participants.
+      // The creator must include themselves in participantEmails.
       allow create: if request.auth != null &&
                        request.resource.data.participantIds is list &&
+                       request.resource.data.participantEmails is list &&
+                       request.auth.token.email in request.resource.data.participantEmails &&
                        (
                          request.resource.data.participantIds.size() == 2 ||
                          (request.resource.data.isGroup == true &&
@@ -271,34 +306,47 @@ service cloud.firestore {
                           request.resource.data.groupName is string)
                        );
 
-      allow update: if request.auth != null;
+      // Only a current participant may update (send updates last-message /
+      // unread counts, add/remove members). The updater must remain (or, for
+      // member changes, the caller must be a participant before the change).
+      allow update: if request.auth != null &&
+                       request.auth.token.email in resource.data.participantEmails;
 
-      allow delete: if request.auth != null;
+      allow delete: if request.auth != null &&
+                       request.auth.token.email in resource.data.participantEmails;
     }
 
     // ============================================================
     // Messages (messaging feature)
     // ============================================================
-    // LIMITATION: senderId uses username, not email. Cannot verify
-    // the authenticated user is the sender without a senderEmail field.
-    // TODO: Add senderEmail field for stricter enforcement.
+    // A message belongs to a conversation; access is gated on membership of the
+    // parent conversation (via its participantEmails). Each read/write does one
+    // get() on the parent conversation — acceptable for the app's page sizes.
     match /messages/{messageId} {
-      allow read: if request.auth != null;
+      function callerInConversation(convId) {
+        return exists(/databases/$(database)/documents/conversations/$(convId)) &&
+               request.auth.token.email in
+                 get(/databases/$(database)/documents/conversations/$(convId)).data.participantEmails;
+      }
 
-      // A message may only be created by the authenticated user it claims to
-      // be from. senderId is the app username, which is also the users/{doc}
-      // ID, so we resolve it to an email and require it to match the caller —
-      // the same username->email lookup the favorite_tags rules rely on. This
-      // stops any signed-in user from forging messages as someone else.
+      allow read: if request.auth != null &&
+                     callerInConversation(resource.data.conversationId);
+
+      // Sender must be the authenticated user (username->email lookup) AND a
+      // member of the target conversation.
       allow create: if request.auth != null &&
                        request.resource.data.conversationId is string &&
                        request.resource.data.senderId is string &&
                        request.resource.data.content is string &&
-                       get(/databases/$(database)/documents/users/$(request.resource.data.senderId)).data.email == request.auth.token.email;
+                       get(/databases/$(database)/documents/users/$(request.resource.data.senderId)).data.email == request.auth.token.email &&
+                       callerInConversation(request.resource.data.conversationId);
 
-      allow update: if request.auth != null;
+      // Participants may update (mark read) / delete within their conversation.
+      allow update: if request.auth != null &&
+                       callerInConversation(resource.data.conversationId);
 
-      allow delete: if request.auth != null;
+      allow delete: if request.auth != null &&
+                       callerInConversation(resource.data.conversationId);
     }
 
     // ============================================================
