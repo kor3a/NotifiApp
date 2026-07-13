@@ -4,20 +4,22 @@
 //
 //  Created by Claude on 2/20/26.
 //
+//  SECURITY: This service no longer talks to the OpenAI API directly, and no
+//  longer reads an OPENAI_API_KEY from Info.plist/Secrets.xcconfig. A key
+//  compiled into the app can be extracted from the shipped .ipa and abused to
+//  run up charges, so all completions now go through the authenticated
+//  `openAIChat` Cloud Function, which holds the key server-side (Functions
+//  secrets). Once this build is live, rotate any key that was previously
+//  embedded in the client — assume it is compromised.
+//
 
 import Foundation
+import FirebaseFunctions
 
 class OpenAIService {
     static let shared = OpenAIService()
 
-    private let apiKey: String = {
-        guard let key = Bundle.main.infoDictionary?["OPENAI_API_KEY"] as? String, !key.isEmpty else {
-            fatalError("OPENAI_API_KEY not set. Add your key to Secrets.xcconfig (see Secrets.xcconfig.template).")
-        }
-        return key
-    }()
-
-    private let baseURL = "https://api.openai.com/v1/chat/completions"
+    private lazy var functions = Functions.functions()
 
     private init() {}
 
@@ -26,16 +28,37 @@ class OpenAIService {
         let content: String
     }
 
-    func extractIngredients(from recipeText: String) async throws -> [String] {
-        guard let url = URL(string: baseURL) else {
-            throw OpenAIError.invalidURL
+    /// Send a set of chat messages through the server-side proxy and return the
+    /// assistant's text content. Shared by every method below.
+    private func chat(
+        messages: [ChatMessage],
+        temperature: Double,
+        maxTokens: Int
+    ) async throws -> String {
+        let payload: [String: Any] = [
+            "messages": messages.map { ["role": $0.role, "content": $0.content] },
+            "temperature": temperature,
+            "maxTokens": maxTokens
+        ]
+
+        let result: HTTPSCallableResult
+        do {
+            result = try await functions.httpsCallable("openAIChat").call(payload)
+        } catch {
+            #if DEBUG
+            print("OpenAIService: openAIChat call failed: \(error)")
+            #endif
+            throw OpenAIError.networkError
         }
 
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.addValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
-        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+        guard let data = result.data as? [String: Any],
+              let content = data["content"] as? String else {
+            throw OpenAIError.invalidResponse
+        }
+        return content
+    }
 
+    func extractIngredients(from recipeText: String) async throws -> [String] {
         let extractionPrompt = ChatMessage(
             role: "system",
             content: """
@@ -50,31 +73,11 @@ class OpenAIService {
 
         let userMessage = ChatMessage(role: "user", content: recipeText)
 
-        let body: [String: Any] = [
-            "model": "gpt-4o-mini",
-            "messages": [
-                ["role": extractionPrompt.role, "content": extractionPrompt.content],
-                ["role": userMessage.role, "content": userMessage.content]
-            ],
-            "temperature": 0.0,
-            "max_tokens": 512
-        ]
-
-        request.httpBody = try JSONSerialization.data(withJSONObject: body)
-
-        let (data, response) = try await URLSession.shared.data(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
-            throw OpenAIError.invalidResponse
-        }
-
-        let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
-        guard let choices = json?["choices"] as? [[String: Any]],
-              let firstChoice = choices.first,
-              let message = firstChoice["message"] as? [String: Any],
-              let content = message["content"] as? String else {
-            throw OpenAIError.invalidResponse
-        }
+        let content = try await chat(
+            messages: [extractionPrompt, userMessage],
+            temperature: 0.0,
+            maxTokens: 512
+        )
 
         // Strip markdown code fences if present (e.g. ```json ... ```)
         var cleaned = content.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -103,14 +106,6 @@ class OpenAIService {
     /// Items the AI cannot confidently categorize will be mapped to "Uncategorized".
     func categorizeItems(_ items: [String]) async throws -> [String: String] {
         guard !items.isEmpty else { return [:] }
-        guard let url = URL(string: baseURL) else {
-            throw OpenAIError.invalidURL
-        }
-
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.addValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
-        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
 
         let systemPrompt = ChatMessage(
             role: "system",
@@ -131,31 +126,11 @@ class OpenAIService {
 
         let userMessage = ChatMessage(role: "user", content: "[\(items.map { "\"\($0)\"" }.joined(separator: ", "))]")
 
-        let body: [String: Any] = [
-            "model": "gpt-4o-mini",
-            "messages": [
-                ["role": systemPrompt.role, "content": systemPrompt.content],
-                ["role": userMessage.role, "content": userMessage.content]
-            ],
-            "temperature": 0.0,
-            "max_tokens": 512
-        ]
-
-        request.httpBody = try JSONSerialization.data(withJSONObject: body)
-
-        let (data, response) = try await URLSession.shared.data(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
-            throw OpenAIError.invalidResponse
-        }
-
-        let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
-        guard let choices = json?["choices"] as? [[String: Any]],
-              let firstChoice = choices.first,
-              let message = firstChoice["message"] as? [String: Any],
-              let content = message["content"] as? String else {
-            throw OpenAIError.invalidResponse
-        }
+        let content = try await chat(
+            messages: [systemPrompt, userMessage],
+            temperature: 0.0,
+            maxTokens: 512
+        )
 
         // Strip markdown code fences if present
         var cleaned = content.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -178,15 +153,6 @@ class OpenAIService {
     }
 
     func sendMessage(messages: [ChatMessage]) async throws -> String {
-        guard let url = URL(string: baseURL) else {
-            throw OpenAIError.invalidURL
-        }
-
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.addValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
-        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
-
         let systemMessage = ChatMessage(
             role: "system",
             content: """
@@ -197,41 +163,11 @@ class OpenAIService {
             """
         )
 
-        let allMessages = [systemMessage] + messages
-
-        let body: [String: Any] = [
-            "model": "gpt-4o-mini",
-            "messages": allMessages.map { ["role": $0.role, "content": $0.content] },
-            "temperature": 0.7,
-            "max_tokens": 1024
-        ]
-
-        request.httpBody = try JSONSerialization.data(withJSONObject: body)
-
-        let (data, response) = try await URLSession.shared.data(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw OpenAIError.networkError
-        }
-
-        guard httpResponse.statusCode == 200 else {
-            if let errorBody = String(data: data, encoding: .utf8) {
-                #if DEBUG
-                print("OpenAI API Error: \(errorBody)")
-                #endif
-            }
-            throw OpenAIError.apiError(statusCode: httpResponse.statusCode)
-        }
-
-        let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
-        guard let choices = json?["choices"] as? [[String: Any]],
-              let firstChoice = choices.first,
-              let message = firstChoice["message"] as? [String: Any],
-              let content = message["content"] as? String else {
-            throw OpenAIError.invalidResponse
-        }
-
-        return content
+        return try await chat(
+            messages: [systemMessage] + messages,
+            temperature: 0.7,
+            maxTokens: 1024
+        )
     }
 }
 

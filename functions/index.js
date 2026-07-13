@@ -53,6 +53,13 @@ const RESEND_API_KEY = defineSecret('RESEND_API_KEY');
 // Enable "Places API (New)" + billing on the Google Cloud project first.
 const GOOGLE_PLACES_API_KEY = defineSecret('GOOGLE_PLACES_API_KEY');
 
+// OpenAI API key — set once with:  firebase functions:secrets:set OPENAI_API_KEY
+// Used only by the `openAIChat` proxy so the key never ships inside the app
+// binary (where it could be extracted and used to run up charges). After the
+// app build that calls this proxy is live, ROTATE any key previously embedded
+// in the client (Info.plist / Secrets.xcconfig) — treat it as compromised.
+const OPENAI_API_KEY = defineSecret('OPENAI_API_KEY');
+
 // Sender address for verification emails. MUST be on a domain you've verified in
 // Resend (https://resend.com/domains). For quick testing Resend also allows
 // "onboarding@resend.dev", but that can only deliver to your own Resend account
@@ -940,3 +947,209 @@ exports.searchNearbyStores = onCall(
         return { results };
     }
 );
+
+// ---------------------------------------------------------------------------
+// 10. OpenAI chat proxy (Smart Recipe / Smart Category)
+//
+// WHY THIS EXISTS
+// ---------------
+// The iOS app used to call the OpenAI API directly with a key read from
+// Info.plist (injected from Secrets.xcconfig). Anything compiled into the app
+// binary can be extracted from the shipped .ipa, so that key was effectively
+// public and could be used to run up charges on the account. This callable
+// keeps the key in Functions secrets (server-side only) and exposes just the
+// narrow chat-completion the app needs, behind an authenticated caller.
+//
+// Callable from the app via:
+//   Functions.functions().httpsCallable("openAIChat")
+//     ({ messages: [{role, content}], temperature?, maxTokens?, model? })
+// Returns: { content: <assistant message string> }
+// ---------------------------------------------------------------------------
+
+// Only these models may be requested — prevents a caller from selecting an
+// arbitrarily expensive model. The app only uses gpt-4o-mini.
+const ALLOWED_OPENAI_MODELS = ['gpt-4o-mini'];
+const OPENAI_MAX_MESSAGES = 40;
+const OPENAI_MAX_TOTAL_CHARS = 24000; // ~ cap request size / cost
+const OPENAI_MAX_OUTPUT_TOKENS = 1024;
+
+exports.openAIChat = onCall(
+    { secrets: [OPENAI_API_KEY] },
+    async (request) => {
+        if (!request.auth) {
+            throw new HttpsError(
+                'unauthenticated',
+                'You must be signed in to use this feature.'
+            );
+        }
+
+        const {
+            messages,
+            temperature,
+            maxTokens,
+            model,
+        } = request.data ?? {};
+
+        // Validate messages.
+        if (!Array.isArray(messages) || messages.length === 0) {
+            throw new HttpsError('invalid-argument', 'messages must be a non-empty array.');
+        }
+        if (messages.length > OPENAI_MAX_MESSAGES) {
+            throw new HttpsError('invalid-argument', 'Too many messages.');
+        }
+        let totalChars = 0;
+        const sanitizedMessages = messages.map((m) => {
+            const role = m && typeof m.role === 'string' ? m.role : '';
+            const content = m && typeof m.content === 'string' ? m.content : '';
+            if (!['system', 'user', 'assistant'].includes(role)) {
+                throw new HttpsError('invalid-argument', 'Invalid message role.');
+            }
+            totalChars += content.length;
+            return { role, content };
+        });
+        if (totalChars > OPENAI_MAX_TOTAL_CHARS) {
+            throw new HttpsError('invalid-argument', 'Request is too large.');
+        }
+
+        // Validate/clamp tuning params.
+        const chosenModel =
+            typeof model === 'string' && ALLOWED_OPENAI_MODELS.includes(model)
+                ? model
+                : 'gpt-4o-mini';
+        const chosenTemperature =
+            typeof temperature === 'number' && temperature >= 0 && temperature <= 2
+                ? temperature
+                : 0.7;
+        const chosenMaxTokens =
+            typeof maxTokens === 'number' && maxTokens > 0
+                ? Math.min(Math.floor(maxTokens), OPENAI_MAX_OUTPUT_TOKENS)
+                : OPENAI_MAX_OUTPUT_TOKENS;
+
+        const apiKey = OPENAI_API_KEY.value();
+        if (!apiKey) {
+            throw new HttpsError(
+                'failed-precondition',
+                'OpenAI key is not configured on the server.'
+            );
+        }
+
+        let response;
+        try {
+            response = await fetch('https://api.openai.com/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${apiKey}`,
+                },
+                body: JSON.stringify({
+                    model: chosenModel,
+                    messages: sanitizedMessages,
+                    temperature: chosenTemperature,
+                    max_tokens: chosenMaxTokens,
+                }),
+            });
+        } catch (err) {
+            console.error('openAIChat: fetch failed', err);
+            throw new HttpsError('unavailable', 'AI request failed.');
+        }
+
+        if (!response.ok) {
+            const body = await response.text().catch(() => '');
+            console.error(`openAIChat: OpenAI API ${response.status} — ${body}`);
+            throw new HttpsError('internal', `AI service error (${response.status}).`);
+        }
+
+        const json = await response.json();
+        const content = json?.choices?.[0]?.message?.content;
+        if (typeof content !== 'string') {
+            throw new HttpsError('internal', 'Unexpected AI response.');
+        }
+
+        return { content };
+    }
+);
+
+// ---------------------------------------------------------------------------
+// 11. One-time backfill: populate conversations.participantEmails
+//
+// WHY THIS EXISTS
+// ---------------
+// The strict Firestore rules (firestore.rules.pending) verify conversation
+// membership using a `participantEmails` array. New app builds write this field
+// on create; this callable backfills it onto conversations that predate that
+// build so the strict rules can be deployed without breaking history. Run it
+// ONCE (from an admin account) after most users are on the new build and BEFORE
+// swapping in the strict rules. Safe to re-run — it is idempotent.
+//
+// Callable from an admin (owner) account via:
+//   Functions.functions().httpsCallable("backfillMessagingIdentity")()
+// ---------------------------------------------------------------------------
+
+const ADMIN_EMAIL = 'kor3a5@gmail.com';
+
+exports.backfillMessagingIdentity = onCall(async (request) => {
+    if (!request.auth) {
+        throw new HttpsError('unauthenticated', 'Sign in required.');
+    }
+    if (request.auth.token.email !== ADMIN_EMAIL) {
+        throw new HttpsError('permission-denied', 'Admin only.');
+    }
+
+    // Build a username(docId) -> email map from the users collection.
+    const usersSnap = await db.collection('users').get();
+    const emailByUsername = new Map();
+    usersSnap.forEach((doc) => {
+        const email = doc.data().email;
+        if (typeof email === 'string' && email) {
+            emailByUsername.set(doc.id, email);
+            emailByUsername.set(doc.id.toLowerCase(), email);
+        }
+    });
+
+    const convSnap = await db.collection('conversations').get();
+    let updated = 0;
+    let skipped = 0;
+    const BATCH_SIZE = 400;
+    let batch = db.batch();
+    let ops = 0;
+
+    for (const doc of convSnap.docs) {
+        const data = doc.data();
+        const participantIds = Array.isArray(data.participantIds)
+            ? data.participantIds
+            : [];
+        const emails = Array.from(
+            new Set(
+                participantIds
+                    .map((u) => emailByUsername.get(u) || emailByUsername.get(String(u).toLowerCase()))
+                    .filter((e) => typeof e === 'string' && e)
+            )
+        );
+
+        // Skip if unchanged (idempotent re-runs).
+        const existing = Array.isArray(data.participantEmails)
+            ? data.participantEmails
+            : null;
+        const unchanged =
+            existing &&
+            existing.length === emails.length &&
+            emails.every((e) => existing.includes(e));
+        if (unchanged) {
+            skipped += 1;
+            continue;
+        }
+
+        batch.update(doc.ref, { participantEmails: emails });
+        ops += 1;
+        updated += 1;
+        if (ops >= BATCH_SIZE) {
+            await batch.commit();
+            batch = db.batch();
+            ops = 0;
+        }
+    }
+    if (ops > 0) await batch.commit();
+
+    console.log(`backfillMessagingIdentity: updated=${updated}, skipped=${skipped}`);
+    return { updated, skipped, total: convSnap.size };
+});
