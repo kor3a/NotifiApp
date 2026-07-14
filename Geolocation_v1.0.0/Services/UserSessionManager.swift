@@ -265,7 +265,13 @@ class UserSessionManager: ObservableObject {
                 }
             }
 
-        // 4. Update reminders where sharedFrom matches old name (fallback for old reminders without sharedFromId)
+        // 4. Refresh the display name on legacy reminders that recorded only a
+        //    `sharedFrom` name (no id). A name match is NOT proof of authorship,
+        //    so this must never claim ownership: skip any reminder already
+        //    attributed to a different account, and never stamp `sharedFromId`
+        //    from a name guess (that previously reassigned other users' items to
+        //    the renamer, making every avatar show the renamer on all devices).
+        //    Items that already carry this user's id are handled by step 3.
         db.collection("reminders")
             .whereField("sharedFrom", isEqualTo: oldName)
             .getDocuments { snapshot, error in
@@ -279,19 +285,24 @@ class UserSessionManager: ObservableObject {
                 guard let documents = snapshot?.documents, !documents.isEmpty else { return }
 
                 let batch = db.batch()
+                var updatedCount = 0
                 for doc in documents {
-                    // Also backfill the sharedFromId for old reminders
-                    batch.updateData([
-                        "sharedFrom": newName,
-                        "sharedFromId": userId
-                    ], forDocument: doc.reference)
+                    let existingId = doc.data()["sharedFromId"] as? String
+                    // Only touch reminders with no author id — never rename an
+                    // item that belongs to another user (or to this user; step 3
+                    // owns those).
+                    guard existingId == nil || existingId?.isEmpty == true else { continue }
+                    batch.updateData(["sharedFrom": newName], forDocument: doc.reference)
+                    updatedCount += 1
                 }
+
+                guard updatedCount > 0 else { return }
                 batch.commit { error in
                     #if DEBUG
                     if let error = error {
                         print("UserSessionManager: Error updating sharedFrom by name in reminders: \(error.localizedDescription)")
                     } else {
-                        print("UserSessionManager: Updated sharedFrom in \(documents.count) reminder(s) by name")
+                        print("UserSessionManager: Updated sharedFrom in \(updatedCount) legacy reminder(s) by name")
                     }
                     #endif
                 }
