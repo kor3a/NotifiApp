@@ -32,6 +32,13 @@ struct ReminderItemView: View {
     var onDragChanged: ((CGPoint) -> Void)?
     var onDragEnded: (() -> Void)?
     var autoDeleteEnabled: Bool = false
+    /// Store-wide avatar color assignment, forwarded to the shared badge so the
+    /// author avatar's color is resolved against every member of the store.
+    var avatarColorMap: [String: Color] = [:]
+    /// userId → display name for store members, forwarded to the shared badge so
+    /// an author's initial can be recovered from their id when the reminder has
+    /// no `sharedFrom` name.
+    var memberNames: [String: String] = [:]
     @StateObject private var viewModel = ReminderItemViewModel()
     @State private var editText: String = ""
     @State private var editQuantityText: String = ""
@@ -169,7 +176,9 @@ struct ReminderItemView: View {
                         sharedFromId: item.sharedFromId,
                         sharedWith: item.sharedWith,
                         currentUserName: currentUserName,
-                        currentUserId: currentUserId
+                        currentUserId: currentUserId,
+                        avatarColorMap: avatarColorMap,
+                        memberNames: memberNames
                     )
                 }
 
@@ -320,6 +329,14 @@ struct SharedBadge: View {
     let sharedWith: [String]?
     let currentUserName: String?
     let currentUserId: String?
+    /// Store-wide deterministic color assignment keyed by author identity, so
+    /// members who share a first initial never share a color. Empty when no
+    /// store-wide context is available (falls back to the standalone palette).
+    var avatarColorMap: [String: Color] = [:]
+    /// userId → display name for the store's members, used to recover the
+    /// author's name (and therefore initial) when a reminder carries the
+    /// author's `sharedFromId` but no `sharedFrom` name.
+    var memberNames: [String: String] = [:]
 
     // Check if current user is the one who shared/created this reminder
     // Uses userId for reliable comparison, falls back to name for old data
@@ -337,32 +354,88 @@ struct SharedBadge: View {
         return sharedFrom == currentUserName
     }
 
-    /// The person who created/shared this reminder — its author. Everyone (the
-    /// sharer and every recipient) sees the same author initial for a given item,
-    /// so a reminder User A shared always shows A's initial, on A's device and B's.
-    ///
-    /// For the current user's own items we prefer the live session name so a name
-    /// change reflects immediately; for others we use the stored `sharedFrom`,
-    /// which `propagateNameChange` rewrites (and the snapshot listener refreshes)
-    /// when that user renames themselves.
-    private var authorName: String? {
-        if isCurrentUserTheSharer,
-           let currentUserName = currentUserName, !currentUserName.isEmpty {
-            return currentUserName
+    /// Whether the avatar's author resolves to the current user — the signal for
+    /// styling the badge as "yours." Strictly ID-based: an item is the viewer's
+    /// only on an exact `sharedFromId == currentUserId` match. Items that carry
+    /// no author id are NOT claimed (name is used only for truly legacy data
+    /// that never recorded ids). This deliberately avoids the earlier
+    /// "author-less ⇒ mine" default, which mis-marked another user's items as
+    /// the viewer's whenever their copies arrived without attribution (e.g. from
+    /// a stale cache or an unsynced field).
+    private var isAuthoredByCurrentUser: Bool {
+        if let sharedFromId = sharedFromId, !sharedFromId.isEmpty {
+            guard let currentUserId = currentUserId, !currentUserId.isEmpty else {
+                return false
+            }
+            return sharedFromId == currentUserId
         }
+        // Legacy item with no author id: fall back to a name match.
+        if let sharedFrom = sharedFrom, !sharedFrom.isEmpty,
+           let currentUserName = currentUserName, !currentUserName.isEmpty {
+            return sharedFrom.caseInsensitiveCompare(currentUserName) == .orderedSame
+        }
+        // No author recorded — unknown, so never claim it as the current user's.
+        return false
+    }
+
+    /// Best-known display name for this reminder's author, independent of who is
+    /// viewing. Prefers the recorded `sharedFrom`; when that's missing but an
+    /// author id is present, recovers the name from the store member map. This
+    /// is what drives the avatar's initial, so it always reflects the *author*.
+    private var resolvedAuthorName: String? {
         if let sharedFrom = sharedFrom, !sharedFrom.isEmpty {
             return sharedFrom
         }
-        // Legacy/owner-created reminder with no recorded author: on the owner's
-        // own store the current user is the author.
-        return currentUserName
+        if let id = sharedFromId, !id.isEmpty,
+           let name = memberNames[id], !name.isEmpty {
+            return name
+        }
+        return nil
+    }
+
+    /// The person who created/shared this reminder — its author. Everyone (the
+    /// sharer and every recipient) sees the same author initial for a given item.
+    ///
+    /// For the current user's own items we prefer the live session name so a name
+    /// change reflects immediately; for others we use the resolved author name.
+    /// Critically, this never falls back to the current user's name for an item
+    /// that isn't theirs — an unknown author yields nil (a neutral avatar), not
+    /// the viewer's initial.
+    private var authorName: String? {
+        if isAuthoredByCurrentUser,
+           let currentUserName = currentUserName, !currentUserName.isEmpty {
+            return currentUserName
+        }
+        return resolvedAuthorName
+    }
+
+    /// Stable color identity for this reminder's author (userId-based), so the
+    /// avatar color is distinct per account even when two members share a name.
+    /// Uses the resolved author name so the initial matches even when only the
+    /// author id was recorded on the reminder.
+    private var avatarIdentity: (key: String, name: String)? {
+        SharedAvatarPalette.authorIdentity(
+            sharedFrom: isAuthoredByCurrentUser ? currentUserName : resolvedAuthorName,
+            sharedFromId: sharedFromId,
+            currentUserName: currentUserName,
+            currentUserId: currentUserId
+        )
     }
 
     var body: some View {
         Group {
-            if let name = authorName,
+            if let identity = avatarIdentity {
+                InitialAvatar(
+                    name: identity.name,
+                    color: SharedAvatarPalette.color(forKey: identity.key, in: avatarColorMap),
+                    isCurrentUser: isAuthoredByCurrentUser
+                )
+            } else if let name = authorName,
                !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                InitialAvatar(name: name)
+                InitialAvatar(
+                    name: name,
+                    isCurrentUser: isAuthoredByCurrentUser
+                )
             } else {
                 // Shared but no known author — keep a visible indicator.
                 Image(systemName: "person.fill")
@@ -414,10 +487,20 @@ struct SharedBadge: View {
 struct InitialAvatar: View {
     let name: String
     var size: CGFloat = 22
+    /// Explicit color override (e.g. a store-wide, collision-resolved color).
+    /// When nil, falls back to the standalone deterministic palette color.
+    var color: Color? = nil
+    /// Marks the viewer's own authored item so it reads differently from items
+    /// authored by other members of the shared store.
+    var isCurrentUser: Bool = false
 
     private var initial: String {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         return String(trimmed.first ?? "?").uppercased()
+    }
+
+    private var fillColor: Color {
+        color ?? SharedAvatarPalette.color(for: name)
     }
 
     var body: some View {
@@ -425,8 +508,20 @@ struct InitialAvatar: View {
             .font(.system(size: size * 0.5, weight: .bold))
             .foregroundColor(.white)
             .frame(width: size, height: size)
-            .background(Circle().fill(SharedAvatarPalette.color(for: name)))
-            .overlay(Circle().stroke(Color(.systemBackground), lineWidth: 1.5))
+            .background(Circle().fill(fillColor))
+            // Neutral separator ring for every avatar (drawn inside the bounds).
+            .overlay(Circle().strokeBorder(Color(.systemBackground), lineWidth: 1.5))
+            // The viewer's own items get a bold accent "story" ring around the
+            // avatar so they stand out at a glance from other members' items.
+            .overlay {
+                if isCurrentUser {
+                    Circle().stroke(Color.appAccent, lineWidth: 2.5)
+                        .padding(-2.5)
+                }
+            }
+            // Reserve room so the accent ring never clips against neighbouring
+            // controls in the row.
+            .padding(isCurrentUser ? 3 : 0)
     }
 }
 
@@ -439,13 +534,155 @@ enum SharedAvatarPalette {
         .teal, .indigo, .red, .cyan, .mint
     ]
 
-    static func color(for name: String) -> Color {
-        let key = name.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+    /// Perceptual family for each palette color, parallel to `colors`. Colors in
+    /// the same family look alike (e.g. red/pink/orange are all "warm"), so when
+    /// two members share a first initial we make sure they land in *different*
+    /// families — otherwise "James" in red and "John" in pink still read as the
+    /// same avatar. Families: 0 = cool, 1 = green, 2 = warm, 3 = purple.
+    private static let colorFamilies: [Int] = [
+        0, // blue   → cool
+        1, // green  → green
+        2, // orange → warm
+        3, // purple → purple
+        2, // pink   → warm
+        0, // teal   → cool
+        0, // indigo → cool
+        2, // red    → warm
+        0, // cyan   → cool
+        1  // mint   → green
+    ]
+
+    /// Normalized lookup key for a display name.
+    static func key(for name: String) -> String {
+        name.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private static func hashIndex(for key: String) -> Int {
         var hash: UInt64 = 5381
         for scalar in key.unicodeScalars {
             hash = (hash &* 33) &+ UInt64(scalar.value)
         }
-        return colors[Int(hash % UInt64(colors.count))]
+        return Int(hash % UInt64(colors.count))
+    }
+
+    /// Standalone deterministic color, used when no store-wide context exists.
+    /// Same name → same color across launches and devices.
+    static func color(for name: String) -> Color {
+        colors[hashIndex(for: key(for: name))]
+    }
+
+    /// Stable color identity for an author. Prefers the account's userId so two
+    /// *different* users who happen to share a display name still resolve to
+    /// different identities (and, below, different colors). Falls back to the
+    /// normalized name only for legacy data that never recorded an id.
+    static func identityKey(id: String?, name: String) -> String {
+        if let id = id, !id.isEmpty { return "id:\(id)" }
+        return "name:\(key(for: name))"
+    }
+
+    /// Resolves the color identity for a reminder's author using the same
+    /// attribution rules that draw the avatar, so the color computed when
+    /// building the store-wide map matches the one looked up at render time.
+    /// Returns the identity key plus the display name (used for the initial).
+    static func authorIdentity(
+        sharedFrom: String?,
+        sharedFromId: String?,
+        currentUserName: String?,
+        currentUserId: String?
+    ) -> (key: String, name: String)? {
+        // Is the current user the author? Strictly ID-based when the author has
+        // an id (so a same-named other account is not mistaken for the viewer,
+        // and an unattributed copy is never claimed); name-based only for legacy
+        // data without ids.
+        let isMine: Bool = {
+            if let sid = sharedFromId, !sid.isEmpty {
+                guard let cid = currentUserId, !cid.isEmpty else { return false }
+                return sid == cid
+            }
+            if let sf = sharedFrom, !sf.isEmpty, let cn = currentUserName, !cn.isEmpty {
+                return sf.caseInsensitiveCompare(cn) == .orderedSame
+            }
+            return false
+        }()
+
+        if isMine {
+            guard let name = currentUserName, !name.isEmpty else { return nil }
+            return (identityKey(id: currentUserId, name: name), name)
+        }
+        guard let name = sharedFrom, !name.isEmpty else { return nil }
+        return (identityKey(id: sharedFromId, name: name), name)
+    }
+
+    /// Builds a store-wide color assignment keyed by author identity so that two
+    /// members sharing the same first initial get *visibly* different colors —
+    /// not merely different palette entries, but different color families (so no
+    /// red-vs-pink lookalikes). Each identity starts from its own deterministic
+    /// hash color (keeping the "random per person" feel and a stable color for
+    /// unique initials); only later members within a shared initial are nudged
+    /// to an unused family. Identities are deduplicated and sorted first, so a
+    /// given member set yields the same colors on every device.
+    static func colorMap(for identities: [(key: String, name: String)]) -> [String: Color] {
+        var seen = Set<String>()
+        let distinct = identities
+            .filter { seen.insert($0.key).inserted }
+            .compactMap { entry -> (key: String, initial: Character)? in
+                let normalized = key(for: entry.name)
+                guard !normalized.isEmpty else { return nil }
+                return (entry.key, normalized.first ?? "?")
+            }
+            .sorted { $0.key < $1.key }
+
+        var result: [String: Color] = [:]
+        // Per first-initial group, track the color families and exact indices
+        // already handed out so same-initial members stay distinct.
+        var usedFamilies: [Character: Set<Int>] = [:]
+        var usedIndices: [Character: Set<Int>] = [:]
+
+        for entry in distinct {
+            let initial = entry.initial
+            var families = usedFamilies[initial] ?? []
+            var indices = usedIndices[initial] ?? []
+            var index = hashIndex(for: entry.key)
+
+            // If another member with this initial already uses this color's
+            // family, probe forward for a color in an unused family. Fall back
+            // to any unused index, then (groups larger than the palette) to the
+            // hash color — an unavoidable repeat at that point.
+            if families.contains(colorFamilies[index]) {
+                var chosen: Int?
+                for step in 1...colors.count {
+                    let candidate = (index + step) % colors.count
+                    if !families.contains(colorFamilies[candidate]),
+                       !indices.contains(candidate) {
+                        chosen = candidate
+                        break
+                    }
+                }
+                if chosen == nil {
+                    for step in 1...colors.count {
+                        let candidate = (index + step) % colors.count
+                        if !indices.contains(candidate) {
+                            chosen = candidate
+                            break
+                        }
+                    }
+                }
+                if let chosen { index = chosen }
+            }
+
+            families.insert(colorFamilies[index])
+            indices.insert(index)
+            usedFamilies[initial] = families
+            usedIndices[initial] = indices
+            result[entry.key] = colors[index]
+        }
+        return result
+    }
+
+    /// Looks up an identity's color in a precomputed store-wide map, falling
+    /// back to a deterministic hash of the identity key when it isn't present.
+    static func color(forKey identityKey: String, in map: [String: Color]) -> Color {
+        map[identityKey] ?? colors[hashIndex(for: identityKey)]
     }
 }
 

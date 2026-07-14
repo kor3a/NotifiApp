@@ -16,6 +16,15 @@ class ReminderViewModel: ObservableObject {
     @Published var reminders: [Reminder] = []
     @Published var isLoading: Bool = false
     @Published var errorMessage: String = ""
+    /// userId → display name resolved from the user's friends, used to show the
+    /// correct author avatar/initial for shared reminders that carry an author
+    /// id but no `sharedFrom` name (e.g. copies synced without it).
+    @Published var authorNamesById: [String: String] = [:]
+    /// Guards against overlapping/repeated friend fetches for name resolution.
+    private var isResolvingAuthorNames = false
+    /// Author ids we've already tried to resolve, so an id that isn't among the
+    /// user's friends doesn't trigger a fetch on every snapshot.
+    private var attemptedAuthorIds: Set<String> = []
     /// Reminder IDs that are staged for deletion (hidden from display, pending undo window)
     @Published var stagedForDeletion: Set<String> = []
     /// Flag to prevent snapshot listener from overwriting local state during a reorder operation
@@ -166,8 +175,48 @@ class ReminderViewModel: ObservableObject {
                     #if DEBUG
                     print("ReminderViewModel: Successfully loaded \(self.reminders.count) reminders")
                     #endif
+
+                    // Recover author names for shared items that carry an author
+                    // id but no name, so their avatar shows the real initial.
+                    self.resolveMissingAuthorNames()
                 }
             }
+    }
+
+    /// Resolves author display names for shared reminders that carry an author
+    /// id (`sharedFromId`) but no `sharedFrom` name, so their avatar shows the
+    /// real initial instead of a neutral icon. Names come from the user's
+    /// friends list — which is readable and kept current on name changes —
+    /// rather than reading other users' documents directly (blocked by rules).
+    private func resolveMissingAuthorNames() {
+        guard !isResolvingAuthorNames,
+              let currentUserId = UserSessionManager.shared.currentUser?.userId else { return }
+
+        // Collect author ids that still need a name and we haven't tried yet.
+        let idsNeedingName = Set(reminders.compactMap { reminder -> String? in
+            guard reminder.isShared == true,
+                  let id = reminder.sharedFromId, !id.isEmpty,
+                  id != currentUserId else { return nil }
+            let hasName = !(reminder.sharedFrom?.isEmpty ?? true)
+            guard !hasName, authorNamesById[id] == nil,
+                  !attemptedAuthorIds.contains(id) else { return nil }
+            return id
+        })
+        guard !idsNeedingName.isEmpty else { return }
+
+        isResolvingAuthorNames = true
+        attemptedAuthorIds.formUnion(idsNeedingName)
+        FriendRequestService.shared.getFriends(userId: currentUserId) { [weak self] result in
+            DispatchQueue.main.async {
+                guard let self = self else { return }
+                self.isResolvingAuthorNames = false
+                if case .success(let friends) = result {
+                    for friend in friends where !friend.name.isEmpty {
+                        self.authorNamesById[friend.id] = friend.name
+                    }
+                }
+            }
+        }
     }
 
     // MARK: - Category Grouping
