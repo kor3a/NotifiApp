@@ -106,6 +106,26 @@ struct ReminderView: View {
         return recovered.isEmpty ? nil : Array(recovered)
     }
 
+    /// Store-wide avatar color assignment. Collects every participant name that
+    /// can appear as an author avatar (item authors, share recipients, and the
+    /// current user) and resolves colors so members who share a first initial
+    /// never share a color. Computed from the full member set so the mapping is
+    /// stable across every reminder row — and identical on every device viewing
+    /// the store.
+    private var avatarColorMap: [String: Color] {
+        var names: Set<String> = []
+        if let me = UserSessionManager.shared.currentUser?.name, !me.isEmpty {
+            names.insert(me)
+        }
+        for reminder in viewModel.reminders {
+            if let from = reminder.sharedFrom, !from.isEmpty { names.insert(from) }
+            for recipient in reminder.sharedWith ?? [] where !recipient.isEmpty {
+                names.insert(recipient)
+            }
+        }
+        return SharedAvatarPalette.colorMap(for: Array(names))
+    }
+
     /// Email allowed to edit shared store website overrides (writes to `store_websites`,
     /// which applies for every user). Restricted to the app owner.
     private static let adminEmail = "kor3a5@gmail.com"
@@ -756,7 +776,8 @@ struct ReminderView: View {
             },
             onDragChanged: nil,
             onDragEnded: nil,
-            autoDeleteEnabled: autoDeleteEnabled
+            autoDeleteEnabled: autoDeleteEnabled,
+            avatarColorMap: avatarColorMap
         )
         .contentShape(Rectangle())
         .listRowBackground(cardRowBackground)
