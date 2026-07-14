@@ -345,6 +345,21 @@ struct SharedBadge: View {
         return sharedFrom == currentUserName
     }
 
+    /// Whether the avatar's author resolves to the current user — the signal for
+    /// styling the badge as "yours." Broader than `isCurrentUserTheSharer`: it
+    /// also covers owner-added items that carry no recorded author (which
+    /// `authorName` attributes to the current user) and a defensive name match,
+    /// so the viewer's own reminders are always marked even for legacy data.
+    private var isAuthoredByCurrentUser: Bool {
+        if isCurrentUserTheSharer { return true }
+        let hasAuthor = !(sharedFrom?.isEmpty ?? true) || !(sharedFromId?.isEmpty ?? true)
+        if !hasAuthor { return true }
+        if let author = authorName, let me = currentUserName, !me.isEmpty {
+            return author.caseInsensitiveCompare(me) == .orderedSame
+        }
+        return false
+    }
+
     /// The person who created/shared this reminder — its author. Everyone (the
     /// sharer and every recipient) sees the same author initial for a given item,
     /// so a reminder User A shared always shows A's initial, on A's device and B's.
@@ -373,7 +388,7 @@ struct SharedBadge: View {
                 InitialAvatar(
                     name: name,
                     color: SharedAvatarPalette.color(for: name, in: avatarColorMap),
-                    isCurrentUser: isCurrentUserTheSharer
+                    isCurrentUser: isAuthoredByCurrentUser
                 )
             } else {
                 // Shared but no known author — keep a visible indicator.
@@ -448,24 +463,29 @@ struct InitialAvatar: View {
             .foregroundColor(.white)
             .frame(width: size, height: size)
             .background(Circle().fill(fillColor))
-            // Own items get an accent ring; others keep the neutral background
-            // ring — a quick "mine vs. theirs" cue even before the corner badge.
-            .overlay(
-                Circle().stroke(
-                    isCurrentUser ? Color.appAccent : Color(.systemBackground),
-                    lineWidth: isCurrentUser ? 2 : 1.5
-                )
-            )
-            // Small "you" marker in the corner for the viewer's own items.
+            // Neutral separator ring for every avatar (drawn inside the bounds).
+            .overlay(Circle().strokeBorder(Color(.systemBackground), lineWidth: 1.5))
+            // The viewer's own items get a bold accent "story" ring around the
+            // avatar so they stand out at a glance from other members' items.
+            .overlay {
+                if isCurrentUser {
+                    Circle().stroke(Color.appAccent, lineWidth: 2.5)
+                        .padding(-2.5)
+                }
+            }
+            // ...plus an explicit "you" checkmark badge in the corner.
             .overlay(alignment: .bottomTrailing) {
                 if isCurrentUser {
                     Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: size * 0.42, weight: .bold))
+                        .font(.system(size: size * 0.5, weight: .bold))
                         .foregroundStyle(.white, Color.appAccent)
                         .background(Circle().fill(Color(.systemBackground)))
-                        .offset(x: size * 0.1, y: size * 0.1)
+                        .offset(x: size * 0.16, y: size * 0.16)
                 }
             }
+            // Reserve room so the accent ring and badge never clip against
+            // neighbouring controls in the row.
+            .padding(isCurrentUser ? 3 : 0)
     }
 }
 
@@ -476,6 +496,24 @@ enum SharedAvatarPalette {
     static let colors: [Color] = [
         .blue, .green, .orange, .purple, .pink,
         .teal, .indigo, .red, .cyan, .mint
+    ]
+
+    /// Perceptual family for each palette color, parallel to `colors`. Colors in
+    /// the same family look alike (e.g. red/pink/orange are all "warm"), so when
+    /// two members share a first initial we make sure they land in *different*
+    /// families — otherwise "James" in red and "John" in pink still read as the
+    /// same avatar. Families: 0 = cool, 1 = green, 2 = warm, 3 = purple.
+    private static let colorFamilies: [Int] = [
+        0, // blue   → cool
+        1, // green  → green
+        2, // orange → warm
+        3, // purple → purple
+        2, // pink   → warm
+        0, // teal   → cool
+        0, // indigo → cool
+        2, // red    → warm
+        0, // cyan   → cool
+        1  // mint   → green
     ]
 
     /// Normalized lookup key for a display name.
@@ -498,38 +536,60 @@ enum SharedAvatarPalette {
     }
 
     /// Builds a store-wide color assignment for every participant name so that
-    /// two members sharing the same first initial never share a color. Names
-    /// are normalized and sorted before assigning, so the result is
-    /// deterministic for a given member set — every device computes the same
-    /// colors. Members with *different* initials may still share a color; the
-    /// differing initial already tells them apart.
+    /// two members sharing the same first initial get *visibly* different
+    /// colors — not merely different palette entries, but different color
+    /// families (so no red-vs-pink lookalikes). Each name still starts from its
+    /// own deterministic hash color (keeping the "random per person" feel and a
+    /// stable color for unique initials); only later members within a shared
+    /// initial are nudged to an unused family. Names are normalized and sorted
+    /// first, so a given member set yields the same colors on every device.
     static func colorMap(for names: [String]) -> [String: Color] {
         let uniqueKeys = Set(names.map(key(for:)))
             .filter { !$0.isEmpty }
             .sorted()
 
         var result: [String: Color] = [:]
-        // Color indices already handed out within each first-initial group.
-        var usedByInitial: [Character: Set<Int>] = [:]
+        // Per first-initial group, track the color families and exact indices
+        // already handed out so same-initial members stay distinct.
+        var usedFamilies: [Character: Set<Int>] = [:]
+        var usedIndices: [Character: Set<Int>] = [:]
 
         for key in uniqueKeys {
             let initial = key.first ?? "?"
-            var used = usedByInitial[initial] ?? []
+            var families = usedFamilies[initial] ?? []
+            var indices = usedIndices[initial] ?? []
             var index = hashIndex(for: key)
 
-            // Resolve collisions only against members sharing this initial.
-            // Probe forward for the next free color; if a group has more members
-            // than available colors a repeat is unavoidable, so keep the hash.
-            if used.contains(index), used.count < colors.count {
-                var probe = index
-                for _ in 0..<colors.count {
-                    probe = (probe + 1) % colors.count
-                    if !used.contains(probe) { index = probe; break }
+            // If another member with this initial already uses this color's
+            // family, probe forward for a color in an unused family. Fall back
+            // to any unused index, then (groups larger than the palette) to the
+            // hash color — an unavoidable repeat at that point.
+            if families.contains(colorFamilies[index]) {
+                var chosen: Int?
+                for step in 1...colors.count {
+                    let candidate = (index + step) % colors.count
+                    if !families.contains(colorFamilies[candidate]),
+                       !indices.contains(candidate) {
+                        chosen = candidate
+                        break
+                    }
                 }
+                if chosen == nil {
+                    for step in 1...colors.count {
+                        let candidate = (index + step) % colors.count
+                        if !indices.contains(candidate) {
+                            chosen = candidate
+                            break
+                        }
+                    }
+                }
+                if let chosen { index = chosen }
             }
 
-            used.insert(index)
-            usedByInitial[initial] = used
+            families.insert(colorFamilies[index])
+            indices.insert(index)
+            usedFamilies[initial] = families
+            usedIndices[initial] = indices
             result[key] = colors[index]
         }
         return result
