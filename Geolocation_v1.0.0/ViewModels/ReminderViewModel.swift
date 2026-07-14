@@ -16,6 +16,13 @@ class ReminderViewModel: ObservableObject {
     @Published var reminders: [Reminder] = []
     @Published var isLoading: Bool = false
     @Published var errorMessage: String = ""
+    /// userId → display name resolved from the `users` collection, used to show
+    /// the correct author avatar/initial for shared reminders that carry an
+    /// author id but no `sharedFrom` name (e.g. copies synced without it).
+    @Published var authorNamesById: [String: String] = [:]
+    /// Author ids we've already attempted to resolve (in flight or finished),
+    /// so we don't re-read the same user document on every snapshot.
+    private var authorNameLookupsAttempted: Set<String> = []
     /// Reminder IDs that are staged for deletion (hidden from display, pending undo window)
     @Published var stagedForDeletion: Set<String> = []
     /// Flag to prevent snapshot listener from overwriting local state during a reorder operation
@@ -166,8 +173,43 @@ class ReminderViewModel: ObservableObject {
                     #if DEBUG
                     print("ReminderViewModel: Successfully loaded \(self.reminders.count) reminders")
                     #endif
+
+                    // Recover author names for shared items that carry an author
+                    // id but no name, so their avatar shows the real initial.
+                    self.resolveMissingAuthorNames()
                 }
             }
+    }
+
+    /// Looks up display names from the `users` collection for shared reminders
+    /// that have a `sharedFromId` but no `sharedFrom` name and whose id we
+    /// haven't resolved yet. Results populate `authorNamesById` for the avatars.
+    private func resolveMissingAuthorNames() {
+        let currentUserId = UserSessionManager.shared.currentUser?.userId
+        var idsNeedingName = Set<String>()
+        for reminder in reminders where reminder.isShared == true {
+            guard let id = reminder.sharedFromId, !id.isEmpty else { continue }
+            if id == currentUserId { continue }
+            let hasName = !(reminder.sharedFrom?.isEmpty ?? true)
+            if hasName { continue }
+            if authorNamesById[id] != nil { continue }
+            if authorNameLookupsAttempted.contains(id) { continue }
+            idsNeedingName.insert(id)
+        }
+
+        guard !idsNeedingName.isEmpty else { return }
+        authorNameLookupsAttempted.formUnion(idsNeedingName)
+
+        for id in idsNeedingName {
+            db.collection("users").document(id).getDocument { [weak self] snapshot, _ in
+                DispatchQueue.main.async {
+                    guard let self = self else { return }
+                    if let name = snapshot?.data()?["name"] as? String, !name.isEmpty {
+                        self.authorNamesById[id] = name
+                    }
+                }
+            }
+        }
     }
 
     // MARK: - Category Grouping

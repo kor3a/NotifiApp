@@ -111,7 +111,9 @@ struct ReminderView: View {
     /// both an author id and name — so an author's name (and initial) can be
     /// recovered for reminders that carry only `sharedFromId`.
     private var storeMemberNames: [String: String] {
-        var names: [String: String] = [:]
+        // Start with names resolved from the users collection, then let the
+        // local (authoritative) sources below override.
+        var names: [String: String] = viewModel.authorNamesById
         let currentUser = UserSessionManager.shared.currentUser
         if let id = currentUser?.userId, !id.isEmpty,
            let name = currentUser?.name, !name.isEmpty {
