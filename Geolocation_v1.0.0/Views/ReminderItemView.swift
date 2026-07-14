@@ -346,17 +346,27 @@ struct SharedBadge: View {
     }
 
     /// Whether the avatar's author resolves to the current user — the signal for
-    /// styling the badge as "yours." Attribution is ID-based via
-    /// `isCurrentUserTheSharer`, so a *different* account that happens to share
-    /// the current user's display name is never marked as the viewer's own.
-    /// The only broadening is owner-added items that carry no recorded author at
-    /// all (which `authorName` attributes to the current user) — there is no
-    /// other user it could belong to, so those are safe to mark.
+    /// styling the badge as "yours." Strictly ID-based: an item is the viewer's
+    /// only on an exact `sharedFromId == currentUserId` match. Items that carry
+    /// no author id are NOT claimed (name is used only for truly legacy data
+    /// that never recorded ids). This deliberately avoids the earlier
+    /// "author-less ⇒ mine" default, which mis-marked another user's items as
+    /// the viewer's whenever their copies arrived without attribution (e.g. from
+    /// a stale cache or an unsynced field).
     private var isAuthoredByCurrentUser: Bool {
-        if isCurrentUserTheSharer { return true }
-        // No author recorded (owner-added item on the owner's own view).
-        let hasAuthor = !(sharedFrom?.isEmpty ?? true) || !(sharedFromId?.isEmpty ?? true)
-        return !hasAuthor
+        if let sharedFromId = sharedFromId, !sharedFromId.isEmpty {
+            guard let currentUserId = currentUserId, !currentUserId.isEmpty else {
+                return false
+            }
+            return sharedFromId == currentUserId
+        }
+        // Legacy item with no author id: fall back to a name match.
+        if let sharedFrom = sharedFrom, !sharedFrom.isEmpty,
+           let currentUserName = currentUserName, !currentUserName.isEmpty {
+            return sharedFrom.caseInsensitiveCompare(currentUserName) == .orderedSame
+        }
+        // No author recorded — unknown, so never claim it as the current user's.
+        return false
     }
 
     /// The person who created/shared this reminder — its author. Everyone (the
@@ -559,19 +569,19 @@ enum SharedAvatarPalette {
         currentUserName: String?,
         currentUserId: String?
     ) -> (key: String, name: String)? {
-        // Is the current user the author? ID-based when ids exist (so a
-        // same-named other account is not mistaken for the viewer), name-based
-        // only for legacy data without ids, and true for author-less items.
+        // Is the current user the author? Strictly ID-based when the author has
+        // an id (so a same-named other account is not mistaken for the viewer,
+        // and an unattributed copy is never claimed); name-based only for legacy
+        // data without ids.
         let isMine: Bool = {
-            if let sid = sharedFromId, !sid.isEmpty, let cid = currentUserId {
+            if let sid = sharedFromId, !sid.isEmpty {
+                guard let cid = currentUserId, !cid.isEmpty else { return false }
                 return sid == cid
             }
-            if let sid = sharedFromId, !sid.isEmpty { return false }
-            if let sf = sharedFrom, !sf.isEmpty, let cn = currentUserName {
+            if let sf = sharedFrom, !sf.isEmpty, let cn = currentUserName, !cn.isEmpty {
                 return sf.caseInsensitiveCompare(cn) == .orderedSame
             }
-            // No author recorded at all → owner's own item.
-            return (sharedFrom?.isEmpty ?? true)
+            return false
         }()
 
         if isMine {
