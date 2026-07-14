@@ -346,18 +346,17 @@ struct SharedBadge: View {
     }
 
     /// Whether the avatar's author resolves to the current user — the signal for
-    /// styling the badge as "yours." Broader than `isCurrentUserTheSharer`: it
-    /// also covers owner-added items that carry no recorded author (which
-    /// `authorName` attributes to the current user) and a defensive name match,
-    /// so the viewer's own reminders are always marked even for legacy data.
+    /// styling the badge as "yours." Attribution is ID-based via
+    /// `isCurrentUserTheSharer`, so a *different* account that happens to share
+    /// the current user's display name is never marked as the viewer's own.
+    /// The only broadening is owner-added items that carry no recorded author at
+    /// all (which `authorName` attributes to the current user) — there is no
+    /// other user it could belong to, so those are safe to mark.
     private var isAuthoredByCurrentUser: Bool {
         if isCurrentUserTheSharer { return true }
+        // No author recorded (owner-added item on the owner's own view).
         let hasAuthor = !(sharedFrom?.isEmpty ?? true) || !(sharedFromId?.isEmpty ?? true)
-        if !hasAuthor { return true }
-        if let author = authorName, let me = currentUserName, !me.isEmpty {
-            return author.caseInsensitiveCompare(me) == .orderedSame
-        }
-        return false
+        return !hasAuthor
     }
 
     /// The person who created/shared this reminder — its author. Everyone (the
