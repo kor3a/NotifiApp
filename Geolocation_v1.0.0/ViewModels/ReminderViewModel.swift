@@ -16,13 +16,15 @@ class ReminderViewModel: ObservableObject {
     @Published var reminders: [Reminder] = []
     @Published var isLoading: Bool = false
     @Published var errorMessage: String = ""
-    /// userId → display name resolved from the `users` collection, used to show
-    /// the correct author avatar/initial for shared reminders that carry an
-    /// author id but no `sharedFrom` name (e.g. copies synced without it).
+    /// userId → display name resolved from the user's friends, used to show the
+    /// correct author avatar/initial for shared reminders that carry an author
+    /// id but no `sharedFrom` name (e.g. copies synced without it).
     @Published var authorNamesById: [String: String] = [:]
-    /// Author ids we've already attempted to resolve (in flight or finished),
-    /// so we don't re-read the same user document on every snapshot.
-    private var authorNameLookupsAttempted: Set<String> = []
+    /// Guards against overlapping/repeated friend fetches for name resolution.
+    private var isResolvingAuthorNames = false
+    /// Author ids we've already tried to resolve, so an id that isn't among the
+    /// user's friends doesn't trigger a fetch on every snapshot.
+    private var attemptedAuthorIds: Set<String> = []
     /// Reminder IDs that are staged for deletion (hidden from display, pending undo window)
     @Published var stagedForDeletion: Set<String> = []
     /// Flag to prevent snapshot listener from overwriting local state during a reorder operation
@@ -181,31 +183,36 @@ class ReminderViewModel: ObservableObject {
             }
     }
 
-    /// Looks up display names from the `users` collection for shared reminders
-    /// that have a `sharedFromId` but no `sharedFrom` name and whose id we
-    /// haven't resolved yet. Results populate `authorNamesById` for the avatars.
+    /// Resolves author display names for shared reminders that carry an author
+    /// id (`sharedFromId`) but no `sharedFrom` name, so their avatar shows the
+    /// real initial instead of a neutral icon. Names come from the user's
+    /// friends list — which is readable and kept current on name changes —
+    /// rather than reading other users' documents directly (blocked by rules).
     private func resolveMissingAuthorNames() {
-        let currentUserId = UserSessionManager.shared.currentUser?.userId
-        var idsNeedingName = Set<String>()
-        for reminder in reminders where reminder.isShared == true {
-            guard let id = reminder.sharedFromId, !id.isEmpty else { continue }
-            if id == currentUserId { continue }
+        guard !isResolvingAuthorNames,
+              let currentUserId = UserSessionManager.shared.currentUser?.userId else { return }
+
+        // Collect author ids that still need a name and we haven't tried yet.
+        let idsNeedingName = Set(reminders.compactMap { reminder -> String? in
+            guard reminder.isShared == true,
+                  let id = reminder.sharedFromId, !id.isEmpty,
+                  id != currentUserId else { return nil }
             let hasName = !(reminder.sharedFrom?.isEmpty ?? true)
-            if hasName { continue }
-            if authorNamesById[id] != nil { continue }
-            if authorNameLookupsAttempted.contains(id) { continue }
-            idsNeedingName.insert(id)
-        }
-
+            guard !hasName, authorNamesById[id] == nil,
+                  !attemptedAuthorIds.contains(id) else { return nil }
+            return id
+        })
         guard !idsNeedingName.isEmpty else { return }
-        authorNameLookupsAttempted.formUnion(idsNeedingName)
 
-        for id in idsNeedingName {
-            db.collection("users").document(id).getDocument { [weak self] snapshot, _ in
-                DispatchQueue.main.async {
-                    guard let self = self else { return }
-                    if let name = snapshot?.data()?["name"] as? String, !name.isEmpty {
-                        self.authorNamesById[id] = name
+        isResolvingAuthorNames = true
+        attemptedAuthorIds.formUnion(idsNeedingName)
+        FriendRequestService.shared.getFriends(userId: currentUserId) { [weak self] result in
+            DispatchQueue.main.async {
+                guard let self = self else { return }
+                self.isResolvingAuthorNames = false
+                if case .success(let friends) = result {
+                    for friend in friends where !friend.name.isEmpty {
+                        self.authorNamesById[friend.id] = friend.name
                     }
                 }
             }
