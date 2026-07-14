@@ -488,18 +488,8 @@ struct InitialAvatar: View {
                         .padding(-2.5)
                 }
             }
-            // ...plus an explicit "you" checkmark badge in the corner.
-            .overlay(alignment: .bottomTrailing) {
-                if isCurrentUser {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: size * 0.5, weight: .bold))
-                        .foregroundStyle(.white, Color.appAccent)
-                        .background(Circle().fill(Color(.systemBackground)))
-                        .offset(x: size * 0.16, y: size * 0.16)
-                }
-            }
-            // Reserve room so the accent ring and badge never clip against
-            // neighbouring controls in the row.
+            // Reserve room so the accent ring never clips against neighbouring
+            // controls in the row.
             .padding(isCurrentUser ? 3 : 0)
     }
 }
