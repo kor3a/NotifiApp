@@ -106,24 +106,36 @@ struct ReminderView: View {
         return recovered.isEmpty ? nil : Array(recovered)
     }
 
-    /// Store-wide avatar color assignment. Collects every participant name that
-    /// can appear as an author avatar (item authors, share recipients, and the
-    /// current user) and resolves colors so members who share a first initial
-    /// never share a color. Computed from the full member set so the mapping is
-    /// stable across every reminder row — and identical on every device viewing
-    /// the store.
+    /// Store-wide avatar color assignment. Collects the identity of every author
+    /// whose avatar can appear in this store and resolves colors so members who
+    /// share a first initial never share a color. Authors are keyed by userId
+    /// (via `authorIdentity`), so two *different* accounts with the same display
+    /// name still get distinct colors. Computed from the full author set so the
+    /// mapping is stable across every reminder row.
     private var avatarColorMap: [String: Color] {
-        var names: Set<String> = []
-        if let me = UserSessionManager.shared.currentUser?.name, !me.isEmpty {
-            names.insert(me)
+        let currentUser = UserSessionManager.shared.currentUser
+        var identities: [(key: String, name: String)] = []
+
+        // The current user always participates (they may have authored items).
+        if let name = currentUser?.name, !name.isEmpty {
+            identities.append((
+                SharedAvatarPalette.identityKey(id: currentUser?.userId, name: name),
+                name
+            ))
         }
-        for reminder in viewModel.reminders {
-            if let from = reminder.sharedFrom, !from.isEmpty { names.insert(from) }
-            for recipient in reminder.sharedWith ?? [] where !recipient.isEmpty {
-                names.insert(recipient)
+
+        for reminder in viewModel.reminders where reminder.isShared == true {
+            if let identity = SharedAvatarPalette.authorIdentity(
+                sharedFrom: reminder.sharedFrom,
+                sharedFromId: reminder.sharedFromId,
+                currentUserName: currentUser?.name,
+                currentUserId: currentUser?.userId
+            ) {
+                identities.append(identity)
             }
         }
-        return SharedAvatarPalette.colorMap(for: Array(names))
+
+        return SharedAvatarPalette.colorMap(for: identities)
     }
 
     /// Email allowed to edit shared store website overrides (writes to `store_websites`,
