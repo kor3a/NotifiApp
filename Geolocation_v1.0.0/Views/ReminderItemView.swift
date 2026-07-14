@@ -35,6 +35,10 @@ struct ReminderItemView: View {
     /// Store-wide avatar color assignment, forwarded to the shared badge so the
     /// author avatar's color is resolved against every member of the store.
     var avatarColorMap: [String: Color] = [:]
+    /// userId → display name for store members, forwarded to the shared badge so
+    /// an author's initial can be recovered from their id when the reminder has
+    /// no `sharedFrom` name.
+    var memberNames: [String: String] = [:]
     @StateObject private var viewModel = ReminderItemViewModel()
     @State private var editText: String = ""
     @State private var editQuantityText: String = ""
@@ -173,7 +177,8 @@ struct ReminderItemView: View {
                         sharedWith: item.sharedWith,
                         currentUserName: currentUserName,
                         currentUserId: currentUserId,
-                        avatarColorMap: avatarColorMap
+                        avatarColorMap: avatarColorMap,
+                        memberNames: memberNames
                     )
                 }
 
@@ -324,10 +329,14 @@ struct SharedBadge: View {
     let sharedWith: [String]?
     let currentUserName: String?
     let currentUserId: String?
-    /// Store-wide deterministic color assignment keyed by normalized name, so
+    /// Store-wide deterministic color assignment keyed by author identity, so
     /// members who share a first initial never share a color. Empty when no
     /// store-wide context is available (falls back to the standalone palette).
     var avatarColorMap: [String: Color] = [:]
+    /// userId → display name for the store's members, used to recover the
+    /// author's name (and therefore initial) when a reminder carries the
+    /// author's `sharedFromId` but no `sharedFrom` name.
+    var memberNames: [String: String] = [:]
 
     // Check if current user is the one who shared/created this reminder
     // Uses userId for reliable comparison, falls back to name for old data
@@ -369,32 +378,44 @@ struct SharedBadge: View {
         return false
     }
 
-    /// The person who created/shared this reminder — its author. Everyone (the
-    /// sharer and every recipient) sees the same author initial for a given item,
-    /// so a reminder User A shared always shows A's initial, on A's device and B's.
-    ///
-    /// For the current user's own items we prefer the live session name so a name
-    /// change reflects immediately; for others we use the stored `sharedFrom`,
-    /// which `propagateNameChange` rewrites (and the snapshot listener refreshes)
-    /// when that user renames themselves.
-    private var authorName: String? {
-        if isCurrentUserTheSharer,
-           let currentUserName = currentUserName, !currentUserName.isEmpty {
-            return currentUserName
-        }
+    /// Best-known display name for this reminder's author, independent of who is
+    /// viewing. Prefers the recorded `sharedFrom`; when that's missing but an
+    /// author id is present, recovers the name from the store member map. This
+    /// is what drives the avatar's initial, so it always reflects the *author*.
+    private var resolvedAuthorName: String? {
         if let sharedFrom = sharedFrom, !sharedFrom.isEmpty {
             return sharedFrom
         }
-        // Legacy/owner-created reminder with no recorded author: on the owner's
-        // own store the current user is the author.
-        return currentUserName
+        if let id = sharedFromId, !id.isEmpty,
+           let name = memberNames[id], !name.isEmpty {
+            return name
+        }
+        return nil
+    }
+
+    /// The person who created/shared this reminder — its author. Everyone (the
+    /// sharer and every recipient) sees the same author initial for a given item.
+    ///
+    /// For the current user's own items we prefer the live session name so a name
+    /// change reflects immediately; for others we use the resolved author name.
+    /// Critically, this never falls back to the current user's name for an item
+    /// that isn't theirs — an unknown author yields nil (a neutral avatar), not
+    /// the viewer's initial.
+    private var authorName: String? {
+        if isAuthoredByCurrentUser,
+           let currentUserName = currentUserName, !currentUserName.isEmpty {
+            return currentUserName
+        }
+        return resolvedAuthorName
     }
 
     /// Stable color identity for this reminder's author (userId-based), so the
     /// avatar color is distinct per account even when two members share a name.
+    /// Uses the resolved author name so the initial matches even when only the
+    /// author id was recorded on the reminder.
     private var avatarIdentity: (key: String, name: String)? {
         SharedAvatarPalette.authorIdentity(
-            sharedFrom: sharedFrom,
+            sharedFrom: isAuthoredByCurrentUser ? currentUserName : resolvedAuthorName,
             sharedFromId: sharedFromId,
             currentUserName: currentUserName,
             currentUserId: currentUserId

@@ -106,6 +106,32 @@ struct ReminderView: View {
         return recovered.isEmpty ? nil : Array(recovered)
     }
 
+    /// userId → display name for everyone who participates in this store. Built
+    /// from the current user, the store owner, and any reminder that recorded
+    /// both an author id and name — so an author's name (and initial) can be
+    /// recovered for reminders that carry only `sharedFromId`.
+    private var storeMemberNames: [String: String] {
+        var names: [String: String] = [:]
+        let currentUser = UserSessionManager.shared.currentUser
+        if let id = currentUser?.userId, !id.isEmpty,
+           let name = currentUser?.name, !name.isEmpty {
+            names[id] = name
+        }
+        // Store owner (present on a recipient's copy of the store).
+        if let id = userStoreItem.sharedFromId, !id.isEmpty,
+           let name = userStoreItem.sharedFromName, !name.isEmpty {
+            names[id] = name
+        }
+        // Any reminder that recorded both fields teaches us that id's name.
+        for reminder in viewModel.reminders {
+            if let id = reminder.sharedFromId, !id.isEmpty,
+               let name = reminder.sharedFrom, !name.isEmpty {
+                names[id] = name
+            }
+        }
+        return names
+    }
+
     /// Store-wide avatar color assignment. Collects the identity of every author
     /// whose avatar can appear in this store and resolves colors so members who
     /// share a first initial never share a color. Authors are keyed by userId
@@ -114,6 +140,7 @@ struct ReminderView: View {
     /// mapping is stable across every reminder row.
     private var avatarColorMap: [String: Color] {
         let currentUser = UserSessionManager.shared.currentUser
+        let members = storeMemberNames
         var identities: [(key: String, name: String)] = []
 
         // The current user always participates (they may have authored items).
@@ -125,8 +152,14 @@ struct ReminderView: View {
         }
 
         for reminder in viewModel.reminders where reminder.isShared == true {
+            // Recover the author name from the member map when the reminder
+            // itself carries only the author id, so the color key and initial
+            // agree with what the badge renders.
+            let resolvedName = (reminder.sharedFrom?.isEmpty == false)
+                ? reminder.sharedFrom
+                : reminder.sharedFromId.flatMap { members[$0] }
             if let identity = SharedAvatarPalette.authorIdentity(
-                sharedFrom: reminder.sharedFrom,
+                sharedFrom: resolvedName,
                 sharedFromId: reminder.sharedFromId,
                 currentUserName: currentUser?.name,
                 currentUserId: currentUser?.userId
@@ -789,7 +822,8 @@ struct ReminderView: View {
             onDragChanged: nil,
             onDragEnded: nil,
             autoDeleteEnabled: autoDeleteEnabled,
-            avatarColorMap: avatarColorMap
+            avatarColorMap: avatarColorMap,
+            memberNames: storeMemberNames
         )
         .contentShape(Rectangle())
         .listRowBackground(cardRowBackground)
