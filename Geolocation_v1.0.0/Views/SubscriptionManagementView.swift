@@ -73,6 +73,12 @@ struct SubscriptionManagementView: View {
                             .padding(.bottom, 4)
 
                         featureRow(
+                            icon: "infinity.circle.fill",
+                            color: .orange,
+                            title: "Unlimited Stores & Items",
+                            description: "Free accounts are limited to \(SubscriptionManager.freeStoreLimit) stores and \(SubscriptionManager.freeReminderLimitPerStore) items per store — go unlimited with Premium"
+                        )
+                        featureRow(
                             icon: "fork.knife.circle.fill",
                             color: .blue,
                             title: "Smart Recipe",
