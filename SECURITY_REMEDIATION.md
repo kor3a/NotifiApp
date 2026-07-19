@@ -76,6 +76,31 @@ can't deploy until a new build is live. All the code is prepared:
    firebase deploy --only firestore:rules
    ```
 
+### 2c. Notification sender verification (`senderEmail`) — push spoofing fix
+
+Closes §3b below. Staged the same way as 2b:
+
+- `OnMyWayNotificationService.swift` and `SharedReminderNotificationService.swift`
+  now write a `senderEmail` field (the Firebase Auth email) on every
+  notification doc they create.
+- **Live `firestore.rules`** (deployable now, backward compatible): when
+  `senderEmail` is present on create it must equal `request.auth.token.email`;
+  docs without it (legacy builds) are still accepted.
+- `functions/index.js`: `onMyWayNotification` / `sharedReminderNotification`
+  now resolve the sender's display name from the `users` collection via the
+  verified `senderEmail` (`resolveSenderName`) instead of trusting the
+  client-supplied `senderName`; the client value is only a fallback for
+  legacy docs.
+- **`firestore.rules.pending`** now *requires* `senderEmail` on create for
+  both collections. This adds deploy precondition 3 to the pending file: the
+  build writing `senderEmail` must be adopted first, or older builds will be
+  unable to send these notifications.
+
+Net effect: as soon as the new build + live rules are out, a spoofed push can
+no longer carry an arbitrary sender identity through new-format docs, and the
+push body uses a server-verified name. Full enforcement (rejecting legacy
+no-`senderEmail` docs) lands with the pending rules cutover.
+
 ---
 
 ## 3. Still open — needs design/app work (documented, not yet coded)
@@ -96,12 +121,10 @@ This touches the reminder create/share paths in `StoresViewModel` /
 `MessagingService` and needs a backfill, similar to §2b.
 
 ### 3b. Notification create is unauthenticated-sender (push spoofing)
-`on_my_way_notifications` and `reminder_change_notifications` let any signed-in
-user create a doc with an arbitrary `recipientEmail`/`senderName`; the Cloud
-Functions then deliver that attacker-controlled text as a push. Add a
-`senderEmail` field set to the caller's email, require
-`request.resource.data.senderEmail == request.auth.token.email` on create, and
-have the notification functions ignore/trust it accordingly.
+**Fixed — staged as §2c.** The app now writes `senderEmail`, live rules verify
+it when present, the Cloud Functions resolve the sender name from it, and the
+pending rules require it outright. Fully closed once the §2c build is adopted
+and `firestore.rules.pending` is deployed.
 
 ### 3c. All user documents readable
 `users` read is `auth != null`, exposing every user's email/name/fcmToken.

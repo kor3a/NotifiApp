@@ -338,12 +338,17 @@ service cloud.firestore {
       allow read: if request.auth != null &&
                      resource.data.recipientEmail == request.auth.token.email;
 
-      // Any authenticated user can create a notification for another user
+      // Any authenticated user can create a notification for another user.
+      // senderEmail is optional (legacy builds don't write it), but when
+      // present it must be the caller's own email — the push function uses
+      // it to resolve a trusted sender name, so it must be unforgeable.
       allow create: if request.auth != null &&
                        request.resource.data.recipientEmail is string &&
                        request.resource.data.senderName is string &&
                        request.resource.data.storeName is string &&
-                       request.resource.data.createdAt is number;
+                       request.resource.data.createdAt is number &&
+                       (!('senderEmail' in request.resource.data) ||
+                        request.resource.data.senderEmail == request.auth.token.email);
 
       // Only the recipient can delete (after consuming the notification)
       allow delete: if request.auth != null &&
@@ -386,13 +391,18 @@ service cloud.firestore {
       allow read: if request.auth != null &&
                      resource.data.recipientEmail == request.auth.token.email;
 
-      // Any authenticated user can create a notification for another user
+      // Any authenticated user can create a notification for another user.
+      // senderEmail is optional (legacy builds don't write it), but when
+      // present it must be the caller's own email — the push function uses
+      // it to resolve a trusted sender name, so it must be unforgeable.
       allow create: if request.auth != null &&
                        request.resource.data.recipientEmail is string &&
                        request.resource.data.senderName is string &&
                        request.resource.data.storeName is string &&
                        request.resource.data.travelTimeMinutes is int &&
-                       request.resource.data.createdAt is number;
+                       request.resource.data.createdAt is number &&
+                       (!('senderEmail' in request.resource.data) ||
+                        request.resource.data.senderEmail == request.auth.token.email);
 
       // Only the recipient can delete (after consuming the notification)
       allow delete: if request.auth != null &&

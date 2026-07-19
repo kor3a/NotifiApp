@@ -17,6 +17,10 @@
 //      `participantEmails`:
 //         Functions.functions().httpsCallable("backfillMessagingIdentity")()
 //      (run once from the owner account; safe to re-run).
+//   3. The app build that writes `senderEmail` on on_my_way_notifications /
+//      reminder_change_notifications is live AND adopted by ~all active users
+//      (this file REQUIRES senderEmail on create; older builds omit it and
+//      would fail to send those notifications).
 //
 // To deploy, point firebase.json's firestore.rules at this file (or copy its
 // contents over firestore.rules) and `firebase deploy --only firestore:rules`.
@@ -25,9 +29,9 @@
 //   - reminders: read/write remain broad because the shared-store model keys
 //     reminders by the OWNER's user_store id. Needs an ownerEmail/editorEmails
 //     field on reminders (app change) before rules can enforce it.
-//   - on_my_way_notifications / reminder_change_notifications: create is still
-//     open (sender not verified). Add a senderEmail field == auth email, then
-//     require it here, to stop spoofed push notifications.
+//   (on_my_way_notifications / reminder_change_notifications sender spoofing is
+//   closed by this file: create requires senderEmail == auth email — see
+//   deploy precondition 3 above.)
 // ============================================================================
 
 rules_version = '2';
@@ -386,12 +390,16 @@ service cloud.firestore {
       allow read: if request.auth != null &&
                      resource.data.recipientEmail == request.auth.token.email;
 
-      // Any authenticated user can create a notification for another user
+      // Any authenticated user can create a notification for another user,
+      // but must identify themselves: senderEmail is REQUIRED here and must
+      // match the caller's auth email, so pushes can't be spoofed. Only
+      // deploy once the build that writes senderEmail is adopted.
       allow create: if request.auth != null &&
                        request.resource.data.recipientEmail is string &&
                        request.resource.data.senderName is string &&
                        request.resource.data.storeName is string &&
-                       request.resource.data.createdAt is number;
+                       request.resource.data.createdAt is number &&
+                       request.resource.data.senderEmail == request.auth.token.email;
 
       // Only the recipient can delete (after consuming the notification)
       allow delete: if request.auth != null &&
@@ -434,13 +442,17 @@ service cloud.firestore {
       allow read: if request.auth != null &&
                      resource.data.recipientEmail == request.auth.token.email;
 
-      // Any authenticated user can create a notification for another user
+      // Any authenticated user can create a notification for another user,
+      // but must identify themselves: senderEmail is REQUIRED here and must
+      // match the caller's auth email, so pushes can't be spoofed. Only
+      // deploy once the build that writes senderEmail is adopted.
       allow create: if request.auth != null &&
                        request.resource.data.recipientEmail is string &&
                        request.resource.data.senderName is string &&
                        request.resource.data.storeName is string &&
                        request.resource.data.travelTimeMinutes is int &&
-                       request.resource.data.createdAt is number;
+                       request.resource.data.createdAt is number &&
+                       request.resource.data.senderEmail == request.auth.token.email;
 
       // Only the recipient can delete (after consuming the notification)
       allow delete: if request.auth != null &&
