@@ -9,8 +9,8 @@ import SwiftUI
 import GoogleMobileAds
 
 // MARK: - AdMob Ad Unit IDs
-// TODO: Replace with your real Ad Unit ID from https://admob.google.com
-// Test banner Ad Unit ID (safe to use during development/testing):
+// Production banner Ad Unit ID (managed at https://admob.google.com).
+// Google's test ID for local development: ca-app-pub-3940256099942544/2934735716
 let kBannerAdUnitID = "ca-app-pub-8737217052158435/8635281562"
 
 // MARK: - BannerAdView

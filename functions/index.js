@@ -107,6 +107,35 @@ async function getFCMToken(userId) {
 }
 
 /**
+ * Resolve a trustworthy display name for a notification sender.
+ *
+ * Firestore rules guarantee that when a notification doc carries a
+ * `senderEmail` it equals the authenticated creator's email, so the name
+ * looked up here cannot be spoofed. Falls back to the client-supplied
+ * `fallbackName` when senderEmail is absent (docs written by legacy app
+ * builds) or when no user document matches the email.
+ */
+async function resolveSenderName(senderEmail, fallbackName) {
+    if (!senderEmail) return fallbackName;
+    try {
+        // users docs store emails lowercased (see SignupViewModel / MessagingService)
+        const snap = await db
+            .collection('users')
+            .where('email', '==', senderEmail.trim().toLowerCase())
+            .limit(1)
+            .get();
+        if (!snap.empty) {
+            const name = snap.docs[0].data().name;
+            if (name) return name;
+        }
+        console.warn(`resolveSenderName: no user/name for verified sender ${senderEmail}, using fallback`);
+    } catch (err) {
+        console.warn(`resolveSenderName: lookup failed for ${senderEmail}: ${err.message}`);
+    }
+    return fallbackName;
+}
+
+/**
  * Send an FCM notification to a single device token.
  *
  * @param {string} token  Recipient device's FCM registration token.
@@ -178,7 +207,7 @@ async function sendFCM(token, title, body, data = {}, options = {}) {
 
 // ---------------------------------------------------------------------------
 // 1. "On My Way" notifications
-//    Document shape: { recipientUserId, senderName, storeName, travelTimeMinutes, createdAt }
+//    Document shape: { recipientUserId, senderName, senderEmail?, storeName, travelTimeMinutes, createdAt }
 // ---------------------------------------------------------------------------
 exports.onMyWayNotification = onDocumentCreated(
     'on_my_way_notifications/{docId}',
@@ -186,18 +215,19 @@ exports.onMyWayNotification = onDocumentCreated(
         const data = event.data?.data();
         if (!data) return;
 
-        const { recipientUserId, senderName, storeName, travelTimeMinutes } = data;
+        const { recipientUserId, senderName, senderEmail, storeName, travelTimeMinutes } = data;
         console.log(`onMyWayNotification fired — docId=${event.params.docId}, recipientUserId=${recipientUserId}`);
         if (!recipientUserId) { console.warn('onMyWayNotification: missing recipientUserId, skipping'); return; }
 
         const token = await getFCMToken(recipientUserId);
         if (!token) { console.warn(`onMyWayNotification: no token for ${recipientUserId}, skipping`); return; }
 
+        const displayName = await resolveSenderName(senderEmail, senderName || 'Someone');
         const mins = travelTimeMinutes || 0;
         const body =
             mins > 0
-                ? `${senderName} is on their way to ${storeName} (~${mins} min)`
-                : `${senderName} is heading to ${storeName}`;
+                ? `${displayName} is on their way to ${storeName} (~${mins} min)`
+                : `${displayName} is heading to ${storeName}`;
 
         await sendFCM(token, '🚗 On My Way', body, {
             type: 'on_my_way',
@@ -212,7 +242,7 @@ exports.onMyWayNotification = onDocumentCreated(
 
 // ---------------------------------------------------------------------------
 // 2. Shared reminder change notifications
-//    Document shape: { recipientUserId, senderName, storeName, addedCount, otherChangeCount, createdAt }
+//    Document shape: { recipientUserId, senderName, senderEmail?, storeName, addedCount, otherChangeCount, createdAt }
 // ---------------------------------------------------------------------------
 exports.sharedReminderNotification = onDocumentCreated(
     'reminder_change_notifications/{docId}',
@@ -220,18 +250,19 @@ exports.sharedReminderNotification = onDocumentCreated(
         const data = event.data?.data();
         if (!data) return;
 
-        const { recipientUserId, senderName, storeName, addedCount } = data;
+        const { recipientUserId, senderName, senderEmail, storeName, addedCount } = data;
         console.log(`sharedReminderNotification fired — docId=${event.params.docId}, recipientUserId=${recipientUserId}`);
         if (!recipientUserId) { console.warn('sharedReminderNotification: missing recipientUserId, skipping'); return; }
 
         const token = await getFCMToken(recipientUserId);
         if (!token) { console.warn(`sharedReminderNotification: no token for ${recipientUserId}, skipping`); return; }
 
+        const displayName = await resolveSenderName(senderEmail, senderName || 'Someone');
         const added = addedCount || 0;
         const body =
             added > 0
-                ? `${senderName} added ${added} reminder${added > 1 ? 's' : ''} to ${storeName}`
-                : `${senderName} updated reminders for ${storeName}`;
+                ? `${displayName} added ${added} reminder${added > 1 ? 's' : ''} to ${storeName}`
+                : `${displayName} updated reminders for ${storeName}`;
 
         await sendFCM(token, '📝 Reminder Updated', body, {
             type: 'reminder_change',
