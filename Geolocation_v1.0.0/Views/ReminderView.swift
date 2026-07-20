@@ -935,7 +935,7 @@ struct ReminderView: View {
                     .foregroundStyle(.gray.opacity(0.4))
                     // Match the checkbox footprint in ReminderItemView so the
                     // text field lines up with the reminder titles below it.
-                    .frame(width: 44, height: 44)
+                    .frame(width: 32, height: 32)
                 TextField("What do you need?", text: $newReminderText)
                     .font(.headline)
                     .focused($isNewReminderFocused)

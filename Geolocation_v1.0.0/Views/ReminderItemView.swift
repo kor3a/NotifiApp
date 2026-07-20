@@ -75,8 +75,9 @@ struct ReminderItemView: View {
                     .contentTransition(.symbolEffect(.replace))
                     .symbolEffect(.bounce, value: item.isDone)
                     .symbolEffect(.bounce, value: item.isOutOfStock)
-                    // 44×44pt is Apple's minimum recommended touch target.
-                    .frame(width: 44, height: 44)
+                    // Slightly larger than the 24pt symbol so taps just outside
+                    // the icon still register, without padding out the row.
+                    .frame(width: 32, height: 32)
                     .contentShape(Rectangle())
                     .background(
                         GeometryReader { geo in
