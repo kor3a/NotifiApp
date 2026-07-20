@@ -30,6 +30,9 @@
 		0133243C2FDCAE0D0074A818 /* NotifiNotificationService.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = 013324352FDCAE0D0074A818 /* NotifiNotificationService.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		0138242D2EDCD05F0069F38C /* NotificationLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0138242C2EDCD05F0069F38C /* NotificationLog.swift */; };
 		0138242F2EDCD08C0069F38C /* NotificationLogView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0138242E2EDCD08C0069F38C /* NotificationLogView.swift */; };
+		AA1234560001AABB00CC0302 /* ReminderHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0301 /* ReminderHistory.swift */; };
+		AA1234560001AABB00CC0304 /* ReminderHistoryViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0303 /* ReminderHistoryViewModel.swift */; };
+		AA1234560001AABB00CC0306 /* HistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0305 /* HistoryView.swift */; };
 		0138D8752F68BB95007CC1E4 /* SubscriptionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0138D8742F68BB95007CC1E4 /* SubscriptionManager.swift */; };
 		0141FCBE2F71880F009C626B /* PrivacyPolicyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0141FCBD2F71880F009C626B /* PrivacyPolicyView.swift */; };
 		0141FCC02F718817009C626B /* SubscriptionManagementView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0141FCBF2F718817009C626B /* SubscriptionManagementView.swift */; };
@@ -190,6 +193,9 @@
 		013324352FDCAE0D0074A818 /* NotifiNotificationService.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = NotifiNotificationService.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		0138242C2EDCD05F0069F38C /* NotificationLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationLog.swift; sourceTree = "<group>"; };
 		0138242E2EDCD08C0069F38C /* NotificationLogView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationLogView.swift; sourceTree = "<group>"; };
+		AA1234560001AABB00CC0301 /* ReminderHistory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderHistory.swift; sourceTree = "<group>"; };
+		AA1234560001AABB00CC0303 /* ReminderHistoryViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderHistoryViewModel.swift; sourceTree = "<group>"; };
+		AA1234560001AABB00CC0305 /* HistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryView.swift; sourceTree = "<group>"; };
 		0138D8742F68BB95007CC1E4 /* SubscriptionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionManager.swift; sourceTree = "<group>"; };
 		0141FCBD2F71880F009C626B /* PrivacyPolicyView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrivacyPolicyView.swift; sourceTree = "<group>"; };
 		0141FCBF2F718817009C626B /* SubscriptionManagementView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionManagementView.swift; sourceTree = "<group>"; };
@@ -485,6 +491,7 @@
 				7498B0832CC2D49A0003C68F /* StoresView.swift */,
 				744091EB2DE57AB500ACC67A /* StoreItemView.swift */,
 				748542B42CB5378A00C58D9B /* ReminderView.swift */,
+				AA1234560001AABB00CC0305 /* HistoryView.swift */,
 				74A79E7E2CBDAB2A00713F0E /* ReminderItemView.swift */,
 				74A8AA3D2DEBB84B005855A0 /* AddReminderView.swift */,
 				010B28082EB6C2E9004E828B /* AddStoreView.swift */,
@@ -502,6 +509,7 @@
 				01B408222F3BECB100EA1F25 /* MessagesViewModel.swift */,
 				011CF6062ED638F9009A31A6 /* ForgotPasswordViewModel.swift */,
 				01B78C392EBD415F00201B88 /* ReminderViewModel.swift */,
+				AA1234560001AABB00CC0303 /* ReminderHistoryViewModel.swift */,
 				82D289AB2C61CCD4009F357F /* LoginViewModel.swift */,
 				82D289AD2C61CEBD009F357F /* SignupViewModel.swift */,
 				82D289B42C61D52F009F357F /* MainViewModel.swift */,
@@ -528,6 +536,7 @@
 				82D289AF2C61D30C009F357F /* User.swift */,
 				74A79E842CBDACB800713F0E /* Store.swift */,
 				74A79E7C2CBDAA4E00713F0E /* Reminder.swift */,
+				AA1234560001AABB00CC0301 /* ReminderHistory.swift */,
 				DF66A9972E24C86100C15DA9 /* User_Store.swift */,
 			);
 			path = Models;
@@ -826,6 +835,9 @@
 				74A79E852CBDACB800713F0E /* Store.swift in Sources */,
 				010A82CB2F73378000728D59 /* NewGroupView.swift in Sources */,
 				74A79E7D2CBDAA4E00713F0E /* Reminder.swift in Sources */,
+				AA1234560001AABB00CC0302 /* ReminderHistory.swift in Sources */,
+				AA1234560001AABB00CC0304 /* ReminderHistoryViewModel.swift in Sources */,
+				AA1234560001AABB00CC0306 /* HistoryView.swift in Sources */,
 				01B408332F3BECF200EA1F25 /* MessagesView.swift in Sources */,
 				0188F8592F68568C007953B2 /* BannerAdView.swift in Sources */,
 				0138242F2EDCD08C0069F38C /* NotificationLogView.swift in Sources */,
