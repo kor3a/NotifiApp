@@ -931,7 +931,11 @@ struct ReminderView: View {
         if isAddingNewReminder {
             HStack {
                 Image(systemName: "square")
+                    .font(.system(size: 24))
                     .foregroundStyle(.gray.opacity(0.4))
+                    // Match the checkbox footprint in ReminderItemView so the
+                    // text field lines up with the reminder titles below it.
+                    .frame(width: 44, height: 44)
                 TextField("What do you need?", text: $newReminderText)
                     .font(.headline)
                     .focused($isNewReminderFocused)

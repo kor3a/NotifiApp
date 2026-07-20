@@ -68,12 +68,15 @@ struct ReminderItemView: View {
                 }
 
                 Image(systemName: item.isOutOfStock == true ? "xmark.square" : (item.isDone ? "checkmark.square" : "square"))
+                    .font(.system(size: 24))
                     .foregroundStyle(item.isOutOfStock == true ? .red : .primary)
                     // Animate the symbol swap and add a little pop when the
                     // checkbox is checked/unchecked or toggled out of stock.
                     .contentTransition(.symbolEffect(.replace))
                     .symbolEffect(.bounce, value: item.isDone)
                     .symbolEffect(.bounce, value: item.isOutOfStock)
+                    // 44×44pt is Apple's minimum recommended touch target.
+                    .frame(width: 44, height: 44)
                     .contentShape(Rectangle())
                     .background(
                         GeometryReader { geo in
