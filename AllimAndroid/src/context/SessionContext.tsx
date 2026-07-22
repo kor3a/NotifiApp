@@ -36,28 +36,28 @@ export function SessionProvider({children}: {children: React.ReactNode}) {
 
   async function refreshUser() {
     const fbUser = auth().currentUser;
-    if (!fbUser) {
+    if (!fbUser?.email) {
       setCurrentUser(null);
       return;
     }
-    const user = await userService.fetchUserByUid(fbUser.uid);
+    const user = await userService.fetchUserByEmail(fbUser.email);
     setCurrentUser(user);
   }
 
   useEffect(() => {
     const unsubscribe = auth().onAuthStateChanged(async fbUser => {
       setFirebaseUser(fbUser);
-      if (fbUser) {
+      if (fbUser?.email) {
         hasSeenSignedInUser.current = true;
         // Save FCM token — always re-written here because an account switch
         // on the same device reuses the same token string, and it must be
         // bound to the account that is signed in now.
         try {
           const token = await messaging().getToken();
-          await userService.saveFCMToken(fbUser.uid, token);
+          await userService.saveFCMToken(fbUser.email, token);
         } catch (_) {}
 
-        const user = await userService.fetchUserByUid(fbUser.uid);
+        const user = await userService.fetchUserByEmail(fbUser.email);
         setCurrentUser(user);
       } else {
         // Signed out: invalidate this device's token so pushes addressed to

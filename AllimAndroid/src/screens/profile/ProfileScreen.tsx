@@ -45,10 +45,10 @@ export default function ProfileScreen() {
   const [deleting, setDeleting] = useState(false);
 
   async function handleSaveName() {
-    if (!editName.trim() || !firebaseUser) {return;}
+    if (!editName.trim() || !firebaseUser?.email) {return;}
     setSaving(true);
     try {
-      await userService.updateProfile(firebaseUser.uid, {name: editName.trim()});
+      await userService.updateProfile(firebaseUser.email, {name: editName.trim()});
       await refreshUser();
       Alert.alert('Saved', 'Profile updated successfully.');
     } catch (err: any) {
@@ -59,12 +59,16 @@ export default function ProfileScreen() {
   }
 
   async function handlePickPhoto() {
-    if (!firebaseUser) {return;}
+    if (!firebaseUser?.email || !currentUser?.userId) {return;}
     const result = await launchImageLibrary({mediaType: 'photo', quality: 0.8});
     if (!result.assets?.[0]?.uri) {return;}
     setUploadingPhoto(true);
     try {
-      await userService.uploadProfilePicture(firebaseUser.uid, result.assets[0].uri);
+      await userService.uploadProfilePicture(
+        firebaseUser.email,
+        currentUser.userId,
+        result.assets[0].uri,
+      );
       await refreshUser();
     } catch (err: any) {
       Alert.alert('Error', err.message);
