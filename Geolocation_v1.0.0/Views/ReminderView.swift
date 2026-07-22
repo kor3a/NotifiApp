@@ -20,6 +20,7 @@ struct ReminderView: View {
     @State private var showInfoPanel = false
     @State private var showingRecipePicker = false
     @State private var showingHistory = false
+    @State private var showingAnalytics = false
     @State private var showingEditWebsite = false
     @State private var websiteInputText = ""
     @State private var fadingReminderIds: Set<String> = []
@@ -205,6 +206,9 @@ struct ReminderView: View {
             }
             .sheet(isPresented: $showingLimitPaywall) {
                 SubscriptionPaywallView()
+            }
+            .sheet(isPresented: $showingAnalytics) {
+                StoreAnalyticsView(userStoreItem: userStoreItem)
             }
             .sheet(item: $reminderForPhoto) { reminder in
                 ImagePicker(selectedImage: $selectedImage) { image in
@@ -713,37 +717,7 @@ struct ReminderView: View {
     }
 
     private func categoryIcon(for category: String) -> String {
-        switch category.lowercased() {
-        case "produce": return "leaf"
-        case "dairy": return "cup.and.saucer"
-        case "meat & seafood": return "fish"
-        case "bakery": return "birthday.cake"
-        case "beverages": return "waterbottle"
-        case "snacks": return "popcorn"
-        case "frozen": return "snowflake"
-        case "canned goods": return "cylinder"
-        case "condiments & sauces": return "flask"
-        case "grains & pasta": return "takeoutbag.and.cup.and.straw"
-        case "household": return "house"
-        case "personal care": return "hands.sparkles"
-        case "baby": return "stroller"
-        case "pet": return "pawprint"
-        case "health": return "cross.case"
-        case "electronics": return "bolt"
-        case "clothing": return "tshirt"
-        case "office & stationery": return "pencil.and.ruler"
-        case "furniture": return "chair"
-        case "hardware & tools": return "wrench.and.screwdriver"
-        case "home & kitchen": return "fork.knife"
-        case "toys & games": return "gamecontroller"
-        case "sports & outdoors": return "figure.run"
-        case "automotive": return "car"
-        case "garden & outdoor": return "tree"
-        case "books & media": return "book"
-        case "craft & hobby": return "paintpalette"
-        case "uncategorized": return "questionmark.folder"
-        default: return "tag"
-        }
+        CategoryIcon.symbol(for: category)
     }
 
     private func reminderRow(for reminder: Reminder) -> some View {
@@ -1510,6 +1484,41 @@ struct ReminderView: View {
                             Image(systemName: "chevron.right")
                                 .font(.caption)
                                 .foregroundStyle(.tertiary)
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 12)
+                    }
+                    .buttonStyle(.plain)
+
+                    Divider()
+                        .padding(.horizontal, 16)
+
+                    // Analytics row — premium shopping insights for this store.
+                    // The view itself shows an upgrade pitch for free users.
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.18)) {
+                            showInfoPanel = false
+                        }
+                        showingAnalytics = true
+                    } label: {
+                        HStack(spacing: 12) {
+                            Image(systemName: "chart.bar.xaxis")
+                                .font(.body)
+                                .foregroundColor(isSubscribed ? Color.appAccent : .secondary)
+                                .frame(width: 24)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Analytics")
+                                    .font(.subheadline)
+                                    .fontWeight(.medium)
+                                    .foregroundStyle(isSubscribed ? Color.primary : Color.secondary)
+                                Text(isSubscribed ? "Shopping trends and item insights" : "Available for subscribers")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            Image(systemName: isSubscribed ? "chevron.right" : "lock.fill")
+                                .font(isSubscribed ? .caption : .subheadline)
+                                .foregroundStyle(isSubscribed ? AnyShapeStyle(.tertiary) : AnyShapeStyle(.secondary))
                         }
                         .padding(.horizontal, 16)
                         .padding(.vertical, 12)

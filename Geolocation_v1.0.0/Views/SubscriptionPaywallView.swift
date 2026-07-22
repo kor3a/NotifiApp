@@ -61,6 +61,9 @@ struct SubscriptionPaywallView: View {
                         featureRow(icon: "sparkles", color: .purple,
                                    title: "Smart Category",
                                    description: "AI auto-categorizes every item you add to your shopping list")
+                        featureRow(icon: "chart.bar.xaxis", color: .indigo,
+                                   title: "Store Analytics",
+                                   description: "Shopping trends, category breakdowns, and your most-gotten items for every store")
                         featureRow(icon: "hand.thumbsup.fill", color: .green,
                                    title: "Ad-Free Experience",
                                    description: "Enjoy the app without any banner advertisements")

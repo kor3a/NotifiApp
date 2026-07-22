@@ -33,6 +33,8 @@
 		AA1234560001AABB00CC0302 /* ReminderHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0301 /* ReminderHistory.swift */; };
 		AA1234560001AABB00CC0304 /* ReminderHistoryViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0303 /* ReminderHistoryViewModel.swift */; };
 		AA1234560001AABB00CC0306 /* HistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0305 /* HistoryView.swift */; };
+		AA1234560001AABB00CC0308 /* StoreAnalytics.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0307 /* StoreAnalytics.swift */; };
+		AA1234560001AABB00CC0310 /* StoreAnalyticsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0309 /* StoreAnalyticsView.swift */; };
 		0138D8752F68BB95007CC1E4 /* SubscriptionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0138D8742F68BB95007CC1E4 /* SubscriptionManager.swift */; };
 		0141FCBE2F71880F009C626B /* PrivacyPolicyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0141FCBD2F71880F009C626B /* PrivacyPolicyView.swift */; };
 		0141FCC02F718817009C626B /* SubscriptionManagementView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0141FCBF2F718817009C626B /* SubscriptionManagementView.swift */; };
@@ -196,6 +198,8 @@
 		AA1234560001AABB00CC0301 /* ReminderHistory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderHistory.swift; sourceTree = "<group>"; };
 		AA1234560001AABB00CC0303 /* ReminderHistoryViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderHistoryViewModel.swift; sourceTree = "<group>"; };
 		AA1234560001AABB00CC0305 /* HistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryView.swift; sourceTree = "<group>"; };
+		AA1234560001AABB00CC0307 /* StoreAnalytics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoreAnalytics.swift; sourceTree = "<group>"; };
+		AA1234560001AABB00CC0309 /* StoreAnalyticsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoreAnalyticsView.swift; sourceTree = "<group>"; };
 		0138D8742F68BB95007CC1E4 /* SubscriptionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionManager.swift; sourceTree = "<group>"; };
 		0141FCBD2F71880F009C626B /* PrivacyPolicyView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrivacyPolicyView.swift; sourceTree = "<group>"; };
 		0141FCBF2F718817009C626B /* SubscriptionManagementView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionManagementView.swift; sourceTree = "<group>"; };
@@ -492,6 +496,7 @@
 				744091EB2DE57AB500ACC67A /* StoreItemView.swift */,
 				748542B42CB5378A00C58D9B /* ReminderView.swift */,
 				AA1234560001AABB00CC0305 /* HistoryView.swift */,
+				AA1234560001AABB00CC0309 /* StoreAnalyticsView.swift */,
 				74A79E7E2CBDAB2A00713F0E /* ReminderItemView.swift */,
 				74A8AA3D2DEBB84B005855A0 /* AddReminderView.swift */,
 				010B28082EB6C2E9004E828B /* AddStoreView.swift */,
@@ -537,6 +542,7 @@
 				74A79E842CBDACB800713F0E /* Store.swift */,
 				74A79E7C2CBDAA4E00713F0E /* Reminder.swift */,
 				AA1234560001AABB00CC0301 /* ReminderHistory.swift */,
+				AA1234560001AABB00CC0307 /* StoreAnalytics.swift */,
 				DF66A9972E24C86100C15DA9 /* User_Store.swift */,
 			);
 			path = Models;
@@ -838,6 +844,8 @@
 				AA1234560001AABB00CC0302 /* ReminderHistory.swift in Sources */,
 				AA1234560001AABB00CC0304 /* ReminderHistoryViewModel.swift in Sources */,
 				AA1234560001AABB00CC0306 /* HistoryView.swift in Sources */,
+				AA1234560001AABB00CC0308 /* StoreAnalytics.swift in Sources */,
+				AA1234560001AABB00CC0310 /* StoreAnalyticsView.swift in Sources */,
 				01B408332F3BECF200EA1F25 /* MessagesView.swift in Sources */,
 				0188F8592F68568C007953B2 /* BannerAdView.swift in Sources */,
 				0138242F2EDCD08C0069F38C /* NotificationLogView.swift in Sources */,
