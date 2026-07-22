@@ -21,6 +21,7 @@
 		0119CD0F2F4CF96000DEDEFD /* CachedLogoImage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0119CD0E2F4CF96000DEDEFD /* CachedLogoImage.swift */; };
 		011CF5FE2ED638D6009A31A6 /* ForgotPasswordView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 011CF5FD2ED638D6009A31A6 /* ForgotPasswordView.swift */; };
 		011CF6002ED638DD009A31A6 /* ShareStoreView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 011CF5FF2ED638DD009A31A6 /* ShareStoreView.swift */; };
+		01FEED022F71880F009C626B /* InviteFriends.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01FEED012F71880F009C626B /* InviteFriends.swift */; };
 		011CF6022ED638E4009A31A6 /* SharedStoreGroup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 011CF6012ED638E4009A31A6 /* SharedStoreGroup.swift */; };
 		011CF6072ED638F9009A31A6 /* ForgotPasswordViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 011CF6062ED638F9009A31A6 /* ForgotPasswordViewModel.swift */; };
 		011CF6092ED63945009A31A6 /* Notifi.icon in Resources */ = {isa = PBXBuildFile; fileRef = 011CF6082ED63945009A31A6 /* Notifi.icon */; };
@@ -187,6 +188,7 @@
 		0119CD0E2F4CF96000DEDEFD /* CachedLogoImage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CachedLogoImage.swift; sourceTree = "<group>"; };
 		011CF5FD2ED638D6009A31A6 /* ForgotPasswordView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForgotPasswordView.swift; sourceTree = "<group>"; };
 		011CF5FF2ED638DD009A31A6 /* ShareStoreView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareStoreView.swift; sourceTree = "<group>"; };
+		01FEED012F71880F009C626B /* InviteFriends.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InviteFriends.swift; sourceTree = "<group>"; };
 		011CF6012ED638E4009A31A6 /* SharedStoreGroup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedStoreGroup.swift; sourceTree = "<group>"; };
 		011CF6062ED638F9009A31A6 /* ForgotPasswordViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForgotPasswordViewModel.swift; sourceTree = "<group>"; };
 		011CF6082ED63945009A31A6 /* Notifi.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = Notifi.icon; sourceTree = "<group>"; };
@@ -483,6 +485,7 @@
 				01B4082E2F3BECE600EA1F25 /* ConversationView.swift */,
 				0138242E2EDCD08C0069F38C /* NotificationLogView.swift */,
 				011CF5FF2ED638DD009A31A6 /* ShareStoreView.swift */,
+				01FEED012F71880F009C626B /* InviteFriends.swift */,
 				011CF5FD2ED638D6009A31A6 /* ForgotPasswordView.swift */,
 				01D2D8722EC2901F009C371F /* ImagePicker.swift */,
 				8278FDF92C5DD1C90017EB72 /* MainView.swift */,
@@ -885,6 +888,7 @@
 				01500AB42F87F22F0038F0D3 /* SubscriptionDebugView.swift in Sources */,
 				01B78C382EBD414A00201B88 /* UserStoreItem.swift in Sources */,
 				011CF6002ED638DD009A31A6 /* ShareStoreView.swift in Sources */,
+				01FEED022F71880F009C626B /* InviteFriends.swift in Sources */,
 				01B408252F3BECB800EA1F25 /* FriendsViewModel.swift in Sources */,
 				82D289AC2C61CCD4009F357F /* LoginViewModel.swift in Sources */,
 				01B408312F3BECEC00EA1F25 /* FriendsView.swift in Sources */,

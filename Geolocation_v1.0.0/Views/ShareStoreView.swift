@@ -132,6 +132,19 @@ struct ShareStoreView: View {
                     }
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(action: {
+                        inviteFriends()
+                    }) {
+                        Image(systemName: "square.and.arrow.up.badge.checkmark")
+                    }
+                    .accessibilityLabel("Invite Friends")
+                }
+                // Break the shared Liquid Glass capsule so the invite button
+                // renders in its own circle, separate from the Share button.
+                if #available(iOS 26.0, *) {
+                    ToolbarSpacer(.fixed, placement: .navigationBarTrailing)
+                }
+                ToolbarItem(placement: .navigationBarTrailing) {
                     if isSharing {
                         ProgressView()
                     } else {
@@ -613,6 +626,14 @@ struct ShareStoreView: View {
     }
 
     // MARK: - FUNCTIONS
+
+    /// Copies Allim's App Store link so the user can invite friends who don't have the app yet.
+    private func inviteFriends() {
+        AppInvite.copyLinkToClipboard()
+        alertTitle = "Invite Friends"
+        alertMessage = AppInvite.linkCopiedMessage
+        showAlert = true
+    }
 
     private func shareWithAllFamily() {
         guard let currentUserName = viewModel.sessionManager.currentUser?.name else {
