@@ -132,14 +132,23 @@ struct ShareStoreView: View {
                     }
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    if isSharing {
-                        ProgressView()
-                    } else {
-                        Button("Share") {
-                            shareStore()
+                    HStack(spacing: 16) {
+                        Button(action: {
+                            inviteFriends()
+                        }) {
+                            Image(systemName: "person.badge.plus")
                         }
-                        .fontWeight(.semibold)
-                        .disabled(recipientEmail.trimmingCharacters(in: .whitespaces).isEmpty || isSharingWithAllFamily)
+                        .accessibilityLabel("Invite Friends")
+
+                        if isSharing {
+                            ProgressView()
+                        } else {
+                            Button("Share") {
+                                shareStore()
+                            }
+                            .fontWeight(.semibold)
+                            .disabled(recipientEmail.trimmingCharacters(in: .whitespaces).isEmpty || isSharingWithAllFamily)
+                        }
                     }
                 }
             }
@@ -613,6 +622,14 @@ struct ShareStoreView: View {
     }
 
     // MARK: - FUNCTIONS
+
+    /// Copies Allim's App Store link so the user can invite friends who don't have the app yet.
+    private func inviteFriends() {
+        AppInvite.copyLinkToClipboard()
+        alertTitle = "Invite Friends"
+        alertMessage = AppInvite.linkCopiedMessage
+        showAlert = true
+    }
 
     private func shareWithAllFamily() {
         guard let currentUserName = viewModel.sessionManager.currentUser?.name else {
