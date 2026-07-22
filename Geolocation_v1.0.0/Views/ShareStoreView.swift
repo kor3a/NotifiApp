@@ -132,23 +132,22 @@ struct ShareStoreView: View {
                     }
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    HStack(spacing: 16) {
-                        Button(action: {
-                            inviteFriends()
-                        }) {
-                            Image(systemName: "person.badge.plus")
+                    Button(action: {
+                        inviteFriends()
+                    }) {
+                        Image(systemName: "square.and.arrow.up.badge.checkmark")
+                    }
+                    .accessibilityLabel("Invite Friends")
+                }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    if isSharing {
+                        ProgressView()
+                    } else {
+                        Button("Share") {
+                            shareStore()
                         }
-                        .accessibilityLabel("Invite Friends")
-
-                        if isSharing {
-                            ProgressView()
-                        } else {
-                            Button("Share") {
-                                shareStore()
-                            }
-                            .fontWeight(.semibold)
-                            .disabled(recipientEmail.trimmingCharacters(in: .whitespaces).isEmpty || isSharingWithAllFamily)
-                        }
+                        .fontWeight(.semibold)
+                        .disabled(recipientEmail.trimmingCharacters(in: .whitespaces).isEmpty || isSharingWithAllFamily)
                     }
                 }
             }
