@@ -139,6 +139,11 @@ struct ShareStoreView: View {
                     }
                     .accessibilityLabel("Invite Friends")
                 }
+                // Break the shared Liquid Glass capsule so the invite button
+                // renders in its own circle, separate from the Share button.
+                if #available(iOS 26.0, *) {
+                    ToolbarSpacer(.fixed, placement: .navigationBarTrailing)
+                }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     if isSharing {
                         ProgressView()
