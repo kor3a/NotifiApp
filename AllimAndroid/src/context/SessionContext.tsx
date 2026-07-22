@@ -2,6 +2,7 @@ import React, {
   createContext,
   useContext,
   useEffect,
+  useRef,
   useState,
 } from 'react';
 import auth from '@react-native-firebase/auth';
@@ -29,6 +30,9 @@ export function SessionProvider({children}: {children: React.ReactNode}) {
   const [firebaseUser, setFirebaseUser] = useState<any | null>(null);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  // True once a signed-in user has been observed, so the FCM token is only
+  // invalidated on real sign-outs — not on cold starts that begin signed out.
+  const hasSeenSignedInUser = useRef(false);
 
   async function refreshUser() {
     const fbUser = auth().currentUser;
@@ -44,7 +48,10 @@ export function SessionProvider({children}: {children: React.ReactNode}) {
     const unsubscribe = auth().onAuthStateChanged(async fbUser => {
       setFirebaseUser(fbUser);
       if (fbUser) {
-        // Save FCM token
+        hasSeenSignedInUser.current = true;
+        // Save FCM token — always re-written here because an account switch
+        // on the same device reuses the same token string, and it must be
+        // bound to the account that is signed in now.
         try {
           const token = await messaging().getToken();
           await userService.saveFCMToken(fbUser.uid, token);
@@ -53,6 +60,15 @@ export function SessionProvider({children}: {children: React.ReactNode}) {
         const user = await userService.fetchUserByUid(fbUser.uid);
         setCurrentUser(user);
       } else {
+        // Signed out: invalidate this device's token so pushes addressed to
+        // any account that still stores it bounce instead of being shown to
+        // the next user who signs in on this device. A replacement token is
+        // fetched and saved on the next sign-in above.
+        if (hasSeenSignedInUser.current) {
+          try {
+            await messaging().deleteToken();
+          } catch (_) {}
+        }
         setCurrentUser(null);
       }
       setIsLoading(false);

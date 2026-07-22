@@ -33,12 +33,12 @@
  * automatically when the app launches or the token rotates.
  */
 
-const { onDocumentCreated } = require('firebase-functions/v2/firestore');
+const { onDocumentCreated, onDocumentWritten } = require('firebase-functions/v2/firestore');
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { defineSecret } = require('firebase-functions/params');
 const functions = require('firebase-functions');
 const { initializeApp } = require('firebase-admin/app');
-const { getFirestore } = require('firebase-admin/firestore');
+const { getFirestore, FieldValue } = require('firebase-admin/firestore');
 const { getMessaging } = require('firebase-admin/messaging');
 const { getStorage } = require('firebase-admin/storage');
 const { getAuth } = require('firebase-admin/auth');
@@ -87,7 +87,8 @@ const db = getFirestore();
 
 /**
  * Look up a user's FCM token by their userId field in the `users` collection.
- * Returns null when no document or no token is found.
+ * Returns `{ token, userDocRef }` so callers can pass the owning document to
+ * sendFCM for stale-token cleanup, or null when no document/token is found.
  */
 async function getFCMToken(userId) {
     const snap = await db
@@ -102,8 +103,9 @@ async function getFCMToken(userId) {
     const token = snap.docs[0].data().fcmToken;
     if (!token) {
         console.warn(`getFCMToken: user "${userId}" has no fcmToken field in Firestore`);
+        return null;
     }
-    return token || null;
+    return { token, userDocRef: snap.docs[0].ref };
 }
 
 /**
@@ -161,6 +163,10 @@ async function resolveSenderName(senderEmail, fallbackName) {
  *       NotifiNotificationService extension can intercept and rewrite the
  *       notification (used to turn message pushes into communication
  *       notifications that are CarPlay-safe).
+ *   - ownerDocRef {DocumentReference} The users doc this token was read from.
+ *       When FCM reports the token as no longer registered (app uninstalled,
+ *       or the token was invalidated on sign-out), the stale fcmToken field is
+ *       deleted from that doc so future sends stop targeting a dead token.
  */
 async function sendFCM(token, title, body, data = {}, options = {}) {
     const aps = {
@@ -200,10 +206,68 @@ async function sendFCM(token, title, body, data = {}, options = {}) {
         console.error(`FCM send FAILED — token: …${token.slice(-8)}, code: ${err.code}, message: ${err.message}`);
         // Common error codes:
         //   messaging/registration-token-not-registered → stale token, app was uninstalled
+        //     or the token was invalidated on sign-out
         //   messaging/invalid-argument → APNs key not uploaded to Firebase Console
         //   messaging/authentication-error → APNs credentials missing/expired in Firebase Console
+        if (
+            err.code === 'messaging/registration-token-not-registered' &&
+            options.ownerDocRef
+        ) {
+            try {
+                await options.ownerDocRef.update({ fcmToken: FieldValue.delete() });
+                console.log(`sendFCM: cleared stale token from ${options.ownerDocRef.path}`);
+            } catch (cleanupErr) {
+                console.warn(`sendFCM: failed to clear stale token from ${options.ownerDocRef.path}: ${cleanupErr.message}`);
+            }
+        }
     }
 }
+
+// ---------------------------------------------------------------------------
+// 0. FCM token deduplication
+//
+// WHY THIS EXISTS
+// ---------------
+// An FCM token identifies a DEVICE, not a user. Historically the app wrote the
+// device token to whichever account was signed in and never cleaned up on
+// sign-out, so every account that ever signed in on a phone kept that phone's
+// token — and pushes addressed to a signed-out account were delivered to
+// whoever was signed in on the device (wrong-recipient notifications).
+//
+// The app now invalidates the token on sign-out and re-writes it on sign-in,
+// but existing user docs are still contaminated, and Firestore rules prevent
+// the client from clearing tokens off OTHER users' documents. This trigger
+// enforces one-owner-per-token with the Admin SDK: whenever a token is written
+// to a user doc, the same token is deleted from every other user doc that
+// still holds it. Existing contamination heals progressively as devices check
+// in with their tokens.
+//
+// No retrigger loop: the cleanup writes only DELETE fcmToken, and deletions
+// exit at the `!token` guard.
+// ---------------------------------------------------------------------------
+exports.dedupeFcmToken = onDocumentWritten('users/{docId}', async (event) => {
+    const before = event.data?.before?.data();
+    const after = event.data?.after?.data();
+    const token = after?.fcmToken;
+
+    // Only act when a token was newly set or changed on this doc.
+    if (!token || token === before?.fcmToken) return;
+
+    const snap = await db
+        .collection('users')
+        .where('fcmToken', '==', token)
+        .get();
+    const others = snap.docs.filter((doc) => doc.id !== event.params.docId);
+    if (others.length === 0) return;
+
+    const batch = db.batch();
+    others.forEach((doc) => batch.update(doc.ref, { fcmToken: FieldValue.delete() }));
+    await batch.commit();
+    console.log(
+        `dedupeFcmToken: token now owned by users/${event.params.docId}; ` +
+        `cleared it from ${others.length} other doc(s): ${others.map((d) => d.id).join(', ')}`
+    );
+});
 
 // ---------------------------------------------------------------------------
 // 1. "On My Way" notifications
@@ -219,8 +283,8 @@ exports.onMyWayNotification = onDocumentCreated(
         console.log(`onMyWayNotification fired — docId=${event.params.docId}, recipientUserId=${recipientUserId}`);
         if (!recipientUserId) { console.warn('onMyWayNotification: missing recipientUserId, skipping'); return; }
 
-        const token = await getFCMToken(recipientUserId);
-        if (!token) { console.warn(`onMyWayNotification: no token for ${recipientUserId}, skipping`); return; }
+        const tokenEntry = await getFCMToken(recipientUserId);
+        if (!tokenEntry) { console.warn(`onMyWayNotification: no token for ${recipientUserId}, skipping`); return; }
 
         const displayName = await resolveSenderName(senderEmail, senderName || 'Someone');
         const mins = travelTimeMinutes || 0;
@@ -229,13 +293,14 @@ exports.onMyWayNotification = onDocumentCreated(
                 ? `${displayName} is on their way to ${storeName} (~${mins} min)`
                 : `${displayName} is heading to ${storeName}`;
 
-        await sendFCM(token, '🚗 On My Way', body, {
+        await sendFCM(tokenEntry.token, '🚗 On My Way', body, {
             type: 'on_my_way',
             storeName: storeName || '',
         }, {
             // ON_MY_WAY is registered with .allowInCarPlay — shows on CarPlay.
             category: 'ON_MY_WAY',
             threadId: `on-my-way-${storeName || ''}`,
+            ownerDocRef: tokenEntry.userDocRef,
         });
     }
 );
@@ -254,8 +319,8 @@ exports.sharedReminderNotification = onDocumentCreated(
         console.log(`sharedReminderNotification fired — docId=${event.params.docId}, recipientUserId=${recipientUserId}`);
         if (!recipientUserId) { console.warn('sharedReminderNotification: missing recipientUserId, skipping'); return; }
 
-        const token = await getFCMToken(recipientUserId);
-        if (!token) { console.warn(`sharedReminderNotification: no token for ${recipientUserId}, skipping`); return; }
+        const tokenEntry = await getFCMToken(recipientUserId);
+        if (!tokenEntry) { console.warn(`sharedReminderNotification: no token for ${recipientUserId}, skipping`); return; }
 
         const displayName = await resolveSenderName(senderEmail, senderName || 'Someone');
         const added = addedCount || 0;
@@ -264,13 +329,14 @@ exports.sharedReminderNotification = onDocumentCreated(
                 ? `${displayName} added ${added} reminder${added > 1 ? 's' : ''} to ${storeName}`
                 : `${displayName} updated reminders for ${storeName}`;
 
-        await sendFCM(token, '📝 Reminder Updated', body, {
+        await sendFCM(tokenEntry.token, '📝 Reminder Updated', body, {
             type: 'reminder_change',
             storeName: storeName || '',
         }, {
             // SHARED_REMINDER_CHANGE is registered with .allowInCarPlay.
             category: 'SHARED_REMINDER_CHANGE',
             threadId: `shared-reminder-${storeName || ''}`,
+            ownerDocRef: tokenEntry.userDocRef,
         });
     }
 );
@@ -313,9 +379,9 @@ exports.newMessageNotification = onDocumentCreated(
 
         await Promise.all(
             recipients.map(async (userId) => {
-                const token = await getFCMToken(userId);
-                if (!token) return;
-                await sendFCM(token, notificationTitle, notificationBody, {
+                const tokenEntry = await getFCMToken(userId);
+                if (!tokenEntry) return;
+                await sendFCM(tokenEntry.token, notificationTitle, notificationBody, {
                     type: 'message',
                     conversationId: conversationId,
                     isGroup: String(isGroup),
@@ -335,6 +401,7 @@ exports.newMessageNotification = onDocumentCreated(
                     category: 'NEW_MESSAGE',
                     threadId: conversationId,
                     mutableContent: true,
+                    ownerDocRef: tokenEntry.userDocRef,
                 });
             })
         );
@@ -431,16 +498,16 @@ exports.friendRequestNotification = onDocumentCreated(
         console.log(`friendRequestNotification fired — docId=${event.params.docId}, receiverId=${receiverId}`);
         if (!receiverId) { console.warn('friendRequestNotification: missing receiverId, skipping'); return; }
 
-        const token = await getFCMToken(receiverId);
-        if (!token) { console.warn(`friendRequestNotification: no token for ${receiverId}, skipping`); return; }
+        const tokenEntry = await getFCMToken(receiverId);
+        if (!tokenEntry) { console.warn(`friendRequestNotification: no token for ${receiverId}, skipping`); return; }
 
         await sendFCM(
-            token,
+            tokenEntry.token,
             '👋 Friend Request',
             `${requesterName || 'Someone'} sent you a friend request`,
             { type: 'friend_request' },
             // FRIEND_REQUEST is registered with .allowInCarPlay.
-            { category: 'FRIEND_REQUEST' }
+            { category: 'FRIEND_REQUEST', ownerDocRef: tokenEntry.userDocRef }
         );
     }
 );
