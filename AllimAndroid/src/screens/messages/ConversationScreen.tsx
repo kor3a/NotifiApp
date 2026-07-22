@@ -51,12 +51,12 @@ export default function ConversationScreen() {
     });
 
     // Mark as read
-    if (firebaseUser) {
-      messageService.markAsRead(conversationId, firebaseUser.uid);
+    if (currentUser) {
+      messageService.markAsRead(conversationId, currentUser.userId);
     }
 
     return unsub;
-  }, [conversationId, firebaseUser]);
+  }, [conversationId, currentUser]);
 
   async function handleSend() {
     if (!input.trim() || !firebaseUser || !currentUser) {return;}
@@ -66,7 +66,7 @@ export default function ConversationScreen() {
     try {
       await messageService.sendMessage(
         conversationId,
-        firebaseUser.uid,
+        currentUser.userId,
         currentUser.name,
         text,
       );
@@ -76,7 +76,7 @@ export default function ConversationScreen() {
   }
 
   function renderMessage({item}: {item: Message}) {
-    const isMine = item.senderId === firebaseUser?.uid;
+    const isMine = item.senderId === currentUser?.userId;
     const time = item.createdAt?.toDate
       ? format(item.createdAt.toDate(), 'h:mm a')
       : '';

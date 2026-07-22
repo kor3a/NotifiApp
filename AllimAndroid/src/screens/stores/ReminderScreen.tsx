@@ -140,15 +140,11 @@ export default function ReminderScreen() {
   }
 
   async function handlePickPhoto(reminder: Reminder) {
-    if (!firebaseUser) {return;}
+    if (!currentUser) {return;}
     const result = await launchImageLibrary({mediaType: 'photo', quality: 0.8});
     if (result.assets?.[0]?.uri) {
       try {
-        await reminderService.uploadPhoto(
-          reminder.id,
-          result.assets[0].uri,
-          firebaseUser.uid,
-        );
+        await reminderService.uploadPhoto(reminder.id, result.assets[0].uri);
       } catch (err: any) {
         Alert.alert('Error', err.message);
       }

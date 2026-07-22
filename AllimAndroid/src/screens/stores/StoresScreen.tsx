@@ -50,7 +50,7 @@ export default function StoresScreen() {
   useEffect(() => {
     if (!firebaseUser || !currentUser) {return;}
     const unsub = storeService.subscribeToUserStores(
-      firebaseUser.uid,
+      currentUser.userId,
       currentUser.email,
       items => {
         setStores(items);
@@ -68,7 +68,7 @@ export default function StoresScreen() {
   async function handleSelectStore(storeName: string) {
     if (!firebaseUser || !currentUser) {return;}
     await storeService.addStore(
-      firebaseUser.uid,
+      currentUser.userId,
       currentUser.email,
       storeName,
     );
@@ -94,7 +94,7 @@ export default function StoresScreen() {
               } else {
                 await storeService.deleteStore(
                   item.id,
-                  firebaseUser.uid,
+                  currentUser.userId,
                   currentUser.email,
                 );
               }

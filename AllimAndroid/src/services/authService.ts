@@ -1,6 +1,7 @@
 import auth from '@react-native-firebase/auth';
 import firestore from '@react-native-firebase/firestore';
 import functions from '@react-native-firebase/functions';
+import {userService} from './userService';
 
 // Sends a custom, mobile-friendly verification email via the
 // `sendVerificationEmail` Cloud Function (Resend) instead of Firebase Auth's
@@ -25,6 +26,19 @@ export const authService = {
     name: string,
     userId: string,
   ): Promise<void> {
+    // User docs are keyed by the lowercased username, matching iOS — one doc
+    // per person across platforms. Check availability BEFORE creating the
+    // auth account so a taken username doesn't leave an orphaned auth user.
+    const normalizedUserId = userId.toLowerCase().trim();
+    const normalizedEmail = email.toLowerCase().trim();
+    const existing = await firestore()
+      .collection('users')
+      .doc(normalizedUserId)
+      .get();
+    if (existing.exists) {
+      throw new Error('This username is already taken. Please choose another.');
+    }
+
     let result;
     try {
       result = await auth().createUserWithEmailAndPassword(email, password);
@@ -45,12 +59,12 @@ export const authService = {
     }
     await sendVerificationEmail();
 
-    // Create user document in Firestore
-    await firestore().collection('users').doc(result.user.uid).set({
-      userId: userId,
+    // Create user document in Firestore, keyed by username like iOS
+    await firestore().collection('users').doc(normalizedUserId).set({
+      userId: normalizedUserId,
       firebaseUid: result.user.uid,
       name: name,
-      email: email,
+      email: normalizedEmail,
       isSubscribed: false,
       adminSubscribed: false,
       createdAt: firestore.FieldValue.serverTimestamp(),
@@ -77,14 +91,10 @@ export const authService = {
     // against a timeout so sign-out never hangs offline; SessionContext also
     // invalidates the device token itself once the sign-out lands.
     const user = auth().currentUser;
-    if (user) {
-      const clearToken = firestore()
-        .collection('users')
-        .doc(user.uid)
-        .update({fcmToken: firestore.FieldValue.delete()});
+    if (user?.email) {
       await Promise.race([
-        clearToken,
-        new Promise(resolve => setTimeout(resolve, 3000)),
+        userService.clearFCMToken(user.email),
+        new Promise<void>(resolve => setTimeout(() => resolve(), 3000)),
       ]).catch(() => {});
     }
     await auth().signOut();
@@ -97,8 +107,15 @@ export const authService = {
     const credential = auth.EmailAuthProvider.credential(user.email, password);
     await user.reauthenticateWithCredential(credential);
 
-    // Delete Firestore user doc
-    await firestore().collection('users').doc(user.uid).delete();
+    // Delete every user doc for this email — covers both the canonical
+    // username-keyed doc and any legacy UID-keyed doc from older Android
+    // builds. The cleanupDeletedUser Cloud Function also sweeps related data
+    // once the auth user is deleted below.
+    const snap = await firestore()
+      .collection('users')
+      .where('email', '==', user.email.toLowerCase().trim())
+      .get();
+    await Promise.all(snap.docs.map(doc => doc.ref.delete()));
     await user.delete();
   },
 
