@@ -123,6 +123,28 @@ service cloud.firestore {
     }
 
     // ============================================================
+    // Reminder History (checked-off items preserved after deletion)
+    // ============================================================
+    match /reminder_history/{entryId} {
+      // Queried by userStoreId, which resolves the same way as reminders
+      // (own store, shared group, or owner's store via sourceUserStoreId),
+      // so ownership cannot be verified in rules — same limitation as the
+      // reminders collection above.
+      allow read: if request.auth != null;
+
+      // Entries are written by the app at the moment a checked-off
+      // reminder is deleted.
+      allow create: if request.auth != null &&
+                       request.resource.data.userStoreId is string &&
+                       request.resource.data.title is string &&
+                       request.resource.data.checkedOffAt is number;
+
+      // History entries are immutable; allow delete for future cleanup.
+      allow update: if false;
+      allow delete: if request.auth != null;
+    }
+
+    // ============================================================
     // Store Logos (logo URL cache for store icons)
     // ============================================================
     match /stores_logos/{logoId} {

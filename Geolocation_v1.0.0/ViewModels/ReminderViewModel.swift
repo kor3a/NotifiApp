@@ -131,6 +131,9 @@ class ReminderViewModel: ObservableObject {
                         let quantity = data["quantity"] as? Int
                         let isOutOfStock = data["isOutOfStock"] as? Bool
                         let category = data["category"] as? String
+                        let checkedOffAt = data["checkedOffAt"] as? TimeInterval
+                        let checkedOffBy = data["checkedOffBy"] as? String
+                        let checkedOffById = data["checkedOffById"] as? String
 
                         return Reminder(
                             id: doc.documentID,
@@ -148,7 +151,10 @@ class ReminderViewModel: ObservableObject {
                             sortOrder: sortOrder,
                             quantity: quantity,
                             isOutOfStock: isOutOfStock,
-                            category: category
+                            category: category,
+                            checkedOffAt: checkedOffAt,
+                            checkedOffBy: checkedOffBy,
+                            checkedOffById: checkedOffById
                         )
                     }
 
@@ -751,6 +757,23 @@ class ReminderViewModel: ObservableObject {
         let newIsDone = !reminder.isDone
         var updateFields: [String: Any] = ["isDone": newIsDone]
 
+        // Record who checked the item off and when — this attribution is copied
+        // into reminder_history if the checked item is later deleted. Cleared
+        // when the item is unchecked so a stale check-off never lingers.
+        if newIsDone {
+            updateFields["checkedOffAt"] = Date().timeIntervalSince1970
+            if let name = UserSessionManager.shared.currentUser?.name, !name.isEmpty {
+                updateFields["checkedOffBy"] = name
+            }
+            if let userId = UserSessionManager.shared.currentUser?.userId, !userId.isEmpty {
+                updateFields["checkedOffById"] = userId
+            }
+        } else {
+            updateFields["checkedOffAt"] = FieldValue.delete()
+            updateFields["checkedOffBy"] = FieldValue.delete()
+            updateFields["checkedOffById"] = FieldValue.delete()
+        }
+
         // Clear out-of-stock when marking as done via normal tap
         if newIsDone && reminder.isOutOfStock == true {
             updateFields["isOutOfStock"] = false
@@ -1099,7 +1122,66 @@ class ReminderViewModel: ObservableObject {
         stagedPhotoUrls.remove(url)
     }
 
-    /// Delete a reminder - syncs deletion across all linked shared reminders
+    // MARK: - Check-off History
+
+    /// Preserve a checked-off reminder in the `reminder_history` collection just
+    /// before its document is deleted, so it stays visible in the store's
+    /// HistoryView. `data` is the reminder document's Firestore data; `fallback`
+    /// is the local copy, which is authoritative when the check-off never
+    /// reached Firestore (the auto-delete flow deletes without toggling isDone).
+    ///
+    /// Static and bound only to the Firestore singleton so the write still
+    /// happens if the ViewModel is deallocated mid-deletion (e.g. the user
+    /// navigated away while the undo window was open).
+    static func recordHistoryEntry(data: [String: Any], fallback: Reminder) {
+        let now = Date().timeIntervalSince1970
+        var entry: [String: Any] = [
+            "userStoreId": (data["userStoreId"] as? String) ?? fallback.userStoreId,
+            "title": (data["title"] as? String) ?? fallback.title,
+            "checkedOffAt": (data["checkedOffAt"] as? TimeInterval) ?? fallback.checkedOffAt ?? now,
+            "deletedAt": now
+        ]
+        entry["createdAt"] = (data["createdAt"] as? TimeInterval) ?? fallback.createdAt
+        if let quantity = (data["quantity"] as? Int) ?? fallback.quantity {
+            entry["quantity"] = quantity
+        }
+        if let photoURLs = (data["photoURLs"] as? [String]) ?? fallback.photoURLs, !photoURLs.isEmpty {
+            entry["photoURLs"] = photoURLs
+        }
+        if let category = (data["category"] as? String) ?? fallback.category {
+            entry["category"] = category
+        }
+        if let checkedOffBy = (data["checkedOffBy"] as? String) ?? fallback.checkedOffBy {
+            entry["checkedOffBy"] = checkedOffBy
+        }
+        if let checkedOffById = (data["checkedOffById"] as? String) ?? fallback.checkedOffById {
+            entry["checkedOffById"] = checkedOffById
+        }
+        // Creator attribution: shared reminders record their author in
+        // sharedFrom/sharedFromId; personal reminders were created by the store
+        // owner, i.e. the current user performing the deletion.
+        if let createdBy = (data["sharedFrom"] as? String) ?? fallback.sharedFrom
+            ?? UserSessionManager.shared.currentUser?.name {
+            entry["createdBy"] = createdBy
+        }
+        if let createdById = (data["sharedFromId"] as? String) ?? fallback.sharedFromId
+            ?? UserSessionManager.shared.currentUser?.userId {
+            entry["createdById"] = createdById
+        }
+
+        Firestore.firestore().collection("reminder_history").addDocument(data: entry) { error in
+            #if DEBUG
+            if let error = error {
+                print("ReminderViewModel: Error recording history entry: \(error.localizedDescription)")
+            } else {
+                print("ReminderViewModel: History entry recorded for '\(entry["title"] ?? "")'")
+            }
+            #endif
+        }
+    }
+
+    /// Delete a reminder - syncs deletion across all linked shared reminders.
+    /// Checked-off reminders are preserved in reminder_history before deletion.
     func deleteReminder(_ reminder: Reminder) {
         #if DEBUG
         print("ReminderViewModel: Deleting reminder '\(reminder.title)'")
@@ -1123,21 +1205,29 @@ class ReminderViewModel: ObservableObject {
                         print("ReminderViewModel: Error finding linked reminders: \(error.localizedDescription)")
                         #endif
                         // Fall back to deleting just this reminder
-                        self.deleteSingleReminder(reminder.id)
+                        self.deleteSingleReminder(reminder.id, historySource: reminder)
                         return
                     }
 
                     guard let documents = snapshot?.documents, !documents.isEmpty else {
                         // No linked reminders found, delete just this one
-                        self.deleteSingleReminder(reminder.id)
+                        self.deleteSingleReminder(reminder.id, historySource: reminder)
                         return
                     }
 
-                    // Delete attached photos from Storage before removing the docs,
-                    // otherwise the files are left orphaned in Firebase Storage.
+                    // Preserve checked-off copies in reminder_history (one entry
+                    // per linked doc, so every participant's store keeps its own
+                    // history). The local copy's isDone is authoritative when the
+                    // check-off never reached Firestore (auto-delete flow).
+                    // Photos referenced by history entries stay in Storage;
+                    // everything else is cleaned up as before.
                     var photoURLs = Set<String>()
                     for doc in documents {
-                        if let urls = doc.data()["photoURLs"] as? [String] {
+                        let data = doc.data()
+                        let wasCheckedOff = (data["isDone"] as? Bool == true) || reminder.isDone
+                        if wasCheckedOff {
+                            Self.recordHistoryEntry(data: data, fallback: reminder)
+                        } else if let urls = data["photoURLs"] as? [String] {
                             photoURLs.formUnion(urls)
                         }
                     }
@@ -1166,16 +1256,26 @@ class ReminderViewModel: ObservableObject {
                 }
         } else {
             // No sharing, just delete this reminder
-            deleteSingleReminder(reminder.id)
+            deleteSingleReminder(reminder.id, historySource: reminder)
         }
     }
 
-    private func deleteSingleReminder(_ reminderId: String) {
+    /// Delete a single reminder document. When `historySource` is provided and
+    /// the reminder was checked off, a reminder_history entry is written first
+    /// (and its photos are kept in Storage since history still references them).
+    /// `discardAutosave` passes no historySource — discarded drafts never get history.
+    private func deleteSingleReminder(_ reminderId: String, historySource: Reminder? = nil) {
         let docRef = db.collection("reminders").document(reminderId)
         // Fetch photoURLs first so we can clean them up from Storage; without
         // this step the files are left orphaned after the doc is deleted.
         docRef.getDocument { snapshot, _ in
-            if let urls = snapshot?.data()?["photoURLs"] as? [String] {
+            let data = snapshot?.data() ?? [:]
+            let wasCheckedOff = historySource.map {
+                (data["isDone"] as? Bool == true) || $0.isDone
+            } ?? false
+            if wasCheckedOff, let source = historySource {
+                Self.recordHistoryEntry(data: data, fallback: source)
+            } else if let urls = data["photoURLs"] as? [String] {
                 Self.deletePhotosFromStorage(urls: Set(urls))
             }
             docRef.delete { [weak self] error in

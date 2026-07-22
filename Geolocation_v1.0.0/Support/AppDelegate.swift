@@ -36,6 +36,11 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         // so we intentionally leave it alone here.
         Messaging.messaging().delegate = self
 
+        // Keep the FCM token bound to the signed-in account: re-write it on
+        // sign-in (account switches reuse the same token) and invalidate it on
+        // sign-out so pushes for the previous account can't reach this device.
+        FCMTokenManager.shared.startObservingAuthChanges()
+
         // Ask the OS for a remote-notification device token.  The result arrives
         // in didRegisterForRemoteNotificationsWithDeviceToken below.
         application.registerForRemoteNotifications()

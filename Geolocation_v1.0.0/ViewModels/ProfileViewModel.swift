@@ -37,15 +37,22 @@ class ProfileViewModel: ObservableObject {
     }
     
     func signOut() {
-        // Perform sign out asynchronously to avoid blocking the main thread
-        DispatchQueue.global(qos: .userInitiated).async {
-            do {
-                try Auth.auth().signOut()
-                // MainViewModel's auth listener will handle clearing the session
-            } catch {
-                #if DEBUG
-                print("Could not sign out: \(error.localizedDescription)")
-                #endif
+        // Remove this device's push token from the user's document first —
+        // rules only allow updating your own doc, so it must happen while
+        // still authenticated. Times out internally so sign-out never hangs;
+        // FCMTokenManager's auth observer then invalidates the device token
+        // itself once the sign-out lands.
+        FCMTokenManager.shared.clearTokenForCurrentUser {
+            // Perform sign out asynchronously to avoid blocking the main thread
+            DispatchQueue.global(qos: .userInitiated).async {
+                do {
+                    try Auth.auth().signOut()
+                    // MainViewModel's auth listener will handle clearing the session
+                } catch {
+                    #if DEBUG
+                    print("Could not sign out: \(error.localizedDescription)")
+                    #endif
+                }
             }
         }
     }

@@ -71,6 +71,22 @@ export const authService = {
 
   // Sign out
   async signOut(): Promise<void> {
+    // Best-effort: remove this device's FCM token from the user's doc while
+    // still authenticated (rules only allow updating your own doc), so pushes
+    // for this account stop targeting a device it no longer occupies. Raced
+    // against a timeout so sign-out never hangs offline; SessionContext also
+    // invalidates the device token itself once the sign-out lands.
+    const user = auth().currentUser;
+    if (user) {
+      const clearToken = firestore()
+        .collection('users')
+        .doc(user.uid)
+        .update({fcmToken: firestore.FieldValue.delete()});
+      await Promise.race([
+        clearToken,
+        new Promise(resolve => setTimeout(resolve, 3000)),
+      ]).catch(() => {});
+    }
     await auth().signOut();
   },
 

@@ -39,6 +39,12 @@ struct Reminder: Codable, Identifiable {
     // Category for grouping reminders (e.g., "Produce", "Dairy", "Household")
     var category: String?
 
+    // Check-off tracking, stamped when isDone is toggled on and cleared when
+    // toggled off. Copied into reminder_history when the checked item is deleted.
+    var checkedOffAt: TimeInterval? = nil
+    var checkedOffBy: String? = nil
+    var checkedOffById: String? = nil
+
     enum CodingKeys: String, CodingKey {
         case id
         case userStoreId
@@ -56,5 +62,8 @@ struct Reminder: Codable, Identifiable {
         case quantity
         case isOutOfStock
         case category
+        case checkedOffAt
+        case checkedOffBy
+        case checkedOffById
     }
 }

@@ -19,6 +19,7 @@ struct ReminderView: View {
     @State private var smartCategoryEnabled = true
     @State private var showInfoPanel = false
     @State private var showingRecipePicker = false
+    @State private var showingHistory = false
     @State private var showingEditWebsite = false
     @State private var websiteInputText = ""
     @State private var fadingReminderIds: Set<String> = []
@@ -193,6 +194,14 @@ struct ReminderView: View {
             }
             .sheet(isPresented: $showingRecipePicker) {
                 RecipePickerView(userStoreItem: userStoreItem)
+            }
+            .sheet(isPresented: $showingHistory) {
+                HistoryView(
+                    userStoreItem: userStoreItem,
+                    currentReminderTitles: Set(viewModel.displayedReminders.map {
+                        $0.title.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+                    })
+                )
             }
             .sheet(isPresented: $showingLimitPaywall) {
                 SubscriptionPaywallView()
@@ -1185,10 +1194,19 @@ struct ReminderView: View {
             // Add to fading set for animation
             fadingReminderIds.insert(reminder.id)
 
+            // Auto-delete skips the Firestore isDone toggle, so stamp the
+            // check-off on the local copy — deleteReminder uses it to record
+            // the reminder_history entry with the right attribution.
+            var checkedOff = reminder
+            checkedOff.isDone = true
+            checkedOff.checkedOffAt = Date().timeIntervalSince1970
+            checkedOff.checkedOffBy = UserSessionManager.shared.currentUser?.name
+            checkedOff.checkedOffById = UserSessionManager.shared.currentUser?.userId
+
             // After fade animation, stage the deletion (undo still possible)
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                 fadingReminderIds.remove(reminder.id)
-                stageReminderForDeletion(reminder)
+                stageReminderForDeletion(checkedOff)
             }
         } else {
             // Normal toggle behavior
@@ -1463,6 +1481,40 @@ struct ReminderView: View {
                         }
                         .buttonStyle(.plain)
                     }
+
+                    Divider()
+                        .padding(.horizontal, 16)
+
+                    // History row — checked-off items no longer in the list
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.18)) {
+                            showInfoPanel = false
+                        }
+                        showingHistory = true
+                    } label: {
+                        HStack(spacing: 12) {
+                            Image(systemName: "clock.arrow.circlepath")
+                                .font(.body)
+                                .foregroundColor(Color.appAccent)
+                                .frame(width: 24)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("History")
+                                    .font(.subheadline)
+                                    .fontWeight(.medium)
+                                    .foregroundStyle(Color.primary)
+                                Text("Checked-off items no longer in the list")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundStyle(.tertiary)
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 12)
+                    }
+                    .buttonStyle(.plain)
 
                     // Store app / website row. The URL is derived from the store name
                     // (no per-store data to maintain); iOS opens the store's app via
