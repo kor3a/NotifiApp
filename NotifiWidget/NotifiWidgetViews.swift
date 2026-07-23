@@ -4,8 +4,13 @@
 //
 //  Widget views for all three supported sizes:
 //    • Small  – up to 3 stores
-//    • Medium – up to 5 stores
-//    • Large  – up to 10 stores
+//    • Medium – up to 3 stores
+//    • Large  – up to 6 stores
+//
+//  Row counts are chosen so the header, rows and "+N more" line always
+//  fit inside the fixed widget height. Content is also top-anchored so
+//  any residual overflow clips at the bottom instead of centering and
+//  clipping the "My Stores" header off the top.
 //
 
 import WidgetKit
@@ -74,6 +79,7 @@ struct SmallWidgetView: View {
             }
         }
         .padding(12)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 }
 
@@ -82,8 +88,8 @@ struct SmallWidgetView: View {
 struct MediumWidgetView: View {
     let stores: [WidgetStoreData]
 
-    private var displayed: [WidgetStoreData] { Array(stores.prefix(5)) }
-    private var overflow: Int { max(stores.count - 5, 0) }
+    private var displayed: [WidgetStoreData] { Array(stores.prefix(3)) }
+    private var overflow: Int { max(stores.count - 3, 0) }
     private var totalReminders: Int { stores.reduce(0) { $0 + $1.reminderCount } }
 
     var body: some View {
@@ -130,6 +136,7 @@ struct MediumWidgetView: View {
             }
         }
         .padding(14)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 }
 
@@ -138,8 +145,8 @@ struct MediumWidgetView: View {
 struct LargeWidgetView: View {
     let stores: [WidgetStoreData]
 
-    private var displayed: [WidgetStoreData] { Array(stores.prefix(10)) }
-    private var overflow: Int { max(stores.count - 10, 0) }
+    private var displayed: [WidgetStoreData] { Array(stores.prefix(6)) }
+    private var overflow: Int { max(stores.count - 6, 0) }
     private var totalReminders: Int { stores.reduce(0) { $0 + $1.reminderCount } }
 
     var body: some View {
@@ -199,6 +206,7 @@ struct LargeWidgetView: View {
             }
         }
         .padding(16)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 }
 
