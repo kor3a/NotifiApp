@@ -21,14 +21,17 @@ independently of any app update.
 |------|--------|------|
 | **Message sender spoofing** | `messages` create now requires `get(users/{senderId}).email == auth.email`, so a user can't forge messages as someone else. Uses the same username→email lookup the `favorite_tags` rules already rely on. | `firestore.rules` |
 | **Global store catalog vandalism** | `stores` create/update/delete locked to the owner email. The app only ever *reads* this collection, so this is non-breaking. | `firestore.rules` |
+| **Store logo vandalism** | `stores_logos` create/update/delete locked to the owner email (previously any authenticated user could write, and the collection is global — a logo shows for every user with that store). The app only *reads* it (`uploadStoreLogo`/`deleteStoreLogo` are owner/admin seed tools, never called from the app UI), so this is non-breaking. Mirrored in `firestore.rules.pending`. | `firestore.rules` |
 | **OpenAI key shipped in binary** | Added `openAIChat` callable that proxies OpenAI with a server-side secret. (The app switch to it ships next release — see §2.) | `functions/index.js` |
+| **Logo.dev secret key could ship in binary** | `Info.plist` referenced `$(LOGO_DEV_SECRET_KEY)`, so the secret would embed in the binary if ever populated. Added `logoBrandSearch` callable that proxies the Logo.dev Brand Search API with a server-side secret, and dropped the `Info.plist` reference. (In practice the secret was never set locally, so none shipped — see §2a-2. The publishable `LOGO_DEV_TOKEN` stays embedded — it's safe.) | `functions/index.js` |
 | **`functions/.env` tracked in git** | Removed from tracking and added to `functions/.gitignore`. (It only held email addresses — no secret leaked — but it shouldn't be tracked.) | `functions/.gitignore` |
 
 ### Deploy steps (now)
 
 ```bash
-# 1. Set the OpenAI secret used by the new proxy
+# 1. Set the secrets used by the new proxies
 firebase functions:secrets:set OPENAI_API_KEY
+firebase functions:secrets:set LOGO_DEV_SECRET_KEY
 
 # 2. Deploy rules + functions
 firebase deploy --only firestore:rules,functions
@@ -52,6 +55,19 @@ can't deploy until a new build is live. All the code is prepared:
 - **After the new build is live: rotate the old OpenAI key** — treat any key
   previously shipped in the app as compromised. Also delete `OPENAI_API_KEY`
   from your local `Secrets.xcconfig`.
+
+### 2a-2. Logo.dev Brand Search proxy — client switch
+- `StoreLogoProvider.swift` now calls the `logoBrandSearch` Cloud Function
+  instead of hitting `api.logo.dev/search` directly with the secret. The
+  `LOGO_DEV_SECRET_KEY` entry was removed from `Info.plist` so it can never be
+  embedded in the binary. The publishable `LOGO_DEV_TOKEN` stays (safe to embed).
+- **Note:** `LOGO_DEV_SECRET_KEY` was never actually populated in
+  `Secrets.xcconfig`, so `$(LOGO_DEV_SECRET_KEY)` resolved to an empty string and
+  no secret was ever shipped — **nothing to rotate here.** A side effect is that
+  the Brand Search fallback (the catch-all for stores not in the built-in domain
+  map) was silently disabled. Setting the secret server-side
+  (`firebase functions:secrets:set LOGO_DEV_SECRET_KEY`) is what turns that
+  fallback on — now routed securely through the proxy.
 
 ### 2b. Messaging read-privacy (`participantEmails`)
 - `MessagingService.swift` now writes a `participantEmails` array on
@@ -132,22 +148,25 @@ Needed for username/email lookups, so it can't be fully closed, but consider
 moving friend/user search behind a Cloud Function that returns only the minimal
 fields, then restricting direct `users` reads to `auth.email == resource.email`.
 
-### 3d. Logo.dev **secret** key still in the binary
-`StoreLogoProvider.swift` still reads `LOGO_DEV_SECRET_KEY` from `Info.plist`
-for the Brand Search API. (The `LOGO_DEV_TOKEN` is a *publishable* token and is
-fine to embed.) Lower value than the OpenAI key, but the correct fix is the same
-pattern: a small `logoBrandSearch` Cloud Function holding the secret, with the
-app calling it instead. Rotate the secret afterward.
+### 3d. Logo.dev **secret** key in the binary
+**Fixed — staged as §2a-2.** Added the `logoBrandSearch` Cloud Function (holds
+the secret server-side), switched `StoreLogoProvider.swift` to call it, and
+removed `LOGO_DEV_SECRET_KEY` from `Info.plist`. (The `LOGO_DEV_TOKEN` is a
+*publishable* token and stays embedded.) In practice the secret was never
+populated in `Secrets.xcconfig`, so nothing was actually shipped or needs
+rotating — the proxy simply lets the Brand Search fallback run securely if the
+secret is set server-side.
 
 ---
 
 ## Quick reference — files changed in this pass
 
-- `firestore.rules` — sender check + stores lockdown (deploy now)
-- `firestore.rules.pending` — strict messaging read-privacy rules (deploy after §2)
-- `functions/index.js` — `openAIChat` proxy + `backfillMessagingIdentity`
+- `firestore.rules` — sender check + stores lockdown + `stores_logos` lockdown (deploy now)
+- `firestore.rules.pending` — strict messaging read-privacy rules + `stores_logos` lockdown (deploy after §2)
+- `functions/index.js` — `openAIChat` + `logoBrandSearch` proxies + `backfillMessagingIdentity`
 - `functions/.gitignore` — ignore `.env`
 - `Geolocation_v1.0.0/Services/OpenAIService.swift` — use proxy
+- `Geolocation_v1.0.0/Services/StoreLogoProvider.swift` — use `logoBrandSearch` proxy
 - `Geolocation_v1.0.0/Services/MessagingService.swift` — write `participantEmails`
-- `Geolocation_v1.0.0/Info.plist` — drop embedded `OPENAI_API_KEY`
-- `Secrets.xcconfig.template` — drop `OPENAI_API_KEY`, annotate Logo.dev keys
+- `Geolocation_v1.0.0/Info.plist` — drop embedded `OPENAI_API_KEY` + `LOGO_DEV_SECRET_KEY`
+- `Secrets.xcconfig.template` — drop `OPENAI_API_KEY` + `LOGO_DEV_SECRET_KEY`, annotate Logo.dev token
