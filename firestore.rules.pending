@@ -162,15 +162,19 @@ service cloud.firestore {
     // Store Logos (logo URL cache for store icons)
     // ============================================================
     match /stores_logos/{logoId} {
-      // Allow authenticated users to read store logos
+      // Any authenticated user can read store logos
       allow read: if request.auth != null;
 
-      // Allow authenticated users to upload/update logos
+      // Global, shared catalog — a logo here is shown to every user who has that
+      // store. The app only READS it (uploadStoreLogo/deleteStoreLogo are
+      // owner/admin seed tools, never called from the app UI), so writes are
+      // locked to the app owner to stop direct-to-Firestore logo vandalism.
       allow create, update: if request.auth != null &&
+                               request.auth.token.email == "kor3a5@gmail.com" &&
                                request.resource.data.logoURL is string;
 
-      // Allow authenticated users to delete logos
-      allow delete: if request.auth != null;
+      allow delete: if request.auth != null &&
+                       request.auth.token.email == "kor3a5@gmail.com";
     }
 
     // ============================================================

@@ -7,6 +7,7 @@
 
 import Foundation
 import FirebaseFirestore
+import FirebaseFunctions
 import FirebaseStorage
 import UIKit
 
@@ -32,6 +33,7 @@ class StoreLogoProvider: ObservableObject {
 
     private let db = Firestore.firestore()
     private let storage = Storage.storage().reference()
+    private lazy var functions = Functions.functions()
     @Published private(set) var storeLogos: [String: String] = [:] // normalizedId -> logoURL
     private var hasFetched = false
     private var isFetching = false
@@ -729,16 +731,6 @@ class StoreLogoProvider: ObservableObject {
         return token
     }()
 
-    /// Secret key — used only for the Brand Search API; results cached so each store is queried once.
-    private static let logoDevSecretKey: String? = {
-        guard let key = Bundle.main.infoDictionary?["LOGO_DEV_SECRET_KEY"] as? String,
-              !key.isEmpty,
-              key != "YOUR_LOGO_DEV_SECRET_KEY_HERE" else {
-            return nil
-        }
-        return key
-    }()
-
     /// Returns a Logo.dev image URL for a store using (in order):
     ///   1. Explicit domain map entry
     ///   2. "the-" prefix strip + re-check map
@@ -748,7 +740,8 @@ class StoreLogoProvider: ObservableObject {
     ///   6. Single-word fallback (e.g. "starbucks" → starbucks.com)
     ///
     /// If none of these produce a URL the caller should fall through to `triggerNameSearch`
-    /// which uses the Logo.dev Brand Search API (requires secret key) as the true catch-all.
+    /// which uses the Logo.dev Brand Search API (via the `logoBrandSearch` Cloud
+    /// Function, which holds the secret key server-side) as the true catch-all.
     private func clearbitLogoURL(for normalizedId: String) -> String? {
         guard let token = Self.logoDevToken else {
             #if DEBUG
@@ -830,54 +823,44 @@ class StoreLogoProvider: ObservableObject {
         return nil
     }
 
-    /// Calls the Logo.dev Brand Search API to find the domain for an unknown store name,
-    /// then caches the result to UserDefaults so this only ever fires once per store.
+    /// Resolves the domain for an unknown store name via the `logoBrandSearch`
+    /// Cloud Function (which wraps the Logo.dev Brand Search API and holds the
+    /// secret key server-side, so it never ships in the app binary), then caches
+    /// the result to UserDefaults so this only ever fires once per store.
     private func triggerNameSearch(for storeName: String, normalizedId: String) {
-        guard let secretKey = Self.logoDevSecretKey,
-              let token = Self.logoDevToken,
+        guard let token = Self.logoDevToken,
               !searchingStores.contains(normalizedId),
               searchedDomains[normalizedId] == nil else { return }
 
         searchingStores.insert(normalizedId)
 
-        let query = storeName.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? storeName
-        guard let url = URL(string: "https://api.logo.dev/search?q=\(query)") else { return }
-
-        var request = URLRequest(url: url)
-        request.setValue("Bearer \(secretKey)", forHTTPHeaderField: "Authorization")
-
-        URLSession.shared.dataTask(with: request) { [weak self] data, _, error in
+        functions.httpsCallable("logoBrandSearch").call(["query": storeName]) { [weak self] result, error in
             guard let self else { return }
             defer { DispatchQueue.main.async { self.searchingStores.remove(normalizedId) } }
 
-            guard let data,
-                  error == nil,
-                  let results = try? JSONDecoder().decode([LogoDevSearchResult].self, from: data),
-                  let top = results.first else {
+            guard error == nil,
+                  let data = result?.data as? [String: Any],
+                  let domain = data["domain"] as? String,
+                  !domain.isEmpty else {
                 #if DEBUG
                 print("StoreLogoProvider: Brand search failed for '\(storeName)': \(error?.localizedDescription ?? "no results")")
                 #endif
                 return
             }
 
-            let logoURL = "https://img.logo.dev/\(top.domain)?token=\(token)"
+            let logoURL = "https://img.logo.dev/\(domain)?token=\(token)"
             #if DEBUG
-            print("StoreLogoProvider: Brand search found '\(top.domain)' for '\(storeName)'")
+            print("StoreLogoProvider: Brand search found '\(domain)' for '\(storeName)'")
             #endif
 
             DispatchQueue.main.async {
-                self.searchedDomains[normalizedId] = top.domain
+                self.searchedDomains[normalizedId] = domain
                 self.invalidateResolutionCaches()
                 UserDefaults.standard.set(self.searchedDomains, forKey: Self.searchCacheKey)
                 self.downloadAndCacheLogo(id: normalizedId, urlString: logoURL)
                 self.objectWillChange.send()
             }
-        }.resume()
-    }
-
-    private struct LogoDevSearchResult: Decodable {
-        let name: String
-        let domain: String
+        }
     }
 
     /// Maps normalized store IDs to their canonical website domains so that

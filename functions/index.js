@@ -60,6 +60,16 @@ const GOOGLE_PLACES_API_KEY = defineSecret('GOOGLE_PLACES_API_KEY');
 // in the client (Info.plist / Secrets.xcconfig) — treat it as compromised.
 const OPENAI_API_KEY = defineSecret('OPENAI_API_KEY');
 
+// Logo.dev SECRET key — set once with:
+//   firebase functions:secrets:set LOGO_DEV_SECRET_KEY
+// Used only by the `logoBrandSearch` proxy so the secret never ships inside the
+// app binary (where it could be extracted and used to run up the Logo.dev
+// quota/bill). The *publishable* LOGO_DEV_TOKEN stays in the app — it is safe to
+// embed and is only used to build logo image URLs. After the app build that
+// calls this proxy is live, ROTATE any secret previously embedded in the client
+// (Info.plist / Secrets.xcconfig) — treat it as compromised.
+const LOGO_DEV_SECRET_KEY = defineSecret('LOGO_DEV_SECRET_KEY');
+
 // Sender address for verification emails. MUST be on a domain you've verified in
 // Resend (https://resend.com/domains). For quick testing Resend also allows
 // "onboarding@resend.dev", but that can only deliver to your own Resend account
@@ -1251,3 +1261,85 @@ exports.backfillMessagingIdentity = onCall(async (request) => {
     console.log(`backfillMessagingIdentity: updated=${updated}, skipped=${skipped}`);
     return { updated, skipped, total: convSnap.size };
 });
+
+// ---------------------------------------------------------------------------
+// 12. Logo.dev Brand Search proxy
+//
+// WHY THIS EXISTS
+// ---------------
+// The Logo.dev Brand Search API requires a SECRET key. Previously the app called
+// api.logo.dev/search directly with that secret in Info.plist, which meant the
+// secret shipped in the .ipa and could be extracted to run up the Logo.dev bill.
+// This callable holds the secret server-side (Functions secrets) and returns
+// only the resolved domain, so the client never sees it. The publishable
+// LOGO_DEV_TOKEN stays in the app for building the img.logo.dev image URL.
+//
+// Callable from any signed-in user:
+//   Functions.functions().httpsCallable("logoBrandSearch").call(["query": name])
+// Returns { domain: string|null, name: string|null }.
+// ---------------------------------------------------------------------------
+
+const LOGO_SEARCH_MAX_QUERY_CHARS = 200;
+
+exports.logoBrandSearch = onCall(
+    { secrets: [LOGO_DEV_SECRET_KEY] },
+    async (request) => {
+        if (!request.auth) {
+            throw new HttpsError(
+                'unauthenticated',
+                'You must be signed in to use this feature.'
+            );
+        }
+
+        const query =
+            request.data && typeof request.data.query === 'string'
+                ? request.data.query.trim()
+                : '';
+        if (!query) {
+            throw new HttpsError('invalid-argument', 'query must be a non-empty string.');
+        }
+        if (query.length > LOGO_SEARCH_MAX_QUERY_CHARS) {
+            throw new HttpsError('invalid-argument', 'query is too long.');
+        }
+
+        const secretKey = LOGO_DEV_SECRET_KEY.value();
+        if (!secretKey) {
+            throw new HttpsError(
+                'failed-precondition',
+                'Logo.dev secret key is not configured on the server.'
+            );
+        }
+
+        const url = `https://api.logo.dev/search?q=${encodeURIComponent(query)}`;
+
+        let response;
+        try {
+            response = await fetch(url, {
+                headers: { Authorization: `Bearer ${secretKey}` },
+            });
+        } catch (err) {
+            console.error('logoBrandSearch: fetch failed', err);
+            throw new HttpsError('unavailable', 'Logo search failed.');
+        }
+
+        if (!response.ok) {
+            const body = await response.text().catch(() => '');
+            console.error(`logoBrandSearch: Logo.dev API ${response.status} — ${body}`);
+            throw new HttpsError('internal', `Logo service error (${response.status}).`);
+        }
+
+        let results;
+        try {
+            results = await response.json();
+        } catch (err) {
+            console.error('logoBrandSearch: bad JSON', err);
+            throw new HttpsError('internal', 'Unexpected logo response.');
+        }
+
+        const top = Array.isArray(results) ? results[0] : null;
+        const domain = top && typeof top.domain === 'string' ? top.domain : null;
+        const name = top && typeof top.name === 'string' ? top.name : null;
+
+        return { domain, name };
+    }
+);
