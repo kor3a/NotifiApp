@@ -23,7 +23,7 @@ independently of any app update.
 | **Global store catalog vandalism** | `stores` create/update/delete locked to the owner email. The app only ever *reads* this collection, so this is non-breaking. | `firestore.rules` |
 | **Store logo vandalism** | `stores_logos` create/update/delete locked to the owner email (previously any authenticated user could write, and the collection is global — a logo shows for every user with that store). The app only *reads* it (`uploadStoreLogo`/`deleteStoreLogo` are owner/admin seed tools, never called from the app UI), so this is non-breaking. Mirrored in `firestore.rules.pending`. | `firestore.rules` |
 | **OpenAI key shipped in binary** | Added `openAIChat` callable that proxies OpenAI with a server-side secret. (The app switch to it ships next release — see §2.) | `functions/index.js` |
-| **Logo.dev secret key shipped in binary** | Added `logoBrandSearch` callable that proxies the Logo.dev Brand Search API with a server-side secret. (The app switch to it ships next release — see §2. The publishable `LOGO_DEV_TOKEN` stays embedded — it's safe.) | `functions/index.js` |
+| **Logo.dev secret key could ship in binary** | `Info.plist` referenced `$(LOGO_DEV_SECRET_KEY)`, so the secret would embed in the binary if ever populated. Added `logoBrandSearch` callable that proxies the Logo.dev Brand Search API with a server-side secret, and dropped the `Info.plist` reference. (In practice the secret was never set locally, so none shipped — see §2a-2. The publishable `LOGO_DEV_TOKEN` stays embedded — it's safe.) | `functions/index.js` |
 | **`functions/.env` tracked in git** | Removed from tracking and added to `functions/.gitignore`. (It only held email addresses — no secret leaked — but it shouldn't be tracked.) | `functions/.gitignore` |
 
 ### Deploy steps (now)
@@ -59,11 +59,15 @@ can't deploy until a new build is live. All the code is prepared:
 ### 2a-2. Logo.dev Brand Search proxy — client switch
 - `StoreLogoProvider.swift` now calls the `logoBrandSearch` Cloud Function
   instead of hitting `api.logo.dev/search` directly with the secret. The
-  `LOGO_DEV_SECRET_KEY` entry was removed from `Info.plist` so it's no longer
+  `LOGO_DEV_SECRET_KEY` entry was removed from `Info.plist` so it can never be
   embedded in the binary. The publishable `LOGO_DEV_TOKEN` stays (safe to embed).
-- **After the new build is live: rotate the old Logo.dev secret key** — treat
-  any secret previously shipped in the app as compromised. Also delete
-  `LOGO_DEV_SECRET_KEY` from your local `Secrets.xcconfig`.
+- **Note:** `LOGO_DEV_SECRET_KEY` was never actually populated in
+  `Secrets.xcconfig`, so `$(LOGO_DEV_SECRET_KEY)` resolved to an empty string and
+  no secret was ever shipped — **nothing to rotate here.** A side effect is that
+  the Brand Search fallback (the catch-all for stores not in the built-in domain
+  map) was silently disabled. Setting the secret server-side
+  (`firebase functions:secrets:set LOGO_DEV_SECRET_KEY`) is what turns that
+  fallback on — now routed securely through the proxy.
 
 ### 2b. Messaging read-privacy (`participantEmails`)
 - `MessagingService.swift` now writes a `participantEmails` array on
@@ -144,12 +148,14 @@ Needed for username/email lookups, so it can't be fully closed, but consider
 moving friend/user search behind a Cloud Function that returns only the minimal
 fields, then restricting direct `users` reads to `auth.email == resource.email`.
 
-### 3d. Logo.dev **secret** key still in the binary
+### 3d. Logo.dev **secret** key in the binary
 **Fixed — staged as §2a-2.** Added the `logoBrandSearch` Cloud Function (holds
 the secret server-side), switched `StoreLogoProvider.swift` to call it, and
 removed `LOGO_DEV_SECRET_KEY` from `Info.plist`. (The `LOGO_DEV_TOKEN` is a
-*publishable* token and stays embedded.) Fully closed once the new build is live
-and the old secret is rotated.
+*publishable* token and stays embedded.) In practice the secret was never
+populated in `Secrets.xcconfig`, so nothing was actually shipped or needs
+rotating — the proxy simply lets the Brand Search fallback run securely if the
+secret is set server-side.
 
 ---
 
