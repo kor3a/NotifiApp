@@ -7,6 +7,19 @@
 
 import SwiftUI
 
+/// Holds the global frames of each row's checkbox for the AutoDeleteSwipeRail's
+/// pan hit-testing.
+///
+/// Deliberately a reference type held in `@State` rather than a `@State`
+/// dictionary: rows report their frame on every displayed frame while the list
+/// scrolls, and each write to a `@State` value invalidated ReminderView's entire
+/// body — every visible row plus the store-wide avatar/member maps — at up to
+/// 120Hz. The frames are never read during rendering, only inside the rail's
+/// drag handler, so they don't need to drive view updates at all.
+private final class CheckboxFrameStore {
+    var frames: [String: CGRect] = [:]
+}
+
 struct ReminderView: View {
     let userStoreItem: UserStoreItem
     var availableStores: [UserStoreItem] = []
@@ -45,7 +58,7 @@ struct ReminderView: View {
     @State private var autosaveWorkItem: DispatchWorkItem?
     @State private var lastSubmittedAt: Date?
     @State private var showRemoveAllFavoritesConfirmation = false
-    @State private var checkboxFrames: [String: CGRect] = [:]
+    @State private var checkboxFrames = CheckboxFrameStore()
     @State private var swipedIds: Set<String> = []
     @State private var pendingDeleteReminder: Reminder?
     @State private var undoWorkItem: DispatchWorkItem?
@@ -64,7 +77,9 @@ struct ReminderView: View {
     }
 
     @ObservedObject private var subscriptionManager = SubscriptionManager.shared
-    @ObservedObject private var logoProvider = StoreLogoProvider.shared
+    // NOTE: don't observe StoreLogoProvider here. This view never reads a logo,
+    // and observing the shared provider re-rendered the whole screen whenever a
+    // logo resolved anywhere in the app.
 
     private var isSubscribed: Bool {
         subscriptionManager.isSubscribed
@@ -186,6 +201,12 @@ struct ReminderView: View {
 
     private var smartCategoryKey: String {
         "smartCategoryEnabled_\(userStoreItem.id)"
+    }
+
+    /// Whether the auto-delete swipe rail is mounted. Rows only report checkbox
+    /// frames while it is, since nothing else reads them.
+    private var isSwipeRailActive: Bool {
+        autoDeleteEnabled && userStoreItem.permission != .view
     }
 
     var body: some View {
@@ -339,12 +360,12 @@ struct ReminderView: View {
             // The rail's custom hitTest only claims touches starting in the
             // left handle strip (x < 40 pt), so checkboxes and all other row
             // interactions remain fully functional.
-            if autoDeleteEnabled && userStoreItem.permission != .view {
+            if isSwipeRailActive {
                 AutoDeleteSwipeRail(
                     captureWidth: 40,
                     isEnabled: autoDeleteEnabled,
                     onDragChanged: { location in
-                        for (id, frame) in checkboxFrames {
+                        for (id, frame) in checkboxFrames.frames {
                             guard !swipedIds.contains(id) else { continue }
                             if location.y >= (frame.minY - 20) && location.y <= (frame.maxY + 20),
                                let target = viewModel.reminders.first(where: { $0.id == id }) {
@@ -584,7 +605,17 @@ struct ReminderView: View {
     }
 
     private var reminderListView: some View {
-        ScrollViewReader { proxy in
+        // Resolved once per list rebuild and handed to every row. Both maps scan
+        // all reminders (and avatarColorMap runs the palette solver), so reading
+        // them inside reminderRow made building the list O(n²) in the number of
+        // reminders.
+        let avatarColors = avatarColorMap
+        let memberNames = storeMemberNames
+        // Same reason: this scans every displayed reminder and was evaluated
+        // once per section header.
+        let showsCategoryHeaders = viewModel.hasDisplayedCategorizedReminders
+
+        return ScrollViewReader { proxy in
             List {
                 // Favorite tags section
                 if !viewModel.favoriteTags.isEmpty {
@@ -604,11 +635,15 @@ struct ReminderView: View {
                         Section {
                             if !collapsedCategories.contains(category) {
                                 ForEach(viewModel.displayedReminders(for: category)) { reminder in
-                                    reminderRow(for: reminder)
+                                    reminderRow(
+                                        for: reminder,
+                                        avatarColors: avatarColors,
+                                        memberNames: memberNames
+                                    )
                                 }
                             }
                         } header: {
-                            if viewModel.hasDisplayedCategorizedReminders {
+                            if showsCategoryHeaders {
                                 categoryHeader(for: category)
                             }
                         }
@@ -616,7 +651,11 @@ struct ReminderView: View {
                 } else {
                     // Reorder mode requires a flat ForEach for .onMove to work.
                     ForEach(viewModel.displayedReminders) { reminder in
-                        reminderRow(for: reminder)
+                        reminderRow(
+                            for: reminder,
+                            avatarColors: avatarColors,
+                            memberNames: memberNames
+                        )
                     }
                     .onMove(perform: { source, destination in
                         viewModel.moveReminder(from: source, to: destination)
@@ -723,7 +762,11 @@ struct ReminderView: View {
         CategoryIcon.symbol(for: category)
     }
 
-    private func reminderRow(for reminder: Reminder) -> some View {
+    private func reminderRow(
+        for reminder: Reminder,
+        avatarColors: [String: Color],
+        memberNames: [String: String]
+    ) -> some View {
         // Filter out any photo URLs that are staged for deletion so they
         // disappear immediately while the undo window is open.
         let displayReminder: Reminder = {
@@ -804,14 +847,17 @@ struct ReminderView: View {
                 customCategoryText = reminder.category ?? ""
                 reminderForCategory = reminder
             } : nil,
-            onCheckboxFrameChanged: { frame in
-                checkboxFrames[reminder.id] = frame
-            },
+            // Only track frames while the swipe rail is actually mounted —
+            // otherwise every visible row would recompute its global frame on
+            // each scroll frame for a feature that isn't running.
+            onCheckboxFrameChanged: isSwipeRailActive ? { frame in
+                checkboxFrames.frames[reminder.id] = frame
+            } : nil,
             onDragChanged: nil,
             onDragEnded: nil,
             autoDeleteEnabled: autoDeleteEnabled,
-            avatarColorMap: avatarColorMap,
-            memberNames: storeMemberNames
+            avatarColorMap: avatarColors,
+            memberNames: memberNames
         )
         .contentShape(Rectangle())
         .listRowBackground(cardRowBackground)
@@ -851,8 +897,11 @@ struct ReminderView: View {
                         lineWidth: 1.5
                     )
             )
+            // Flatten fill + stroke before the shadow so it is computed once per
+            // row; the second decorative shadow cost an extra offscreen pass per
+            // row while scrolling. Matches the StoresView card fix.
+            .compositingGroup()
             .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.3 : 0.1), radius: 8, x: 0, y: 4)
-            .shadow(color: Color.white.opacity(colorScheme == .dark ? 0.05 : 0.5), radius: 2, x: 0, y: -2)
             .padding(.vertical, 4)
     }
 
