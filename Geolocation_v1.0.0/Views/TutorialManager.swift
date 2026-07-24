@@ -123,7 +123,13 @@ final class TutorialManager: ObservableObject {
 
     @Published var isActive: Bool = false
     @Published var currentStep: TutorialStep = .welcome
-    @Published var elementFrames: [String: CGRect] = [:]
+    /// Global frames of highlighted elements, keyed by highlight id.
+    /// Deliberately NOT @Published: rows report frame changes on every scroll
+    /// frame, so publishing each write would re-render every observing view
+    /// (the whole screen plus every visible row) at up to 120Hz while
+    /// scrolling. Changes are broadcast manually, and only while the tutorial
+    /// overlay is actually visible.
+    private(set) var elementFrames: [String: CGRect] = [:]
     @Published var pendingTabSwitch: Int? = nil
     @Published var showSubscriptionAfterTutorial: Bool = false
 
@@ -237,6 +243,11 @@ final class TutorialManager: ObservableObject {
         // Only update if meaningfully different to avoid layout loops
         guard frame.width > 0 && frame.height > 0 else { return }
         if elementFrames[id] != frame {
+            // Frames are recorded silently while the tutorial is inactive so
+            // the dictionary is already up to date the moment it activates.
+            if isActive {
+                objectWillChange.send()
+            }
             elementFrames[id] = frame
         }
     }
@@ -246,18 +257,20 @@ final class TutorialManager: ObservableObject {
 
 struct TutorialHighlightModifier: ViewModifier {
     let id: String
-    @ObservedObject private var tutorialManager = TutorialManager.shared
 
+    // NOTE: this modifier must NOT observe TutorialManager. It only writes
+    // frames into it; observing would re-render every highlighted view (e.g.
+    // every store row) whenever any tutorial state changes.
     func body(content: Content) -> some View {
         content
             .background(
                 GeometryReader { geo in
                     Color.clear
                         .onAppear {
-                            tutorialManager.registerFrame(id: id, frame: geo.frame(in: .global))
+                            TutorialManager.shared.registerFrame(id: id, frame: geo.frame(in: .global))
                         }
                         .onChange(of: geo.frame(in: .global)) { _, frame in
-                            tutorialManager.registerFrame(id: id, frame: frame)
+                            TutorialManager.shared.registerFrame(id: id, frame: frame)
                         }
                 }
             )

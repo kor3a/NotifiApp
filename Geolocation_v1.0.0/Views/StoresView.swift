@@ -379,8 +379,11 @@ struct StoresView: View {
                                 lineWidth: 1.5
                             )
                     )
+                    // Flatten fill + stroke before the shadow so it is computed
+                    // once per row; a second decorative shadow here cost an
+                    // extra offscreen pass per row while scrolling.
+                    .compositingGroup()
                     .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.3 : 0.1), radius: 8, x: 0, y: 4)
-                    .shadow(color: Color.white.opacity(colorScheme == .dark ? 0.05 : 0.5), radius: 2, x: 0, y: -2)
             )
             .padding(.vertical, 4)
     }
