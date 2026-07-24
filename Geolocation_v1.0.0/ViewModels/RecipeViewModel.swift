@@ -87,10 +87,16 @@ class RecipeViewModel: ObservableObject {
     /// items per store: when the bulk add would push the store past the limit,
     /// nothing is added and `onLimitExceeded` is called instead (stores already
     /// over the limit keep their existing items).
+    ///
+    /// When `useSmartCategory` is true (subscriber with Smart Category enabled for
+    /// this store), the newly added ingredients are auto-categorized in the
+    /// background after the batch commits, matching the behaviour of items added
+    /// manually or through Smart Recipe.
     func addIngredientsToStore(
         _ recipe: Recipe,
         userStoreItem: UserStoreItem,
         isSubscribed: Bool,
+        useSmartCategory: Bool = false,
         completion: @escaping (Int) -> Void,
         onLimitExceeded: @escaping () -> Void
     ) {
@@ -137,6 +143,9 @@ class RecipeViewModel: ObservableObject {
 
                 let batch = self.db.batch()
                 var addedCount = 0
+                // Doc ids of the ingredients written by this batch, kept so they
+                // can be auto-categorized once the commit succeeds.
+                var addedIngredients: [(docId: String, title: String)] = []
 
                 for ingredient in recipe.ingredients {
                     let normalized = ingredient.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
@@ -174,6 +183,7 @@ class RecipeViewModel: ObservableObject {
                     }
 
                     batch.setData(reminderData, forDocument: docRef)
+                    addedIngredients.append((docId: docRef.documentID, title: ingredient))
                     addedCount += 1
                 }
 
@@ -201,8 +211,64 @@ class RecipeViewModel: ObservableObject {
                     DispatchQueue.main.async {
                         self.isSavingIngredients = false
                         completion(error == nil ? addedCount : 0)
+
+                        // Auto-categorize the newly added ingredients for
+                        // subscribers with Smart Category on. Runs after the
+                        // completion handler so the confirmation isn't delayed
+                        // by the network round trip.
+                        if error == nil && useSmartCategory {
+                            self.categorizeAddedIngredients(addedIngredients)
+                        }
                     }
                 }
             }
+    }
+
+    /// Auto-categorize ingredients that were just added to a store.
+    ///
+    /// Intentionally holds a strong reference to `self` so categorization still
+    /// finishes when the recipe picker sheet is dismissed right after adding.
+    private func categorizeAddedIngredients(_ ingredients: [(docId: String, title: String)]) {
+        guard !ingredients.isEmpty else { return }
+
+        let titles = ingredients.map { $0.title }
+        Task {
+            do {
+                let mapping = try await OpenAIService.shared.categorizeItems(titles)
+                // Fallback lookup: the model occasionally echoes an item back with
+                // different casing/whitespace, which would drop the category.
+                let normalizedMapping = Dictionary(
+                    mapping.map { ($0.key.lowercased().trimmingCharacters(in: .whitespacesAndNewlines), $0.value) },
+                    uniquingKeysWith: { first, _ in first }
+                )
+
+                let batch = self.db.batch()
+                var updatedCount = 0
+
+                for ingredient in ingredients {
+                    let normalizedTitle = ingredient.title
+                        .lowercased()
+                        .trimmingCharacters(in: .whitespacesAndNewlines)
+                    guard let category = mapping[ingredient.title] ?? normalizedMapping[normalizedTitle],
+                          category != "Uncategorized", !category.isEmpty else { continue }
+
+                    let docRef = self.db.collection("reminders").document(ingredient.docId)
+                    batch.updateData(["category": category], forDocument: docRef)
+                    updatedCount += 1
+                }
+
+                if updatedCount > 0 {
+                    try await batch.commit()
+                    #if DEBUG
+                    print("RecipeViewModel: Auto-categorized \(updatedCount) ingredient(s)")
+                    #endif
+                }
+            } catch {
+                #if DEBUG
+                print("RecipeViewModel: Auto-categorization failed: \(error.localizedDescription)")
+                #endif
+                // Non-critical failure — ingredients are added, just uncategorized
+            }
+        }
     }
 }

@@ -54,6 +54,29 @@ struct ReminderItemView: View {
         UserSessionManager.shared.currentUser?.userId
     }
 
+    /// Reports the checkbox's global frame so the AutoDeleteSwipeRail can
+    /// hit-test rows during a rail drag.
+    ///
+    /// Rendered only when a handler is actually attached (i.e. auto-delete is
+    /// on). `geo.frame(in: .global)` changes on every displayed frame while the
+    /// list scrolls, so an always-installed GeometryReader made every visible
+    /// row do coordinate-space work — and fire a callback — at up to 120Hz for
+    /// a feature that is off by default.
+    @ViewBuilder
+    private var checkboxFrameReporter: some View {
+        if let onCheckboxFrameChanged = onCheckboxFrameChanged {
+            GeometryReader { geo in
+                Color.clear
+                    .onAppear {
+                        onCheckboxFrameChanged(geo.frame(in: .global))
+                    }
+                    .onChange(of: geo.frame(in: .global)) { _, frame in
+                        onCheckboxFrameChanged(frame)
+                    }
+            }
+        }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
@@ -79,17 +102,7 @@ struct ReminderItemView: View {
                     // the icon still register, without padding out the row.
                     .frame(width: 32, height: 32)
                     .contentShape(Rectangle())
-                    .background(
-                        GeometryReader { geo in
-                            Color.clear
-                                .onAppear {
-                                    onCheckboxFrameChanged?(geo.frame(in: .global))
-                                }
-                                .onChange(of: geo.frame(in: .global)) { _, frame in
-                                    onCheckboxFrameChanged?(frame)
-                                }
-                        }
-                    )
+                    .background(checkboxFrameReporter)
                     .onTapGesture {
                         onCheckboxTap?()
                     }
