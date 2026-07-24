@@ -194,7 +194,10 @@ struct ReminderView: View {
                 ShareReminderView(reminder: reminder, store: userStoreItem.store)
             }
             .sheet(isPresented: $showingRecipePicker) {
-                RecipePickerView(userStoreItem: userStoreItem)
+                RecipePickerView(
+                    userStoreItem: userStoreItem,
+                    useSmartCategory: effectiveSmartCategoryEnabled
+                )
             }
             .sheet(isPresented: $showingHistory) {
                 HistoryView(
