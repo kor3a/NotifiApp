@@ -19,9 +19,7 @@ struct HomeView: View {
     @StateObject private var messagesViewModel = MessagesViewModel()
     @StateObject private var friendsViewModel = FriendsViewModel()
     @ObservedObject private var tutorialManager = TutorialManager.shared
-    @ObservedObject private var subscriptionManager = SubscriptionManager.shared
     @State private var selectedTab = 0
-    @State private var showSubscriptionSheet = false
     @State private var isSearchExpanded = false
     @State private var searchQuery = ""
     @State private var hasRequestedPermissions = false
@@ -185,17 +183,6 @@ struct HomeView: View {
                 selectedTab = tab
             }
             tutorialManager.pendingTabSwitch = nil
-        }
-        .onChange(of: tutorialManager.showSubscriptionAfterTutorial) { _, shouldShow in
-            if shouldShow && !subscriptionManager.isSubscribed {
-                showSubscriptionSheet = true
-                tutorialManager.showSubscriptionAfterTutorial = false
-            } else if shouldShow {
-                tutorialManager.showSubscriptionAfterTutorial = false
-            }
-        }
-        .sheet(isPresented: $showSubscriptionSheet) {
-            SubscriptionPaywallView()
         }
         .onChange(of: sessionManager.currentUser) { oldUser, newUser in
 

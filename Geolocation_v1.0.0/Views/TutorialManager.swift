@@ -131,7 +131,6 @@ final class TutorialManager: ObservableObject {
     /// overlay is actually visible.
     private(set) var elementFrames: [String: CGRect] = [:]
     @Published var pendingTabSwitch: Int? = nil
-    @Published var showSubscriptionAfterTutorial: Bool = false
 
     private(set) var currentUserId: String?
     private(set) var currentAuthUid: String?
@@ -227,7 +226,9 @@ final class TutorialManager: ObservableObject {
             isActive = false
         }
         hasCompletedTutorial = true
-        showSubscriptionAfterTutorial = true
+        // New users are not shown the paywall here — the subscription sheet is
+        // only presented when they actually hit a gated feature or open it from
+        // Profile.
     }
 
     /// Resets the tutorial so it will show again on next app launch or call to startIfNeeded().
