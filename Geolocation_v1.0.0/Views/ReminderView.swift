@@ -31,6 +31,7 @@ struct ReminderView: View {
     @AppStorage("autoDeleteReminders") private var autoDeleteEnabled = false
     @State private var smartCategoryEnabled = true
     @State private var showInfoPanel = false
+    @State private var showBarcodePanel = false
     @State private var showingRecipePicker = false
     @State private var showingHistory = false
     @State private var showingAnalytics = false
@@ -77,6 +78,9 @@ struct ReminderView: View {
     }
 
     @ObservedObject private var subscriptionManager = SubscriptionManager.shared
+    /// Observed so the toolbar icon and the top sheet react when a card is
+    /// added, edited or removed.
+    @ObservedObject private var membershipCardStore = MembershipCardStore.shared
     // NOTE: don't observe StoreLogoProvider here. This view never reads a logo,
     // and observing the shared provider re-rendered the whole screen whenever a
     // logo resolved anywhere in the app.
@@ -408,6 +412,32 @@ struct ReminderView: View {
                     .transition(.opacity.combined(with: .scale(scale: 0.95, anchor: .topTrailing)))
                     .zIndex(10)
             }
+
+            // Membership barcode — slides down from the top of the screen.
+            if showBarcodePanel {
+                Color.black.opacity(0.18)
+                    .contentShape(Rectangle())
+                    .onTapGesture { dismissBarcodePanel() }
+                    .ignoresSafeArea()
+                    .transition(.opacity)
+                    .zIndex(19)
+            }
+
+            // The top-aligned container stays mounted so the panel's own
+            // move transition travels its own height (sliding out from behind
+            // the navigation bar) rather than a full screen height.
+            VStack(spacing: 0) {
+                if showBarcodePanel {
+                    MembershipBarcodeTopSheet(
+                        storeName: userStoreItem.store.name,
+                        onDismiss: dismissBarcodePanel
+                    )
+                    .transition(.move(edge: .top).combined(with: .opacity))
+                }
+                Spacer(minLength: 0)
+            }
+            .allowsHitTesting(showBarcodePanel)
+            .zIndex(20)
 
             // Sticky banner ad above tab bar (hidden for subscribers)
             if !isSubscribed {
@@ -1124,10 +1154,34 @@ struct ReminderView: View {
             }
         }
 
+        // Membership barcode
+        ToolbarItem(placement: .navigationBarTrailing) {
+            if !isReorderMode {
+                Button {
+                    withAnimation(.easeInOut(duration: 0.25)) {
+                        showInfoPanel = false
+                        showBarcodePanel.toggle()
+                    }
+                } label: {
+                    Image(systemName: hasMembershipCard ? "barcode.viewfinder" : "barcode")
+                        .frame(width: 22, height: 22)
+                }
+                .frame(width: 44, height: 44)
+                .accessibilityLabel("Membership barcode")
+            }
+        }
+
+        // Break the shared Liquid Glass capsule so the barcode button renders in
+        // its own circle, separate from the info button.
+        if #available(iOS 26.0, *) {
+            ToolbarSpacer(.fixed, placement: .navigationBarTrailing)
+        }
+
         ToolbarItem(placement: .navigationBarTrailing) {
             if !isReorderMode {
                 Button {
                     withAnimation(.easeInOut(duration: 0.18)) {
+                        showBarcodePanel = false
                         showInfoPanel.toggle()
                     }
                 } label: {
@@ -1136,6 +1190,18 @@ struct ReminderView: View {
                 }
                 .frame(width: 44, height: 44)
             }
+        }
+    }
+
+    /// Whether a membership card is saved for this store, used to fill in the
+    /// toolbar barcode icon.
+    private var hasMembershipCard: Bool {
+        membershipCardStore.card(forStoreNamed: userStoreItem.store.name) != nil
+    }
+
+    private func dismissBarcodePanel() {
+        withAnimation(.easeInOut(duration: 0.25)) {
+            showBarcodePanel = false
         }
     }
 
