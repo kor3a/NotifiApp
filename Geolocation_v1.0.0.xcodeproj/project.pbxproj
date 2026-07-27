@@ -93,6 +93,8 @@
 		82D289B32C61D403009F357F /* EncodableExtension.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82D289B22C61D403009F357F /* EncodableExtension.swift */; };
 		82D289B52C61D52F009F357F /* MainViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82D289B42C61D52F009F357F /* MainViewModel.swift */; };
 		82D289B72C61D631009F357F /* ProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82D289B62C61D631009F357F /* ProfileView.swift */; };
+		01AA00022F900000AB942902 /* ProfileSetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01AA00012F900000AB942901 /* ProfileSetupView.swift */; };
+		01AA00042F900000AB942904 /* ProfileSetupViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01AA00032F900000AB942903 /* ProfileSetupViewModel.swift */; };
 		82D715C62C8D6B230000D1E3 /* MapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82D715C52C8D6B230000D1E3 /* MapView.swift */; };
 		82EC11832C64755300A6CD8C /* LocationDetailsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82EC11822C64755300A6CD8C /* LocationDetailsView.swift */; };
 		A1B2C3D400000000000000F2 /* FirebaseFunctions in Frameworks */ = {isa = PBXBuildFile; productRef = A1B2C3D400000000000000F1 /* FirebaseFunctions */; };
@@ -261,6 +263,8 @@
 		82D289B22C61D403009F357F /* EncodableExtension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EncodableExtension.swift; sourceTree = "<group>"; };
 		82D289B42C61D52F009F357F /* MainViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainViewModel.swift; sourceTree = "<group>"; };
 		82D289B62C61D631009F357F /* ProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileView.swift; sourceTree = "<group>"; };
+		01AA00012F900000AB942901 /* ProfileSetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileSetupView.swift; sourceTree = "<group>"; };
+		01AA00032F900000AB942903 /* ProfileSetupViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileSetupViewModel.swift; sourceTree = "<group>"; };
 		82D715C52C8D6B230000D1E3 /* MapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapView.swift; sourceTree = "<group>"; };
 		82EC11822C64755300A6CD8C /* LocationDetailsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationDetailsView.swift; sourceTree = "<group>"; };
 		AA1234560001AABB00CC0001 /* OpenAIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenAIService.swift; sourceTree = "<group>"; };
@@ -504,6 +508,7 @@
 				82D289A92C61CA71009F357F /* SignupView.swift */,
 				748542B22CB5307000C58D9B /* HomeView.swift */,
 				82D289B62C61D631009F357F /* ProfileView.swift */,
+				01AA00012F900000AB942901 /* ProfileSetupView.swift */,
 				82D715C52C8D6B230000D1E3 /* MapView.swift */,
 				82EC11822C64755300A6CD8C /* LocationDetailsView.swift */,
 				7498B0832CC2D49A0003C68F /* StoresView.swift */,
@@ -534,6 +539,7 @@
 				82D289B42C61D52F009F357F /* MainViewModel.swift */,
 				82916C152C914BA800F810A3 /* MapViewModel.swift */,
 				742E371A2CBC036F0056F692 /* ProfileViewModel.swift */,
+				01AA00032F900000AB942903 /* ProfileSetupViewModel.swift */,
 				74A79E822CBDAC7500713F0E /* ReminderItemViewModel.swift */,
 				01897B5A2EBA4AB00038A4D1 /* StoresViewModel.swift */,
 			);
@@ -888,6 +894,7 @@
 				BC0200000001AABB00CC0004 /* RetailBarcode.swift in Sources */,
 				BC0200000001AABB00CC0003 /* MembershipBarcodeView.swift in Sources */,
 				82D289B72C61D631009F357F /* ProfileView.swift in Sources */,
+				01AA00022F900000AB942902 /* ProfileSetupView.swift in Sources */,
 				82916C162C914BA800F810A3 /* MapViewModel.swift in Sources */,
 				01EF1E4D2F50A1B500D79D3C /* FavoriteTag.swift in Sources */,
 				01D86E972F6AD6630007802A /* TutorialOverlayView.swift in Sources */,
@@ -922,6 +929,7 @@
 				82D289B02C61D30C009F357F /* User.swift in Sources */,
 				017BD2532F76D39800E5842A /* RecipeView.swift in Sources */,
 				742E371B2CBC036F0056F692 /* ProfileViewModel.swift in Sources */,
+				01AA00042F900000AB942904 /* ProfileSetupViewModel.swift in Sources */,
 				01B408232F3BECB100EA1F25 /* MessagesViewModel.swift in Sources */,
 				010A82C92F73377900728D59 /* GroupInfoView.swift in Sources */,
 				011CF6022ED638E4009A31A6 /* SharedStoreGroup.swift in Sources */,

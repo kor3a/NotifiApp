@@ -26,8 +26,57 @@ class UserSessionManager: ObservableObject {
     /// that brief window. AuthenticationManager clears it once the profile is ready.
     var isProvisioningProfile: Bool = false
 
+    /// True when the signed-in account has no Firestore profile yet — a first-time
+    /// Apple/Google sign-up that hasn't chosen a username and name. `MainView`
+    /// routes on this, showing `ProfileSetupView` instead of the main app.
+    @Published var needsProfileSetup: Bool = false
+
     private init() {
         // Private initializer for singleton
+    }
+
+    // MARK: - Pending profile setup
+
+    /// The pending flag is persisted per-uid so a social sign-up interrupted before
+    /// the profile is written (app killed, crash) resumes at setup on relaunch
+    /// instead of dropping into the app with no profile.
+    private static func pendingSetupKey(_ uid: String) -> String { "pendingProfileSetup.\(uid)" }
+    private static func suggestedNameKey(_ uid: String) -> String { "pendingProfileName.\(uid)" }
+
+    static func isProfileSetupPending(uid: String) -> Bool {
+        UserDefaults.standard.bool(forKey: pendingSetupKey(uid))
+    }
+
+    /// Apple returns the user's full name only on the *very first* authorization,
+    /// so the suggestion is stored until the profile is actually created.
+    static func storeSuggestedName(_ name: String?, uid: String) {
+        guard let name = name, !name.isEmpty else { return }
+        UserDefaults.standard.set(name, forKey: suggestedNameKey(uid))
+    }
+
+    static func suggestedName(uid: String) -> String? {
+        UserDefaults.standard.string(forKey: suggestedNameKey(uid))
+    }
+
+    static func clearProfileSetupPending(uid: String) {
+        UserDefaults.standard.removeObject(forKey: pendingSetupKey(uid))
+        UserDefaults.standard.removeObject(forKey: suggestedNameKey(uid))
+    }
+
+    /// Route the signed-in account to profile setup, in memory and on disk.
+    func markProfileSetupPending() {
+        needsProfileSetup = true
+        if let uid = Auth.auth().currentUser?.uid {
+            UserDefaults.standard.set(true, forKey: Self.pendingSetupKey(uid))
+        }
+    }
+
+    /// Called once the profile exists — the account is fully set up.
+    func clearProfileSetupPending() {
+        needsProfileSetup = false
+        if let uid = Auth.auth().currentUser?.uid {
+            Self.clearProfileSetupPending(uid: uid)
+        }
     }
 
     // Fetch user data from Firestore
@@ -74,8 +123,18 @@ class UserSessionManager: ObservableObject {
                     #if DEBUG
                     print("UserSessionManager: No documents found for email: \(currentUserEmail)")
                     #endif
-                    // A brand-new social account's profile is still being created
-                    // by AuthenticationManager; don't surface a "not found" error.
+                    // An Apple/Google account with no profile hasn't finished setup
+                    // yet — route to ProfileSetupView rather than erroring. Password
+                    // accounts always get a profile at signup, so a missing one there
+                    // really is a broken account and keeps the existing error path.
+                    if !AuthenticationManager.hasPasswordProvider() {
+                        DispatchQueue.main.async {
+                            self.isLoading = false
+                            self.markProfileSetupPending()
+                        }
+                        return
+                    }
+                    // A profile that's mid-write; don't surface a "not found" error.
                     if self.isProvisioningProfile {
                         DispatchQueue.main.async { self.isLoading = false }
                         return
@@ -92,6 +151,8 @@ class UserSessionManager: ObservableObject {
 
                 DispatchQueue.main.async {
                     self.isLoading = false
+                    // The profile exists, so setup is done (and stays done across launches).
+                    self.clearProfileSetupPending()
                     self.currentUser = User(
                         userId: userData["userId"] as? String ?? "",
                         name: userData["name"] as? String ?? "",
@@ -659,6 +720,7 @@ class UserSessionManager: ObservableObject {
         }
 
         let userId = user.userId
+        let uid = authUser.uid
 
         // 1. Delete Firebase Auth user first — if this fails (e.g. requiresRecentLogin),
         //    no Firestore data has been touched yet, so the account remains intact.
@@ -675,6 +737,7 @@ class UserSessionManager: ObservableObject {
 
             // Auth deletion succeeded — now clean up all associated data.
             // Auth listener in MainViewModel will call clearSession automatically.
+            Self.clearProfileSetupPending(uid: uid)
             let db = Firestore.firestore()
             let group = DispatchGroup()
 
@@ -849,7 +912,7 @@ class UserSessionManager: ObservableObject {
     // Clear user session (call on logout)
     func clearSession() {
         // Only clear if there's actually a session to clear (prevents redundant updates)
-        guard currentUser != nil || !errorMessage.isEmpty || isLoading else {
+        guard currentUser != nil || !errorMessage.isEmpty || isLoading || needsProfileSetup else {
             return
         }
 
@@ -857,6 +920,9 @@ class UserSessionManager: ObservableObject {
             self.currentUser = nil
             self.errorMessage = ""
             self.isLoading = false
+            // In-memory only: the persisted marker stays so an unfinished signup
+            // still resumes at setup when the user signs back in.
+            self.needsProfileSetup = false
         }
     }
 }

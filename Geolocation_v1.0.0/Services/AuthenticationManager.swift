@@ -58,7 +58,9 @@ class AuthenticationManager: NSObject, ObservableObject {
         let email: String
         let credential: AuthCredential
         let providerLabel: String
-        /// Carried through so the new provider's name can seed a missing profile.
+        /// The provider's name for the user. Linking always lands on an account
+        /// that already has a profile, so this is carried for context only —
+        /// `firebaseSignIn` stashes the name suggestion for profile setup.
         let displayName: String?
     }
 
@@ -267,7 +269,7 @@ class AuthenticationManager: NSObject, ObservableObject {
                     if code == AuthErrorCode.providerAlreadyLinked.rawValue ||
                        code == AuthErrorCode.credentialAlreadyInUse.rawValue {
                         DispatchQueue.main.async { self.pendingLink = nil }
-                        self.ensureUserDocument(for: user, displayName: pending.displayName)
+                        self.ensureUserDocument(for: user)
                         return
                     }
                     self.finishLink(error: "Couldn't link your \(pending.providerLabel) account: \(linkError.localizedDescription)")
@@ -275,7 +277,7 @@ class AuthenticationManager: NSObject, ObservableObject {
                 }
 
                 DispatchQueue.main.async { self.pendingLink = nil }
-                self.ensureUserDocument(for: user, displayName: pending.displayName)
+                self.ensureUserDocument(for: user)
             }
         }
     }
@@ -360,6 +362,12 @@ class AuthenticationManager: NSObject, ObservableObject {
                 return
             }
 
+            // Stash the provider's name before anything can route to profile setup:
+            // the auth-state listener's `fetchUser` runs concurrently with the
+            // profile lookup below and may reach setup first, and Apple only ever
+            // sends the full name on the very first authorization.
+            UserSessionManager.storeSuggestedName(displayName, uid: user.uid)
+
             // Linking re-auth path: verify the right account, then attach the
             // pending credential from the provider the user originally tried.
             if let linkAfter = linkAfter {
@@ -380,12 +388,12 @@ class AuthenticationManager: NSObject, ObservableObject {
                             return
                         }
                     }
-                    self.ensureUserDocument(for: user, displayName: linkAfter.displayName ?? displayName)
+                    self.ensureUserDocument(for: user)
                 }
                 return
             }
 
-            self.ensureUserDocument(for: user, displayName: displayName)
+            self.ensureUserDocument(for: user)
         }
     }
 
@@ -609,7 +617,7 @@ class AuthenticationManager: NSObject, ObservableObject {
     // MARK: - Firestore profile (no duplicate profiles)
 
     /// Ensure exactly one Firestore `users` profile exists for this account.
-    private func ensureUserDocument(for user: FirebaseAuth.User, displayName: String?) {
+    private func ensureUserDocument(for user: FirebaseAuth.User) {
         guard let email = user.email, !email.isEmpty else {
             self.finish(error: "Your account is missing an email address and can't be set up.")
             return
@@ -631,28 +639,15 @@ class AuthenticationManager: NSObject, ObservableObject {
                     return
                 }
 
-                // No profile yet — create a single new one with a unique username.
-                let seed = displayName?.isEmpty == false ? displayName! : String(email.prefix(while: { $0 != "@" }))
-                self.generateUniqueUsername(seed: seed) { username in
-                    let newUser = User(
-                        userId: username,
-                        name: (displayName?.isEmpty == false ? displayName! : "New User"),
-                        email: email,
-                        joined: Date().timeIntervalSince1970,
-                        isSubscribed: false,
-                        subscriptionToken: UUID().uuidString
-                    )
-
-                    self.db.collection("users")
-                        .document(username)
-                        .setData(newUser.asDict()) { [weak self] error in
-                            guard let self = self else { return }
-                            if let error = error {
-                                self.finish(error: "Couldn't create your profile: \(error.localizedDescription)")
-                                return
-                            }
-                            self.loadSessionAndFinish()
-                        }
+                // No profile yet — this is a first-time social sign-up. Hand off to
+                // ProfileSetupView so the user picks their own username and name
+                // instead of being handed a generated one. Nothing is written here;
+                // the profile is created when they finish setup.
+                DispatchQueue.main.async {
+                    self.isLoading = false
+                    self.errorMessage = ""
+                    UserSessionManager.shared.isProvisioningProfile = false
+                    UserSessionManager.shared.markProfileSetupPending()
                 }
             }
     }
@@ -667,7 +662,8 @@ class AuthenticationManager: NSObject, ObservableObject {
     }
 
     /// Produce a Firestore-safe username that isn't already taken.
-    private func generateUniqueUsername(seed: String, attempt: Int = 0, completion: @escaping (String) -> Void) {
+    /// Used to prefill the username field during profile setup.
+    func generateUniqueUsername(seed: String, attempt: Int = 0, completion: @escaping (String) -> Void) {
         let candidate: String
         if attempt == 0 {
             var base = seed.lowercased().filter { $0.isLetter || $0.isNumber }
