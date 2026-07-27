@@ -9,35 +9,53 @@ import CoreImage
 import CoreImage.CIFilterBuiltins
 import UIKit
 
-/// Renders a membership number into a scannable barcode image using Core Image.
+/// Renders a membership number into a scannable barcode image.
 ///
-/// Core Image emits the code at its natural (tiny) module size, so the result is
-/// scaled up with interpolation disabled — smoothing the edges is what makes a
-/// rendered barcode unreadable to a scanner.
+/// UPC-A and EAN-13 are handed to `RetailBarcode`, which draws them from the
+/// spec — Core Image has no generator for the EAN family. Everything else comes
+/// from Core Image, which emits the code at its natural (tiny) module size, so
+/// the result is scaled up with interpolation disabled: smoothing the edges is
+/// what makes a rendered barcode unreadable to a scanner.
 enum BarcodeGenerator {
     private static let context = CIContext(options: [.useSoftwareRenderer: false])
     private static let cache = NSCache<NSString, UIImage>()
+
+    /// Pixel width every generated barcode targets. Comfortably above the
+    /// widest point it's displayed at, so the view only ever scales down.
+    static let targetPixelWidth: CGFloat = 1200
 
     /// Whether `value` can be encoded in `symbology`.
     static func canEncode(_ value: String, symbology: BarcodeSymbology) -> Bool {
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return false }
+        if let kind = symbology.retailKind {
+            return RetailBarcode.isValid(trimmed, kind: kind)
+        }
         guard symbology.requiresASCII else { return true }
         return trimmed.data(using: .ascii) != nil
     }
 
     /// A black-on-white barcode for `value`, or `nil` when the value can't be
     /// encoded in the requested symbology.
-    ///
-    /// - Parameter scale: pixels per barcode module. 10 keeps a typical loyalty
-    ///   number crisp at the width this app renders it.
-    static func image(for value: String, symbology: BarcodeSymbology, scale: CGFloat = 10) -> UIImage? {
+    static func image(
+        for value: String,
+        symbology: BarcodeSymbology,
+        targetWidth: CGFloat = targetPixelWidth
+    ) -> UIImage? {
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
         guard canEncode(trimmed, symbology: symbology) else { return nil }
 
-        let cacheKey = "\(symbology.rawValue)|\(Int(scale))|\(trimmed)" as NSString
+        let cacheKey = "\(symbology.rawValue)|\(Int(targetWidth))|\(trimmed)" as NSString
         if let cached = cache.object(forKey: cacheKey) {
             return cached
+        }
+
+        if let kind = symbology.retailKind {
+            guard let rendered = RetailBarcode.image(for: trimmed, kind: kind, targetWidth: targetWidth) else {
+                return nil
+            }
+            cache.setObject(rendered, forKey: cacheKey)
+            return rendered
         }
 
         // Code 128 needs ASCII; the 2D generators take UTF-8.
@@ -50,10 +68,14 @@ enum BarcodeGenerator {
         }
 
         guard let output = ciImage(from: messageData, symbology: symbology),
+              output.extent.width > 0,
               let cgImage = context.createCGImage(output, from: output.extent) else {
             return nil
         }
 
+        // Whole-number module scale, so every bar lands on exact pixel
+        // boundaries instead of being rounded away.
+        let scale = max(1, (targetWidth / output.extent.width).rounded())
         let rendered = upscale(UIImage(cgImage: cgImage), by: scale)
         cache.setObject(rendered, forKey: cacheKey)
         return rendered
@@ -63,6 +85,10 @@ enum BarcodeGenerator {
 
     private static func ciImage(from message: Data, symbology: BarcodeSymbology) -> CIImage? {
         switch symbology {
+        case .upcA, .ean13:
+            // Handled by RetailBarcode before reaching here — Core Image has no
+            // generator for the EAN family.
+            return nil
         case .code128:
             let filter = CIFilter.code128BarcodeGenerator()
             filter.message = message

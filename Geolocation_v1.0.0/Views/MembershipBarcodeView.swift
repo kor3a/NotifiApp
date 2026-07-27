@@ -44,7 +44,7 @@ struct MembershipBarcodeTopSheet: View {
             return photo
         }
         guard card.hasNumber else { return nil }
-        return BarcodeGenerator.image(for: card.trimmedNumber, symbology: card.symbology)
+        return BarcodeGenerator.image(for: card.trimmedNumber, symbology: card.effectiveSymbology)
     }
 
     private var isShowingPhoto: Bool {
@@ -193,12 +193,15 @@ struct MembershipBarcodeTopSheet: View {
         VStack(spacing: 8) {
             // Always on white: scanners read a dark-on-light code, and the panel
             // itself is translucent material that follows the system theme.
+            // `.high` interpolation, not `.none` — the image is generated wider
+            // than it's shown, and nearest-neighbour downscaling drops whole
+            // columns, which can merge adjacent bars and break the scan.
             Image(uiImage: image)
                 .resizable()
-                .interpolation(.none)
+                .interpolation(.high)
                 .scaledToFit()
                 .frame(maxWidth: .infinity)
-                .frame(height: (card?.symbology.isLinear ?? true) || isShowingPhoto ? 96 : 132)
+                .frame(height: (card?.effectiveSymbology.isLinear ?? true) || isShowingPhoto ? 112 : 132)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 10)
                 .background(
@@ -210,7 +213,7 @@ struct MembershipBarcodeTopSheet: View {
                         .stroke(Color.black.opacity(0.08), lineWidth: 1)
                 )
 
-            if let number = card?.trimmedNumber, !number.isEmpty {
+            if let number = card?.formattedNumber, !number.isEmpty {
                 Text(number)
                     .font(.footnote.monospaced())
                     .fontWeight(.medium)
@@ -226,12 +229,12 @@ struct MembershipBarcodeTopSheet: View {
 
     private var unrenderableCardMessage: some View {
         VStack(spacing: 8) {
-            Text(card?.trimmedNumber ?? "")
+            Text(card?.formattedNumber ?? "")
                 .font(.footnote.monospaced())
                 .fontWeight(.medium)
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
-            Text("This number can't be rendered as a \(card?.symbology.displayName ?? "barcode"). Try another format or add a photo of the card.")
+            Text("This number can't be rendered as a \(card?.effectiveSymbology.displayName ?? "barcode"). Try another format or add a photo of the card.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -330,14 +333,33 @@ struct MembershipCardEditorView: View {
 
     @State private var number: String = ""
     @State private var symbology: BarcodeSymbology = .code128
+    @State private var autoFormat = true
     @State private var didLoad = false
 
     private var trimmedNumber: String {
         number.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
+    /// What will actually be rendered: detected from the number while on
+    /// automatic, otherwise the pinned format.
+    private var effectiveSymbology: BarcodeSymbology {
+        guard autoFormat, !trimmedNumber.isEmpty else { return symbology }
+        return BarcodeSymbology.detected(for: trimmedNumber)
+    }
+
     private var previewImage: UIImage? {
-        BarcodeGenerator.image(for: trimmedNumber, symbology: symbology)
+        BarcodeGenerator.image(for: trimmedNumber, symbology: effectiveSymbology)
+    }
+
+    /// An 11-digit number is a UPC-A missing its check digit, which the app can
+    /// compute — better than silently falling back to an unscannable Code 128.
+    ///
+    /// Deliberately not offered for 12 digits: those are far more likely a
+    /// UPC-A with a typo than an EAN-13 missing its check digit, and appending
+    /// a digit there would encode a number that isn't on the card.
+    private var suggestedCheckDigit: Int? {
+        guard RetailBarcode.digits(in: trimmedNumber)?.count == 11 else { return nil }
+        return RetailBarcode.checkDigit(forPartial: trimmedNumber)
     }
 
     var body: some View {
@@ -355,27 +377,56 @@ struct MembershipCardEditorView: View {
                     Text("The number printed under the barcode on your \(storeName) card.")
                 }
 
-                Section("Barcode format") {
-                    Picker("Format", selection: $symbology) {
-                        ForEach(BarcodeSymbology.allCases) { format in
-                            Text(format.displayName).tag(format)
+                if let checkDigit = suggestedCheckDigit {
+                    Section {
+                        Button {
+                            number = trimmedNumber + String(checkDigit)
+                        } label: {
+                            Label(
+                                "Add check digit \(checkDigit)",
+                                systemImage: "wand.and.stars"
+                            )
+                        }
+                    } footer: {
+                        Text("11 digits looks like a UPC-A missing its check digit. Adding it makes a barcode the register can scan.")
+                    }
+                }
+
+                Section {
+                    Toggle("Detect format automatically", isOn: $autoFormat)
+
+                    if autoFormat {
+                        HStack {
+                            Text("Format")
+                            Spacer()
+                            Text(trimmedNumber.isEmpty ? "—" : effectiveSymbology.displayName)
+                                .foregroundStyle(.secondary)
+                        }
+                    } else {
+                        Picker("Format", selection: $symbology) {
+                            ForEach(BarcodeSymbology.allCases) { format in
+                                Text(format.displayName).tag(format)
+                            }
                         }
                     }
-                    .pickerStyle(.segmented)
 
-                    Text(symbology.detail)
+                    Text(effectiveSymbology.detail)
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                } header: {
+                    Text("Barcode format")
+                } footer: {
+                    Text("The register scans the format, not just the digits — a 12-digit card read as UPC-A won't scan as Code 128.")
                 }
 
                 Section("Preview") {
                     if let previewImage {
                         Image(uiImage: previewImage)
                             .resizable()
-                            .interpolation(.none)
+                            .interpolation(.high)
                             .scaledToFit()
                             .frame(maxWidth: .infinity)
-                            .frame(height: symbology.isLinear ? 90 : 130)
+                            .frame(height: effectiveSymbology.isLinear ? 100 : 130)
                             .padding(8)
                             .background(
                                 RoundedRectangle(cornerRadius: 10, style: .continuous)
@@ -387,14 +438,9 @@ struct MembershipCardEditorView: View {
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     } else {
-                        Label(
-                            symbology.requiresASCII
-                                ? "\(symbology.displayName) can only encode letters, digits and basic punctuation."
-                                : "This value can't be encoded as a \(symbology.displayName).",
-                            systemImage: "exclamationmark.triangle"
-                        )
-                        .font(.caption)
-                        .foregroundStyle(.orange)
+                        Label(unencodableReason, systemImage: "exclamationmark.triangle")
+                            .font(.caption)
+                            .foregroundStyle(.orange)
                     }
                 }
 
@@ -423,7 +469,12 @@ struct MembershipCardEditorView: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
-                        cardStore.saveNumber(number, symbology: symbology, forStoreNamed: storeName)
+                        cardStore.saveNumber(
+                            number,
+                            symbology: effectiveSymbology,
+                            autoFormat: autoFormat,
+                            forStoreNamed: storeName
+                        )
                         dismiss()
                     }
                     .disabled(!canSave)
@@ -434,7 +485,8 @@ struct MembershipCardEditorView: View {
                 didLoad = true
                 if let card = cardStore.card(forStoreNamed: storeName) {
                     number = card.number
-                    symbology = card.symbology
+                    symbology = card.effectiveSymbology
+                    autoFormat = card.usesAutoFormat
                 }
             }
         }
@@ -447,6 +499,23 @@ struct MembershipCardEditorView: View {
             return cardStore.card(forStoreNamed: storeName)?.hasNumber == true
         }
         return previewImage != nil
+    }
+
+    /// Why the current number won't render, phrased for the format at fault.
+    private var unencodableReason: String {
+        let format = effectiveSymbology
+        if let kind = format.retailKind {
+            let expected = kind.digitCount
+            let digitCount = RetailBarcode.digits(in: trimmedNumber)?.count
+            if digitCount != expected {
+                return "\(format.displayName) needs exactly \(expected) digits."
+            }
+            return "The last digit doesn't match this number's check digit, so a scanner would reject it."
+        }
+        if format.requiresASCII {
+            return "\(format.displayName) can only encode letters, digits and basic punctuation."
+        }
+        return "This value can't be encoded as a \(format.displayName)."
     }
 }
 
