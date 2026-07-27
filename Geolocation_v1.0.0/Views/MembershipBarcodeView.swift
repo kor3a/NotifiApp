@@ -366,9 +366,12 @@ struct MembershipCardEditorView: View {
         NavigationStack {
             Form {
                 Section {
+                    // Number pad: loyalty card numbers are digits, and the
+                    // UPC-A / EAN-13 formats can't encode anything else.
+                    // Dismissal is via the Cancel/Save buttons, so the missing
+                    // return key costs nothing.
                     TextField("e.g. 1234567890123", text: $number)
-                        .keyboardType(.asciiCapable)
-                        .textInputAutocapitalization(.characters)
+                        .keyboardType(.numberPad)
                         .autocorrectionDisabled(true)
                         .font(.body.monospaced())
                 } header: {
