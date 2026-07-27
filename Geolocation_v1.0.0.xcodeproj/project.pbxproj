@@ -49,6 +49,8 @@
 		01A3399A2FE19CAA00207C36 /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = 01A339992FE19CAA00207C36 /* FirebaseFirestore */; };
 		01A3399C2FE19CBA00207C36 /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = 01A3399B2FE19CBA00207C36 /* FirebaseAuth */; };
 		01A339A52FE1A86E00207C36 /* AppIntentVocabulary.plist in Resources */ = {isa = PBXBuildFile; fileRef = 01A339A42FE1A86E00207C36 /* AppIntentVocabulary.plist */; };
+		01AA00022F900000AB942902 /* ProfileSetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01AA00012F900000AB942901 /* ProfileSetupView.swift */; };
+		01AA00042F900000AB942904 /* ProfileSetupViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01AA00032F900000AB942903 /* ProfileSetupViewModel.swift */; };
 		01B408232F3BECB100EA1F25 /* MessagesViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01B408222F3BECB100EA1F25 /* MessagesViewModel.swift */; };
 		01B408252F3BECB800EA1F25 /* FriendsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01B408242F3BECB800EA1F25 /* FriendsViewModel.swift */; };
 		01B408272F3BECC300EA1F25 /* Friend.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01B408262F3BECC300EA1F25 /* Friend.swift */; };
@@ -93,8 +95,6 @@
 		82D289B32C61D403009F357F /* EncodableExtension.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82D289B22C61D403009F357F /* EncodableExtension.swift */; };
 		82D289B52C61D52F009F357F /* MainViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82D289B42C61D52F009F357F /* MainViewModel.swift */; };
 		82D289B72C61D631009F357F /* ProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82D289B62C61D631009F357F /* ProfileView.swift */; };
-		01AA00022F900000AB942902 /* ProfileSetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01AA00012F900000AB942901 /* ProfileSetupView.swift */; };
-		01AA00042F900000AB942904 /* ProfileSetupViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01AA00032F900000AB942903 /* ProfileSetupViewModel.swift */; };
 		82D715C62C8D6B230000D1E3 /* MapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82D715C52C8D6B230000D1E3 /* MapView.swift */; };
 		82EC11832C64755300A6CD8C /* LocationDetailsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82EC11822C64755300A6CD8C /* LocationDetailsView.swift */; };
 		A1B2C3D400000000000000F2 /* FirebaseFunctions in Frameworks */ = {isa = PBXBuildFile; productRef = A1B2C3D400000000000000F1 /* FirebaseFunctions */; };
@@ -220,6 +220,8 @@
 		01A339842FE191EB00207C36 /* NearBuyIntents.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = NearBuyIntents.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		01A339852FE191EB00207C36 /* Intents.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Intents.framework; path = System/Library/Frameworks/Intents.framework; sourceTree = SDKROOT; };
 		01A339A32FE1A86E00207C36 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = en; path = en.lproj/AppIntentVocabulary.plist; sourceTree = "<group>"; };
+		01AA00012F900000AB942901 /* ProfileSetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileSetupView.swift; sourceTree = "<group>"; };
+		01AA00032F900000AB942903 /* ProfileSetupViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileSetupViewModel.swift; sourceTree = "<group>"; };
 		01B408212F3BEC7F00EA1F25 /* Secrets.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Secrets.xcconfig; sourceTree = "<group>"; };
 		01B408222F3BECB100EA1F25 /* MessagesViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessagesViewModel.swift; sourceTree = "<group>"; };
 		01B408242F3BECB800EA1F25 /* FriendsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FriendsViewModel.swift; sourceTree = "<group>"; };
@@ -263,8 +265,6 @@
 		82D289B22C61D403009F357F /* EncodableExtension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EncodableExtension.swift; sourceTree = "<group>"; };
 		82D289B42C61D52F009F357F /* MainViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainViewModel.swift; sourceTree = "<group>"; };
 		82D289B62C61D631009F357F /* ProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileView.swift; sourceTree = "<group>"; };
-		01AA00012F900000AB942901 /* ProfileSetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileSetupView.swift; sourceTree = "<group>"; };
-		01AA00032F900000AB942903 /* ProfileSetupViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileSetupViewModel.swift; sourceTree = "<group>"; };
 		82D715C52C8D6B230000D1E3 /* MapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapView.swift; sourceTree = "<group>"; };
 		82EC11822C64755300A6CD8C /* LocationDetailsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationDetailsView.swift; sourceTree = "<group>"; };
 		AA1234560001AABB00CC0001 /* OpenAIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenAIService.swift; sourceTree = "<group>"; };
@@ -1309,7 +1309,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.3.10;
+				MARKETING_VERSION = 1.3.11;
 				PRODUCT_BUNDLE_IDENTIFIER = com.kor3a.nearbuy;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -1341,7 +1341,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.3.10;
+				MARKETING_VERSION = 1.3.11;
 				PRODUCT_BUNDLE_IDENTIFIER = com.kor3a.nearbuy;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
