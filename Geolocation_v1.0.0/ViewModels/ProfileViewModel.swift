@@ -57,19 +57,66 @@ class ProfileViewModel: ObservableObject {
         }
     }
 
+    /// How this account confirms its identity before deletion. Drives which prompt
+    /// ProfileView shows — a password field, or the Apple/Google sheet.
+    var reauthMethod: AuthenticationManager.ReauthMethod {
+        sessionManager.reauthMethod
+    }
+
+    /// Apple/Google accounts have no password, so the change-password form is
+    /// hidden for them rather than failing when they submit it.
+    var canChangePassword: Bool {
+        sessionManager.hasPasswordProvider
+    }
+
     func deleteAccount() {
+        let method = reauthMethod
+
+        // Apple requires the sign-in token to be revoked when an account is deleted,
+        // and the authorization code that revokes it only comes from a fresh Apple
+        // authorization — so Apple accounts always re-authenticate up front rather
+        // than waiting for Firebase to ask.
+        if method == .apple {
+            reauthenticateAndDelete(using: .apple)
+            return
+        }
+
         isLoading = true
         errorMessage = ""
         sessionManager.deleteAccount { [weak self] success, errorMsg in
             guard let self = self else { return }
             DispatchQueue.main.async {
                 self.isLoading = false
-                if !success {
-                    if errorMsg?.contains("sign out and sign back in") == true {
-                        self.needsReauthForDeletion = true
-                    } else {
-                        self.errorMessage = errorMsg ?? "Failed to delete account"
-                    }
+                // On success the auth listener signs the user out automatically
+                guard !success else { return }
+
+                guard errorMsg == UserSessionManager.requiresRecentLoginMessage else {
+                    self.errorMessage = errorMsg ?? "Failed to delete account"
+                    return
+                }
+
+                switch method {
+                case .password:
+                    self.needsReauthForDeletion = true
+                case .google, .apple:
+                    // No password to ask for — re-confirm through the provider.
+                    self.reauthenticateAndDelete(using: method)
+                }
+            }
+        }
+    }
+
+    /// Re-authenticate through Apple/Google, then delete. Cancelling the provider
+    /// sheet simply returns the user to the profile with no error.
+    func reauthenticateAndDelete(using method: AuthenticationManager.ReauthMethod) {
+        isLoading = true
+        errorMessage = ""
+        sessionManager.reauthenticateAndDeleteAccount(using: method) { [weak self] success, cancelled, errorMsg in
+            guard let self = self else { return }
+            DispatchQueue.main.async {
+                self.isLoading = false
+                if !success && !cancelled {
+                    self.errorMessage = errorMsg ?? "Failed to delete account"
                 }
                 // On success the auth listener signs the user out automatically
             }
@@ -234,6 +281,10 @@ class ProfileViewModel: ObservableObject {
 
         // Check password validation if user is trying to change password
         if !newPassword.isEmpty || !confirmPassword.isEmpty {
+            guard canChangePassword else {
+                errorMessage = "Your account signs in with Apple or Google, so it has no password to change."
+                return
+            }
             if newPassword != confirmPassword {
                 errorMessage = "Passwords do not match"
                 return

@@ -17,9 +17,12 @@ struct AccountSecurityView: View {
                     .disableAutocorrection(true)
             }
 
-            Section(header: Text("Change Password"), footer: Text("Leave blank to keep your current password.")) {
-                SecureField("New password", text: $viewModel.newPassword)
-                SecureField("Confirm new password", text: $viewModel.confirmPassword)
+            // Accounts created with Apple or Google have no password to change.
+            if viewModel.canChangePassword {
+                Section(header: Text("Change Password"), footer: Text("Leave blank to keep your current password.")) {
+                    SecureField("New password", text: $viewModel.newPassword)
+                    SecureField("Confirm new password", text: $viewModel.confirmPassword)
+                }
             }
 
             Section {

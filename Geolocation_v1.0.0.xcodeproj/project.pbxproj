@@ -49,6 +49,8 @@
 		01A3399A2FE19CAA00207C36 /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = 01A339992FE19CAA00207C36 /* FirebaseFirestore */; };
 		01A3399C2FE19CBA00207C36 /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = 01A3399B2FE19CBA00207C36 /* FirebaseAuth */; };
 		01A339A52FE1A86E00207C36 /* AppIntentVocabulary.plist in Resources */ = {isa = PBXBuildFile; fileRef = 01A339A42FE1A86E00207C36 /* AppIntentVocabulary.plist */; };
+		01AA00022F900000AB942902 /* ProfileSetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01AA00012F900000AB942901 /* ProfileSetupView.swift */; };
+		01AA00042F900000AB942904 /* ProfileSetupViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01AA00032F900000AB942903 /* ProfileSetupViewModel.swift */; };
 		01B408232F3BECB100EA1F25 /* MessagesViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01B408222F3BECB100EA1F25 /* MessagesViewModel.swift */; };
 		01B408252F3BECB800EA1F25 /* FriendsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01B408242F3BECB800EA1F25 /* FriendsViewModel.swift */; };
 		01B408272F3BECC300EA1F25 /* Friend.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01B408262F3BECC300EA1F25 /* Friend.swift */; };
@@ -218,6 +220,8 @@
 		01A339842FE191EB00207C36 /* NearBuyIntents.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = NearBuyIntents.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		01A339852FE191EB00207C36 /* Intents.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Intents.framework; path = System/Library/Frameworks/Intents.framework; sourceTree = SDKROOT; };
 		01A339A32FE1A86E00207C36 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = en; path = en.lproj/AppIntentVocabulary.plist; sourceTree = "<group>"; };
+		01AA00012F900000AB942901 /* ProfileSetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileSetupView.swift; sourceTree = "<group>"; };
+		01AA00032F900000AB942903 /* ProfileSetupViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileSetupViewModel.swift; sourceTree = "<group>"; };
 		01B408212F3BEC7F00EA1F25 /* Secrets.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Secrets.xcconfig; sourceTree = "<group>"; };
 		01B408222F3BECB100EA1F25 /* MessagesViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessagesViewModel.swift; sourceTree = "<group>"; };
 		01B408242F3BECB800EA1F25 /* FriendsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FriendsViewModel.swift; sourceTree = "<group>"; };
@@ -504,6 +508,7 @@
 				82D289A92C61CA71009F357F /* SignupView.swift */,
 				748542B22CB5307000C58D9B /* HomeView.swift */,
 				82D289B62C61D631009F357F /* ProfileView.swift */,
+				01AA00012F900000AB942901 /* ProfileSetupView.swift */,
 				82D715C52C8D6B230000D1E3 /* MapView.swift */,
 				82EC11822C64755300A6CD8C /* LocationDetailsView.swift */,
 				7498B0832CC2D49A0003C68F /* StoresView.swift */,
@@ -534,6 +539,7 @@
 				82D289B42C61D52F009F357F /* MainViewModel.swift */,
 				82916C152C914BA800F810A3 /* MapViewModel.swift */,
 				742E371A2CBC036F0056F692 /* ProfileViewModel.swift */,
+				01AA00032F900000AB942903 /* ProfileSetupViewModel.swift */,
 				74A79E822CBDAC7500713F0E /* ReminderItemViewModel.swift */,
 				01897B5A2EBA4AB00038A4D1 /* StoresViewModel.swift */,
 			);
@@ -888,6 +894,7 @@
 				BC0200000001AABB00CC0004 /* RetailBarcode.swift in Sources */,
 				BC0200000001AABB00CC0003 /* MembershipBarcodeView.swift in Sources */,
 				82D289B72C61D631009F357F /* ProfileView.swift in Sources */,
+				01AA00022F900000AB942902 /* ProfileSetupView.swift in Sources */,
 				82916C162C914BA800F810A3 /* MapViewModel.swift in Sources */,
 				01EF1E4D2F50A1B500D79D3C /* FavoriteTag.swift in Sources */,
 				01D86E972F6AD6630007802A /* TutorialOverlayView.swift in Sources */,
@@ -922,6 +929,7 @@
 				82D289B02C61D30C009F357F /* User.swift in Sources */,
 				017BD2532F76D39800E5842A /* RecipeView.swift in Sources */,
 				742E371B2CBC036F0056F692 /* ProfileViewModel.swift in Sources */,
+				01AA00042F900000AB942904 /* ProfileSetupViewModel.swift in Sources */,
 				01B408232F3BECB100EA1F25 /* MessagesViewModel.swift in Sources */,
 				010A82C92F73377900728D59 /* GroupInfoView.swift in Sources */,
 				011CF6022ED638E4009A31A6 /* SharedStoreGroup.swift in Sources */,
@@ -1301,7 +1309,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.3.10;
+				MARKETING_VERSION = 1.3.11;
 				PRODUCT_BUNDLE_IDENTIFIER = com.kor3a.nearbuy;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -1333,7 +1341,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.3.10;
+				MARKETING_VERSION = 1.3.11;
 				PRODUCT_BUNDLE_IDENTIFIER = com.kor3a.nearbuy;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";

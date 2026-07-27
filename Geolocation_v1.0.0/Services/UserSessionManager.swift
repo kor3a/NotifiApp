@@ -26,8 +26,73 @@ class UserSessionManager: ObservableObject {
     /// that brief window. AuthenticationManager clears it once the profile is ready.
     var isProvisioningProfile: Bool = false
 
+    /// Where a signed-in account should be routed: into the app, or into profile
+    /// setup. `MainView` switches on this.
+    enum ProfileStatus: String {
+        /// The profile lookup hasn't answered yet. `MainView` shows a neutral
+        /// screen rather than guessing — guessing "ready" is what made a
+        /// first-time social sign-up flash the main UI before setup appeared.
+        case resolving
+        /// A profile exists (or the lookup failed in a way that shouldn't block
+        /// the app) — show the app.
+        case ready
+        /// No profile yet — a first-time Apple/Google sign-up that hasn't chosen
+        /// a username and name. Show `ProfileSetupView`.
+        case needsSetup
+    }
+
+    @Published var profileStatus: ProfileStatus = .resolving
+
     private init() {
         // Private initializer for singleton
+    }
+
+    // MARK: - Profile status
+
+    /// The resolved status is cached per-uid so a relaunch routes immediately
+    /// instead of blanking while the lookup runs, and so a signup interrupted
+    /// before its profile was written (app killed, crash) resumes at setup
+    /// instead of dropping into the app with no profile.
+    private static func statusKey(_ uid: String) -> String { "profileStatus.\(uid)" }
+    private static func suggestedNameKey(_ uid: String) -> String { "pendingProfileName.\(uid)" }
+
+    /// Last known status for this account, or nil if it has never been resolved
+    /// on this device (a first sign-in, which has to wait for the lookup).
+    static func cachedProfileStatus(uid: String) -> ProfileStatus? {
+        guard let raw = UserDefaults.standard.string(forKey: statusKey(uid)),
+              let status = ProfileStatus(rawValue: raw),
+              status != .resolving else { return nil }
+        return status
+    }
+
+    /// Apple returns the user's full name only on the *very first* authorization,
+    /// so the suggestion is stored until the profile is actually created.
+    static func storeSuggestedName(_ name: String?, uid: String) {
+        guard let name = name, !name.isEmpty else { return }
+        UserDefaults.standard.set(name, forKey: suggestedNameKey(uid))
+    }
+
+    static func suggestedName(uid: String) -> String? {
+        UserDefaults.standard.string(forKey: suggestedNameKey(uid))
+    }
+
+    static func clearStoredProfileStatus(uid: String) {
+        UserDefaults.standard.removeObject(forKey: statusKey(uid))
+        UserDefaults.standard.removeObject(forKey: suggestedNameKey(uid))
+    }
+
+    /// Record where this account should be routed, in memory and on disk.
+    /// Every terminal path of `fetchUser` resolves to `.ready` or `.needsSetup`,
+    /// so the neutral `.resolving` screen can never be a dead end.
+    func setProfileStatus(_ status: ProfileStatus) {
+        profileStatus = status
+
+        guard status != .resolving, let uid = Auth.auth().currentUser?.uid else { return }
+        UserDefaults.standard.set(status.rawValue, forKey: Self.statusKey(uid))
+
+        if status == .ready {
+            UserDefaults.standard.removeObject(forKey: Self.suggestedNameKey(uid))
+        }
     }
 
     // Fetch user data from Firestore
@@ -37,6 +102,7 @@ class UserSessionManager: ObservableObject {
             DispatchQueue.main.async {
                 self.errorMessage = "No authenticated user found"
                 self.isLoading = false
+                self.setProfileStatus(.ready)
             }
             return
         }
@@ -62,6 +128,9 @@ class UserSessionManager: ObservableObject {
                     DispatchQueue.main.async {
                         self.isLoading = false
                         self.errorMessage = "Error fetching user: \(error.localizedDescription)"
+                        // Don't strand the user on the neutral screen over a
+                        // transient failure; the app surfaces the error itself.
+                        self.setProfileStatus(.ready)
                     }
                     return
                 }
@@ -74,10 +143,24 @@ class UserSessionManager: ObservableObject {
                     #if DEBUG
                     print("UserSessionManager: No documents found for email: \(currentUserEmail)")
                     #endif
-                    // A brand-new social account's profile is still being created
-                    // by AuthenticationManager; don't surface a "not found" error.
+                    // An Apple/Google account with no profile hasn't finished setup
+                    // yet — route to ProfileSetupView rather than erroring. Password
+                    // accounts always get a profile at signup, so a missing one there
+                    // really is a broken account and keeps the existing error path.
+                    if !AuthenticationManager.hasPasswordProvider() {
+                        DispatchQueue.main.async {
+                            self.isLoading = false
+                            self.setProfileStatus(.needsSetup)
+                        }
+                        return
+                    }
+                    // A profile that's mid-write; don't surface a "not found" error.
+                    // The write is followed by another fetchUser, which resolves this.
                     if self.isProvisioningProfile {
-                        DispatchQueue.main.async { self.isLoading = false }
+                        DispatchQueue.main.async {
+                            self.isLoading = false
+                            self.setProfileStatus(.ready)
+                        }
                         return
                     }
                     // Try to fetch all users to debug
@@ -92,6 +175,8 @@ class UserSessionManager: ObservableObject {
 
                 DispatchQueue.main.async {
                     self.isLoading = false
+                    // The profile exists, so setup is done (and stays done across launches).
+                    self.setProfileStatus(.ready)
                     self.currentUser = User(
                         userId: userData["userId"] as? String ?? "",
                         name: userData["name"] as? String ?? "",
@@ -117,6 +202,7 @@ class UserSessionManager: ObservableObject {
                 DispatchQueue.main.async {
                     self?.isLoading = false
                     self?.errorMessage = "User data not found. Please ensure your profile was created during signup."
+                    self?.setProfileStatus(.ready)
                 }
                 return
             }
@@ -131,6 +217,7 @@ class UserSessionManager: ObservableObject {
             DispatchQueue.main.async {
                 self?.isLoading = false
                 self?.errorMessage = "User data not found in Firestore. Your account may not have completed signup. Please try signing up again."
+                self?.setProfileStatus(.ready)
             }
         }
     }
@@ -621,9 +708,37 @@ class UserSessionManager: ObservableObject {
 
     // MARK: - Account Deletion
 
+    /// How the signed-in user must confirm their identity before deletion.
+    /// Apple/Google accounts have no password to type.
+    var reauthMethod: AuthenticationManager.ReauthMethod {
+        AuthenticationManager.reauthMethod(for: Auth.auth().currentUser)
+    }
+
+    /// Whether this account has a password that can be entered or changed.
+    var hasPasswordProvider: Bool {
+        AuthenticationManager.hasPasswordProvider(for: Auth.auth().currentUser)
+    }
+
     /// Permanently deletes the user's account and all associated data.
     /// Deletes Firebase Auth user first, then Firestore documents and Storage files.
-    func deleteAccount(completion: @escaping (Bool, String?) -> Void) {
+    ///
+    /// `appleAuthorizationCode` comes from a just-completed Apple re-authentication.
+    /// Apple requires the token to be revoked when the account is deleted, so it is
+    /// revoked first — best effort, since a failure there must not strand the user
+    /// with an account they asked to remove.
+    func deleteAccount(appleAuthorizationCode: String? = nil,
+                       completion: @escaping (Bool, String?) -> Void) {
+        guard let appleAuthorizationCode = appleAuthorizationCode else {
+            performDeleteAccount(completion: completion)
+            return
+        }
+
+        Auth.auth().revokeToken(withAuthorizationCode: appleAuthorizationCode) { [weak self] _ in
+            self?.performDeleteAccount(completion: completion)
+        }
+    }
+
+    private func performDeleteAccount(completion: @escaping (Bool, String?) -> Void) {
         guard let user = currentUser,
               let authUser = Auth.auth().currentUser else {
             completion(false, "No authenticated user found")
@@ -631,6 +746,7 @@ class UserSessionManager: ObservableObject {
         }
 
         let userId = user.userId
+        let uid = authUser.uid
 
         // 1. Delete Firebase Auth user first — if this fails (e.g. requiresRecentLogin),
         //    no Firestore data has been touched yet, so the account remains intact.
@@ -638,7 +754,7 @@ class UserSessionManager: ObservableObject {
             if let error = error {
                 let nsError = error as NSError
                 if nsError.code == AuthErrorCode.requiresRecentLogin.rawValue {
-                    completion(false, "For security, please sign out and sign back in before deleting your account.")
+                    completion(false, Self.requiresRecentLoginMessage)
                 } else {
                     completion(false, "Failed to delete account: \(error.localizedDescription)")
                 }
@@ -647,6 +763,7 @@ class UserSessionManager: ObservableObject {
 
             // Auth deletion succeeded — now clean up all associated data.
             // Auth listener in MainViewModel will call clearSession automatically.
+            Self.clearStoredProfileStatus(uid: uid)
             let db = Firestore.firestore()
             let group = DispatchGroup()
 
@@ -761,8 +878,13 @@ class UserSessionManager: ObservableObject {
         }
     }
 
-    /// Re-authenticates the user with their password, then deletes the account.
-    /// Use this when `deleteAccount` fails with a requiresRecentLogin error.
+    /// Sentinel returned by `deleteAccount` when Firebase needs a fresh login.
+    /// Callers compare against this rather than pattern-matching prose.
+    static let requiresRecentLoginMessage = "For security, please confirm your identity before deleting your account."
+
+    /// Re-authenticates a password account, then deletes it.
+    /// Only valid when `reauthMethod` is `.password` — Apple/Google accounts have
+    /// no password and must go through `reauthenticateAndDeleteAccount(using:)`.
     func reauthenticateAndDeleteAccount(password: String, completion: @escaping (Bool, String?) -> Void) {
         guard let authUser = Auth.auth().currentUser,
               let email = authUser.email else {
@@ -771,10 +893,15 @@ class UserSessionManager: ObservableObject {
         }
 
         let credential = EmailAuthProvider.credential(withEmail: email, password: password)
-        authUser.reauthenticate(with: credential) { _, error in
+        authUser.reauthenticate(with: credential) { [weak self] _, error in
+            guard let self = self else { return }
+
             if let error = error {
                 let nsError = error as NSError
-                if nsError.code == AuthErrorCode.wrongPassword.rawValue {
+                // Firebase reports a bad password as `invalidCredential` when email
+                // enumeration protection is on, and `wrongPassword` when it isn't.
+                if nsError.code == AuthErrorCode.wrongPassword.rawValue ||
+                   nsError.code == AuthErrorCode.invalidCredential.rawValue {
                     completion(false, "Incorrect password. Please try again.")
                 } else {
                     completion(false, "Re-authentication failed: \(error.localizedDescription)")
@@ -785,10 +912,33 @@ class UserSessionManager: ObservableObject {
         }
     }
 
+    /// Re-authenticates through the user's OAuth provider (Apple or Google), then
+    /// deletes the account. `cancelled` is reported when the user dismisses the
+    /// provider sheet so the UI can quietly stand down.
+    func reauthenticateAndDeleteAccount(using method: AuthenticationManager.ReauthMethod,
+                                        completion: @escaping (_ success: Bool, _ cancelled: Bool, _ error: String?) -> Void) {
+        AuthenticationManager.shared.reauthenticateWithProvider(method) { [weak self] outcome in
+            guard let self = self else { return }
+
+            switch outcome {
+            case .cancelled:
+                completion(false, true, nil)
+
+            case .failure(let message):
+                completion(false, false, message)
+
+            case .success(let appleAuthorizationCode):
+                self.deleteAccount(appleAuthorizationCode: appleAuthorizationCode) { success, error in
+                    completion(success, false, error)
+                }
+            }
+        }
+    }
+
     // Clear user session (call on logout)
     func clearSession() {
         // Only clear if there's actually a session to clear (prevents redundant updates)
-        guard currentUser != nil || !errorMessage.isEmpty || isLoading else {
+        guard currentUser != nil || !errorMessage.isEmpty || isLoading || profileStatus != .resolving else {
             return
         }
 
@@ -796,6 +946,9 @@ class UserSessionManager: ObservableObject {
             self.currentUser = nil
             self.errorMessage = ""
             self.isLoading = false
+            // In-memory only: the per-uid cache on disk stays, so an unfinished
+            // signup still resumes at setup when the user signs back in.
+            self.profileStatus = .resolving
         }
     }
 }
