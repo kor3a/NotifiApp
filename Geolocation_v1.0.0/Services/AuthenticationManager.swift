@@ -647,7 +647,7 @@ class AuthenticationManager: NSObject, ObservableObject {
                     self.isLoading = false
                     self.errorMessage = ""
                     UserSessionManager.shared.isProvisioningProfile = false
-                    UserSessionManager.shared.markProfileSetupPending()
+                    UserSessionManager.shared.setProfileStatus(.needsSetup)
                 }
             }
     }

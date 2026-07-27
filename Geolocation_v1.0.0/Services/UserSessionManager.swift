@@ -26,25 +26,43 @@ class UserSessionManager: ObservableObject {
     /// that brief window. AuthenticationManager clears it once the profile is ready.
     var isProvisioningProfile: Bool = false
 
-    /// True when the signed-in account has no Firestore profile yet — a first-time
-    /// Apple/Google sign-up that hasn't chosen a username and name. `MainView`
-    /// routes on this, showing `ProfileSetupView` instead of the main app.
-    @Published var needsProfileSetup: Bool = false
+    /// Where a signed-in account should be routed: into the app, or into profile
+    /// setup. `MainView` switches on this.
+    enum ProfileStatus: String {
+        /// The profile lookup hasn't answered yet. `MainView` shows a neutral
+        /// screen rather than guessing — guessing "ready" is what made a
+        /// first-time social sign-up flash the main UI before setup appeared.
+        case resolving
+        /// A profile exists (or the lookup failed in a way that shouldn't block
+        /// the app) — show the app.
+        case ready
+        /// No profile yet — a first-time Apple/Google sign-up that hasn't chosen
+        /// a username and name. Show `ProfileSetupView`.
+        case needsSetup
+    }
+
+    @Published var profileStatus: ProfileStatus = .resolving
 
     private init() {
         // Private initializer for singleton
     }
 
-    // MARK: - Pending profile setup
+    // MARK: - Profile status
 
-    /// The pending flag is persisted per-uid so a social sign-up interrupted before
-    /// the profile is written (app killed, crash) resumes at setup on relaunch
+    /// The resolved status is cached per-uid so a relaunch routes immediately
+    /// instead of blanking while the lookup runs, and so a signup interrupted
+    /// before its profile was written (app killed, crash) resumes at setup
     /// instead of dropping into the app with no profile.
-    private static func pendingSetupKey(_ uid: String) -> String { "pendingProfileSetup.\(uid)" }
+    private static func statusKey(_ uid: String) -> String { "profileStatus.\(uid)" }
     private static func suggestedNameKey(_ uid: String) -> String { "pendingProfileName.\(uid)" }
 
-    static func isProfileSetupPending(uid: String) -> Bool {
-        UserDefaults.standard.bool(forKey: pendingSetupKey(uid))
+    /// Last known status for this account, or nil if it has never been resolved
+    /// on this device (a first sign-in, which has to wait for the lookup).
+    static func cachedProfileStatus(uid: String) -> ProfileStatus? {
+        guard let raw = UserDefaults.standard.string(forKey: statusKey(uid)),
+              let status = ProfileStatus(rawValue: raw),
+              status != .resolving else { return nil }
+        return status
     }
 
     /// Apple returns the user's full name only on the *very first* authorization,
@@ -58,24 +76,22 @@ class UserSessionManager: ObservableObject {
         UserDefaults.standard.string(forKey: suggestedNameKey(uid))
     }
 
-    static func clearProfileSetupPending(uid: String) {
-        UserDefaults.standard.removeObject(forKey: pendingSetupKey(uid))
+    static func clearStoredProfileStatus(uid: String) {
+        UserDefaults.standard.removeObject(forKey: statusKey(uid))
         UserDefaults.standard.removeObject(forKey: suggestedNameKey(uid))
     }
 
-    /// Route the signed-in account to profile setup, in memory and on disk.
-    func markProfileSetupPending() {
-        needsProfileSetup = true
-        if let uid = Auth.auth().currentUser?.uid {
-            UserDefaults.standard.set(true, forKey: Self.pendingSetupKey(uid))
-        }
-    }
+    /// Record where this account should be routed, in memory and on disk.
+    /// Every terminal path of `fetchUser` resolves to `.ready` or `.needsSetup`,
+    /// so the neutral `.resolving` screen can never be a dead end.
+    func setProfileStatus(_ status: ProfileStatus) {
+        profileStatus = status
 
-    /// Called once the profile exists — the account is fully set up.
-    func clearProfileSetupPending() {
-        needsProfileSetup = false
-        if let uid = Auth.auth().currentUser?.uid {
-            Self.clearProfileSetupPending(uid: uid)
+        guard status != .resolving, let uid = Auth.auth().currentUser?.uid else { return }
+        UserDefaults.standard.set(status.rawValue, forKey: Self.statusKey(uid))
+
+        if status == .ready {
+            UserDefaults.standard.removeObject(forKey: Self.suggestedNameKey(uid))
         }
     }
 
@@ -86,6 +102,7 @@ class UserSessionManager: ObservableObject {
             DispatchQueue.main.async {
                 self.errorMessage = "No authenticated user found"
                 self.isLoading = false
+                self.setProfileStatus(.ready)
             }
             return
         }
@@ -111,6 +128,9 @@ class UserSessionManager: ObservableObject {
                     DispatchQueue.main.async {
                         self.isLoading = false
                         self.errorMessage = "Error fetching user: \(error.localizedDescription)"
+                        // Don't strand the user on the neutral screen over a
+                        // transient failure; the app surfaces the error itself.
+                        self.setProfileStatus(.ready)
                     }
                     return
                 }
@@ -130,13 +150,17 @@ class UserSessionManager: ObservableObject {
                     if !AuthenticationManager.hasPasswordProvider() {
                         DispatchQueue.main.async {
                             self.isLoading = false
-                            self.markProfileSetupPending()
+                            self.setProfileStatus(.needsSetup)
                         }
                         return
                     }
                     // A profile that's mid-write; don't surface a "not found" error.
+                    // The write is followed by another fetchUser, which resolves this.
                     if self.isProvisioningProfile {
-                        DispatchQueue.main.async { self.isLoading = false }
+                        DispatchQueue.main.async {
+                            self.isLoading = false
+                            self.setProfileStatus(.ready)
+                        }
                         return
                     }
                     // Try to fetch all users to debug
@@ -152,7 +176,7 @@ class UserSessionManager: ObservableObject {
                 DispatchQueue.main.async {
                     self.isLoading = false
                     // The profile exists, so setup is done (and stays done across launches).
-                    self.clearProfileSetupPending()
+                    self.setProfileStatus(.ready)
                     self.currentUser = User(
                         userId: userData["userId"] as? String ?? "",
                         name: userData["name"] as? String ?? "",
@@ -178,6 +202,7 @@ class UserSessionManager: ObservableObject {
                 DispatchQueue.main.async {
                     self?.isLoading = false
                     self?.errorMessage = "User data not found. Please ensure your profile was created during signup."
+                    self?.setProfileStatus(.ready)
                 }
                 return
             }
@@ -192,6 +217,7 @@ class UserSessionManager: ObservableObject {
             DispatchQueue.main.async {
                 self?.isLoading = false
                 self?.errorMessage = "User data not found in Firestore. Your account may not have completed signup. Please try signing up again."
+                self?.setProfileStatus(.ready)
             }
         }
     }
@@ -737,7 +763,7 @@ class UserSessionManager: ObservableObject {
 
             // Auth deletion succeeded — now clean up all associated data.
             // Auth listener in MainViewModel will call clearSession automatically.
-            Self.clearProfileSetupPending(uid: uid)
+            Self.clearStoredProfileStatus(uid: uid)
             let db = Firestore.firestore()
             let group = DispatchGroup()
 
@@ -912,7 +938,7 @@ class UserSessionManager: ObservableObject {
     // Clear user session (call on logout)
     func clearSession() {
         // Only clear if there's actually a session to clear (prevents redundant updates)
-        guard currentUser != nil || !errorMessage.isEmpty || isLoading || needsProfileSetup else {
+        guard currentUser != nil || !errorMessage.isEmpty || isLoading || profileStatus != .resolving else {
             return
         }
 
@@ -920,9 +946,9 @@ class UserSessionManager: ObservableObject {
             self.currentUser = nil
             self.errorMessage = ""
             self.isLoading = false
-            // In-memory only: the persisted marker stays so an unfinished signup
-            // still resumes at setup when the user signs back in.
-            self.needsProfileSetup = false
+            // In-memory only: the per-uid cache on disk stays, so an unfinished
+            // signup still resumes at setup when the user signs back in.
+            self.profileStatus = .resolving
         }
     }
 }

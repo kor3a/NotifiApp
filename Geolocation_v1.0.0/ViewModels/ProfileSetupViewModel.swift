@@ -151,7 +151,7 @@ class ProfileSetupViewModel: ObservableObject {
             DispatchQueue.main.async {
                 self.isLoading = false
                 UserSessionManager.shared.isProvisioningProfile = false
-                UserSessionManager.shared.clearProfileSetupPending()
+                UserSessionManager.shared.setProfileStatus(.ready)
                 UserSessionManager.shared.fetchUser()
             }
         }

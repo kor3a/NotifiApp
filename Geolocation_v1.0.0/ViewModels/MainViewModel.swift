@@ -29,13 +29,12 @@ class MainViewModel: NSObject, ObservableObject {
 
                 // Only fetch user data for verified users; clear session otherwise
                 if let user = user, user.isEmailVerified {
-                    // Restore the pending-setup marker synchronously, before any
-                    // view renders, so a social signup that was interrupted before
-                    // its profile was written resumes at setup instead of flashing
-                    // the main app while the profile lookup runs.
-                    if UserSessionManager.isProfileSetupPending(uid: user.uid) {
-                        UserSessionManager.shared.needsProfileSetup = true
-                    }
+                    // Route from the cached status synchronously, before any view
+                    // renders: a known account goes straight to where it belongs,
+                    // and an account this device hasn't resolved yet waits on the
+                    // launch screen rather than flashing the app it may not want.
+                    UserSessionManager.shared.profileStatus =
+                        UserSessionManager.cachedProfileStatus(uid: user.uid) ?? .resolving
                     UserSessionManager.shared.fetchUser()
                 } else {
                     UserSessionManager.shared.clearSession()

@@ -18,12 +18,25 @@ struct MainView: View {
             Color(.systemBackground)
                 .ignoresSafeArea()
         } else if viewModel.isSignedIn, !viewModel.currentUserId.isEmpty {
+            switch sessionManager.profileStatus {
+            case .ready:
+                HomeView()
             // A first-time Apple/Google sign-in has no profile yet — pick a
             // username and name before entering the app.
-            if sessionManager.needsProfileSetup {
+            case .needsSetup:
                 ProfileSetupView()
-            } else {
-                HomeView()
+            // Still looking the profile up. Showing the app here is what made
+            // first-time social sign-ups flash StoresView before setup appeared,
+            // so wait for the answer. Only reached mid-sign-in or on an account
+            // this device hasn't resolved before — a returning user routes
+            // straight from the cached status.
+            case .resolving:
+                ZStack {
+                    Color(.systemBackground)
+                        .ignoresSafeArea()
+                    ProgressView()
+                        .scaleEffect(1.5)
+                }
             }
         } else {
             LoginView()
