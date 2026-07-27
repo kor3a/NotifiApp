@@ -107,10 +107,6 @@
 		AA1234560001AABB00CC0026 /* NotificationLogStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0016 /* NotificationLogStore.swift */; };
 		AA1234560001AABB00CC0027 /* NotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0017 /* NotificationManager.swift */; };
 		AA1234560001AABB00CC0028 /* StoreLogoProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0018 /* StoreLogoProvider.swift */; };
-		BC0200000001AABB00CC0001 /* MembershipCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC0100000001AABB00CC0001 /* MembershipCard.swift */; };
-		BC0200000001AABB00CC0002 /* BarcodeGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC0100000001AABB00CC0002 /* BarcodeGenerator.swift */; };
-		BC0200000001AABB00CC0004 /* RetailBarcode.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC0100000001AABB00CC0004 /* RetailBarcode.swift */; };
-		BC0200000001AABB00CC0003 /* MembershipBarcodeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC0100000001AABB00CC0003 /* MembershipBarcodeView.swift */; };
 		AA1234560001AABB00CC0029 /* UserSessionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0019 /* UserSessionManager.swift */; };
 		AA1234560001AABB00CC0031 /* SubscriptionPaywallView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0030 /* SubscriptionPaywallView.swift */; };
 		AA1234560001AABB00CC0302 /* ReminderHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0301 /* ReminderHistory.swift */; };
@@ -118,6 +114,10 @@
 		AA1234560001AABB00CC0306 /* HistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0305 /* HistoryView.swift */; };
 		AA1234560001AABB00CC0308 /* StoreAnalytics.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0307 /* StoreAnalytics.swift */; };
 		AA1234560001AABB00CC0310 /* StoreAnalyticsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0309 /* StoreAnalyticsView.swift */; };
+		BC0200000001AABB00CC0001 /* MembershipCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC0100000001AABB00CC0001 /* MembershipCard.swift */; };
+		BC0200000001AABB00CC0002 /* BarcodeGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC0100000001AABB00CC0002 /* BarcodeGenerator.swift */; };
+		BC0200000001AABB00CC0003 /* MembershipBarcodeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC0100000001AABB00CC0003 /* MembershipBarcodeView.swift */; };
+		BC0200000001AABB00CC0004 /* RetailBarcode.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC0100000001AABB00CC0004 /* RetailBarcode.swift */; };
 		C10000000001AABB00CC0041 /* SharedReminderNotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C10000000001AABB00CC0040 /* SharedReminderNotificationService.swift */; };
 		CC0200000000000000000001 /* NotifiWidgetBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC0100000000000000000001 /* NotifiWidgetBundle.swift */; };
 		CC0200000000000000000002 /* NotifiWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC0100000000000000000002 /* NotifiWidget.swift */; };
@@ -274,10 +274,6 @@
 		AA1234560001AABB00CC0016 /* NotificationLogStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationLogStore.swift; sourceTree = "<group>"; };
 		AA1234560001AABB00CC0017 /* NotificationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationManager.swift; sourceTree = "<group>"; };
 		AA1234560001AABB00CC0018 /* StoreLogoProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoreLogoProvider.swift; sourceTree = "<group>"; };
-		BC0100000001AABB00CC0001 /* MembershipCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MembershipCard.swift; sourceTree = "<group>"; };
-		BC0100000001AABB00CC0002 /* BarcodeGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BarcodeGenerator.swift; sourceTree = "<group>"; };
-		BC0100000001AABB00CC0004 /* RetailBarcode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RetailBarcode.swift; sourceTree = "<group>"; };
-		BC0100000001AABB00CC0003 /* MembershipBarcodeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MembershipBarcodeView.swift; sourceTree = "<group>"; };
 		AA1234560001AABB00CC0019 /* UserSessionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserSessionManager.swift; sourceTree = "<group>"; };
 		AA1234560001AABB00CC0030 /* SubscriptionPaywallView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionPaywallView.swift; sourceTree = "<group>"; };
 		AA1234560001AABB00CC0301 /* ReminderHistory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderHistory.swift; sourceTree = "<group>"; };
@@ -285,6 +281,10 @@
 		AA1234560001AABB00CC0305 /* HistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryView.swift; sourceTree = "<group>"; };
 		AA1234560001AABB00CC0307 /* StoreAnalytics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoreAnalytics.swift; sourceTree = "<group>"; };
 		AA1234560001AABB00CC0309 /* StoreAnalyticsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoreAnalyticsView.swift; sourceTree = "<group>"; };
+		BC0100000001AABB00CC0001 /* MembershipCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MembershipCard.swift; sourceTree = "<group>"; };
+		BC0100000001AABB00CC0002 /* BarcodeGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BarcodeGenerator.swift; sourceTree = "<group>"; };
+		BC0100000001AABB00CC0003 /* MembershipBarcodeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MembershipBarcodeView.swift; sourceTree = "<group>"; };
+		BC0100000001AABB00CC0004 /* RetailBarcode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RetailBarcode.swift; sourceTree = "<group>"; };
 		C10000000001AABB00CC0040 /* SharedReminderNotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedReminderNotificationService.swift; sourceTree = "<group>"; };
 		CC0100000000000000000001 /* NotifiWidgetBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotifiWidgetBundle.swift; sourceTree = "<group>"; };
 		CC0100000000000000000002 /* NotifiWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotifiWidget.swift; sourceTree = "<group>"; };
@@ -1301,7 +1301,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.3.9;
+				MARKETING_VERSION = 1.3.10;
 				PRODUCT_BUNDLE_IDENTIFIER = com.kor3a.nearbuy;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -1333,7 +1333,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.3.9;
+				MARKETING_VERSION = 1.3.10;
 				PRODUCT_BUNDLE_IDENTIFIER = com.kor3a.nearbuy;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
