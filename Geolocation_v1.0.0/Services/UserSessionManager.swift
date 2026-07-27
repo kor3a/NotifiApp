@@ -621,9 +621,37 @@ class UserSessionManager: ObservableObject {
 
     // MARK: - Account Deletion
 
+    /// How the signed-in user must confirm their identity before deletion.
+    /// Apple/Google accounts have no password to type.
+    var reauthMethod: AuthenticationManager.ReauthMethod {
+        AuthenticationManager.reauthMethod(for: Auth.auth().currentUser)
+    }
+
+    /// Whether this account has a password that can be entered or changed.
+    var hasPasswordProvider: Bool {
+        AuthenticationManager.hasPasswordProvider(for: Auth.auth().currentUser)
+    }
+
     /// Permanently deletes the user's account and all associated data.
     /// Deletes Firebase Auth user first, then Firestore documents and Storage files.
-    func deleteAccount(completion: @escaping (Bool, String?) -> Void) {
+    ///
+    /// `appleAuthorizationCode` comes from a just-completed Apple re-authentication.
+    /// Apple requires the token to be revoked when the account is deleted, so it is
+    /// revoked first — best effort, since a failure there must not strand the user
+    /// with an account they asked to remove.
+    func deleteAccount(appleAuthorizationCode: String? = nil,
+                       completion: @escaping (Bool, String?) -> Void) {
+        guard let appleAuthorizationCode = appleAuthorizationCode else {
+            performDeleteAccount(completion: completion)
+            return
+        }
+
+        Auth.auth().revokeToken(withAuthorizationCode: appleAuthorizationCode) { [weak self] _ in
+            self?.performDeleteAccount(completion: completion)
+        }
+    }
+
+    private func performDeleteAccount(completion: @escaping (Bool, String?) -> Void) {
         guard let user = currentUser,
               let authUser = Auth.auth().currentUser else {
             completion(false, "No authenticated user found")
@@ -638,7 +666,7 @@ class UserSessionManager: ObservableObject {
             if let error = error {
                 let nsError = error as NSError
                 if nsError.code == AuthErrorCode.requiresRecentLogin.rawValue {
-                    completion(false, "For security, please sign out and sign back in before deleting your account.")
+                    completion(false, Self.requiresRecentLoginMessage)
                 } else {
                     completion(false, "Failed to delete account: \(error.localizedDescription)")
                 }
@@ -761,8 +789,13 @@ class UserSessionManager: ObservableObject {
         }
     }
 
-    /// Re-authenticates the user with their password, then deletes the account.
-    /// Use this when `deleteAccount` fails with a requiresRecentLogin error.
+    /// Sentinel returned by `deleteAccount` when Firebase needs a fresh login.
+    /// Callers compare against this rather than pattern-matching prose.
+    static let requiresRecentLoginMessage = "For security, please confirm your identity before deleting your account."
+
+    /// Re-authenticates a password account, then deletes it.
+    /// Only valid when `reauthMethod` is `.password` — Apple/Google accounts have
+    /// no password and must go through `reauthenticateAndDeleteAccount(using:)`.
     func reauthenticateAndDeleteAccount(password: String, completion: @escaping (Bool, String?) -> Void) {
         guard let authUser = Auth.auth().currentUser,
               let email = authUser.email else {
@@ -771,10 +804,15 @@ class UserSessionManager: ObservableObject {
         }
 
         let credential = EmailAuthProvider.credential(withEmail: email, password: password)
-        authUser.reauthenticate(with: credential) { _, error in
+        authUser.reauthenticate(with: credential) { [weak self] _, error in
+            guard let self = self else { return }
+
             if let error = error {
                 let nsError = error as NSError
-                if nsError.code == AuthErrorCode.wrongPassword.rawValue {
+                // Firebase reports a bad password as `invalidCredential` when email
+                // enumeration protection is on, and `wrongPassword` when it isn't.
+                if nsError.code == AuthErrorCode.wrongPassword.rawValue ||
+                   nsError.code == AuthErrorCode.invalidCredential.rawValue {
                     completion(false, "Incorrect password. Please try again.")
                 } else {
                     completion(false, "Re-authentication failed: \(error.localizedDescription)")
@@ -782,6 +820,29 @@ class UserSessionManager: ObservableObject {
                 return
             }
             self.deleteAccount(completion: completion)
+        }
+    }
+
+    /// Re-authenticates through the user's OAuth provider (Apple or Google), then
+    /// deletes the account. `cancelled` is reported when the user dismisses the
+    /// provider sheet so the UI can quietly stand down.
+    func reauthenticateAndDeleteAccount(using method: AuthenticationManager.ReauthMethod,
+                                        completion: @escaping (_ success: Bool, _ cancelled: Bool, _ error: String?) -> Void) {
+        AuthenticationManager.shared.reauthenticateWithProvider(method) { [weak self] outcome in
+            guard let self = self else { return }
+
+            switch outcome {
+            case .cancelled:
+                completion(false, true, nil)
+
+            case .failure(let message):
+                completion(false, false, message)
+
+            case .success(let appleAuthorizationCode):
+                self.deleteAccount(appleAuthorizationCode: appleAuthorizationCode) { success, error in
+                    completion(success, false, error)
+                }
+            }
         }
     }
 
