@@ -107,6 +107,9 @@
 		AA1234560001AABB00CC0026 /* NotificationLogStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0016 /* NotificationLogStore.swift */; };
 		AA1234560001AABB00CC0027 /* NotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0017 /* NotificationManager.swift */; };
 		AA1234560001AABB00CC0028 /* StoreLogoProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0018 /* StoreLogoProvider.swift */; };
+		BC0200000001AABB00CC0001 /* MembershipCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC0100000001AABB00CC0001 /* MembershipCard.swift */; };
+		BC0200000001AABB00CC0002 /* BarcodeGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC0100000001AABB00CC0002 /* BarcodeGenerator.swift */; };
+		BC0200000001AABB00CC0003 /* MembershipBarcodeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC0100000001AABB00CC0003 /* MembershipBarcodeView.swift */; };
 		AA1234560001AABB00CC0029 /* UserSessionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0019 /* UserSessionManager.swift */; };
 		AA1234560001AABB00CC0031 /* SubscriptionPaywallView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0030 /* SubscriptionPaywallView.swift */; };
 		AA1234560001AABB00CC0302 /* ReminderHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0301 /* ReminderHistory.swift */; };
@@ -270,6 +273,9 @@
 		AA1234560001AABB00CC0016 /* NotificationLogStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationLogStore.swift; sourceTree = "<group>"; };
 		AA1234560001AABB00CC0017 /* NotificationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationManager.swift; sourceTree = "<group>"; };
 		AA1234560001AABB00CC0018 /* StoreLogoProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoreLogoProvider.swift; sourceTree = "<group>"; };
+		BC0100000001AABB00CC0001 /* MembershipCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MembershipCard.swift; sourceTree = "<group>"; };
+		BC0100000001AABB00CC0002 /* BarcodeGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BarcodeGenerator.swift; sourceTree = "<group>"; };
+		BC0100000001AABB00CC0003 /* MembershipBarcodeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MembershipBarcodeView.swift; sourceTree = "<group>"; };
 		AA1234560001AABB00CC0019 /* UserSessionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserSessionManager.swift; sourceTree = "<group>"; };
 		AA1234560001AABB00CC0030 /* SubscriptionPaywallView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionPaywallView.swift; sourceTree = "<group>"; };
 		AA1234560001AABB00CC0301 /* ReminderHistory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderHistory.swift; sourceTree = "<group>"; };
@@ -392,6 +398,7 @@
 				C10000000001AABB00CC0040 /* SharedReminderNotificationService.swift */,
 				AA1234560001AABB00CC0001 /* OpenAIService.swift */,
 				AA1234560001AABB00CC0018 /* StoreLogoProvider.swift */,
+				BC0100000001AABB00CC0002 /* BarcodeGenerator.swift */,
 				AA1234560001AABB00CC0019 /* UserSessionManager.swift */,
 				D0A1000000000000000000A1 /* AuthenticationManager.swift */,
 				CC0100000000000000000004 /* WidgetDataStore.swift */,
@@ -480,6 +487,7 @@
 				0119CD0C2F4CF95A00DEDEFD /* AutoDeleteSwipeRail.swift */,
 				AA1234560001AABB00CC0003 /* SmartRecipeView.swift */,
 				01B408342F3BECF900EA1F25 /* ShareReminderView.swift */,
+				BC0100000001AABB00CC0003 /* MembershipBarcodeView.swift */,
 				01B408322F3BECF200EA1F25 /* MessagesView.swift */,
 				01B408302F3BECEC00EA1F25 /* FriendsView.swift */,
 				01B4082E2F3BECE600EA1F25 /* ConversationView.swift */,
@@ -541,6 +549,7 @@
 				0138242C2EDCD05F0069F38C /* NotificationLog.swift */,
 				011CF6012ED638E4009A31A6 /* SharedStoreGroup.swift */,
 				01B78C372EBD414A00201B88 /* UserStoreItem.swift */,
+				BC0100000001AABB00CC0001 /* MembershipCard.swift */,
 				82D289AF2C61D30C009F357F /* User.swift */,
 				74A79E842CBDACB800713F0E /* Store.swift */,
 				74A79E7C2CBDAA4E00713F0E /* Reminder.swift */,
@@ -871,6 +880,9 @@
 				01B4082D2F3BECD600EA1F25 /* StoreCluster.swift in Sources */,
 				010405BA2F575A680057862B /* TravelTimeService.swift in Sources */,
 				748542B52CB5378A00C58D9B /* ReminderView.swift in Sources */,
+				BC0200000001AABB00CC0001 /* MembershipCard.swift in Sources */,
+				BC0200000001AABB00CC0002 /* BarcodeGenerator.swift in Sources */,
+				BC0200000001AABB00CC0003 /* MembershipBarcodeView.swift in Sources */,
 				82D289B72C61D631009F357F /* ProfileView.swift in Sources */,
 				82916C162C914BA800F810A3 /* MapViewModel.swift in Sources */,
 				01EF1E4D2F50A1B500D79D3C /* FavoriteTag.swift in Sources */,
