@@ -1154,7 +1154,7 @@ struct ReminderView: View {
             }
         }
 
-        // Membership barcode — its own bubble beside the info button.
+        // Membership barcode
         ToolbarItem(placement: .navigationBarTrailing) {
             if !isReorderMode {
                 Button {
@@ -1169,6 +1169,12 @@ struct ReminderView: View {
                 .frame(width: 44, height: 44)
                 .accessibilityLabel("Membership barcode")
             }
+        }
+
+        // Break the shared Liquid Glass capsule so the barcode button renders in
+        // its own circle, separate from the info button.
+        if #available(iOS 26.0, *) {
+            ToolbarSpacer(.fixed, placement: .navigationBarTrailing)
         }
 
         ToolbarItem(placement: .navigationBarTrailing) {
