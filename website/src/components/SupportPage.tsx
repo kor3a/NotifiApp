@@ -1,3 +1,5 @@
+import ExternalLink from "./ExternalLink";
+
 export default function SupportPage() {
   return (
     <div className="min-h-screen bg-allim-dark text-white">
@@ -127,14 +129,12 @@ export default function SupportPage() {
           <p className="text-allim-muted">
             For information on how we handle data, please visit our Privacy
             Policy:{" "}
-            <a
+            <ExternalLink
               href="https://github.com/kor3a/allim-privacy-policy"
-              target="_blank"
-              rel="noopener noreferrer"
               className="hover:text-white underline"
             >
               Privacy Policy
-            </a>
+            </ExternalLink>
           </p>
         </section>
       </main>
