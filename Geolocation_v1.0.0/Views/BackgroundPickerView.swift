@@ -11,6 +11,9 @@ import UIKit
 
 struct BackgroundPickerView: View {
     let surface: BackgroundSurface
+    /// What this background belongs to — a store or chat name. Falls back to
+    /// the surface's generic name when the caller has nothing better.
+    var title: String?
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
@@ -55,7 +58,7 @@ struct BackgroundPickerView: View {
                 .padding(.vertical, 20)
             }
             .background(Color(.systemGroupedBackground).ignoresSafeArea())
-            .navigationTitle("\(surface.displayName) Background")
+            .navigationTitle("\(title ?? surface.displayName) Background")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {

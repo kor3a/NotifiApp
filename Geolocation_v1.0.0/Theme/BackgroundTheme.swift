@@ -15,18 +15,18 @@ import UIKit
 /// Each surface stores its choice independently, so a user can give Stores a
 /// warm sand background while Reminders stays on the default gradient.
 enum BackgroundSurface: Hashable, Identifiable {
+    /// The store list. The only surface there is exactly one of.
     case stores
-    case reminders
-    /// A single conversation. Backgrounds are per-conversation, so each chat
-    /// carries its own look (matching how iMessage/WhatsApp handle this).
+    /// One store's reminder list. Each store carries its own look.
+    case reminders(storeId: String)
+    /// A single conversation, so each chat carries its own look (matching how
+    /// iMessage and WhatsApp handle this).
     case conversation(id: String)
 
     var id: String { storageSuffix }
 
-    /// Surfaces that are offered as a single global choice. `.conversation`
-    /// is excluded because it is picked per chat, not once for all chats.
-    static let globalSurfaces: [BackgroundSurface] = [.stores, .reminders]
-
+    /// Fallback title for the picker. Callers that know the store or chat name
+    /// pass that instead — it reads far better than "Reminders".
     var displayName: String {
         switch self {
         case .stores:       return "Stores"
@@ -37,8 +37,8 @@ enum BackgroundSurface: Hashable, Identifiable {
 
     var storageSuffix: String {
         switch self {
-        case .stores:              return "stores"
-        case .reminders:           return "reminders"
+        case .stores:               return "stores"
+        case .reminders(let id):    return "reminders_\(id)"
         case .conversation(let id): return "conversation_\(id)"
         }
     }
@@ -51,20 +51,23 @@ enum BackgroundSurface: Hashable, Identifiable {
 
     /// File name for this surface's background photo.
     ///
-    /// Conversation ids come from Firestore, so they're hex-encoded rather than
-    /// trusted as a path component: that keeps separators and dots out of the
-    /// name, and — unlike folding unsafe characters to `_` — guarantees two
-    /// different ids can never land on the same file.
+    /// Store and conversation ids come from Firestore, so they're hex-encoded
+    /// rather than trusted as a path component: that keeps separators and dots
+    /// out of the name, and — unlike folding unsafe characters to `_` —
+    /// guarantees two different ids can never land on the same file.
     var imageFileName: String {
         switch self {
         case .stores:
             return "stores.jpg"
-        case .reminders:
-            return "reminders.jpg"
+        case .reminders(let id):
+            return "reminders_\(Self.hexEncoded(id)).jpg"
         case .conversation(let id):
-            let hex = id.utf8.map { String(format: "%02x", $0) }.joined()
-            return "conversation_\(hex).jpg"
+            return "conversation_\(Self.hexEncoded(id)).jpg"
         }
+    }
+
+    private static func hexEncoded(_ value: String) -> String {
+        value.utf8.map { String(format: "%02x", $0) }.joined()
     }
 }
 
@@ -369,13 +372,13 @@ final class BackgroundPreferences: ObservableObject {
 
     /// Clears every stored background. Used when signing out so the next
     /// account on this device starts from the default look.
+    ///
+    /// Sweeps by key prefix rather than by enumerating surfaces: most surfaces
+    /// are keyed by a store or conversation id, so there is no finite list to
+    /// walk.
     func resetAll() {
-        for surface in BackgroundSurface.globalSurfaces {
-            defaults.removeObject(forKey: surface.colorStorageKey)
-            defaults.removeObject(forKey: surface.dimStorageKey)
-        }
         for key in defaults.dictionaryRepresentation().keys
-        where key.hasPrefix("backgroundColor_conversation_") || key.hasPrefix("backgroundDim_conversation_") {
+        where key.hasPrefix("backgroundColor_") || key.hasPrefix("backgroundDim_") {
             defaults.removeObject(forKey: key)
         }
 

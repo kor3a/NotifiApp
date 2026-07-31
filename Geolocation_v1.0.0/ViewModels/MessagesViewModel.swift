@@ -130,6 +130,12 @@ class MessagesViewModel: ObservableObject {
     /// Delete a conversation and all its messages
     func deleteConversation(_ conversation: Conversation) {
         guard !TutorialManager.shared.isActive else { return }
+
+        // Drop this chat's custom background — its key is the conversation id,
+        // which is gone for good, so the photo would otherwise sit on disk
+        // unreachable.
+        BackgroundPreferences.shared.reset(.conversation(id: conversation.id))
+
         messagingService.deleteConversation(conversationId: conversation.id) { [weak self] result in
             DispatchQueue.main.async {
                 switch result {

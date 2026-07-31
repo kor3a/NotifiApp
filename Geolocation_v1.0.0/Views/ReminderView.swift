@@ -240,7 +240,12 @@ struct ReminderView: View {
                 StoreAnalyticsView(userStoreItem: userStoreItem)
             }
             .sheet(isPresented: $showingBackgroundPicker) {
-                BackgroundPickerView(surface: .reminders)
+                // Keyed to this store's user_store document, so each store's
+                // list keeps its own look.
+                BackgroundPickerView(
+                    surface: .reminders(storeId: userStoreItem.id),
+                    title: userStoreItem.store.name
+                )
             }
             .sheet(item: $reminderForPhoto) { reminder in
                 ImagePicker(selectedImage: $selectedImage) { image in
@@ -708,7 +713,7 @@ struct ReminderView: View {
                 Color.clear.frame(height: 50)
             }
             .environment(\.editMode, editMode)
-            .background(SurfaceBackground(surface: .reminders))
+            .background(SurfaceBackground(surface: .reminders(storeId: userStoreItem.id)))
             .onChange(of: isAddingNewReminder) { _, newValue in
                 if newValue {
                     withAnimation {
@@ -1687,7 +1692,7 @@ struct ReminderView: View {
                             .font(.subheadline)
                             .fontWeight(.medium)
                             .foregroundStyle(isSubscribed ? Color.primary : Color.secondary)
-                        Text(isSubscribed ? "Use your own photo or a color" : "Available for subscribers")
+                        Text(isSubscribed ? "A photo or color just for this store" : "Available for subscribers")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }

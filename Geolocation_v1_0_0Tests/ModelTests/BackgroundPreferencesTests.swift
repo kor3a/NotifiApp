@@ -52,7 +52,7 @@ final class BackgroundPreferencesTests: XCTestCase {
 
     func testBackgroundColor_defaultsToSystem() {
         XCTAssertEqual(preferences.backgroundColor(for: .stores), .system)
-        XCTAssertEqual(preferences.backgroundColor(for: .reminders), .system)
+        XCTAssertEqual(preferences.backgroundColor(for: .reminders(storeId: "store-1")), .system)
         XCTAssertEqual(preferences.backgroundColor(for: .conversation(id: "abc")), .system)
     }
 
@@ -72,10 +72,29 @@ final class BackgroundPreferencesTests: XCTestCase {
 
     func testSetBackgroundColor_isIsolatedPerSurface() {
         preferences.setBackgroundColor(.ocean, for: .stores)
-        preferences.setBackgroundColor(.sand, for: .reminders)
+        preferences.setBackgroundColor(.sand, for: .reminders(storeId: "store-1"))
 
         XCTAssertEqual(preferences.backgroundColor(for: .stores), .ocean)
-        XCTAssertEqual(preferences.backgroundColor(for: .reminders), .sand)
+        XCTAssertEqual(preferences.backgroundColor(for: .reminders(storeId: "store-1")), .sand)
+    }
+
+    func testSetBackgroundColor_isIsolatedPerStore() {
+        preferences.setBackgroundColor(.teal, for: .reminders(storeId: "store-1"))
+
+        XCTAssertEqual(preferences.backgroundColor(for: .reminders(storeId: "store-1")), .teal)
+        XCTAssertEqual(preferences.backgroundColor(for: .reminders(storeId: "store-2")), .system)
+    }
+
+    /// A store and a conversation that happen to share an id are still
+    /// different surfaces and must not read each other's background.
+    func testSurfaces_withMatchingIds_doNotCollide() throws {
+        let data = try sampleImageData(width: 300, height: 300)
+        preferences.setBackgroundColor(.rose, for: .reminders(storeId: "shared-id"))
+        preferences.setBackgroundImage(from: data, for: .conversation(id: "shared-id"))
+
+        XCTAssertEqual(preferences.backgroundColor(for: .reminders(storeId: "shared-id")), .rose)
+        XCTAssertFalse(preferences.hasBackgroundImage(for: .reminders(storeId: "shared-id")))
+        XCTAssertTrue(preferences.hasBackgroundImage(for: .conversation(id: "shared-id")))
     }
 
     func testSetBackgroundColor_isIsolatedPerConversation() {
@@ -108,7 +127,7 @@ final class BackgroundPreferencesTests: XCTestCase {
         preferences.setBackgroundImage(from: data, for: .stores)
 
         XCTAssertTrue(preferences.hasBackgroundImage(for: .stores))
-        XCTAssertFalse(preferences.hasBackgroundImage(for: .reminders))
+        XCTAssertFalse(preferences.hasBackgroundImage(for: .reminders(storeId: "store-1")))
     }
 
     /// Stores and Reminders are separate screens: a photo on one must not
@@ -117,15 +136,15 @@ final class BackgroundPreferencesTests: XCTestCase {
         let data = try sampleImageData(width: 300, height: 300)
         preferences.setBackgroundImage(from: data, for: .stores)
         preferences.setDimLevel(0.55, for: .stores)
-        preferences.setBackgroundColor(.forest, for: .reminders)
+        preferences.setBackgroundColor(.forest, for: .reminders(storeId: "store-1"))
 
         XCTAssertTrue(preferences.hasBackgroundImage(for: .stores))
         XCTAssertEqual(preferences.backgroundColor(for: .stores), .system)
         XCTAssertEqual(preferences.dimLevel(for: .stores), 0.55)
 
-        XCTAssertFalse(preferences.hasBackgroundImage(for: .reminders))
-        XCTAssertEqual(preferences.backgroundColor(for: .reminders), .forest)
-        XCTAssertEqual(preferences.dimLevel(for: .reminders), BackgroundPreferences.defaultDimLevel)
+        XCTAssertFalse(preferences.hasBackgroundImage(for: .reminders(storeId: "store-1")))
+        XCTAssertEqual(preferences.backgroundColor(for: .reminders(storeId: "store-1")), .forest)
+        XCTAssertEqual(preferences.dimLevel(for: .reminders(storeId: "store-1")), BackgroundPreferences.defaultDimLevel)
     }
 
     func testSetBackgroundImage_rejectsNonImageData() {
@@ -203,18 +222,18 @@ final class BackgroundPreferencesTests: XCTestCase {
     func testReset_clearsOnlyTheGivenSurface() throws {
         let data = try sampleImageData(width: 300, height: 300)
         preferences.setBackgroundImage(from: data, for: .stores)
-        preferences.setBackgroundColor(.sand, for: .reminders)
+        preferences.setBackgroundColor(.sand, for: .reminders(storeId: "store-1"))
 
         preferences.reset(.stores)
 
         XCTAssertFalse(preferences.hasBackgroundImage(for: .stores))
-        XCTAssertEqual(preferences.backgroundColor(for: .reminders), .sand)
+        XCTAssertEqual(preferences.backgroundColor(for: .reminders(storeId: "store-1")), .sand)
     }
 
     func testResetAll_clearsEverySurfaceIncludingConversationsAndPhotos() throws {
         let data = try sampleImageData(width: 300, height: 300)
         preferences.setBackgroundColor(.ocean, for: .stores)
-        preferences.setBackgroundColor(.sand, for: .reminders)
+        preferences.setBackgroundColor(.sand, for: .reminders(storeId: "store-1"))
         preferences.setBackgroundColor(.plum, for: .conversation(id: "chat-1"))
         preferences.setBackgroundImage(from: data, for: .conversation(id: "chat-2"))
         preferences.setDimLevel(0.7, for: .conversation(id: "chat-2"))
@@ -222,7 +241,7 @@ final class BackgroundPreferencesTests: XCTestCase {
         preferences.resetAll()
 
         XCTAssertEqual(preferences.backgroundColor(for: .stores), .system)
-        XCTAssertEqual(preferences.backgroundColor(for: .reminders), .system)
+        XCTAssertEqual(preferences.backgroundColor(for: .reminders(storeId: "store-1")), .system)
         XCTAssertEqual(preferences.backgroundColor(for: .conversation(id: "chat-1")), .system)
         XCTAssertFalse(preferences.hasBackgroundImage(for: .conversation(id: "chat-2")))
         XCTAssertEqual(preferences.dimLevel(for: .conversation(id: "chat-2")), BackgroundPreferences.defaultDimLevel)
@@ -238,7 +257,9 @@ final class BackgroundPreferencesTests: XCTestCase {
     func testStorageKeys_areUniquePerSurface() {
         let keys = [
             BackgroundSurface.stores.colorStorageKey,
-            BackgroundSurface.reminders.colorStorageKey,
+            BackgroundSurface.reminders(storeId: "store-1").colorStorageKey,
+            BackgroundSurface.reminders(storeId: "store-2").colorStorageKey,
+            BackgroundSurface.conversation(id: "store-1").colorStorageKey,
             BackgroundSurface.conversation(id: "chat-1").colorStorageKey,
             BackgroundSurface.conversation(id: "chat-2").colorStorageKey
         ]
@@ -268,7 +289,9 @@ final class BackgroundPreferencesTests: XCTestCase {
     func testImageFileNames_areUniquePerSurface() {
         let names = [
             BackgroundSurface.stores.imageFileName,
-            BackgroundSurface.reminders.imageFileName,
+            BackgroundSurface.reminders(storeId: "store-1").imageFileName,
+            BackgroundSurface.reminders(storeId: "store-2").imageFileName,
+            BackgroundSurface.conversation(id: "store-1").imageFileName,
             BackgroundSurface.conversation(id: "chat-1").imageFileName,
             BackgroundSurface.conversation(id: "chat-2").imageFileName
         ]
