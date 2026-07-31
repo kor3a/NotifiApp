@@ -37,6 +37,10 @@ class ProfileViewModel: ObservableObject {
     }
     
     func signOut() {
+        // Backgrounds are stored per device, so clear them here — the next
+        // account to sign in on this device starts from the default look.
+        BackgroundPreferences.shared.resetAll()
+
         // Remove this device's push token from the user's document first —
         // rules only allow updating your own doc, so it must happen while
         // still authenticated. Times out internally so sign-out never hangs;

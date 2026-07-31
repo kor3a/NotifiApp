@@ -40,14 +40,15 @@ struct StoresView: View {
     @State private var isFabShrunk: Bool = false
     @State private var isAtScrollBottom: Bool = false
     @State private var fabInactivityTimer: Timer? = nil
+    @State private var showingBackgroundPicker = false
     @Environment(\.colorScheme) var colorScheme
 
     var body: some View {
         NavigationStack {
             ZStack {
-                // Background always visible
-                Color.backgroundGradient(for: colorScheme)
-                    .ignoresSafeArea()
+                // Background always visible — the user's chosen color for
+                // subscribers, the default gradient otherwise.
+                SurfaceBackground(surface: .stores)
 
                 // Hidden navigation destination for notification taps
                 Color.clear
@@ -176,6 +177,9 @@ struct StoresView: View {
         }
         .sheet(isPresented: $showingPaywall) {
             SubscriptionPaywallView()
+        }
+        .sheet(isPresented: $showingBackgroundPicker) {
+            BackgroundPickerView(surface: .stores)
         }
         .sheet(item: $selectedStoreToShare) { storeToShare in
             ShareStoreView(viewModel: viewModel, messagesViewModel: messagesViewModel, userStoreItem: storeToShare)
@@ -598,6 +602,35 @@ struct StoresView: View {
                                         .font(.system(size: 20))
                                     Text("Smart Recipe")
                                         .font(.system(size: 17))
+                                    Spacer()
+                                }
+                                .padding()
+                                .frame(width: 200)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 16)
+                                        .fill(.ultraThinMaterial)
+                                )
+                                .foregroundColor(.primary)
+                            }
+
+                            Button(action: {
+                                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                                    isMenuExpanded = false
+                                    if storeViewMode == .float {
+                                        isFabShrunk = true
+                                    }
+                                }
+                                showingBackgroundPicker = true
+                            }) {
+                                HStack {
+                                    Image(systemName: "photo.on.rectangle.angled")
+                                        .font(.system(size: 20))
+                                    // The longest label in the menu — scale it
+                                    // rather than let it wrap in the fixed-width row.
+                                    Text("Change Background")
+                                        .font(.system(size: 17))
+                                        .lineLimit(1)
+                                        .minimumScaleFactor(0.85)
                                     Spacer()
                                 }
                                 .padding()

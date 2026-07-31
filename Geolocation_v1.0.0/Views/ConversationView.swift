@@ -23,6 +23,7 @@ struct ConversationView: View {
     @State private var showImagePicker = false
     @State private var isSendingPhoto = false
     @State private var showGroupInfo = false
+    @State private var showingBackgroundPicker = false
 
     private var currentUserId: String {
         sessionManager.currentUser?.userId ?? ""
@@ -113,7 +114,7 @@ struct ConversationView: View {
             // Input bar
             inputBar
         }
-        .background(Color.backgroundGradient(for: colorScheme))
+        .background(SurfaceBackground(surface: .conversation(id: conversation.id)))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .principal) {
@@ -146,6 +147,26 @@ struct ConversationView: View {
                     }
                 }
             }
+
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Menu {
+                    Button {
+                        showingBackgroundPicker = true
+                    } label: {
+                        Label("Change Background", systemImage: "photo.on.rectangle.angled")
+                    }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                }
+                .accessibilityLabel("Chat options")
+            }
+        }
+        .sheet(isPresented: $showingBackgroundPicker) {
+            // Keyed to this conversation, so every chat keeps its own look.
+            BackgroundPickerView(
+                surface: .conversation(id: conversation.id),
+                title: conversation.displayName(currentUserId: currentUserId)
+            )
         }
         .sheet(isPresented: $showGroupInfo) {
             GroupInfoView(conversation: conversation, viewModel: viewModel, onLeaveGroup: {

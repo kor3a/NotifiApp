@@ -699,6 +699,11 @@ class StoresViewModel: ObservableObject {
         print("StoresViewModel: Removing user_store document: \(userStoreItem.id)")
         #endif
 
+        // Drop this store's custom background too — its key is the user_store
+        // document id, which is gone for good, so the photo would otherwise sit
+        // on disk unreachable.
+        BackgroundPreferences.shared.reset(.reminders(storeId: userStoreItem.id))
+
         // Remove from local array immediately for smooth UI
         userStoreItems.removeAll { $0.id == userStoreItem.id }
         // Reflect removal in the home screen widget immediately
