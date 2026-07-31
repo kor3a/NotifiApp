@@ -64,9 +64,9 @@ struct SubscriptionPaywallView: View {
                         featureRow(icon: "chart.bar.xaxis", color: .indigo,
                                    title: "Store Analytics",
                                    description: "Shopping trends, category breakdowns, and your most-gotten items for every store")
-                        featureRow(icon: "paintpalette.fill", color: .pink,
+                        featureRow(icon: "photo.on.rectangle.angled", color: .pink,
                                    title: "Custom Backgrounds",
-                                   description: "Pick your own background color for your screens")
+                                   description: "Set your own photo or pick a color for your screens")
                         featureRow(icon: "hand.thumbsup.fill", color: .green,
                                    title: "Ad-Free Experience",
                                    description: "Enjoy the app without any banner advertisements")

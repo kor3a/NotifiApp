@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import UIKit
 
 // MARK: - Background Surface
 
@@ -34,7 +35,7 @@ enum BackgroundSurface: Hashable, Identifiable {
         }
     }
 
-    private var storageSuffix: String {
+    var storageSuffix: String {
         switch self {
         case .stores:              return "stores"
         case .reminders:           return "reminders"
@@ -44,6 +45,27 @@ enum BackgroundSurface: Hashable, Identifiable {
 
     /// UserDefaults key holding the solid color chosen for this surface.
     var colorStorageKey: String { "backgroundColor_\(storageSuffix)" }
+
+    /// UserDefaults key holding how much the background photo is dimmed.
+    var dimStorageKey: String { "backgroundDim_\(storageSuffix)" }
+
+    /// File name for this surface's background photo.
+    ///
+    /// Conversation ids come from Firestore, so they're hex-encoded rather than
+    /// trusted as a path component: that keeps separators and dots out of the
+    /// name, and — unlike folding unsafe characters to `_` — guarantees two
+    /// different ids can never land on the same file.
+    var imageFileName: String {
+        switch self {
+        case .stores:
+            return "stores.jpg"
+        case .reminders:
+            return "reminders.jpg"
+        case .conversation(let id):
+            let hex = id.utf8.map { String(format: "%02x", $0) }.joined()
+            return "conversation_\(hex).jpg"
+        }
+    }
 }
 
 // MARK: - Background Color Palette
@@ -155,13 +177,39 @@ enum AppBackgroundColor: String, CaseIterable, Identifiable {
 final class BackgroundPreferences: ObservableObject {
     static let shared = BackgroundPreferences()
 
+    /// Longest edge a stored background photo is scaled down to. Comfortably
+    /// covers the largest iPhone at 3x without holding a 12-megapixel original
+    /// in memory for the whole time a screen is on.
+    static let maxImageDimension: CGFloat = 1600
+
+    /// How much a background photo is dimmed when the user hasn't said.
+    static let defaultDimLevel: Double = 0.3
+
+    /// Widest dimming the slider offers. Past this the photo is barely visible.
+    static let maxDimLevel: Double = 0.8
+
     private let defaults: UserDefaults
+    private let imageDirectory: URL?
+
+    /// Decoded photos, kept in memory so the background doesn't hit the disk on
+    /// every re-render. Cleared for a surface whenever its photo changes.
+    private var imageCache: [String: UIImage] = [:]
 
     /// Bumped on every change so views observing this object re-render.
     @Published private var revision: Int = 0
 
-    init(defaults: UserDefaults = .standard) {
+    init(defaults: UserDefaults = .standard, imageDirectory: URL? = BackgroundPreferences.defaultImageDirectory()) {
         self.defaults = defaults
+        self.imageDirectory = imageDirectory
+    }
+
+    /// `Application Support/Backgrounds` — app-private, backed up, and not
+    /// visible to the user in Files.
+    static func defaultImageDirectory() -> URL? {
+        guard let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {
+            return nil
+        }
+        return support.appendingPathComponent("Backgrounds", isDirectory: true)
     }
 
     /// The color chosen for a surface, or `.system` if the user never picked one.
@@ -173,12 +221,149 @@ final class BackgroundPreferences: ObservableObject {
         return color
     }
 
+    /// Sets the solid color for a surface.
+    ///
+    /// A color and a photo are mutually exclusive — picking a color drops the
+    /// photo, so there is only ever one answer to "what is behind this screen".
     func setBackgroundColor(_ color: AppBackgroundColor, for surface: BackgroundSurface) {
         if color == .system {
             defaults.removeObject(forKey: surface.colorStorageKey)
         } else {
             defaults.set(color.rawValue, forKey: surface.colorStorageKey)
         }
+        deleteImageFile(for: surface)
+        revision &+= 1
+    }
+
+    // MARK: - Photos
+
+    private func imageURL(for surface: BackgroundSurface) -> URL? {
+        imageDirectory?.appendingPathComponent(surface.imageFileName)
+    }
+
+    /// The photo chosen for a surface, or `nil` if the user hasn't set one.
+    func backgroundImage(for surface: BackgroundSurface) -> UIImage? {
+        if let cached = imageCache[surface.storageSuffix] { return cached }
+        guard let url = imageURL(for: surface),
+              let data = try? Data(contentsOf: url),
+              let image = UIImage(data: data) else {
+            return nil
+        }
+        imageCache[surface.storageSuffix] = image
+        return image
+    }
+
+    func hasBackgroundImage(for surface: BackgroundSurface) -> Bool {
+        backgroundImage(for: surface) != nil
+    }
+
+    /// Decodes, downscales and re-encodes a photo ready for storage.
+    ///
+    /// Split out from `storeImageData` because this is the slow part — a
+    /// full-resolution photo takes long enough to decode that doing it on the
+    /// main thread stutters the picker. It touches no shared state, so callers
+    /// can run it off the main actor and hand the result back.
+    /// Returns `nil` if the data isn't a decodable image.
+    static func preparedImageData(from data: Data, maxDimension: CGFloat = maxImageDimension) -> Data? {
+        guard let original = UIImage(data: data),
+              let scaled = downscaled(original, maxDimension: maxDimension) else {
+            return nil
+        }
+        return scaled.jpegData(compressionQuality: 0.85)
+    }
+
+    /// Writes already-prepared JPEG data as the surface's background.
+    ///
+    /// Returns `false` if the data can't be decoded or the write fails, so the
+    /// caller can tell the user instead of silently doing nothing.
+    @discardableResult
+    func storeImageData(_ jpeg: Data, for surface: BackgroundSurface) -> Bool {
+        guard let url = imageURL(for: surface),
+              let directory = imageDirectory,
+              let image = UIImage(data: jpeg) else {
+            return false
+        }
+
+        do {
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            try jpeg.write(to: url, options: .atomic)
+        } catch {
+            #if DEBUG
+            print("BackgroundPreferences: Failed to store background image — \(error.localizedDescription)")
+            #endif
+            return false
+        }
+
+        imageCache[surface.storageSuffix] = image
+        // A photo replaces any solid color, mirroring setBackgroundColor.
+        defaults.removeObject(forKey: surface.colorStorageKey)
+        revision &+= 1
+        return true
+    }
+
+    /// Prepares and stores a photo in one step.
+    @discardableResult
+    func setBackgroundImage(from data: Data, for surface: BackgroundSurface) -> Bool {
+        guard let jpeg = Self.preparedImageData(from: data) else { return false }
+        return storeImageData(jpeg, for: surface)
+    }
+
+    func removeBackgroundImage(for surface: BackgroundSurface) {
+        deleteImageFile(for: surface)
+        defaults.removeObject(forKey: surface.dimStorageKey)
+        revision &+= 1
+    }
+
+    private func deleteImageFile(for surface: BackgroundSurface) {
+        imageCache[surface.storageSuffix] = nil
+        guard let url = imageURL(for: surface) else { return }
+        try? FileManager.default.removeItem(at: url)
+    }
+
+    /// Scales an image so its longest edge is at most `maxDimension` points.
+    /// Images already within budget are returned untouched.
+    static func downscaled(_ image: UIImage, maxDimension: CGFloat) -> UIImage? {
+        let longestEdge = max(image.size.width, image.size.height)
+        guard longestEdge > maxDimension, longestEdge > 0 else { return image }
+
+        let scale = maxDimension / longestEdge
+        let target = CGSize(width: (image.size.width * scale).rounded(),
+                            height: (image.size.height * scale).rounded())
+        guard target.width >= 1, target.height >= 1 else { return nil }
+
+        let format = UIGraphicsImageRendererFormat.default()
+        format.scale = 1
+        return UIGraphicsImageRenderer(size: target, format: format).image { _ in
+            image.draw(in: CGRect(origin: .zero, size: target))
+        }
+    }
+
+    // MARK: - Dimming
+
+    /// How much to darken (or lighten) a background photo, 0...`maxDimLevel`.
+    ///
+    /// Photos vary wildly in brightness, and the app's content sits on
+    /// translucent cards, so a fixed scrim can't keep text readable across
+    /// every photo — the user gets to tune it.
+    func dimLevel(for surface: BackgroundSurface) -> Double {
+        guard defaults.object(forKey: surface.dimStorageKey) != nil else {
+            return Self.defaultDimLevel
+        }
+        return min(max(defaults.double(forKey: surface.dimStorageKey), 0), Self.maxDimLevel)
+    }
+
+    func setDimLevel(_ level: Double, for surface: BackgroundSurface) {
+        defaults.set(min(max(level, 0), Self.maxDimLevel), forKey: surface.dimStorageKey)
+        revision &+= 1
+    }
+
+    // MARK: - Reset
+
+    /// Clears a single surface back to the app default.
+    func reset(_ surface: BackgroundSurface) {
+        defaults.removeObject(forKey: surface.colorStorageKey)
+        defaults.removeObject(forKey: surface.dimStorageKey)
+        deleteImageFile(for: surface)
         revision &+= 1
     }
 
@@ -187,10 +372,16 @@ final class BackgroundPreferences: ObservableObject {
     func resetAll() {
         for surface in BackgroundSurface.globalSurfaces {
             defaults.removeObject(forKey: surface.colorStorageKey)
+            defaults.removeObject(forKey: surface.dimStorageKey)
         }
         for key in defaults.dictionaryRepresentation().keys
-        where key.hasPrefix("backgroundColor_conversation_") {
+        where key.hasPrefix("backgroundColor_conversation_") || key.hasPrefix("backgroundDim_conversation_") {
             defaults.removeObject(forKey: key)
+        }
+
+        imageCache.removeAll()
+        if let directory = imageDirectory {
+            try? FileManager.default.removeItem(at: directory)
         }
         revision &+= 1
     }
@@ -198,12 +389,12 @@ final class BackgroundPreferences: ObservableObject {
 
 // MARK: - Background View
 
-/// The background layer for a surface — the user's chosen color when they're
-/// subscribed, the app's default gradient otherwise.
+/// The background layer for a surface — the user's chosen photo or color when
+/// they're subscribed, the app's default gradient otherwise.
 ///
 /// The subscription check lives here rather than at selection time so a lapsed
 /// subscription falls back to the default look without erasing what the user
-/// picked; resubscribing brings their color straight back.
+/// picked; resubscribing brings their background straight back.
 struct SurfaceBackground: View {
     let surface: BackgroundSurface
 
@@ -216,9 +407,20 @@ struct SurfaceBackground: View {
         return preferences.backgroundColor(for: surface)
     }
 
+    private var image: UIImage? {
+        guard subscriptionManager.isSubscribed else { return nil }
+        return preferences.backgroundImage(for: surface)
+    }
+
     var body: some View {
         Group {
-            if selection == .system {
+            if let image {
+                BackgroundPhoto(
+                    image: image,
+                    dimLevel: preferences.dimLevel(for: surface),
+                    colorScheme: colorScheme
+                )
+            } else if selection == .system {
                 Color.backgroundGradient(for: colorScheme)
             } else {
                 selection.fill(for: colorScheme)
@@ -226,6 +428,31 @@ struct SurfaceBackground: View {
         }
         .ignoresSafeArea()
         .animation(.easeInOut(duration: 0.25), value: selection)
+    }
+}
+
+/// A background photo scaled to fill the screen, with a scrim on top.
+///
+/// The scrim matches the appearance rather than always darkening: `.primary`
+/// text is black in light mode and white in dark mode, so a white veil in light
+/// mode and a black one in dark mode is what actually preserves contrast.
+struct BackgroundPhoto: View {
+    let image: UIImage
+    let dimLevel: Double
+    let colorScheme: ColorScheme
+
+    var body: some View {
+        GeometryReader { geometry in
+            Image(uiImage: image)
+                .resizable()
+                .scaledToFill()
+                .frame(width: geometry.size.width, height: geometry.size.height)
+                .clipped()
+                .overlay(
+                    (colorScheme == .dark ? Color.black : Color.white)
+                        .opacity(dimLevel)
+                )
+        }
     }
 }
 

@@ -1,13 +1,15 @@
 //
-//  BackgroundColorPickerView.swift
+//  BackgroundPickerView.swift
 //  Geolocation_v1.0.0
 //
-//  Lets subscribers pick the background color for a screen.
+//  Lets subscribers set a screen's background to a photo or a solid color.
 //
 
 import SwiftUI
+import PhotosUI
+import UIKit
 
-struct BackgroundColorPickerView: View {
+struct BackgroundPickerView: View {
     let surface: BackgroundSurface
 
     @Environment(\.dismiss) private var dismiss
@@ -15,6 +17,9 @@ struct BackgroundColorPickerView: View {
     @ObservedObject private var preferences = BackgroundPreferences.shared
     @ObservedObject private var subscriptionManager = SubscriptionManager.shared
     @State private var showingPaywall = false
+    @State private var photoItem: PhotosPickerItem?
+    @State private var isLoadingPhoto = false
+    @State private var photoError: String?
 
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 14), count: 4)
 
@@ -23,6 +28,15 @@ struct BackgroundColorPickerView: View {
     private var selection: AppBackgroundColor {
         guard subscriptionManager.isSubscribed else { return .system }
         return preferences.backgroundColor(for: surface)
+    }
+
+    private var selectedPhoto: UIImage? {
+        guard subscriptionManager.isSubscribed else { return nil }
+        return preferences.backgroundImage(for: surface)
+    }
+
+    private var isDefault: Bool {
+        selection == .system && selectedPhoto == nil
     }
 
     var body: some View {
@@ -35,6 +49,7 @@ struct BackgroundColorPickerView: View {
                         premiumBanner
                     }
 
+                    photoSection
                     swatchGrid
                 }
                 .padding(.vertical, 20)
@@ -45,9 +60,11 @@ struct BackgroundColorPickerView: View {
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button("Reset") {
-                        select(.system)
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            preferences.reset(surface)
+                        }
                     }
-                    .disabled(selection == .system)
+                    .disabled(isDefault)
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Done") { dismiss() }
@@ -56,6 +73,18 @@ struct BackgroundColorPickerView: View {
             }
             .sheet(isPresented: $showingPaywall) {
                 SubscriptionPaywallView()
+            }
+            .alert("Couldn't Use That Photo", isPresented: Binding(
+                get: { photoError != nil },
+                set: { if !$0 { photoError = nil } }
+            )) {
+                Button("OK", role: .cancel) { photoError = nil }
+            } message: {
+                Text(photoError ?? "")
+            }
+            .onChange(of: photoItem) { _, item in
+                guard let item else { return }
+                loadPhoto(item)
             }
         }
     }
@@ -67,7 +96,13 @@ struct BackgroundColorPickerView: View {
     private var preview: some View {
         VStack(spacing: 10) {
             ZStack {
-                if selection == .system {
+                if let photo = selectedPhoto {
+                    BackgroundPhoto(
+                        image: photo,
+                        dimLevel: preferences.dimLevel(for: surface),
+                        colorScheme: colorScheme
+                    )
+                } else if selection == .system {
                     Color.backgroundGradient(for: colorScheme)
                 } else {
                     selection.fill(for: colorScheme)
@@ -79,6 +114,12 @@ struct BackgroundColorPickerView: View {
                     }
                 }
                 .padding(16)
+
+                if isLoadingPhoto {
+                    Color.black.opacity(0.25)
+                    ProgressView()
+                        .tint(.white)
+                }
             }
             .frame(height: 170)
             .clipShape(RoundedRectangle(cornerRadius: 20))
@@ -88,7 +129,7 @@ struct BackgroundColorPickerView: View {
             )
             .animation(.easeInOut(duration: 0.2), value: selection)
 
-            Text(selection.displayName)
+            Text(selectedPhoto != nil ? "Your Photo" : selection.displayName)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
         }
@@ -181,15 +222,132 @@ struct BackgroundColorPickerView: View {
         .padding(.horizontal, 20)
     }
 
+    // MARK: - Photo
+
+    private var photoSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            sectionHeader("PHOTO")
+
+            VStack(spacing: 0) {
+                if subscriptionManager.isSubscribed {
+                    // PhotosPicker runs out of process, so choosing a photo
+                    // never asks for photo library permission.
+                    PhotosPicker(selection: $photoItem, matching: .images, photoLibrary: .shared()) {
+                        photoRowLabel
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(isLoadingPhoto)
+                } else {
+                    Button { showingPaywall = true } label: { photoRowLabel }
+                        .buttonStyle(.plain)
+                }
+
+                if selectedPhoto != nil {
+                    Divider().padding(.leading, 52)
+
+                    dimRow
+
+                    Divider().padding(.leading, 52)
+
+                    Button(role: .destructive) {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            preferences.removeBackgroundImage(for: surface)
+                        }
+                        photoItem = nil
+                    } label: {
+                        HStack(spacing: 14) {
+                            Image(systemName: "trash")
+                                .font(.system(size: 18))
+                                .frame(width: 24)
+                            Text("Remove Photo")
+                                .font(.subheadline)
+                            Spacer()
+                        }
+                        .foregroundStyle(.red)
+                        .padding(14)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .background(RoundedRectangle(cornerRadius: 14).fill(.ultraThinMaterial))
+        }
+        .padding(.horizontal, 20)
+    }
+
+    private var photoRowLabel: some View {
+        HStack(spacing: 14) {
+            Image(systemName: "photo.on.rectangle.angled")
+                .font(.system(size: 18))
+                .foregroundStyle(Color.accentColor)
+                .frame(width: 24)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(selectedPhoto == nil ? "Choose Photo" : "Change Photo")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .foregroundStyle(.primary)
+                Text("Use one of your own photos as the background")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+
+            if isLoadingPhoto {
+                ProgressView()
+            } else if let photo = selectedPhoto {
+                Image(uiImage: photo)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 36, height: 36)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+            } else {
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(14)
+        .contentShape(Rectangle())
+    }
+
+    /// Photos vary wildly in brightness and the app's cards are translucent, so
+    /// the user tunes the scrim until their own photo reads well.
+    private var dimRow: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 14) {
+                Image(systemName: colorScheme == .dark ? "moon.fill" : "sun.max.fill")
+                    .font(.system(size: 18))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 24)
+
+                Text("Fade")
+                    .font(.subheadline)
+                    .foregroundStyle(.primary)
+
+                Slider(
+                    value: Binding(
+                        get: { preferences.dimLevel(for: surface) },
+                        set: { preferences.setDimLevel($0, for: surface) }
+                    ),
+                    in: 0...BackgroundPreferences.maxDimLevel
+                )
+            }
+
+            Text("Fade the photo so your stores stay easy to read.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .padding(.leading, 38)
+        }
+        .padding(14)
+    }
+
     // MARK: - Swatches
 
     private var swatchGrid: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("COLORS")
-                .font(.caption)
-                .fontWeight(.semibold)
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, 4)
+            sectionHeader("COLORS")
 
             LazyVGrid(columns: columns, spacing: 14) {
                 systemSwatch
@@ -200,6 +358,15 @@ struct BackgroundColorPickerView: View {
             }
         }
         .padding(.horizontal, 20)
+    }
+
+    private func sectionHeader(_ title: String) -> some View {
+        Text(title)
+            .font(.caption)
+            .fontWeight(.semibold)
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, 4)
+            .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var systemSwatch: some View {
@@ -218,7 +385,9 @@ struct BackgroundColorPickerView: View {
         for color: AppBackgroundColor,
         @ViewBuilder fill: () -> Fill
     ) -> some View {
-        let isSelected = selection == color
+        // A photo overrides any color, so no swatch reads as selected while one
+        // is set — otherwise the checkmark would point at something invisible.
+        let isSelected = selectedPhoto == nil && selection == color
 
         return Button {
             select(color)
@@ -266,9 +435,46 @@ struct BackgroundColorPickerView: View {
         withAnimation(.easeInOut(duration: 0.2)) {
             preferences.setBackgroundColor(color, for: surface)
         }
+        photoItem = nil
+    }
+
+    private func loadPhoto(_ item: PhotosPickerItem) {
+        isLoadingPhoto = true
+        // Pinned to the main actor: everything this touches afterwards is view
+        // state or the preferences store, both of which publish to SwiftUI.
+        Task { @MainActor in
+            defer { isLoadingPhoto = false }
+            do {
+                guard let data = try await item.loadTransferable(type: Data.self) else {
+                    photoError = "That photo couldn't be loaded. Please try a different one."
+                    return
+                }
+                // Decoding and downscaling a full-resolution photo is slow
+                // enough to stutter the picker, so it happens off the main
+                // actor. Only the finished JPEG comes back, and storing it —
+                // which publishes to SwiftUI — stays on the main actor.
+                let prepared = await Task.detached(priority: .userInitiated) {
+                    BackgroundPreferences.preparedImageData(from: data)
+                }.value
+
+                guard let prepared else {
+                    photoError = "That photo couldn't be read. Please try a different one."
+                    return
+                }
+
+                let stored = withAnimation(.easeInOut(duration: 0.25)) {
+                    preferences.storeImageData(prepared, for: surface)
+                }
+                if !stored {
+                    photoError = "That photo couldn't be saved. Please try a different one."
+                }
+            } catch {
+                photoError = "That photo couldn't be loaded. Please try a different one."
+            }
+        }
     }
 }
 
 #Preview {
-    BackgroundColorPickerView(surface: .stores)
+    BackgroundPickerView(surface: .stores)
 }

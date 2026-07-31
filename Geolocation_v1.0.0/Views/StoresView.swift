@@ -130,21 +130,6 @@ struct StoresView: View {
                     }
                 }
 
-                // Background color picker — always available, including from the
-                // empty state. Hidden during the tutorial so the highlighted
-                // icons stay the focus.
-                if !tutorialManager.isActive {
-                    ToolbarItem(placement: .navigationBarTrailing) {
-                        Button {
-                            showingBackgroundPicker = true
-                        } label: {
-                            Image(systemName: "paintpalette")
-                                .imageScale(.large)
-                        }
-                        .accessibilityLabel("Background color")
-                    }
-                }
-
                 // Sort + view mode toggle (shown when stores exist, or during tutorial to highlight the icons)
                 if !viewModel.userStoreItems.isEmpty || tutorialManager.isActive {
                     ToolbarItem(placement: .navigationBarTrailing) {
@@ -194,7 +179,7 @@ struct StoresView: View {
             SubscriptionPaywallView()
         }
         .sheet(isPresented: $showingBackgroundPicker) {
-            BackgroundColorPickerView(surface: .stores)
+            BackgroundPickerView(surface: .stores)
         }
         .sheet(item: $selectedStoreToShare) { storeToShare in
             ShareStoreView(viewModel: viewModel, messagesViewModel: messagesViewModel, userStoreItem: storeToShare)
@@ -617,6 +602,35 @@ struct StoresView: View {
                                         .font(.system(size: 20))
                                     Text("Smart Recipe")
                                         .font(.system(size: 17))
+                                    Spacer()
+                                }
+                                .padding()
+                                .frame(width: 200)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 16)
+                                        .fill(.ultraThinMaterial)
+                                )
+                                .foregroundColor(.primary)
+                            }
+
+                            Button(action: {
+                                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                                    isMenuExpanded = false
+                                    if storeViewMode == .float {
+                                        isFabShrunk = true
+                                    }
+                                }
+                                showingBackgroundPicker = true
+                            }) {
+                                HStack {
+                                    Image(systemName: "photo.on.rectangle.angled")
+                                        .font(.system(size: 20))
+                                    // The longest label in the menu — scale it
+                                    // rather than let it wrap in the fixed-width row.
+                                    Text("Change Background")
+                                        .font(.system(size: 17))
+                                        .lineLimit(1)
+                                        .minimumScaleFactor(0.85)
                                     Spacer()
                                 }
                                 .padding()
