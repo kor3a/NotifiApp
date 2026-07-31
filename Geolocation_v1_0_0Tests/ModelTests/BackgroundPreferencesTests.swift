@@ -111,6 +111,23 @@ final class BackgroundPreferencesTests: XCTestCase {
         XCTAssertFalse(preferences.hasBackgroundImage(for: .reminders))
     }
 
+    /// Stores and Reminders are separate screens: a photo on one must not
+    /// disturb the other's color, and vice versa.
+    func testStoresAndReminders_doNotShareState() throws {
+        let data = try sampleImageData(width: 300, height: 300)
+        preferences.setBackgroundImage(from: data, for: .stores)
+        preferences.setDimLevel(0.55, for: .stores)
+        preferences.setBackgroundColor(.forest, for: .reminders)
+
+        XCTAssertTrue(preferences.hasBackgroundImage(for: .stores))
+        XCTAssertEqual(preferences.backgroundColor(for: .stores), .system)
+        XCTAssertEqual(preferences.dimLevel(for: .stores), 0.55)
+
+        XCTAssertFalse(preferences.hasBackgroundImage(for: .reminders))
+        XCTAssertEqual(preferences.backgroundColor(for: .reminders), .forest)
+        XCTAssertEqual(preferences.dimLevel(for: .reminders), BackgroundPreferences.defaultDimLevel)
+    }
+
     func testSetBackgroundImage_rejectsNonImageData() {
         let garbage = Data("not an image".utf8)
         XCTAssertFalse(preferences.setBackgroundImage(from: garbage, for: .stores))

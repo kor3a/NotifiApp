@@ -35,6 +35,7 @@ struct ReminderView: View {
     @State private var showingRecipePicker = false
     @State private var showingHistory = false
     @State private var showingAnalytics = false
+    @State private var showingBackgroundPicker = false
     @State private var showingEditWebsite = false
     @State private var websiteInputText = ""
     @State private var fadingReminderIds: Set<String> = []
@@ -237,6 +238,9 @@ struct ReminderView: View {
             }
             .sheet(isPresented: $showingAnalytics) {
                 StoreAnalyticsView(userStoreItem: userStoreItem)
+            }
+            .sheet(isPresented: $showingBackgroundPicker) {
+                BackgroundPickerView(surface: .reminders)
             }
             .sheet(item: $reminderForPhoto) { reminder in
                 ImagePicker(selectedImage: $selectedImage) { image in
@@ -704,10 +708,7 @@ struct ReminderView: View {
                 Color.clear.frame(height: 50)
             }
             .environment(\.editMode, editMode)
-            .background(
-                Color.backgroundGradient(for: colorScheme)
-                    .ignoresSafeArea()
-            )
+            .background(SurfaceBackground(surface: .reminders))
             .onChange(of: isAddingNewReminder) { _, newValue in
                 if newValue {
                     withAnimation {
@@ -1574,151 +1575,7 @@ struct ReminderView: View {
                         .buttonStyle(.plain)
                     }
 
-                    Divider()
-                        .padding(.horizontal, 16)
-
-                    // History row — checked-off items no longer in the list
-                    Button {
-                        withAnimation(.easeInOut(duration: 0.18)) {
-                            showInfoPanel = false
-                        }
-                        showingHistory = true
-                    } label: {
-                        HStack(spacing: 12) {
-                            Image(systemName: "clock.arrow.circlepath")
-                                .font(.body)
-                                .foregroundColor(Color.appAccent)
-                                .frame(width: 24)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("History")
-                                    .font(.subheadline)
-                                    .fontWeight(.medium)
-                                    .foregroundStyle(Color.primary)
-                                Text("Checked-off items no longer in the list")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                            Spacer()
-                            Image(systemName: "chevron.right")
-                                .font(.caption)
-                                .foregroundStyle(.tertiary)
-                        }
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 12)
-                    }
-                    .buttonStyle(.plain)
-
-                    Divider()
-                        .padding(.horizontal, 16)
-
-                    // Analytics row — premium shopping insights for this store.
-                    // The view itself shows an upgrade pitch for free users.
-                    Button {
-                        withAnimation(.easeInOut(duration: 0.18)) {
-                            showInfoPanel = false
-                        }
-                        showingAnalytics = true
-                    } label: {
-                        HStack(spacing: 12) {
-                            Image(systemName: "chart.bar.xaxis")
-                                .font(.body)
-                                .foregroundColor(isSubscribed ? Color.appAccent : .secondary)
-                                .frame(width: 24)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("Analytics")
-                                    .font(.subheadline)
-                                    .fontWeight(.medium)
-                                    .foregroundStyle(isSubscribed ? Color.primary : Color.secondary)
-                                Text(isSubscribed ? "Shopping trends and item insights" : "Available for subscribers")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                            Spacer()
-                            Image(systemName: isSubscribed ? "chevron.right" : "lock.fill")
-                                .font(isSubscribed ? .caption : .subheadline)
-                                .foregroundStyle(isSubscribed ? AnyShapeStyle(.tertiary) : AnyShapeStyle(.secondary))
-                        }
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 12)
-                    }
-                    .buttonStyle(.plain)
-
-                    // Store app / website row. The URL is derived from the store name
-                    // (no per-store data to maintain); iOS opens the store's app via
-                    // universal links when installed, otherwise falls back to Safari.
-                    if let storeURL = storeWebsiteURL {
-                        Divider()
-                            .padding(.horizontal, 16)
-
-                        Button {
-                            withAnimation(.easeInOut(duration: 0.18)) {
-                                showInfoPanel = false
-                            }
-                            openURL(storeURL)
-                        } label: {
-                            HStack(spacing: 12) {
-                                Image(systemName: "safari")
-                                    .font(.body)
-                                    .foregroundColor(Color.appAccent)
-                                    .frame(width: 24)
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text("Visit store")
-                                        .font(.subheadline)
-                                        .fontWeight(.medium)
-                                        .foregroundStyle(Color.primary)
-                                    Text("Open the store's app or website")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-                                Spacer()
-                                Image(systemName: "arrow.up.right")
-                                    .font(.caption)
-                                    .foregroundStyle(.tertiary)
-                            }
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 12)
-                        }
-                        .buttonStyle(.plain)
-                    }
-
-                    // Set / edit store website (admin only). Writes a shared override to
-                    // the store_websites collection so it applies for everyone with this
-                    // store, so it is restricted to the app owner's account.
-                    if isStoreAdmin {
-                        Divider()
-                            .padding(.horizontal, 16)
-
-                        Button {
-                            websiteInputText = storeWebsiteURL?.absoluteString ?? ""
-                            withAnimation(.easeInOut(duration: 0.18)) {
-                                showInfoPanel = false
-                            }
-                            showingEditWebsite = true
-                        } label: {
-                            HStack(spacing: 12) {
-                                Image(systemName: "link")
-                                    .font(.body)
-                                    .foregroundColor(Color.appAccent)
-                                    .frame(width: 24)
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(storeWebsiteURL == nil ? "Set store website" : "Edit store website")
-                                        .font(.subheadline)
-                                        .fontWeight(.medium)
-                                        .foregroundStyle(Color.primary)
-                                    Text("Add a link to this store's website or app")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-                                Spacer()
-                                Image(systemName: "chevron.right")
-                                    .font(.caption)
-                                    .foregroundStyle(.tertiary)
-                            }
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 12)
-                        }
-                        .buttonStyle(.plain)
-                    }
+                    infoPanelSecondaryRows
                 }
                 .background(
                     RoundedRectangle(cornerRadius: 16)
@@ -1732,6 +1589,195 @@ struct ReminderView: View {
         }
         .padding(.top, 8)
         .allowsHitTesting(true)
+    }
+
+    /// The lower half of the info panel.
+    ///
+    /// Split out of `infoPanelOverlay` purely for the ViewBuilder child
+    /// limit — the panel's rows had outgrown the ten a single stack allows.
+    private var infoPanelSecondaryRows: some View {
+        Group {
+            Divider()
+                .padding(.horizontal, 16)
+
+            // History row — checked-off items no longer in the list
+            Button {
+                withAnimation(.easeInOut(duration: 0.18)) {
+                    showInfoPanel = false
+                }
+                showingHistory = true
+            } label: {
+                HStack(spacing: 12) {
+                    Image(systemName: "clock.arrow.circlepath")
+                        .font(.body)
+                        .foregroundColor(Color.appAccent)
+                        .frame(width: 24)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("History")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .foregroundStyle(Color.primary)
+                        Text("Checked-off items no longer in the list")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+            }
+            .buttonStyle(.plain)
+
+            Divider()
+                .padding(.horizontal, 16)
+
+            // Analytics row — premium shopping insights for this store.
+            // The view itself shows an upgrade pitch for free users.
+            Button {
+                withAnimation(.easeInOut(duration: 0.18)) {
+                    showInfoPanel = false
+                }
+                showingAnalytics = true
+            } label: {
+                HStack(spacing: 12) {
+                    Image(systemName: "chart.bar.xaxis")
+                        .font(.body)
+                        .foregroundColor(isSubscribed ? Color.appAccent : .secondary)
+                        .frame(width: 24)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Analytics")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .foregroundStyle(isSubscribed ? Color.primary : Color.secondary)
+                        Text(isSubscribed ? "Shopping trends and item insights" : "Available for subscribers")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Image(systemName: isSubscribed ? "chevron.right" : "lock.fill")
+                        .font(isSubscribed ? .caption : .subheadline)
+                        .foregroundStyle(isSubscribed ? AnyShapeStyle(.tertiary) : AnyShapeStyle(.secondary))
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+            }
+            .buttonStyle(.plain)
+
+            Divider()
+                .padding(.horizontal, 16)
+
+            // Background row — the picker itself pitches the upgrade for
+            // free users, same as Analytics.
+            Button {
+                withAnimation(.easeInOut(duration: 0.18)) {
+                    showInfoPanel = false
+                }
+                showingBackgroundPicker = true
+            } label: {
+                HStack(spacing: 12) {
+                    Image(systemName: "photo.on.rectangle.angled")
+                        .font(.body)
+                        .foregroundColor(isSubscribed ? Color.appAccent : .secondary)
+                        .frame(width: 24)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Change Background")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .foregroundStyle(isSubscribed ? Color.primary : Color.secondary)
+                        Text(isSubscribed ? "Use your own photo or a color" : "Available for subscribers")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Image(systemName: isSubscribed ? "chevron.right" : "lock.fill")
+                        .font(isSubscribed ? .caption : .subheadline)
+                        .foregroundStyle(isSubscribed ? AnyShapeStyle(.tertiary) : AnyShapeStyle(.secondary))
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+            }
+            .buttonStyle(.plain)
+
+            // Store app / website row. The URL is derived from the store name
+            // (no per-store data to maintain); iOS opens the store's app via
+            // universal links when installed, otherwise falls back to Safari.
+            if let storeURL = storeWebsiteURL {
+                Divider()
+                    .padding(.horizontal, 16)
+
+                Button {
+                    withAnimation(.easeInOut(duration: 0.18)) {
+                        showInfoPanel = false
+                    }
+                    openURL(storeURL)
+                } label: {
+                    HStack(spacing: 12) {
+                        Image(systemName: "safari")
+                            .font(.body)
+                            .foregroundColor(Color.appAccent)
+                            .frame(width: 24)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Visit store")
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                                .foregroundStyle(Color.primary)
+                            Text("Open the store's app or website")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Image(systemName: "arrow.up.right")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                }
+                .buttonStyle(.plain)
+            }
+
+            // Set / edit store website (admin only). Writes a shared override to
+            // the store_websites collection so it applies for everyone with this
+            // store, so it is restricted to the app owner's account.
+            if isStoreAdmin {
+                Divider()
+                    .padding(.horizontal, 16)
+
+                Button {
+                    websiteInputText = storeWebsiteURL?.absoluteString ?? ""
+                    withAnimation(.easeInOut(duration: 0.18)) {
+                        showInfoPanel = false
+                    }
+                    showingEditWebsite = true
+                } label: {
+                    HStack(spacing: 12) {
+                        Image(systemName: "link")
+                            .font(.body)
+                            .foregroundColor(Color.appAccent)
+                            .frame(width: 24)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(storeWebsiteURL == nil ? "Set store website" : "Edit store website")
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                                .foregroundStyle(Color.primary)
+                            Text("Add a link to this store's website or app")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                }
+                .buttonStyle(.plain)
+            }
+        }
     }
 
     /// The store's website URL, derived from its name via the shared domain map.
