@@ -40,14 +40,15 @@ struct StoresView: View {
     @State private var isFabShrunk: Bool = false
     @State private var isAtScrollBottom: Bool = false
     @State private var fabInactivityTimer: Timer? = nil
+    @State private var showingBackgroundPicker = false
     @Environment(\.colorScheme) var colorScheme
 
     var body: some View {
         NavigationStack {
             ZStack {
-                // Background always visible
-                Color.backgroundGradient(for: colorScheme)
-                    .ignoresSafeArea()
+                // Background always visible — the user's chosen color for
+                // subscribers, the default gradient otherwise.
+                SurfaceBackground(surface: .stores)
 
                 // Hidden navigation destination for notification taps
                 Color.clear
@@ -129,6 +130,21 @@ struct StoresView: View {
                     }
                 }
 
+                // Background color picker — always available, including from the
+                // empty state. Hidden during the tutorial so the highlighted
+                // icons stay the focus.
+                if !tutorialManager.isActive {
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        Button {
+                            showingBackgroundPicker = true
+                        } label: {
+                            Image(systemName: "paintpalette")
+                                .imageScale(.large)
+                        }
+                        .accessibilityLabel("Background color")
+                    }
+                }
+
                 // Sort + view mode toggle (shown when stores exist, or during tutorial to highlight the icons)
                 if !viewModel.userStoreItems.isEmpty || tutorialManager.isActive {
                     ToolbarItem(placement: .navigationBarTrailing) {
@@ -176,6 +192,9 @@ struct StoresView: View {
         }
         .sheet(isPresented: $showingPaywall) {
             SubscriptionPaywallView()
+        }
+        .sheet(isPresented: $showingBackgroundPicker) {
+            BackgroundColorPickerView(surface: .stores)
         }
         .sheet(item: $selectedStoreToShare) { storeToShare in
             ShareStoreView(viewModel: viewModel, messagesViewModel: messagesViewModel, userStoreItem: storeToShare)
