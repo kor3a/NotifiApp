@@ -25,11 +25,17 @@ class SubscriptionManager: ObservableObject {
     /// Maximum number of reminder items per store for a non-subscribed account.
     static let freeReminderLimitPerStore = 8
 
-    /// Whether a user may add another store to their list.
+    /// Whether a user may add another store to their list *themselves*.
     ///
     /// The check is made against the CURRENT count at add time, so existing
     /// users who already exceed the limit are grandfathered in: they keep all
     /// their stores, but adding one more requires a subscription.
+    ///
+    /// This governs self-service adds only. Stores shared by a friend or family
+    /// member can always be accepted, even past the limit — see
+    /// `MessagingService.acceptSharedStore`. Those accepted stores still count
+    /// toward `currentStoreCount` here, so a free user who is above the limit
+    /// from shares cannot add any of their own until they drop back under it.
     static func canAddStore(isSubscribed: Bool, currentStoreCount: Int) -> Bool {
         return isSubscribed || currentStoreCount < freeStoreLimit
     }

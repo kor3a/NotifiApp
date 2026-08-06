@@ -174,6 +174,15 @@ final class SubscriptionManagerTests: XCTestCase {
         XCTAssertFalse(SubscriptionManager.canAddStore(isSubscribed: false, currentStoreCount: 10))
     }
 
+    func testCanAddStore_freeUserOverLimitFromAcceptedSharesIsBlockedFromAddingMore() {
+        // Accepted shares are never blocked by the store limit, so a free user can
+        // end up above it. Once there, they still can't add stores of their own.
+        XCTAssertFalse(SubscriptionManager.canAddStore(
+            isSubscribed: false,
+            currentStoreCount: SubscriptionManager.freeStoreLimit + 2
+        ))
+    }
+
     func testCanAddStore_subscriberIsUnlimited() {
         XCTAssertTrue(SubscriptionManager.canAddStore(isSubscribed: true, currentStoreCount: 0))
         XCTAssertTrue(SubscriptionManager.canAddStore(

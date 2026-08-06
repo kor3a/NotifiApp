@@ -1121,29 +1121,15 @@ class MessagingService: ObservableObject {
 
     // MARK: - Shared Store Accept/Reject
 
-    /// Errors surfaced by the share-accept flows.
-    enum ShareAcceptError: LocalizedError {
-        /// A free-tier user tried to accept a share that would add a NEW store
-        /// while already at the free store limit. The request stays pending so
-        /// they can remove a store (or subscribe) and accept again.
-        case storeLimitReached
-
-        var errorDescription: String? {
-            switch self {
-            case .storeLimitReached:
-                return "Free accounts are limited to \(SubscriptionManager.freeStoreLimit) stores. Remove a store to make room, or upgrade to Premium for unlimited stores."
-            }
-        }
-    }
-
     /// Accept a shared store - adds the store to the user's list with appropriate permission
     ///
-    /// Free-tier store limit: when accepting would create a NEW store for the recipient
-    /// and they are already at the limit, this fails with `ShareAcceptError.storeLimitReached`
-    /// and the request stays pending. The merge path (recipient already has the store) is
-    /// never blocked — no new store is added. The per-store item limit is deliberately NOT
-    /// enforced here: recipients may accept stores with any number of items; they just
-    /// can't add more items until the count drops below the limit.
+    /// The free-tier store limit is deliberately NOT enforced here. Stores arriving from a
+    /// friend or family member are always acceptable, even when the recipient is already at
+    /// (or above) `SubscriptionManager.freeStoreLimit` — the cap only governs stores a user
+    /// adds themselves. Accepted shares still count toward that cap, so a free user who
+    /// accepts their way past the limit can no longer add stores on their own.
+    /// The per-store item limit is likewise not enforced: recipients may accept stores with
+    /// any number of items; they just can't add more items until the count drops below the limit.
     func acceptSharedStore(
         messageId: String,
         linkedStore: LinkedStore,
@@ -1153,7 +1139,6 @@ class MessagingService: ObservableObject {
         senderUserStoreId: String?,
         senderName: String,
         recipientName: String,
-        isSubscribed: Bool,
         completion: @escaping (Result<Void, Error>) -> Void
     ) {
         #if DEBUG
@@ -1238,19 +1223,6 @@ class MessagingService: ObservableObject {
                         #if DEBUG
                         print("🟢 MessagingService.acceptSharedStore: sortOrder=\(sortOrder), permission=\(linkedStore.permission)")
                         #endif
-
-                        // Free-tier store limit: accepting here would create a NEW store
-                        // (the merge path for already-owned stores returned above).
-                        guard SubscriptionManager.canAddStore(
-                            isSubscribed: isSubscribed,
-                            currentStoreCount: sortOrder
-                        ) else {
-                            #if DEBUG
-                            print("🟢 MessagingService.acceptSharedStore: BLOCKED - free store limit reached (\(sortOrder) stores)")
-                            #endif
-                            completion(.failure(ShareAcceptError.storeLimitReached))
-                            return
-                        }
 
                         // Create the user_store based on permission.
                         // Recipients (edit + view) read their reminders directly from the sender's
@@ -1709,10 +1681,9 @@ class MessagingService: ObservableObject {
 
     /// Accept a shared reminder - adds the store and reminder to the user's list and links them for sync
     ///
-    /// Free-tier store limit: when the recipient doesn't have the store yet, accepting
-    /// creates a new store — blocked with `ShareAcceptError.storeLimitReached` when a
-    /// non-subscribed recipient is already at the store limit. Adding to an existing
-    /// store is never blocked.
+    /// Like `acceptSharedStore`, the free-tier store limit is not enforced here: accepting a
+    /// reminder for a store the recipient doesn't have yet creates that store regardless of
+    /// how many they already have. The cap only applies to stores a user adds themselves.
     func acceptSharedReminder(
         messageId: String,
         linkedReminder: LinkedReminder,
@@ -1721,7 +1692,6 @@ class MessagingService: ObservableObject {
         senderUserId: String,
         senderName: String,
         recipientName: String,
-        isSubscribed: Bool,
         completion: @escaping (Result<Void, Error>) -> Void
     ) {
         guard let storeId = linkedReminder.storeId else {
@@ -1772,43 +1742,20 @@ class MessagingService: ObservableObject {
                         completion: completion
                     )
                 } else {
-                    // User doesn't have this store — accepting creates a NEW store,
-                    // which counts against the free-tier store limit.
-                    self.db.collection("user_stores")
-                        .whereField("userId", isEqualTo: currentUserId)
-                        .getDocuments { [weak self] countSnapshot, countError in
-                            guard let self = self else { return }
-
-                            if let countError = countError {
-                                completion(.failure(countError))
-                                return
-                            }
-
-                            let storeCount = countSnapshot?.documents.count ?? 0
-                            guard SubscriptionManager.canAddStore(
-                                isSubscribed: isSubscribed,
-                                currentStoreCount: storeCount
-                            ) else {
-                                #if DEBUG
-                                print("MessagingService: Shared reminder accept BLOCKED - free store limit reached (\(storeCount) stores)")
-                                #endif
-                                completion(.failure(ShareAcceptError.storeLimitReached))
-                                return
-                            }
-
-                            self.addStoreAndReminder(
-                                storeId: storeId,
-                                linkedReminder: linkedReminder,
-                                currentUserId: currentUserId,
-                                currentUserEmail: currentUserEmail,
-                                senderUserId: senderUserId,
-                                senderName: senderName,
-                                recipientName: recipientName,
-                                sharedReminderId: sharedReminderId,
-                                messageId: messageId,
-                                completion: completion
-                            )
-                        }
+                    // User doesn't have this store — accepting creates a NEW store for
+                    // them. Allowed regardless of the free-tier limit (see doc comment).
+                    self.addStoreAndReminder(
+                        storeId: storeId,
+                        linkedReminder: linkedReminder,
+                        currentUserId: currentUserId,
+                        currentUserEmail: currentUserEmail,
+                        senderUserId: senderUserId,
+                        senderName: senderName,
+                        recipientName: recipientName,
+                        sharedReminderId: sharedReminderId,
+                        messageId: messageId,
+                        completion: completion
+                    )
                 }
             }
     }
