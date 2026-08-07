@@ -20,26 +20,21 @@ extension Color {
     static let appWarning = Color.orange
 
     // MARK: - Gradients
-    static func backgroundGradient(for colorScheme: ColorScheme) -> LinearGradient {
-        if colorScheme == .dark {
-            return LinearGradient(
-                colors: [
-                    Color(red: 0.1, green: 0.1, blue: 0.15),
-                    Color(red: 0.15, green: 0.15, blue: 0.2)
-                ],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-        } else {
-            return LinearGradient(
-                colors: [
-                    Color(red: 0.95, green: 0.96, blue: 0.98),
-                    Color(red: 0.88, green: 0.92, blue: 0.96)
-                ],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-        }
+    /// The app's default backdrop. `shade` deepens (positive) or lifts
+    /// (negative) both stops so the default look can be tuned like any other
+    /// background color — see `Color.shaded(by:)`.
+    static func backgroundGradient(for colorScheme: ColorScheme, shade: Double = 0) -> LinearGradient {
+        let stops: [Color] = colorScheme == .dark
+            ? [Color(red: 0.1, green: 0.1, blue: 0.15),
+               Color(red: 0.15, green: 0.15, blue: 0.2)]
+            : [Color(red: 0.95, green: 0.96, blue: 0.98),
+               Color(red: 0.88, green: 0.92, blue: 0.96)]
+
+        return LinearGradient(
+            colors: stops.map { $0.shaded(by: shade) },
+            startPoint: .top,
+            endPoint: .bottom
+        )
     }
 
     static let iconGradient = LinearGradient(

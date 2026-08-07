@@ -631,14 +631,10 @@ struct StoresView: View {
                                 showingBackgroundPicker = true
                             }) {
                                 HStack {
-                                    Image(systemName: "photo.on.rectangle.angled")
+                                    Image(systemName: "paintpalette")
                                         .font(.system(size: 20))
-                                    // The longest label in the menu — scale it
-                                    // rather than let it wrap in the fixed-width row.
-                                    Text("Change Background")
+                                    Text("Colors")
                                         .font(.system(size: 17))
-                                        .lineLimit(1)
-                                        .minimumScaleFactor(0.85)
                                     Spacer()
                                 }
                                 .padding()

@@ -48,6 +48,13 @@ final class BackgroundPreferencesTests: XCTestCase {
         return try XCTUnwrap(image.jpegData(compressionQuality: 1.0))
     }
 
+    /// The HSB components shading works in.
+    private func components(of color: Color) -> (hue: CGFloat, saturation: CGFloat, brightness: CGFloat) {
+        var hue: CGFloat = 0, saturation: CGFloat = 0, brightness: CGFloat = 0, alpha: CGFloat = 0
+        XCTAssertTrue(UIColor(color).getHue(&hue, saturation: &saturation, brightness: &brightness, alpha: &alpha))
+        return (hue, saturation, brightness)
+    }
+
     // MARK: - Color Defaults
 
     func testBackgroundColor_defaultsToSystem() {
@@ -217,17 +224,116 @@ final class BackgroundPreferencesTests: XCTestCase {
         XCTAssertEqual(preferences.dimLevel(for: .stores), 0)
     }
 
+    // MARK: - Shade
+
+    func testShadeLevel_defaultsToZeroAndClamps() {
+        XCTAssertEqual(preferences.shadeLevel(for: .stores), 0)
+
+        preferences.setShadeLevel(-4, for: .stores)
+        XCTAssertEqual(preferences.shadeLevel(for: .stores), -1)
+
+        preferences.setShadeLevel(4, for: .stores)
+        XCTAssertEqual(preferences.shadeLevel(for: .stores), 1)
+    }
+
+    func testShadeLevel_persistsAcrossInstances() {
+        preferences.setShadeLevel(0.65, for: .stores)
+
+        let reloaded = BackgroundPreferences(defaults: defaults, imageDirectory: imageDirectory)
+        XCTAssertEqual(reloaded.shadeLevel(for: .stores), 0.65, accuracy: 0.0001)
+    }
+
+    func testShadeLevel_isIsolatedPerSurface() {
+        preferences.setShadeLevel(0.5, for: .stores)
+
+        XCTAssertEqual(preferences.shadeLevel(for: .stores), 0.5, accuracy: 0.0001)
+        XCTAssertEqual(preferences.shadeLevel(for: .reminders(storeId: "store-1")), 0)
+        XCTAssertEqual(preferences.shadeLevel(for: .conversation(id: "chat-1")), 0)
+    }
+
+    /// The shade is a property of the surface, not of the color, so trying out
+    /// swatches doesn't throw away the depth the user already settled on.
+    func testShadeLevel_survivesAColorChange() {
+        preferences.setShadeLevel(0.8, for: .stores)
+        preferences.setBackgroundColor(.sand, for: .stores)
+
+        XCTAssertEqual(preferences.shadeLevel(for: .stores), 0.8, accuracy: 0.0001)
+    }
+
+    // MARK: - Shading
+
+    func testShaded_zeroLeavesTheColorUntouched() {
+        for color in AppBackgroundColor.allCases {
+            let base = color.fill(for: .light)
+            XCTAssertEqual(base.shaded(by: 0), base, "\(color.displayName) changed at shade 0")
+        }
+    }
+
+    /// The reason the slider exists: a light-mode palette entry has to be able
+    /// to reach a genuinely dark tone, not just a slightly duller pale one.
+    func testShaded_positiveDarkensEveryColorIntoDarkTerritory() {
+        for color in AppBackgroundColor.allCases {
+            let base = components(of: color.fill(for: .light)).brightness
+            let half = components(of: color.fill(for: .light, shade: 0.5)).brightness
+            let full = components(of: color.fill(for: .light, shade: 1)).brightness
+
+            XCTAssertLessThan(half, base, "\(color.displayName) didn't darken at half shade")
+            XCTAssertLessThan(full, half, "\(color.displayName) didn't keep darkening")
+            XCTAssertLessThanOrEqual(
+                Double(full), Color.maxShadeBrightness + 0.01,
+                "\(color.displayName) never reaches a genuinely dark tone"
+            )
+        }
+    }
+
+    func testShaded_negativeLightensEveryColor() {
+        for color in AppBackgroundColor.allCases {
+            let base = components(of: color.fill(for: .dark)).brightness
+            let lifted = components(of: color.fill(for: .dark, shade: -1)).brightness
+
+            XCTAssertGreaterThan(lifted, base, "\(color.displayName) didn't lighten")
+        }
+    }
+
+    /// Darkening lifts saturation so the hue survives the drop in brightness —
+    /// but proportionally, so a near-neutral choice stays near-neutral instead
+    /// of picking up a color cast.
+    func testShaded_keepsHueWithoutTintingNeutrals() {
+        let midnight = components(of: AppBackgroundColor.midnight.fill(for: .light, shade: 1))
+        XCTAssertGreaterThan(midnight.saturation, 0.1, "Midnight lost its hue when darkened")
+
+        let graphite = components(of: AppBackgroundColor.graphite.fill(for: .light, shade: 1))
+        XCTAssertLessThan(graphite.saturation, 0.1, "Graphite picked up a color cast when darkened")
+    }
+
+    func testShaded_clampsOutOfRangeValues() {
+        XCTAssertEqual(
+            components(of: AppBackgroundColor.midnight.fill(for: .light, shade: 5)).brightness,
+            components(of: AppBackgroundColor.midnight.fill(for: .light, shade: 1)).brightness,
+            accuracy: 0.001
+        )
+        XCTAssertEqual(
+            components(of: AppBackgroundColor.midnight.fill(for: .light, shade: -5)).brightness,
+            components(of: AppBackgroundColor.midnight.fill(for: .light, shade: -1)).brightness,
+            accuracy: 0.001
+        )
+    }
+
     // MARK: - Reset
 
     func testReset_clearsOnlyTheGivenSurface() throws {
         let data = try sampleImageData(width: 300, height: 300)
         preferences.setBackgroundImage(from: data, for: .stores)
+        preferences.setShadeLevel(0.4, for: .stores)
         preferences.setBackgroundColor(.sand, for: .reminders(storeId: "store-1"))
+        preferences.setShadeLevel(0.6, for: .reminders(storeId: "store-1"))
 
         preferences.reset(.stores)
 
         XCTAssertFalse(preferences.hasBackgroundImage(for: .stores))
+        XCTAssertEqual(preferences.shadeLevel(for: .stores), 0)
         XCTAssertEqual(preferences.backgroundColor(for: .reminders(storeId: "store-1")), .sand)
+        XCTAssertEqual(preferences.shadeLevel(for: .reminders(storeId: "store-1")), 0.6, accuracy: 0.0001)
     }
 
     func testResetAll_clearsEverySurfaceIncludingConversationsAndPhotos() throws {
@@ -237,9 +343,11 @@ final class BackgroundPreferencesTests: XCTestCase {
         preferences.setBackgroundColor(.plum, for: .conversation(id: "chat-1"))
         preferences.setBackgroundImage(from: data, for: .conversation(id: "chat-2"))
         preferences.setDimLevel(0.7, for: .conversation(id: "chat-2"))
+        preferences.setShadeLevel(0.9, for: .stores)
 
         preferences.resetAll()
 
+        XCTAssertEqual(preferences.shadeLevel(for: .stores), 0)
         XCTAssertEqual(preferences.backgroundColor(for: .stores), .system)
         XCTAssertEqual(preferences.backgroundColor(for: .reminders(storeId: "store-1")), .system)
         XCTAssertEqual(preferences.backgroundColor(for: .conversation(id: "chat-1")), .system)
@@ -255,14 +363,17 @@ final class BackgroundPreferencesTests: XCTestCase {
     }
 
     func testStorageKeys_areUniquePerSurface() {
-        let keys = [
-            BackgroundSurface.stores.colorStorageKey,
-            BackgroundSurface.reminders(storeId: "store-1").colorStorageKey,
-            BackgroundSurface.reminders(storeId: "store-2").colorStorageKey,
-            BackgroundSurface.conversation(id: "store-1").colorStorageKey,
-            BackgroundSurface.conversation(id: "chat-1").colorStorageKey,
-            BackgroundSurface.conversation(id: "chat-2").colorStorageKey
+        let surfaces: [BackgroundSurface] = [
+            .stores,
+            .reminders(storeId: "store-1"),
+            .reminders(storeId: "store-2"),
+            .conversation(id: "store-1"),
+            .conversation(id: "chat-1"),
+            .conversation(id: "chat-2")
         ]
+        // Every key of every kind, so a shade key can never land on another
+        // surface's color or dim key either.
+        let keys = surfaces.flatMap { [$0.colorStorageKey, $0.dimStorageKey, $0.shadeStorageKey] }
         XCTAssertEqual(Set(keys).count, keys.count)
     }
 
