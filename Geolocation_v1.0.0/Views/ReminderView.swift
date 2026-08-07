@@ -51,7 +51,6 @@ struct ReminderView: View {
     @State private var isReorderMode = false
     @State private var showDuplicateAlert = false
     @State private var duplicateTitle = ""
-    @State private var showingLimitPaywall = false
     @State private var reminderForQuantity: Reminder?
     @State private var quantityText = ""
     @State private var reminderForCategory: Reminder?
@@ -93,17 +92,6 @@ struct ReminderView: View {
     /// Smart Category is active only when the user is subscribed AND has the toggle enabled.
     private var effectiveSmartCategoryEnabled: Bool {
         isSubscribed && smartCategoryEnabled
-    }
-
-    /// Free-tier item limit check for this store. `displayedReminders` excludes
-    /// the in-progress autosaved item and items staged for deletion, so it
-    /// reflects committed items. Stores already over the limit keep their items
-    /// (grandfathered), but adding another requires a subscription.
-    private var canAddMoreItems: Bool {
-        TutorialManager.shared.isActive || SubscriptionManager.canAddReminder(
-            isSubscribed: isSubscribed,
-            currentReminderCount: viewModel.displayedReminders.count
-        )
     }
 
     /// Recipient names this (owner's) store is shared with, used to flag newly
@@ -232,9 +220,6 @@ struct ReminderView: View {
                         $0.title.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
                     })
                 )
-            }
-            .sheet(isPresented: $showingLimitPaywall) {
-                SubscriptionPaywallView()
             }
             .sheet(isPresented: $showingAnalytics) {
                 StoreAnalyticsView(userStoreItem: userStoreItem)
@@ -511,17 +496,6 @@ struct ReminderView: View {
 
             guard isAddingNewReminder else { return }
 
-            // Free-tier item limit: block creation of a NEW autosaved item once the
-            // store is at the limit (e.g. the user just submitted the last allowed
-            // item and kept typing). Updates to an existing autosave pass through.
-            if viewModel.autosavedReminderId == nil && !canAddMoreItems {
-                newReminderText = ""
-                isAddingNewReminder = false
-                isNewReminderFocused = false
-                showingLimitPaywall = true
-                return
-            }
-
             let vm = viewModel
             let storeId = userStoreItem.reminderStoreId
             let shared = effectiveSharedWith
@@ -624,11 +598,7 @@ struct ReminderView: View {
 
             if userStoreItem.permission != .view {
                 Button {
-                    if canAddMoreItems {
-                        isAddingNewReminder = true
-                    } else {
-                        showingLimitPaywall = true
-                    }
+                    isAddingNewReminder = true
                 } label: {
                     Label("Add Reminder", systemImage: "plus")
                 }
@@ -957,12 +927,6 @@ struct ReminderView: View {
                         let alreadyExists = viewModel.isDuplicateReminder(title: tag.title)
                         FavoriteTagView(title: tag.title, isActive: !alreadyExists)
                             .onTapGesture {
-                                // Duplicates are skipped inside addReminderFromFavorite;
-                                // only enforce the item limit for taps that would add.
-                                guard alreadyExists || canAddMoreItems else {
-                                    showingLimitPaywall = true
-                                    return
-                                }
                                 viewModel.addReminderFromFavorite(
                                     tag: tag,
                                     sharedWith: effectiveSharedWith,
@@ -1025,11 +989,7 @@ struct ReminderView: View {
             }
         } else {
             Button {
-                if canAddMoreItems {
-                    isAddingNewReminder = true
-                } else {
-                    showingLimitPaywall = true
-                }
+                isAddingNewReminder = true
             } label: {
                 HStack {
                     Image(systemName: "plus")
@@ -1243,17 +1203,6 @@ struct ReminderView: View {
         if viewModel.isDuplicateReminder(title: title, excludingId: viewModel.autosavedReminderId) {
             duplicateTitle = title
             showDuplicateAlert = true
-            return
-        }
-
-        // Free-tier item limit: block adding a brand-new item once the store is
-        // at the limit (Return pressed before the autosave debounce fired). An
-        // existing autosave was already created under the limit, so it may finalize.
-        if viewModel.autosavedReminderId == nil && !canAddMoreItems {
-            newReminderText = ""
-            isAddingNewReminder = false
-            isNewReminderFocused = false
-            showingLimitPaywall = true
             return
         }
 

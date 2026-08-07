@@ -613,9 +613,7 @@ class MessagesViewModel: ObservableObject {
 
     func acceptSharedReminder(
         message: Message,
-        isSubscribed: Bool,
-        completion: @escaping (Bool) -> Void,
-        onStoreLimitExceeded: @escaping () -> Void
+        completion: @escaping (Bool) -> Void
     ) {
         guard let userId = currentUserId,
               let userEmail = UserSessionManager.shared.currentUser?.email,
@@ -632,8 +630,7 @@ class MessagesViewModel: ObservableObject {
             currentUserEmail: userEmail,
             senderUserId: message.senderId,
             senderName: message.senderName,
-            recipientName: userName,
-            isSubscribed: isSubscribed
+            recipientName: userName
         ) { result in
             DispatchQueue.main.async {
                 switch result {
@@ -646,11 +643,7 @@ class MessagesViewModel: ObservableObject {
                     #if DEBUG
                     print("MessagesViewModel: Error accepting shared reminder: \(error)")
                     #endif
-                    if case MessagingService.ShareAcceptError.storeLimitReached = error {
-                        onStoreLimitExceeded()
-                    } else {
-                        completion(false)
-                    }
+                    completion(false)
                 }
             }
         }
@@ -886,9 +879,7 @@ class MessagesViewModel: ObservableObject {
 
     func acceptSharedStore(
         message: Message,
-        isSubscribed: Bool,
-        completion: @escaping (Bool) -> Void,
-        onStoreLimitExceeded: @escaping () -> Void
+        completion: @escaping (Bool) -> Void
     ) {
         #if DEBUG
         print("🔵 MessagesViewModel.acceptSharedStore: Starting for message \(message.id)")
@@ -938,8 +929,7 @@ class MessagesViewModel: ObservableObject {
             senderUserId: linkedStore.senderUserId,
             senderUserStoreId: linkedStore.senderUserStoreId,
             senderName: message.senderName,  // Pass sender name for display
-            recipientName: userName,  // Pass recipient name to update owner's sharedWith
-            isSubscribed: isSubscribed
+            recipientName: userName  // Pass recipient name to update owner's sharedWith
         ) { result in
             DispatchQueue.main.async {
                 switch result {
@@ -952,11 +942,7 @@ class MessagesViewModel: ObservableObject {
                     #if DEBUG
                     print("🔵 MessagesViewModel.acceptSharedStore: FAILURE - \(error)")
                     #endif
-                    if case MessagingService.ShareAcceptError.storeLimitReached = error {
-                        onStoreLimitExceeded()
-                    } else {
-                        completion(false)
-                    }
+                    completion(false)
                 }
             }
         }

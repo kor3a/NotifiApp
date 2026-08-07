@@ -53,8 +53,8 @@ struct SubscriptionPaywallView: View {
                     // Feature rows
                     VStack(alignment: .leading, spacing: 16) {
                         featureRow(icon: "infinity.circle.fill", color: .orange,
-                                   title: "Unlimited Stores & Items",
-                                   description: "Free accounts are limited to \(SubscriptionManager.freeStoreLimit) stores and \(SubscriptionManager.freeReminderLimitPerStore) items per store — go unlimited with Premium")
+                                   title: "Unlimited Stores",
+                                   description: "Free accounts are limited to \(SubscriptionManager.freeStoreLimit) stores of your own — go unlimited with Premium")
                         featureRow(icon: "fork.knife.circle.fill", color: .blue,
                                    title: "Smart Recipe",
                                    description: "Ask for any recipe and add ingredients directly to your stores")

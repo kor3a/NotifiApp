@@ -174,6 +174,15 @@ final class SubscriptionManagerTests: XCTestCase {
         XCTAssertFalse(SubscriptionManager.canAddStore(isSubscribed: false, currentStoreCount: 10))
     }
 
+    func testCanAddStore_freeUserOverLimitFromAcceptedSharesIsBlockedFromAddingMore() {
+        // Accepted shares are never blocked by the store limit, so a free user can
+        // end up above it. Once there, they still can't add stores of their own.
+        XCTAssertFalse(SubscriptionManager.canAddStore(
+            isSubscribed: false,
+            currentStoreCount: SubscriptionManager.freeStoreLimit + 2
+        ))
+    }
+
     func testCanAddStore_subscriberIsUnlimited() {
         XCTAssertTrue(SubscriptionManager.canAddStore(isSubscribed: true, currentStoreCount: 0))
         XCTAssertTrue(SubscriptionManager.canAddStore(
@@ -183,35 +192,4 @@ final class SubscriptionManagerTests: XCTestCase {
         XCTAssertTrue(SubscriptionManager.canAddStore(isSubscribed: true, currentStoreCount: 500))
     }
 
-    // MARK: - Free Tier Limits (canAddReminder)
-
-    func testCanAddReminder_freeUserUnderLimit() {
-        XCTAssertTrue(SubscriptionManager.canAddReminder(isSubscribed: false, currentReminderCount: 0))
-        XCTAssertTrue(SubscriptionManager.canAddReminder(
-            isSubscribed: false,
-            currentReminderCount: SubscriptionManager.freeReminderLimitPerStore - 1
-        ))
-    }
-
-    func testCanAddReminder_freeUserAtLimitIsBlocked() {
-        XCTAssertFalse(SubscriptionManager.canAddReminder(
-            isSubscribed: false,
-            currentReminderCount: SubscriptionManager.freeReminderLimitPerStore
-        ))
-    }
-
-    func testCanAddReminder_grandfatheredFreeUserOverLimitIsBlockedFromAddingMore() {
-        // A store that had 20 items before the limit existed keeps them all,
-        // but adding a 21st requires a subscription.
-        XCTAssertFalse(SubscriptionManager.canAddReminder(isSubscribed: false, currentReminderCount: 20))
-    }
-
-    func testCanAddReminder_subscriberIsUnlimited() {
-        XCTAssertTrue(SubscriptionManager.canAddReminder(isSubscribed: true, currentReminderCount: 0))
-        XCTAssertTrue(SubscriptionManager.canAddReminder(
-            isSubscribed: true,
-            currentReminderCount: SubscriptionManager.freeReminderLimitPerStore
-        ))
-        XCTAssertTrue(SubscriptionManager.canAddReminder(isSubscribed: true, currentReminderCount: 500))
-    }
 }
