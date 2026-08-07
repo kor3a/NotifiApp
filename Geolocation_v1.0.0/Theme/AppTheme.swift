@@ -48,6 +48,32 @@ extension Color {
         endPoint: .bottomTrailing
     )
 
+    // MARK: - Card Surfaces
+
+    /// A white wash laid over a card's `.ultraThinMaterial` fill in light mode.
+    ///
+    /// Material takes on whatever sits behind it, and every screen's backdrop is
+    /// near-white in light mode, so an untinted card ends up the same brightness
+    /// as the page and its edges vanish. Dark mode already separates cleanly and
+    /// gets no tint.
+    static func cardFillTint(for colorScheme: ColorScheme) -> Color {
+        colorScheme == .dark ? .clear : Color.white.opacity(0.7)
+    }
+
+    /// The card outline. `cardBorder` is a white gradient, which is invisible
+    /// against the lightened light-mode card, so light mode gets a soft dark
+    /// hairline instead.
+    static func cardBorderStyle(for colorScheme: ColorScheme) -> AnyShapeStyle {
+        colorScheme == .dark
+            ? AnyShapeStyle(cardBorder(for: colorScheme))
+            : AnyShapeStyle(Color.black.opacity(0.12))
+    }
+
+    /// Drop-shadow opacity that pairs with the card fill above.
+    static func cardShadowOpacity(for colorScheme: ColorScheme) -> Double {
+        colorScheme == .dark ? 0.3 : 0.14
+    }
+
     // MARK: - Border Colors
     static func cardBorder(for colorScheme: ColorScheme) -> LinearGradient {
         if colorScheme == .dark {
@@ -83,12 +109,16 @@ struct CardStyle: ViewModifier {
                     .fill(.ultraThinMaterial)
                     .overlay(
                         RoundedRectangle(cornerRadius: 16)
+                            .fill(Color.cardFillTint(for: colorScheme))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16)
                             .stroke(
-                                Color.cardBorder(for: colorScheme),
+                                Color.cardBorderStyle(for: colorScheme),
                                 lineWidth: 1.5
                             )
                     )
-                    .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.3 : 0.1), radius: 8, x: 0, y: 4)
+                    .shadow(color: Color.black.opacity(Color.cardShadowOpacity(for: colorScheme)), radius: 8, x: 0, y: 4)
                     .shadow(color: Color.white.opacity(colorScheme == .dark ? 0.05 : 0.5), radius: 2, x: 0, y: -2)
                     .padding(.vertical, 4)
             )

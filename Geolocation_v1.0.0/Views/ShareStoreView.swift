@@ -296,8 +296,10 @@ struct ShareStoreView: View {
         }
         .padding(12)
         .background(
+            // Sits inside a card, which light mode lightens — the old 0.03 fill
+            // washed out against it, leaving the rows with no visible boundary.
             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(Color.primary.opacity(colorScheme == .dark ? 0.06 : 0.03))
+                .fill(Color.primary.opacity(0.06))
         )
     }
 
@@ -452,10 +454,10 @@ struct ShareStoreView: View {
                 .padding(14)
                 .background(
                     RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .fill(Color.primary.opacity(colorScheme == .dark ? 0.08 : 0.04))
+                        .fill(Color.primary.opacity(colorScheme == .dark ? 0.08 : 0.07))
                         .overlay(
                             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                .stroke(Color.secondary.opacity(0.2), lineWidth: 1)
+                                .stroke(Color.secondary.opacity(0.35), lineWidth: 1)
                         )
                 )
                 .onChange(of: recipientEmail) { _, newValue in
