@@ -52,10 +52,6 @@ struct BackgroundPickerView: View {
                 VStack(spacing: 24) {
                     preview
 
-                    if !subscriptionManager.isSubscribed {
-                        premiumBanner
-                    }
-
                     photoSection
                     swatchGrid
 
@@ -194,44 +190,6 @@ struct BackgroundPickerView: View {
                         .stroke(Color.cardBorder(for: colorScheme), lineWidth: 1.5)
                 )
         )
-    }
-
-    // MARK: - Premium Banner
-
-    private var premiumBanner: some View {
-        Button {
-            showingPaywall = true
-        } label: {
-            HStack(spacing: 12) {
-                Image(systemName: "crown.fill")
-                    .font(.system(size: 20))
-                    .foregroundStyle(.linearGradient(
-                        colors: [.yellow, .orange],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ))
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Photo Backgrounds")
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
-                        .foregroundStyle(.primary)
-                    Text("Subscribe to use your own photo. Colors are free.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-
-                Spacer()
-
-                Image(systemName: "chevron.right")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
-            }
-            .padding(14)
-            .background(RoundedRectangle(cornerRadius: 14).fill(.ultraThinMaterial))
-        }
-        .buttonStyle(.plain)
-        .padding(.horizontal, 20)
     }
 
     // MARK: - Photo
