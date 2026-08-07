@@ -2,7 +2,7 @@
 //  BackgroundTheme.swift
 //  Geolocation_v1.0.0
 //
-//  Per-screen custom backgrounds for subscribers.
+//  Per-screen custom backgrounds: colors for everyone, photos for subscribers.
 //
 
 import SwiftUI
@@ -49,6 +49,9 @@ enum BackgroundSurface: Hashable, Identifiable {
     /// UserDefaults key holding how much the background photo is dimmed.
     var dimStorageKey: String { "backgroundDim_\(storageSuffix)" }
 
+    /// UserDefaults key holding how far the chosen color is deepened or lifted.
+    var shadeStorageKey: String { "backgroundShade_\(storageSuffix)" }
+
     /// File name for this surface's background photo.
     ///
     /// Store and conversation ids come from Firestore, so they're hex-encoded
@@ -73,15 +76,22 @@ enum BackgroundSurface: Hashable, Identifiable {
 
 // MARK: - Background Color Palette
 
-/// The solid background colors a subscriber can choose from.
+/// The solid background colors anyone can choose from — colors are free, only
+/// photo backgrounds need a subscription.
 ///
 /// Every color ships a light and a dark variant. The variants are deliberately
 /// low-saturation — content sits on `.ultraThinMaterial` cards, which pick up
 /// the backdrop, so anything vivid would bleed into the cards and hurt text
 /// contrast. These stay light in light mode and deep in dark mode so
 /// `.primary` / `.secondary` text keeps its system contrast on both.
+///
+/// That light-mode variant is why "Midnight" can land on screen looking pale:
+/// the palette starts from what keeps text readable, not from what the name
+/// suggests. Every fill therefore takes a `shade`, letting the user push the
+/// color deeper (or lighter) from that starting point — see `Color.shaded(by:)`.
 enum AppBackgroundColor: String, CaseIterable, Identifiable {
-    /// The app's original gradient. Also the fallback when a subscription lapses.
+    /// The app's original gradient. Also what a surface falls back to when a
+    /// photo is set but the subscription behind it has lapsed.
     case system
 
     case graphite
@@ -122,9 +132,28 @@ enum AppBackgroundColor: String, CaseIterable, Identifiable {
         allCases.filter { $0 != .system }
     }
 
-    /// The flat fill for this choice. `.system` has no flat fill — callers
-    /// render `Color.backgroundGradient(for:)` for that case instead.
-    func fill(for colorScheme: ColorScheme) -> Color {
+    /// The flat fill for this choice, deepened or lifted by `shade`.
+    ///
+    /// `.system` has no flat fill of its own — it returns a single tone close to
+    /// its gradient, which is what the swatch and the miniature preview want.
+    /// Use `background(for:shade:)` to render the real gradient.
+    func fill(for colorScheme: ColorScheme, shade: Double = 0) -> Color {
+        baseFill(for: colorScheme).shaded(by: shade)
+    }
+
+    /// The background to actually place behind a screen: the default gradient
+    /// for `.system`, a flat fill for every other color, both carrying `shade`.
+    ///
+    /// Returns `AnyShapeStyle` because the two cases are different types, and
+    /// every call site wants one thing it can drop into `Rectangle().fill(_:)`.
+    func background(for colorScheme: ColorScheme, shade: Double = 0) -> AnyShapeStyle {
+        guard self == .system else {
+            return AnyShapeStyle(fill(for: colorScheme, shade: shade))
+        }
+        return AnyShapeStyle(Color.backgroundGradient(for: colorScheme, shade: shade))
+    }
+
+    private func baseFill(for colorScheme: ColorScheme) -> Color {
         let isDark = colorScheme == .dark
         switch self {
         case .system:
@@ -167,6 +196,54 @@ enum AppBackgroundColor: String, CaseIterable, Identifiable {
             return isDark ? Color(red: 0.13, green: 0.11, blue: 0.20)
                           : Color(red: 0.93, green: 0.91, blue: 0.98)
         }
+    }
+}
+
+// MARK: - Shading
+
+extension Color {
+    /// How dark a color gets at full shade. Deeper than any palette entry's dark
+    /// variant, so "all the way right" reads as genuinely dark rather than dim.
+    static let maxShadeBrightness: Double = 0.06
+
+    /// Returns this color deepened (`shade` > 0) or lifted (`shade` < 0),
+    /// with `0` leaving it untouched. Values outside `-1...1` are clamped.
+    ///
+    /// The move happens in HSB so the hue survives it. Darkening also raises
+    /// saturation in proportion, because dropping brightness alone slides a pale
+    /// color toward flat grey — the boost is multiplicative, so near-neutral
+    /// choices like Graphite stay neutral instead of picking up a color cast.
+    func shaded(by shade: Double) -> Color {
+        let amount = min(max(shade, -1), 1)
+        guard amount != 0 else { return self }
+
+        var hue: CGFloat = 0
+        var saturation: CGFloat = 0
+        var brightness: CGFloat = 0
+        var alpha: CGFloat = 0
+        guard UIColor(self).getHue(&hue, saturation: &saturation, brightness: &brightness, alpha: &alpha) else {
+            return self
+        }
+
+        let distance = CGFloat(abs(amount))
+        let targetBrightness: CGFloat
+        let targetSaturation: CGFloat
+        if amount > 0 {
+            targetBrightness = CGFloat(Self.maxShadeBrightness)
+            targetSaturation = min(saturation * 2.2, 0.6)
+        } else {
+            // Lifting washes the color out as it approaches white, mirroring how
+            // the light-mode variants are built.
+            targetBrightness = 1
+            targetSaturation = saturation * 0.25
+        }
+
+        return Color(
+            hue: Double(hue),
+            saturation: Double(saturation + (targetSaturation - saturation) * distance),
+            brightness: Double(brightness + (targetBrightness - brightness) * distance),
+            opacity: Double(alpha)
+        )
     }
 }
 
@@ -360,12 +437,30 @@ final class BackgroundPreferences: ObservableObject {
         revision &+= 1
     }
 
+    // MARK: - Shade
+
+    /// How far the surface's color is pushed from its palette value, -1...1.
+    ///
+    /// Negative lifts it toward white, positive deepens it toward black, and 0 —
+    /// the default, and what an unset key reads back as — leaves the palette
+    /// value alone. Kept separate from the color itself so switching swatches
+    /// keeps the depth the user settled on.
+    func shadeLevel(for surface: BackgroundSurface) -> Double {
+        min(max(defaults.double(forKey: surface.shadeStorageKey), -1), 1)
+    }
+
+    func setShadeLevel(_ level: Double, for surface: BackgroundSurface) {
+        defaults.set(min(max(level, -1), 1), forKey: surface.shadeStorageKey)
+        revision &+= 1
+    }
+
     // MARK: - Reset
 
     /// Clears a single surface back to the app default.
     func reset(_ surface: BackgroundSurface) {
         defaults.removeObject(forKey: surface.colorStorageKey)
         defaults.removeObject(forKey: surface.dimStorageKey)
+        defaults.removeObject(forKey: surface.shadeStorageKey)
         deleteImageFile(for: surface)
         revision &+= 1
     }
@@ -378,7 +473,9 @@ final class BackgroundPreferences: ObservableObject {
     /// walk.
     func resetAll() {
         for key in defaults.dictionaryRepresentation().keys
-        where key.hasPrefix("backgroundColor_") || key.hasPrefix("backgroundDim_") {
+        where key.hasPrefix("backgroundColor_")
+            || key.hasPrefix("backgroundDim_")
+            || key.hasPrefix("backgroundShade_") {
             defaults.removeObject(forKey: key)
         }
 
@@ -392,12 +489,13 @@ final class BackgroundPreferences: ObservableObject {
 
 // MARK: - Background View
 
-/// The background layer for a surface — the user's chosen photo or color when
-/// they're subscribed, the app's default gradient otherwise.
+/// The background layer for a surface — the user's chosen color, or their photo
+/// when they're subscribed.
 ///
-/// The subscription check lives here rather than at selection time so a lapsed
-/// subscription falls back to the default look without erasing what the user
-/// picked; resubscribing brings their background straight back.
+/// Colors are free for everyone; only photos are a subscription feature. The
+/// photo check lives here rather than at selection time so a lapsed
+/// subscription falls back to the default look without erasing the photo;
+/// resubscribing brings it straight back.
 struct SurfaceBackground: View {
     let surface: BackgroundSurface
 
@@ -406,8 +504,7 @@ struct SurfaceBackground: View {
     @ObservedObject private var subscriptionManager = SubscriptionManager.shared
 
     private var selection: AppBackgroundColor {
-        guard subscriptionManager.isSubscribed else { return .system }
-        return preferences.backgroundColor(for: surface)
+        preferences.backgroundColor(for: surface)
     }
 
     private var image: UIImage? {
@@ -423,10 +520,12 @@ struct SurfaceBackground: View {
                     dimLevel: preferences.dimLevel(for: surface),
                     colorScheme: colorScheme
                 )
-            } else if selection == .system {
-                Color.backgroundGradient(for: colorScheme)
             } else {
-                selection.fill(for: colorScheme)
+                Rectangle()
+                    .fill(selection.background(
+                        for: colorScheme,
+                        shade: preferences.shadeLevel(for: surface)
+                    ))
             }
         }
         .ignoresSafeArea()

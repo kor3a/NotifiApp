@@ -1623,8 +1623,8 @@ struct ReminderView: View {
             Divider()
                 .padding(.horizontal, 16)
 
-            // Background row — the picker itself pitches the upgrade for
-            // free users, same as Analytics.
+            // Background row — colors are free, so this is never locked. The
+            // picker itself pitches the upgrade for photos.
             Button {
                 withAnimation(.easeInOut(duration: 0.18)) {
                     showInfoPanel = false
@@ -1634,21 +1634,21 @@ struct ReminderView: View {
                 HStack(spacing: 12) {
                     Image(systemName: "photo.on.rectangle.angled")
                         .font(.body)
-                        .foregroundColor(isSubscribed ? Color.appAccent : .secondary)
+                        .foregroundColor(Color.appAccent)
                         .frame(width: 24)
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Change Background")
                             .font(.subheadline)
                             .fontWeight(.medium)
-                            .foregroundStyle(isSubscribed ? Color.primary : Color.secondary)
-                        Text(isSubscribed ? "A photo or color just for this store" : "Available for subscribers")
+                            .foregroundStyle(Color.primary)
+                        Text(isSubscribed ? "A photo or color just for this store" : "A color just for this store")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
                     Spacer()
-                    Image(systemName: isSubscribed ? "chevron.right" : "lock.fill")
-                        .font(isSubscribed ? .caption : .subheadline)
-                        .foregroundStyle(isSubscribed ? AnyShapeStyle(.tertiary) : AnyShapeStyle(.secondary))
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 12)

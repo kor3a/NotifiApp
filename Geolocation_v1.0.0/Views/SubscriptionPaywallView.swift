@@ -65,8 +65,8 @@ struct SubscriptionPaywallView: View {
                                    title: "Store Analytics",
                                    description: "Shopping trends, category breakdowns, and your most-gotten items for every store")
                         featureRow(icon: "photo.on.rectangle.angled", color: .pink,
-                                   title: "Custom Backgrounds",
-                                   description: "Set your own photo or pick a color for your screens")
+                                   title: "Photo Backgrounds",
+                                   description: "Use your own photos as the backdrop for any screen — colors are free for everyone")
                         featureRow(icon: "hand.thumbsup.fill", color: .green,
                                    title: "Ad-Free Experience",
                                    description: "Enjoy the app without any banner advertisements")

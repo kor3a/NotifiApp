@@ -2,7 +2,7 @@
 //  BackgroundPickerView.swift
 //  Geolocation_v1.0.0
 //
-//  Lets subscribers set a screen's background to a photo or a solid color.
+//  Lets anyone set a screen's background color, and subscribers use a photo.
 //
 
 import SwiftUI
@@ -26,20 +26,24 @@ struct BackgroundPickerView: View {
 
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 14), count: 4)
 
-    /// Mirrors `SurfaceBackground`: a lapsed subscription falls back to the
-    /// default look, so the picker always reflects what's actually on screen.
+    /// Colors are free, so this is simply whatever the user picked.
     private var selection: AppBackgroundColor {
-        guard subscriptionManager.isSubscribed else { return .system }
-        return preferences.backgroundColor(for: surface)
+        preferences.backgroundColor(for: surface)
     }
 
+    /// Mirrors `SurfaceBackground`: a lapsed subscription falls back to the
+    /// color, so the picker always reflects what's actually on screen.
     private var selectedPhoto: UIImage? {
         guard subscriptionManager.isSubscribed else { return nil }
         return preferences.backgroundImage(for: surface)
     }
 
+    private var shade: Double {
+        preferences.shadeLevel(for: surface)
+    }
+
     private var isDefault: Bool {
-        selection == .system && selectedPhoto == nil
+        selection == .system && selectedPhoto == nil && shade == 0
     }
 
     var body: some View {
@@ -54,6 +58,12 @@ struct BackgroundPickerView: View {
 
                     photoSection
                     swatchGrid
+
+                    // A photo has its own Fade control, so the color shade
+                    // slider would have nothing to act on.
+                    if selectedPhoto == nil {
+                        shadeSection
+                    }
                 }
                 .padding(.vertical, 20)
             }
@@ -105,10 +115,9 @@ struct BackgroundPickerView: View {
                         dimLevel: preferences.dimLevel(for: surface),
                         colorScheme: colorScheme
                     )
-                } else if selection == .system {
-                    Color.backgroundGradient(for: colorScheme)
                 } else {
-                    selection.fill(for: colorScheme)
+                    Rectangle()
+                        .fill(selection.background(for: colorScheme, shade: shade))
                 }
 
                 VStack(spacing: 10) {
@@ -203,11 +212,11 @@ struct BackgroundPickerView: View {
                     ))
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Premium Feature")
+                    Text("Photo Backgrounds")
                         .font(.subheadline)
                         .fontWeight(.semibold)
                         .foregroundStyle(.primary)
-                    Text("Subscribe to personalize your backgrounds")
+                    Text("Subscribe to use your own photo. Colors are free.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -305,6 +314,16 @@ struct BackgroundPickerView: View {
                     .scaledToFill()
                     .frame(width: 36, height: 36)
                     .clipShape(RoundedRectangle(cornerRadius: 8))
+            } else if !subscriptionManager.isSubscribed {
+                // The one paid row on this screen — marked so it reads as
+                // locked rather than broken when the paywall appears.
+                Image(systemName: "crown.fill")
+                    .font(.caption)
+                    .foregroundStyle(.linearGradient(
+                        colors: [.yellow, .orange],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ))
             } else {
                 Image(systemName: "chevron.right")
                     .font(.caption.weight(.semibold))
@@ -353,7 +372,7 @@ struct BackgroundPickerView: View {
             sectionHeader("COLORS")
 
             LazyVGrid(columns: columns, spacing: 14) {
-                systemSwatch
+                swatch(for: .system)
 
                 ForEach(AppBackgroundColor.selectableColors) { color in
                     swatch(for: color)
@@ -361,6 +380,64 @@ struct BackgroundPickerView: View {
             }
         }
         .padding(.horizontal, 20)
+    }
+
+    // MARK: - Shade
+
+    /// The palette's light-mode variants are deliberately pale so text stays
+    /// readable, which makes a name like Midnight land lighter than it sounds.
+    /// This is the escape hatch: take the color you picked and set how deep it
+    /// actually sits.
+    private var shadeSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                sectionHeader("SHADE")
+
+                if shade != 0 {
+                    Button("Default") {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            preferences.setShadeLevel(0, for: surface)
+                        }
+                    }
+                    .font(.caption.weight(.semibold))
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 12) {
+                    Image(systemName: "sun.max.fill")
+                        .font(.system(size: 15))
+                        .foregroundStyle(.secondary)
+
+                    Slider(
+                        value: Binding(
+                            get: { shade },
+                            set: { preferences.setShadeLevel($0, for: surface) }
+                        ),
+                        in: -1...1
+                    )
+                    .accessibilityLabel("Background shade")
+
+                    Image(systemName: "moon.fill")
+                        .font(.system(size: 15))
+                        .foregroundStyle(.secondary)
+                }
+
+                Text(shadeHint)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(14)
+            .background(RoundedRectangle(cornerRadius: 14).fill(.ultraThinMaterial))
+        }
+        .padding(.horizontal, 20)
+    }
+
+    /// The palette is tuned for readability, so pushing a color much darker in
+    /// Light Mode is worth a word of warning — the miniature above shows it.
+    private var shadeHint: String {
+        let subject = selection == .system ? "the default background" : selection.displayName
+        return "Drag right to deepen \(subject), left to lighten it. Watch the preview above — a very dark background in Light Mode can make text harder to read."
     }
 
     private func sectionHeader(_ title: String) -> some View {
@@ -372,22 +449,9 @@ struct BackgroundPickerView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private var systemSwatch: some View {
-        swatchButton(for: .system) {
-            Color.backgroundGradient(for: colorScheme)
-        }
-    }
-
+    /// Swatches carry the current shade, so dragging the slider previews the
+    /// whole palette at that depth rather than only the chosen color.
     private func swatch(for color: AppBackgroundColor) -> some View {
-        swatchButton(for: color) {
-            color.fill(for: colorScheme)
-        }
-    }
-
-    private func swatchButton<Fill: View>(
-        for color: AppBackgroundColor,
-        @ViewBuilder fill: () -> Fill
-    ) -> some View {
         // A photo overrides any color, so no swatch reads as selected while one
         // is set — otherwise the checkmark would point at something invisible.
         let isSelected = selectedPhoto == nil && selection == color
@@ -397,7 +461,8 @@ struct BackgroundPickerView: View {
         } label: {
             VStack(spacing: 6) {
                 ZStack {
-                    fill()
+                    Rectangle()
+                        .fill(color.background(for: colorScheme, shade: shade))
                         .clipShape(RoundedRectangle(cornerRadius: 12))
                         .overlay(
                             RoundedRectangle(cornerRadius: 12)
@@ -428,13 +493,8 @@ struct BackgroundPickerView: View {
 
     // MARK: - Selection
 
+    /// Colors are free for everyone — only the photo row routes to the paywall.
     private func select(_ color: AppBackgroundColor) {
-        // Non-subscribers can open the picker and see the palette — tapping a
-        // color is what routes them to the paywall.
-        guard subscriptionManager.isSubscribed else {
-            showingPaywall = true
-            return
-        }
         withAnimation(.easeInOut(duration: 0.2)) {
             preferences.setBackgroundColor(color, for: surface)
         }
