@@ -376,20 +376,40 @@ struct StoresView: View {
             .background(
                 RoundedRectangle(cornerRadius: 16)
                     .fill(.ultraThinMaterial)
+                    // In light mode the material takes on the light backdrop
+                    // behind it, so a row ends up almost the same brightness as
+                    // the background and the rows blur together. A near-white
+                    // wash lifts each card off the background. Dark mode already
+                    // has plenty of separation, so it gets no tint.
                     .overlay(
                         RoundedRectangle(cornerRadius: 16)
-                            .stroke(
-                                Color.cardBorder(for: colorScheme),
-                                lineWidth: 1.5
-                            )
+                            .fill(rowLightModeTint)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16)
+                            .stroke(rowBorderStyle, lineWidth: 1.5)
                     )
                     // Flatten fill + stroke before the shadow so it is computed
                     // once per row; a second decorative shadow here cost an
                     // extra offscreen pass per row while scrolling.
                     .compositingGroup()
-                    .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.3 : 0.1), radius: 8, x: 0, y: 4)
+                    .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.3 : 0.14), radius: 8, x: 0, y: 4)
             )
             .padding(.vertical, 4)
+    }
+
+    /// White wash applied on top of the row's material in light mode only.
+    private var rowLightModeTint: Color {
+        colorScheme == .dark ? .clear : Color.white.opacity(0.7)
+    }
+
+    /// The row outline. The shared card border is a white gradient, which is
+    /// invisible against the lightened light-mode card, so light mode uses a
+    /// soft dark hairline instead.
+    private var rowBorderStyle: AnyShapeStyle {
+        colorScheme == .dark
+            ? AnyShapeStyle(Color.cardBorder(for: colorScheme))
+            : AnyShapeStyle(Color.black.opacity(0.12))
     }
 
     // MARK: - List Content
