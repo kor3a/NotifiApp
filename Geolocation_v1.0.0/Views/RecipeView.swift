@@ -350,7 +350,6 @@ struct RecipePickerView: View {
     @Environment(\.colorScheme) var colorScheme
     @State private var addedCount: Int?
     @State private var addedForRecipeName: String?
-    @State private var showingLimitPaywall = false
 
     var body: some View {
         NavigationStack {
@@ -399,9 +398,6 @@ struct RecipePickerView: View {
                 }
             }
         }
-        .sheet(isPresented: $showingLimitPaywall) {
-            SubscriptionPaywallView()
-        }
         .onAppear { viewModel.fetchRecipes() }
     }
 
@@ -414,16 +410,11 @@ struct RecipePickerView: View {
                         viewModel.addIngredientsToStore(
                             recipe,
                             userStoreItem: userStoreItem,
-                            isSubscribed: subscriptionManager.isSubscribed,
-                            useSmartCategory: useSmartCategory && subscriptionManager.isSubscribed,
-                            completion: { count in
-                                addedCount = count
-                                addedForRecipeName = recipe.name
-                            },
-                            onLimitExceeded: {
-                                showingLimitPaywall = true
-                            }
-                        )
+                            useSmartCategory: useSmartCategory && subscriptionManager.isSubscribed
+                        ) { count in
+                            addedCount = count
+                            addedForRecipeName = recipe.name
+                        }
                     }
                     .listRowBackground(
                         RoundedRectangle(cornerRadius: 16)
