@@ -376,10 +376,18 @@ struct StoresView: View {
             .background(
                 RoundedRectangle(cornerRadius: 16)
                     .fill(.ultraThinMaterial)
+                    // In light mode the material takes on the light backdrop
+                    // behind it, so a row ends up almost the same brightness as
+                    // the background and the rows blur together. The shared card
+                    // tint and border lift each row off the background.
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(Color.cardFillTint(for: colorScheme))
+                    )
                     .overlay(
                         RoundedRectangle(cornerRadius: 16)
                             .stroke(
-                                Color.cardBorder(for: colorScheme),
+                                Color.cardBorderStyle(for: colorScheme),
                                 lineWidth: 1.5
                             )
                     )
@@ -387,7 +395,7 @@ struct StoresView: View {
                     // once per row; a second decorative shadow here cost an
                     // extra offscreen pass per row while scrolling.
                     .compositingGroup()
-                    .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.3 : 0.1), radius: 8, x: 0, y: 4)
+                    .shadow(color: Color.black.opacity(Color.cardShadowOpacity(for: colorScheme)), radius: 8, x: 0, y: 4)
             )
             .padding(.vertical, 4)
     }
