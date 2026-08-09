@@ -17,15 +17,19 @@ import FirebaseFirestore
 
 class ProfileSetupViewModel: ObservableObject {
 
+    /// Always starts blank — the user types their own. Nothing is suggested here
+    /// on purpose: a prefilled ID reads as already-decided, and most people kept
+    /// whatever was handed to them instead of picking something they wanted.
     @Published var username: String = ""
     @Published var name: String = ""
     @Published var errorMessage: String = ""
     @Published var isLoading: Bool = false
-    /// True while a starting username is being generated, so the field can show
-    /// a placeholder instead of looking briefly broken.
-    @Published var isPreparingSuggestions: Bool = true
 
     private let db = Firestore.firestore()
+
+    /// Guards the one-time name prefill, so returning to the screen doesn't undo
+    /// an edit the user made (including clearing the field).
+    private var hasPrefilledName = false
 
     /// Same rule as email/password signup, so usernames stay consistent.
     private static let usernameRegex = "^[a-zA-Z0-9]{3,20}$"
@@ -44,37 +48,17 @@ class ProfileSetupViewModel: ObservableObject {
         }
     }
 
-    /// Prefill the form: the name the provider gave us (Apple sends it only on the
-    /// very first authorization, so it was stashed at sign-in) and an available
-    /// username derived from that name or the email.
-    func loadSuggestions() {
-        guard isPreparingSuggestions else { return }
+    /// Prefill the name the provider gave us — Apple sends it only on the very
+    /// first authorization, so it was stashed at sign-in. The username is
+    /// deliberately left blank for the user to choose.
+    func loadNameSuggestion() {
+        guard !hasPrefilledName else { return }
+        hasPrefilledName = true
 
-        guard let authUser = Auth.auth().currentUser else {
-            isPreparingSuggestions = false
-            return
-        }
+        guard let authUser = Auth.auth().currentUser else { return }
 
         if name.isEmpty {
             name = UserSessionManager.suggestedName(uid: authUser.uid) ?? ""
-        }
-
-        guard username.isEmpty else {
-            isPreparingSuggestions = false
-            return
-        }
-
-        let email = authUser.email ?? ""
-        let seed = name.isEmpty ? String(email.prefix(while: { $0 != "@" })) : name
-
-        AuthenticationManager.shared.generateUniqueUsername(seed: seed) { [weak self] suggestion in
-            DispatchQueue.main.async {
-                guard let self = self else { return }
-                if self.username.isEmpty {
-                    self.username = suggestion
-                }
-                self.isPreparingSuggestions = false
-            }
         }
     }
 
@@ -84,16 +68,23 @@ class ProfileSetupViewModel: ObservableObject {
         guard !isLoading else { return }
         errorMessage = ""
 
-        let trimmedName = name.trimmingCharacters(in: .whitespaces)
-        guard !trimmedName.isEmpty else {
-            errorMessage = "Please enter your name."
+        // Validated in the order the fields are shown, so the message points at
+        // the first thing the user would look at.
+        let normalizedUsername = username.trimmingCharacters(in: .whitespaces).lowercased()
+        guard !normalizedUsername.isEmpty else {
+            errorMessage = "Please choose a user ID."
             return
         }
 
-        let normalizedUsername = username.trimmingCharacters(in: .whitespaces).lowercased()
         let predicate = NSPredicate(format: "SELF MATCHES %@", Self.usernameRegex)
         guard predicate.evaluate(with: normalizedUsername) else {
             errorMessage = "Username must be 3-20 characters and contain only letters and numbers."
+            return
+        }
+
+        let trimmedName = name.trimmingCharacters(in: .whitespaces)
+        guard !trimmedName.isEmpty else {
+            errorMessage = "Please enter your name."
             return
         }
 
