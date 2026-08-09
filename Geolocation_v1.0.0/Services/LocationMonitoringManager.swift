@@ -38,6 +38,11 @@ class LocationMonitoringManager: NSObject, ObservableObject {
     @Published var isMonitoring = false
     @Published var lastLocation: CLLocation?
 
+    /// Mirrors `locationManager.authorizationStatus` so views can react to the
+    /// user answering the system prompt — `requestLocationPermission()` has no
+    /// completion handler, and the answer only arrives via the delegate.
+    @Published private(set) var authorizationStatus: CLAuthorizationStatus = .notDetermined
+
     private var userStores: [UserStore] = []
     private var storeReminders: [String: Int] = [:] // userStoreId -> incomplete reminder count
     private var currentUserId: String? {
@@ -76,6 +81,7 @@ class LocationMonitoringManager: NSObject, ObservableObject {
     private func setupLocationManager() {
         locationManager.delegate = self
         locationManager.desiredAccuracy = kCLLocationAccuracyHundredMeters
+        authorizationStatus = locationManager.authorizationStatus
     }
 
     // MARK: - Permission Management
@@ -480,6 +486,11 @@ extension LocationMonitoringManager: CLLocationManagerDelegate {
 
     func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
         let status = manager.authorizationStatus
+
+        DispatchQueue.main.async {
+            self.authorizationStatus = status
+        }
+
         #if DEBUG
         let statusStr: String
         switch status {

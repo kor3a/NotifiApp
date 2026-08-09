@@ -202,6 +202,17 @@ struct ProfileView: View {
                 }
                 .foregroundStyle(.orange)
 
+                // Replays the primer screens themselves. The iOS prompts behind
+                // them are one-shot per install, so an already-answered
+                // permission just advances when its button is tapped.
+                Button("Replay Permission Screens") {
+                    dismiss()
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                        PermissionOnboardingManager.shared.replayForDebug()
+                    }
+                }
+                .foregroundStyle(.orange)
+
                 NavigationLink("Subscription Debug") {
                     SubscriptionDebugView()
                 }

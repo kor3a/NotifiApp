@@ -8,6 +8,7 @@
 import SwiftUI
 import UIKit
 import Combine
+import UserNotifications
 
 struct HomeView: View {
     @ObservedObject private var sessionManager = UserSessionManager.shared
@@ -253,9 +254,19 @@ struct HomeView: View {
         print("🚀 HomeView: Initializing location and notification permissions")
         #endif
 
-        // Request notification permission
+        // Request notification permission. New accounts have already been asked
+        // from PermissionOnboardingView, so this only fires for anyone who
+        // reached the app without being prompted (an install that predates the
+        // walkthrough, or a permission reset).
         Task {
-            let notificationGranted = await notificationManager.requestAuthorization()
+            let status = await notificationManager.authorizationStatus()
+            let notificationGranted: Bool
+            if status == .notDetermined {
+                notificationGranted = await notificationManager.requestAuthorization()
+            } else {
+                notificationManager.checkAuthorizationStatus()
+                notificationGranted = status == .authorized
+            }
             #if DEBUG
             if notificationGranted {
                 print("✅ HomeView: Notification permission granted")
@@ -266,6 +277,13 @@ struct HomeView: View {
 
             // Debug: Print detailed notification settings
             notificationManager.debugNotificationSettings()
+
+            // Right after the permission walkthrough, a decline the user made
+            // seconds ago doesn't need an alert about itself landing on top of
+            // the tutorial. The nudge returns on the next launch.
+            if PermissionOnboardingManager.shared.didRunThisSession {
+                return
+            }
 
             if !notificationGranted {
                 // Permission is denied — iOS won't re-prompt, user must go to Settings manually

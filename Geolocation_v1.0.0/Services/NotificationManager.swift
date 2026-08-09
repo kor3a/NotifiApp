@@ -184,6 +184,13 @@ class NotificationManager: NSObject, ObservableObject {
         }
     }
 
+    /// The system's current answer for this app. Distinguishes "never asked"
+    /// from "asked and declined", which `isAuthorized` alone can't — the
+    /// permission primer only shows while the prompt can still appear.
+    func authorizationStatus() async -> UNAuthorizationStatus {
+        await notificationCenter.notificationSettings().authorizationStatus
+    }
+
     enum CarPlayNotificationStatus {
         case enabled    // Explicit per-app CarPlay toggle exists and is ON
         case disabled   // Per-app CarPlay toggle exists but is OFF
