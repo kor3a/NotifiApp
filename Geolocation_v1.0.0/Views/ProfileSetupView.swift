@@ -62,12 +62,6 @@ struct ProfileSetupView: View {
                             .onSubmit { focusedField = .name }
                             .padding()
                             .background(fieldBackground)
-                            .overlay(alignment: .trailing) {
-                                if viewModel.isPreparingSuggestions {
-                                    ProgressView()
-                                        .padding(.trailing, 16)
-                                }
-                            }
 
                         Text("3-20 letters and numbers. This is how friends find you.")
                             .font(.caption2)
@@ -169,7 +163,7 @@ struct ProfileSetupView: View {
                 .ignoresSafeArea()
         )
         .onAppear {
-            viewModel.loadSuggestions()
+            viewModel.loadNameSuggestion()
         }
     }
 

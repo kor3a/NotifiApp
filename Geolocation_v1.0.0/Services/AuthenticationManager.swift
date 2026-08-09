@@ -661,33 +661,6 @@ class AuthenticationManager: NSObject, ObservableObject {
         }
     }
 
-    /// Produce a Firestore-safe username that isn't already taken.
-    /// Used to prefill the username field during profile setup.
-    func generateUniqueUsername(seed: String, attempt: Int = 0, completion: @escaping (String) -> Void) {
-        let candidate: String
-        if attempt == 0 {
-            var base = seed.lowercased().filter { $0.isLetter || $0.isNumber }
-            if base.count < 3 { base = "user" + base }
-            candidate = String(base.prefix(20))
-        } else if attempt < 5 {
-            var base = seed.lowercased().filter { $0.isLetter || $0.isNumber }
-            if base.isEmpty { base = "user" }
-            let suffix = String(Int.random(in: 1000...9999))
-            candidate = String(base.prefix(20 - suffix.count)) + suffix
-        } else {
-            candidate = "user" + String(UUID().uuidString.prefix(8)).lowercased()
-        }
-
-        db.collection("users").document(candidate).getDocument { [weak self] document, error in
-            guard let self = self else { return }
-            if error != nil || document?.exists == false {
-                completion(candidate)
-            } else {
-                self.generateUniqueUsername(seed: seed, attempt: attempt + 1, completion: completion)
-            }
-        }
-    }
-
     // MARK: - Helpers
 
     /// Quietly reset to idle (e.g. user cancelled a provider sheet).
