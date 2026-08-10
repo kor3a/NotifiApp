@@ -109,6 +109,8 @@
 		AA1234560001AABB00CC0025 /* MessagingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0015 /* MessagingService.swift */; };
 		AA1234560001AABB00CC0026 /* NotificationLogStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0016 /* NotificationLogStore.swift */; };
 		AA1234560001AABB00CC0027 /* NotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0017 /* NotificationManager.swift */; };
+		01AA00122F900000AB942912 /* PermissionOnboardingManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01AA00112F900000AB942911 /* PermissionOnboardingManager.swift */; };
+		01AA00142F900000AB942914 /* PermissionOnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01AA00132F900000AB942913 /* PermissionOnboardingView.swift */; };
 		AA1234560001AABB00CC0028 /* StoreLogoProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0018 /* StoreLogoProvider.swift */; };
 		AA1234560001AABB00CC0029 /* UserSessionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0019 /* UserSessionManager.swift */; };
 		AA1234560001AABB00CC0031 /* SubscriptionPaywallView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0030 /* SubscriptionPaywallView.swift */; };
@@ -279,6 +281,8 @@
 		AA1234560001AABB00CC0015 /* MessagingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessagingService.swift; sourceTree = "<group>"; };
 		AA1234560001AABB00CC0016 /* NotificationLogStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationLogStore.swift; sourceTree = "<group>"; };
 		AA1234560001AABB00CC0017 /* NotificationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationManager.swift; sourceTree = "<group>"; };
+		01AA00112F900000AB942911 /* PermissionOnboardingManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionOnboardingManager.swift; sourceTree = "<group>"; };
+		01AA00132F900000AB942913 /* PermissionOnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionOnboardingView.swift; sourceTree = "<group>"; };
 		AA1234560001AABB00CC0018 /* StoreLogoProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoreLogoProvider.swift; sourceTree = "<group>"; };
 		AA1234560001AABB00CC0019 /* UserSessionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserSessionManager.swift; sourceTree = "<group>"; };
 		AA1234560001AABB00CC0030 /* SubscriptionPaywallView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionPaywallView.swift; sourceTree = "<group>"; };
@@ -403,6 +407,7 @@
 				AA1234560001AABB00CC0015 /* MessagingService.swift */,
 				AA1234560001AABB00CC0016 /* NotificationLogStore.swift */,
 				AA1234560001AABB00CC0017 /* NotificationManager.swift */,
+				01AA00112F900000AB942911 /* PermissionOnboardingManager.swift */,
 				C10000000001AABB00CC0040 /* SharedReminderNotificationService.swift */,
 				AA1234560001AABB00CC0001 /* OpenAIService.swift */,
 				AA1234560001AABB00CC0018 /* StoreLogoProvider.swift */,
@@ -512,6 +517,7 @@
 				748542B22CB5307000C58D9B /* HomeView.swift */,
 				82D289B62C61D631009F357F /* ProfileView.swift */,
 				01AA00012F900000AB942901 /* ProfileSetupView.swift */,
+				01AA00132F900000AB942913 /* PermissionOnboardingView.swift */,
 				82D715C52C8D6B230000D1E3 /* MapView.swift */,
 				82EC11822C64755300A6CD8C /* LocationDetailsView.swift */,
 				7498B0832CC2D49A0003C68F /* StoresView.swift */,
@@ -899,6 +905,8 @@
 				BC0200000001AABB00CC0003 /* MembershipBarcodeView.swift in Sources */,
 				82D289B72C61D631009F357F /* ProfileView.swift in Sources */,
 				01AA00022F900000AB942902 /* ProfileSetupView.swift in Sources */,
+				01AA00142F900000AB942914 /* PermissionOnboardingView.swift in Sources */,
+				01AA00122F900000AB942912 /* PermissionOnboardingManager.swift in Sources */,
 				82916C162C914BA800F810A3 /* MapViewModel.swift in Sources */,
 				01EF1E4D2F50A1B500D79D3C /* FavoriteTag.swift in Sources */,
 				01D86E972F6AD6630007802A /* TutorialOverlayView.swift in Sources */,
