@@ -55,6 +55,9 @@ struct SubscriptionPaywallView: View {
                         featureRow(icon: "infinity.circle.fill", color: .orange,
                                    title: "Unlimited Stores",
                                    description: "Free accounts are limited to \(SubscriptionManager.freeStoreLimit) stores of your own — go unlimited with Premium")
+                        featureRow(icon: "mic.circle.fill", color: .red,
+                                   title: "Voice Commands",
+                                   description: "Swipe any store and just say it — add items, check them off, or remove them, with a confirmation before anything changes")
                         featureRow(icon: "fork.knife.circle.fill", color: .blue,
                                    title: "Smart Recipe",
                                    description: "Ask for any recipe and add ingredients directly to your stores")

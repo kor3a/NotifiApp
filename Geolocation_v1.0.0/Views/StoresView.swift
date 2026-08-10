@@ -461,8 +461,15 @@ struct StoresView: View {
                         // Declared last so it lands furthest from the trailing
                         // edge — trailing swipe actions fill inward in
                         // declaration order, putting this left of Share.
+                        //
+                        // Shown to everyone but gated on tap, the same way
+                        // Smart Recipe is: a hidden button can't sell itself.
                         Button {
-                            voiceCommandStore = userStoreItem
+                            if subscriptionManager.isSubscribed {
+                                voiceCommandStore = userStoreItem
+                            } else {
+                                showingPaywall = true
+                            }
                         } label: {
                             Label("Voice", systemImage: "mic.fill")
                         }

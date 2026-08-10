@@ -89,6 +89,15 @@ final class VoiceCommandViewModel: ObservableObject {
         actions = []
         notes = []
 
+        // The swipe action already routes non-subscribers to the paywall, so
+        // this should never fire. It's here because every command spends a
+        // billed API call, and that shouldn't rely on one call site staying
+        // correct as entry points get added.
+        guard SubscriptionManager.shared.isSubscribed else {
+            phase = .failed("Voice commands are a Premium feature.")
+            return
+        }
+
         do {
             try await SpeechRecognitionManager.requestAuthorization()
         } catch {
