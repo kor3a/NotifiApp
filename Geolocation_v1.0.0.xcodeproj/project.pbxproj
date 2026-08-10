@@ -100,6 +100,10 @@
 		82EC11832C64755300A6CD8C /* LocationDetailsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82EC11822C64755300A6CD8C /* LocationDetailsView.swift */; };
 		A1B2C3D400000000000000F2 /* FirebaseFunctions in Frameworks */ = {isa = PBXBuildFile; productRef = A1B2C3D400000000000000F1 /* FirebaseFunctions */; };
 		AA1234560001AABB00CC0004 /* OpenAIService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0001 /* OpenAIService.swift */; };
+		AA1234560001AABB00CC0502 /* VoiceCommand.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0501 /* VoiceCommand.swift */; };
+		AA1234560001AABB00CC0504 /* SpeechRecognitionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0503 /* SpeechRecognitionManager.swift */; };
+		AA1234560001AABB00CC0506 /* VoiceCommandViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0505 /* VoiceCommandViewModel.swift */; };
+		AA1234560001AABB00CC0508 /* VoiceCommandView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0507 /* VoiceCommandView.swift */; };
 		AA1234560001AABB00CC0005 /* SmartRecipeViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0002 /* SmartRecipeViewModel.swift */; };
 		AA1234560001AABB00CC0006 /* SmartRecipeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0003 /* SmartRecipeView.swift */; };
 		AA1234560001AABB00CC0020 /* FriendRequestService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0010 /* FriendRequestService.swift */; };
@@ -272,6 +276,10 @@
 		82D715C52C8D6B230000D1E3 /* MapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapView.swift; sourceTree = "<group>"; };
 		82EC11822C64755300A6CD8C /* LocationDetailsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationDetailsView.swift; sourceTree = "<group>"; };
 		AA1234560001AABB00CC0001 /* OpenAIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenAIService.swift; sourceTree = "<group>"; };
+		AA1234560001AABB00CC0501 /* VoiceCommand.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceCommand.swift; sourceTree = "<group>"; };
+		AA1234560001AABB00CC0503 /* SpeechRecognitionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechRecognitionManager.swift; sourceTree = "<group>"; };
+		AA1234560001AABB00CC0505 /* VoiceCommandViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceCommandViewModel.swift; sourceTree = "<group>"; };
+		AA1234560001AABB00CC0507 /* VoiceCommandView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceCommandView.swift; sourceTree = "<group>"; };
 		AA1234560001AABB00CC0002 /* SmartRecipeViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SmartRecipeViewModel.swift; sourceTree = "<group>"; };
 		AA1234560001AABB00CC0003 /* SmartRecipeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SmartRecipeView.swift; sourceTree = "<group>"; };
 		AA1234560001AABB00CC0010 /* FriendRequestService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FriendRequestService.swift; sourceTree = "<group>"; };
@@ -410,6 +418,7 @@
 				01AA00112F900000AB942911 /* PermissionOnboardingManager.swift */,
 				C10000000001AABB00CC0040 /* SharedReminderNotificationService.swift */,
 				AA1234560001AABB00CC0001 /* OpenAIService.swift */,
+				AA1234560001AABB00CC0503 /* SpeechRecognitionManager.swift */,
 				AA1234560001AABB00CC0018 /* StoreLogoProvider.swift */,
 				BC0100000001AABB00CC0002 /* BarcodeGenerator.swift */,
 				BC0100000001AABB00CC0004 /* RetailBarcode.swift */,
@@ -521,6 +530,7 @@
 				82D715C52C8D6B230000D1E3 /* MapView.swift */,
 				82EC11822C64755300A6CD8C /* LocationDetailsView.swift */,
 				7498B0832CC2D49A0003C68F /* StoresView.swift */,
+				AA1234560001AABB00CC0507 /* VoiceCommandView.swift */,
 				744091EB2DE57AB500ACC67A /* StoreItemView.swift */,
 				748542B42CB5378A00C58D9B /* ReminderView.swift */,
 				AA1234560001AABB00CC0305 /* HistoryView.swift */,
@@ -542,6 +552,7 @@
 				01B408222F3BECB100EA1F25 /* MessagesViewModel.swift */,
 				011CF6062ED638F9009A31A6 /* ForgotPasswordViewModel.swift */,
 				01B78C392EBD415F00201B88 /* ReminderViewModel.swift */,
+				AA1234560001AABB00CC0505 /* VoiceCommandViewModel.swift */,
 				AA1234560001AABB00CC0303 /* ReminderHistoryViewModel.swift */,
 				82D289AB2C61CCD4009F357F /* LoginViewModel.swift */,
 				82D289AD2C61CEBD009F357F /* SignupViewModel.swift */,
@@ -571,6 +582,7 @@
 				82D289AF2C61D30C009F357F /* User.swift */,
 				74A79E842CBDACB800713F0E /* Store.swift */,
 				74A79E7C2CBDAA4E00713F0E /* Reminder.swift */,
+				AA1234560001AABB00CC0501 /* VoiceCommand.swift */,
 				AA1234560001AABB00CC0301 /* ReminderHistory.swift */,
 				AA1234560001AABB00CC0307 /* StoreAnalytics.swift */,
 				DF66A9972E24C86100C15DA9 /* User_Store.swift */,
@@ -949,6 +961,10 @@
 				011574882F69DC3900963138 /* FCMTokenManager.swift in Sources */,
 				82D289B52C61D52F009F357F /* MainViewModel.swift in Sources */,
 				AA1234560001AABB00CC0004 /* OpenAIService.swift in Sources */,
+				AA1234560001AABB00CC0502 /* VoiceCommand.swift in Sources */,
+				AA1234560001AABB00CC0504 /* SpeechRecognitionManager.swift in Sources */,
+				AA1234560001AABB00CC0506 /* VoiceCommandViewModel.swift in Sources */,
+				AA1234560001AABB00CC0508 /* VoiceCommandView.swift in Sources */,
 				AA1234560001AABB00CC0005 /* SmartRecipeViewModel.swift in Sources */,
 				AA1234560001AABB00CC0006 /* SmartRecipeView.swift in Sources */,
 				0183E1FB2F743B0500AB9429 /* AboutView.swift in Sources */,

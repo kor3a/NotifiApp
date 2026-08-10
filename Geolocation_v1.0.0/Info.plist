@@ -58,6 +58,10 @@
 	<string>We need your location to notify you when you&apos;re near stores with pending reminders, even when the app is in the background.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>We need your location to show nearby stores and notify you when you&apos;re near stores with pending reminders.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Allim uses the microphone when you tap the record button on a store so you can add, check off, or remove reminders by voice.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Allim turns what you say into text so it can understand voice commands like &quot;add milk&quot; or &quot;check off bread&quot;. You always confirm before anything changes.</string>
 	<key>NSSiriUsageDescription</key>
 	<string>NearBuy uses Siri to let you send and receive messages about your shopping reminders hands-free while driving.</string>
 	<key>NSUserActivityTypes</key>

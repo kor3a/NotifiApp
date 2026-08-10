@@ -34,6 +34,7 @@ struct StoresView: View {
     @State private var selectedOnMyWayStore: UserStoreItem?
     @State private var storeToDelete: UserStoreItem?
     @State private var notificationDestination: UserStoreItem? = nil
+    @State private var voiceCommandStore: UserStoreItem? = nil
     @State private var pressedStoreId: String? = nil
     @AppStorage("storeViewMode") private var storeViewMode: StoreViewMode = .list
     @State private var isFloatEditMode: Bool = false
@@ -183,6 +184,9 @@ struct StoresView: View {
         }
         .sheet(item: $selectedStoreToShare) { storeToShare in
             ShareStoreView(viewModel: viewModel, messagesViewModel: messagesViewModel, userStoreItem: storeToShare)
+        }
+        .sheet(item: $voiceCommandStore) { storeItem in
+            VoiceCommandView(userStoreItem: storeItem)
         }
         .alert("On My Way", isPresented: $showOnMyWayConfirmation) {
             Button("Send") {
@@ -371,7 +375,11 @@ struct StoresView: View {
     /// participates in the press animation.
     @ViewBuilder
     private func storeRowCard(for userStoreItem: UserStoreItem) -> some View {
-        StoreItemView(store: userStoreItem.store, isShared: userStoreItem.isShared)
+        StoreItemView(
+            store: userStoreItem.store,
+            isShared: userStoreItem.isShared,
+            reservesVoiceButtonSpace: showsVoiceButton(for: userStoreItem)
+        )
             .contentShape(Rectangle())
             .background(
                 RoundedRectangle(cornerRadius: 16)
@@ -400,12 +408,46 @@ struct StoresView: View {
             .padding(.vertical, 4)
     }
 
+    // MARK: - Voice Command Button
+
+    /// View-only stores can't be edited, so there's nothing a spoken command
+    /// could do there and the button would only lead to a dead end.
+    private func showsVoiceButton(for userStoreItem: UserStoreItem) -> Bool {
+        userStoreItem.permission != .view
+    }
+
+    /// The red record button on a store row. Opens the voice command sheet for
+    /// that store, which listens and then asks for confirmation before writing.
+    private func voiceCommandButton(for userStoreItem: UserStoreItem) -> some View {
+        Button {
+            voiceCommandStore = userStoreItem
+        } label: {
+            ZStack {
+                Circle()
+                    .fill(Color.appError)
+                    .shadow(color: Color.appError.opacity(0.35), radius: 4, x: 0, y: 2)
+
+                Image(systemName: "mic.fill")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundColor(.white)
+            }
+            .frame(
+                width: StoreItemView.voiceButtonSize,
+                height: StoreItemView.voiceButtonSize
+            )
+            .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Voice command for \(userStoreItem.store.name)")
+        .accessibilityHint("Speak to add, check off, or remove reminders")
+    }
+
     // MARK: - List Content
 
     private var listContent: some View {
         List {
             ForEach(Array(viewModel.userStoreItems.enumerated()), id: \.element.id) { index, userStoreItem in
-                ZStack {
+                ZStack(alignment: .trailing) {
                     if editMode == .inactive {
                         // A plain Button (not a NavigationLink) so the List
                         // still scrolls. The tap plays a quick press bounce and
@@ -429,6 +471,13 @@ struct StoresView: View {
                         .buttonStyle(.plain)
                     } else {
                         storeRowCard(for: userStoreItem)
+                    }
+
+                    // Sits outside the row Button on purpose — a Button nested
+                    // inside another Button's label never gets its own taps.
+                    if editMode == .inactive && showsVoiceButton(for: userStoreItem) {
+                        voiceCommandButton(for: userStoreItem)
+                            .padding(.trailing, 16)
                     }
                 }
                 .tutorialHighlight(id: index == 0 ? "tutorial_storeRow" : "noop_store_\(index)")

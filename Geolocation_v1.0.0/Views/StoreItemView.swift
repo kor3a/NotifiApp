@@ -10,6 +10,15 @@ import SwiftUI
 struct StoreItemView: View {
     let store: Store
     var isShared: Bool = false
+    /// Reserves room at the trailing edge for the voice command button, which
+    /// StoresView overlays on top of the row. The button can't live inside this
+    /// view: the row is already the label of a Button, and a nested Button
+    /// never receives its own taps.
+    var reservesVoiceButtonSpace: Bool = false
+
+    /// Diameter of the voice button, shared with StoresView so the reserved gap
+    /// and the overlaid control stay the same size.
+    static let voiceButtonSize: CGFloat = 34
 
     var body: some View {
         HStack(spacing: 16) {
@@ -42,6 +51,11 @@ struct StoreItemView: View {
                 }
             }
 
+            if reservesVoiceButtonSpace {
+                Color.clear
+                    .frame(width: Self.voiceButtonSize, height: Self.voiceButtonSize)
+            }
+
         }//:HSTACK
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
@@ -53,5 +67,6 @@ struct StoreItemView: View {
     VStack {
         StoreItemView(store: Store(name: "Walmart", reminderCount: 3))
         StoreItemView(store: Store(name: "My Local Shop", reminderCount: 0))
+        StoreItemView(store: Store(name: "Costco", reminderCount: 12), reservesVoiceButtonSpace: true)
     }
 }
