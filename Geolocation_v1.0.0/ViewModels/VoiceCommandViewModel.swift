@@ -38,8 +38,9 @@ final class VoiceCommandViewModel: ObservableObject {
     @Published private(set) var actions: [VoiceCommandAction] = []
     @Published private(set) var notes: [String] = []
 
-    /// Read the confirmation and result back aloud. Mirrors the store row
-    /// button being a hands-free affordance in the first place.
+    /// Read the confirmation and result back aloud. Off unless the user turns
+    /// it on with the speaker button — the confirmation is on screen either
+    /// way, and a store aisle is the wrong place to be spoken at by default.
     ///
     /// Restored in the declaration rather than in an initializer: a `didSet`
     /// turns any assignment into a mutation rather than initialization, which
@@ -52,7 +53,7 @@ final class VoiceCommandViewModel: ObservableObject {
     private static let speaksBackKey = "voiceCommandSpeaksBack"
 
     private static var storedSpeaksBack: Bool {
-        UserDefaults.standard.object(forKey: speaksBackKey) as? Bool ?? true
+        UserDefaults.standard.object(forKey: speaksBackKey) as? Bool ?? false
     }
 
     private var store: UserStoreItem?

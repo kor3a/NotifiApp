@@ -375,11 +375,7 @@ struct StoresView: View {
     /// participates in the press animation.
     @ViewBuilder
     private func storeRowCard(for userStoreItem: UserStoreItem) -> some View {
-        StoreItemView(
-            store: userStoreItem.store,
-            isShared: userStoreItem.isShared,
-            reservesVoiceButtonSpace: showsVoiceButton(for: userStoreItem)
-        )
+        StoreItemView(store: userStoreItem.store, isShared: userStoreItem.isShared)
             .contentShape(Rectangle())
             .background(
                 RoundedRectangle(cornerRadius: 16)
@@ -408,46 +404,12 @@ struct StoresView: View {
             .padding(.vertical, 4)
     }
 
-    // MARK: - Voice Command Button
-
-    /// View-only stores can't be edited, so there's nothing a spoken command
-    /// could do there and the button would only lead to a dead end.
-    private func showsVoiceButton(for userStoreItem: UserStoreItem) -> Bool {
-        userStoreItem.permission != .view
-    }
-
-    /// The red record button on a store row. Opens the voice command sheet for
-    /// that store, which listens and then asks for confirmation before writing.
-    private func voiceCommandButton(for userStoreItem: UserStoreItem) -> some View {
-        Button {
-            voiceCommandStore = userStoreItem
-        } label: {
-            ZStack {
-                Circle()
-                    .fill(Color.appError)
-                    .shadow(color: Color.appError.opacity(0.35), radius: 4, x: 0, y: 2)
-
-                Image(systemName: "mic.fill")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundColor(.white)
-            }
-            .frame(
-                width: StoreItemView.voiceButtonSize,
-                height: StoreItemView.voiceButtonSize
-            )
-            .contentShape(Circle())
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel("Voice command for \(userStoreItem.store.name)")
-        .accessibilityHint("Speak to add, check off, or remove reminders")
-    }
-
     // MARK: - List Content
 
     private var listContent: some View {
         List {
             ForEach(Array(viewModel.userStoreItems.enumerated()), id: \.element.id) { index, userStoreItem in
-                ZStack(alignment: .trailing) {
+                ZStack {
                     if editMode == .inactive {
                         // A plain Button (not a NavigationLink) so the List
                         // still scrolls. The tap plays a quick press bounce and
@@ -472,13 +434,6 @@ struct StoresView: View {
                     } else {
                         storeRowCard(for: userStoreItem)
                     }
-
-                    // Sits outside the row Button on purpose — a Button nested
-                    // inside another Button's label never gets its own taps.
-                    if editMode == .inactive && showsVoiceButton(for: userStoreItem) {
-                        voiceCommandButton(for: userStoreItem)
-                            .padding(.trailing, 16)
-                    }
                 }
                 .tutorialHighlight(id: index == 0 ? "tutorial_storeRow" : "noop_store_\(index)")
                 .listRowBackground(Color.clear)
@@ -502,6 +457,17 @@ struct StoresView: View {
                             Label("Share", systemImage: "square.and.arrow.up")
                         }
                         .tint(.blue)
+
+                        // Declared last so it lands furthest from the trailing
+                        // edge — trailing swipe actions fill inward in
+                        // declaration order, putting this left of Share.
+                        Button {
+                            voiceCommandStore = userStoreItem
+                        } label: {
+                            Label("Voice", systemImage: "mic.fill")
+                        }
+                        .tint(Color.appError)
+                        .accessibilityHint("Speak to add, check off, or remove reminders")
                     }
                 }
                 .swipeActions(edge: .leading, allowsFullSwipe: false) {
