@@ -40,11 +40,20 @@ final class VoiceCommandViewModel: ObservableObject {
 
     /// Read the confirmation and result back aloud. Mirrors the store row
     /// button being a hands-free affordance in the first place.
-    @Published var speaksBack: Bool {
+    ///
+    /// Restored in the declaration rather than in an initializer: a `didSet`
+    /// turns any assignment into a mutation rather than initialization, which
+    /// an initializer on this main-actor class can't do from a nonisolated
+    /// context.
+    @Published var speaksBack: Bool = VoiceCommandViewModel.storedSpeaksBack {
         didSet { UserDefaults.standard.set(speaksBack, forKey: Self.speaksBackKey) }
     }
 
     private static let speaksBackKey = "voiceCommandSpeaksBack"
+
+    private static var storedSpeaksBack: Bool {
+        UserDefaults.standard.object(forKey: speaksBackKey) as? Bool ?? true
+    }
 
     private var store: UserStoreItem?
     private weak var reminderViewModel: ReminderViewModel?
@@ -57,12 +66,6 @@ final class VoiceCommandViewModel: ObservableObject {
     /// visible before the next is queued, so a batch of adds keeps the order
     /// they were spoken in.
     private let writeSpacing: Duration = .milliseconds(250)
-
-    /// `nonisolated` so SwiftUI can build it in a `@StateObject` initializer
-    /// without hopping actors — it only assigns stored properties.
-    nonisolated init() {
-        speaksBack = UserDefaults.standard.object(forKey: Self.speaksBackKey) as? Bool ?? true
-    }
 
     var hasActions: Bool { !actions.isEmpty }
 
