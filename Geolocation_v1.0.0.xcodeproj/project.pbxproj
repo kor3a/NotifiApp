@@ -101,6 +101,7 @@
 		A1B2C3D400000000000000F2 /* FirebaseFunctions in Frameworks */ = {isa = PBXBuildFile; productRef = A1B2C3D400000000000000F1 /* FirebaseFunctions */; };
 		AA1234560001AABB00CC0004 /* OpenAIService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0001 /* OpenAIService.swift */; };
 		AA1234560001AABB00CC0502 /* VoiceCommand.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0501 /* VoiceCommand.swift */; };
+		AA1234560001AABB00CC0510 /* FeatureFlags.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0509 /* FeatureFlags.swift */; };
 		AA1234560001AABB00CC0504 /* SpeechRecognitionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0503 /* SpeechRecognitionManager.swift */; };
 		AA1234560001AABB00CC0506 /* VoiceCommandViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0505 /* VoiceCommandViewModel.swift */; };
 		AA1234560001AABB00CC0508 /* VoiceCommandView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0507 /* VoiceCommandView.swift */; };
@@ -277,6 +278,7 @@
 		82EC11822C64755300A6CD8C /* LocationDetailsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationDetailsView.swift; sourceTree = "<group>"; };
 		AA1234560001AABB00CC0001 /* OpenAIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenAIService.swift; sourceTree = "<group>"; };
 		AA1234560001AABB00CC0501 /* VoiceCommand.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceCommand.swift; sourceTree = "<group>"; };
+		AA1234560001AABB00CC0509 /* FeatureFlags.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeatureFlags.swift; sourceTree = "<group>"; };
 		AA1234560001AABB00CC0503 /* SpeechRecognitionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechRecognitionManager.swift; sourceTree = "<group>"; };
 		AA1234560001AABB00CC0505 /* VoiceCommandViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceCommandViewModel.swift; sourceTree = "<group>"; };
 		AA1234560001AABB00CC0507 /* VoiceCommandView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceCommandView.swift; sourceTree = "<group>"; };
@@ -595,6 +597,7 @@
 			children = (
 				011574922F69FD9700963138 /* GoogleService-Info.plist */,
 				011574892F69DC4D00963138 /* AppDelegate.swift */,
+				AA1234560001AABB00CC0509 /* FeatureFlags.swift */,
 				8278FDF72C5DD1C90017EB72 /* Geolocation_v1_0_0App.swift */,
 			);
 			path = Support;
@@ -962,6 +965,7 @@
 				82D289B52C61D52F009F357F /* MainViewModel.swift in Sources */,
 				AA1234560001AABB00CC0004 /* OpenAIService.swift in Sources */,
 				AA1234560001AABB00CC0502 /* VoiceCommand.swift in Sources */,
+				AA1234560001AABB00CC0510 /* FeatureFlags.swift in Sources */,
 				AA1234560001AABB00CC0504 /* SpeechRecognitionManager.swift in Sources */,
 				AA1234560001AABB00CC0506 /* VoiceCommandViewModel.swift in Sources */,
 				AA1234560001AABB00CC0508 /* VoiceCommandView.swift in Sources */,

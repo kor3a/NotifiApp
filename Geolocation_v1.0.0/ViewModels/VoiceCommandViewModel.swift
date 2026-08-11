@@ -89,10 +89,14 @@ final class VoiceCommandViewModel: ObservableObject {
         actions = []
         notes = []
 
-        // The swipe action already routes non-subscribers to the paywall, so
-        // this should never fire. It's here because every command spends a
+        // The swipe action is already hidden unless both of these hold, so
+        // neither should fire. They're here because every command spends a
         // billed API call, and that shouldn't rely on one call site staying
         // correct as entry points get added.
+        guard FeatureFlags.voiceCommands else {
+            phase = .failed("Voice commands aren't available in this build.")
+            return
+        }
         guard SubscriptionManager.shared.isSubscribed else {
             phase = .failed("Voice commands are a Premium feature.")
             return

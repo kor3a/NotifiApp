@@ -458,14 +458,15 @@ struct StoresView: View {
                         }
                         .tint(.blue)
 
-                        // Premium only, and absent rather than gated on tap —
-                        // free accounts never see the action at all. The
+                        // DEBUG-only for now (see FeatureFlags), and Premium
+                        // when it ships. Absent rather than gated on tap —
+                        // accounts without it never see the action at all; the
                         // paywall is where the feature is advertised.
                         //
                         // Declared last so it lands furthest from the trailing
                         // edge — trailing swipe actions fill inward in
                         // declaration order, putting this left of Share.
-                        if subscriptionManager.isSubscribed {
+                        if FeatureFlags.voiceCommands && subscriptionManager.isSubscribed {
                             Button {
                                 voiceCommandStore = userStoreItem
                             } label: {
