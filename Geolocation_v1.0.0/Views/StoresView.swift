@@ -34,6 +34,7 @@ struct StoresView: View {
     @State private var selectedOnMyWayStore: UserStoreItem?
     @State private var storeToDelete: UserStoreItem?
     @State private var notificationDestination: UserStoreItem? = nil
+    @State private var voiceCommandStore: UserStoreItem? = nil
     @State private var pressedStoreId: String? = nil
     @AppStorage("storeViewMode") private var storeViewMode: StoreViewMode = .list
     @State private var isFloatEditMode: Bool = false
@@ -183,6 +184,9 @@ struct StoresView: View {
         }
         .sheet(item: $selectedStoreToShare) { storeToShare in
             ShareStoreView(viewModel: viewModel, messagesViewModel: messagesViewModel, userStoreItem: storeToShare)
+        }
+        .sheet(item: $voiceCommandStore) { storeItem in
+            VoiceCommandView(userStoreItem: storeItem)
         }
         .alert("On My Way", isPresented: $showOnMyWayConfirmation) {
             Button("Send") {
@@ -453,6 +457,24 @@ struct StoresView: View {
                             Label("Share", systemImage: "square.and.arrow.up")
                         }
                         .tint(.blue)
+
+                        // DEBUG-only for now (see FeatureFlags), and Premium
+                        // when it ships. Absent rather than gated on tap —
+                        // accounts without it never see the action at all; the
+                        // paywall is where the feature is advertised.
+                        //
+                        // Declared last so it lands furthest from the trailing
+                        // edge — trailing swipe actions fill inward in
+                        // declaration order, putting this left of Share.
+                        if FeatureFlags.voiceCommands && subscriptionManager.isSubscribed {
+                            Button {
+                                voiceCommandStore = userStoreItem
+                            } label: {
+                                Label("Voice", systemImage: "mic.fill")
+                            }
+                            .tint(Color.appError)
+                            .accessibilityHint("Speak to add, check off, or remove reminders")
+                        }
                     }
                 }
                 .swipeActions(edge: .leading, allowsFullSwipe: false) {

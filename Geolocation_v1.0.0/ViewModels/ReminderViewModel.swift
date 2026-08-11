@@ -576,7 +576,9 @@ class ReminderViewModel: ObservableObject {
     ///   - sharedWith: If the store is shared (owner's perspective), the names of users it's shared with
     ///   - sharedFromName: If the store is shared (recipient's perspective), the name of the owner who shared the store
     ///   - currentUserName: The name of the user adding the reminder (for tracking who created it in shared stores)
-    func addReminder(userStoreId: String, title: String, sharedWith: [String]? = nil, sharedFromName: String? = nil, currentUserName: String? = nil, useSmartCategory: Bool = true) {
+    ///   - quantity: Optional starting quantity, written with the document so callers
+    ///     that already know the count (e.g. a voice command) don't need a follow-up update
+    func addReminder(userStoreId: String, title: String, sharedWith: [String]? = nil, sharedFromName: String? = nil, currentUserName: String? = nil, useSmartCategory: Bool = true, quantity: Int? = nil) {
         guard !title.isEmpty else {
             DispatchQueue.main.async {
                 self.errorMessage = "Reminder title cannot be empty"
@@ -609,6 +611,10 @@ class ReminderViewModel: ObservableObject {
             "createdAt": Date().timeIntervalSince1970,
             "sortOrder": nextSortOrder
         ]
+
+        if let quantity = quantity, quantity > 1 {
+            reminderData["quantity"] = quantity
+        }
 
         // Check if this is a shared store (either owner or recipient perspective)
         let isSharedStore = (sharedWith != nil && !sharedWith!.isEmpty) || sharedFromName != nil
