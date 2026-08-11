@@ -458,23 +458,22 @@ struct StoresView: View {
                         }
                         .tint(.blue)
 
+                        // Premium only, and absent rather than gated on tap —
+                        // free accounts never see the action at all. The
+                        // paywall is where the feature is advertised.
+                        //
                         // Declared last so it lands furthest from the trailing
                         // edge — trailing swipe actions fill inward in
                         // declaration order, putting this left of Share.
-                        //
-                        // Shown to everyone but gated on tap, the same way
-                        // Smart Recipe is: a hidden button can't sell itself.
-                        Button {
-                            if subscriptionManager.isSubscribed {
+                        if subscriptionManager.isSubscribed {
+                            Button {
                                 voiceCommandStore = userStoreItem
-                            } else {
-                                showingPaywall = true
+                            } label: {
+                                Label("Voice", systemImage: "mic.fill")
                             }
-                        } label: {
-                            Label("Voice", systemImage: "mic.fill")
+                            .tint(Color.appError)
+                            .accessibilityHint("Speak to add, check off, or remove reminders")
                         }
-                        .tint(Color.appError)
-                        .accessibilityHint("Speak to add, check off, or remove reminders")
                     }
                 }
                 .swipeActions(edge: .leading, allowsFullSwipe: false) {
