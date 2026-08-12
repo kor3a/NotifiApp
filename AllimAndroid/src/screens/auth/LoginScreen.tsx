@@ -12,17 +12,31 @@ import {
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import LinearGradient from 'react-native-linear-gradient';
+import {FirebaseAuthTypes} from '@react-native-firebase/auth';
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {AuthStackParamList} from '../../navigation/AppNavigator';
 
 import GradientBackground from '../../components/GradientBackground';
 import ThemedInput from '../../components/ThemedInput';
 import PrimaryButton from '../../components/PrimaryButton';
+import GoogleSignInButton, {OrDivider} from '../../components/GoogleSignInButton';
 import {Colors, Spacing, Radius, cardStyle, cardBorder, textPrimary, textSecondary} from '../../theme/AppTheme';
 import {authService} from '../../services/authService';
+import {googleAuthService} from '../../services/googleAuthService';
 
 type Props = {
   navigation: NativeStackNavigationProp<AuthStackParamList, 'Login'>;
+};
+
+/**
+ * A Google credential waiting on the user's existing password, shown by the
+ * link card below. Set when the Google email already belongs to an
+ * email/password account: confirming the password LINKS the two rather than
+ * leaving a second account behind.
+ */
+type PendingLink = {
+  email: string;
+  credential: FirebaseAuthTypes.AuthCredential;
 };
 
 export default function LoginScreen({navigation}: Props) {
@@ -34,6 +48,10 @@ export default function LoginScreen({navigation}: Props) {
   const [resending, setResending] = useState(false);
   const [signupEmail, setSignupEmail] = useState('');
   const [showConfirmation, setShowConfirmation] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const [pendingLink, setPendingLink] = useState<PendingLink | null>(null);
+  const [linkPassword, setLinkPassword] = useState('');
+  const [linking, setLinking] = useState(false);
 
   async function handleLogin() {
     if (!email.trim() || !password) {
@@ -62,6 +80,67 @@ export default function LoginScreen({navigation}: Props) {
       }
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleGoogleSignIn() {
+    setGoogleLoading(true);
+    setShowEmailNotVerified(false);
+    try {
+      const outcome = await googleAuthService.signIn();
+      switch (outcome.status) {
+        case 'signedIn':
+          // The session listener swaps this screen out; nothing to do here.
+          break;
+        case 'cancelled':
+          break;
+        case 'needsPasswordLink':
+          setLinkPassword('');
+          setPendingLink({
+            email: outcome.email,
+            credential: outcome.credential,
+          });
+          break;
+        case 'appleAccountExists':
+          Alert.alert(
+            'Account Already Exists',
+            `${outcome.email} is already signed up with Apple. Sign in with Apple in the Allim iOS app to use that account, or sign in here with a different Google account.`,
+          );
+          break;
+      }
+    } catch (err: any) {
+      Alert.alert(
+        'Google Sign-In Failed',
+        err.message ?? 'Google Sign-In failed. Please try again.',
+      );
+    } finally {
+      setGoogleLoading(false);
+    }
+  }
+
+  async function handleConfirmLink() {
+    if (!pendingLink || !linkPassword) {
+      return;
+    }
+    setLinking(true);
+    try {
+      await googleAuthService.linkToPasswordAccount(
+        pendingLink.email,
+        linkPassword,
+        pendingLink.credential,
+      );
+      setPendingLink(null);
+      setLinkPassword('');
+    } catch (err: any) {
+      const msg =
+        err.code === 'auth/invalid-credential' ||
+        err.code === 'auth/wrong-password' ||
+        err.code === 'auth/user-not-found'
+          ? 'Incorrect password. Please try again.'
+          : err.message ?? 'Couldn\'t link your accounts. Please try again.';
+      Alert.alert('Link Failed', msg);
+    } finally {
+      setLinking(false);
     }
   }
 
@@ -137,6 +216,58 @@ export default function LoginScreen({navigation}: Props) {
               gradient
               style={styles.loginBtn}
             />
+
+            {/* Continue with Google */}
+            <OrDivider />
+            <GoogleSignInButton
+              onPress={handleGoogleSignIn}
+              loading={googleLoading}
+              disabled={loading || !!pendingLink}
+            />
+
+            {/* Link prompt: this Google email already has a password account */}
+            {pendingLink && (
+              <View style={[styles.linkCard, cardStyle(scheme)]}>
+                <Text style={[styles.linkCardTitle, {color: textPrimary(scheme)}]}>
+                  Link Your Account
+                </Text>
+                <Text style={[styles.linkCardBody, {color: textSecondary(scheme)}]}>
+                  {pendingLink.email} already has an Allim account with a
+                  password. Enter it once and Google will be added to that same
+                  account — no second account, and all your stores and reminders
+                  stay put.
+                </Text>
+                <ThemedInput
+                  placeholder="Password"
+                  value={linkPassword}
+                  onChangeText={setLinkPassword}
+                  secureTextEntry
+                  autoFocus
+                  style={{marginTop: Spacing.md}}
+                />
+                <View style={styles.linkActions}>
+                  <TouchableOpacity
+                    style={[styles.linkBtn, {backgroundColor: Colors.blue + '1A'}]}
+                    onPress={() => {
+                      setPendingLink(null);
+                      setLinkPassword('');
+                    }}
+                    disabled={linking}>
+                    <Text style={{color: Colors.blue, fontWeight: '600'}}>
+                      Cancel
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.linkBtn, {backgroundColor: Colors.blue}]}
+                    onPress={handleConfirmLink}
+                    disabled={linking || !linkPassword}>
+                    <Text style={{color: '#fff', fontWeight: '600'}}>
+                      {linking ? 'Linking...' : 'Link'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
 
             {/* Resend verification */}
             {showEmailNotVerified && (
@@ -217,6 +348,31 @@ const styles = StyleSheet.create({
   },
   loginBtn: {
     marginBottom: Spacing.md,
+  },
+  linkCard: {
+    padding: Spacing.md,
+    marginTop: Spacing.md,
+  },
+  linkCardTitle: {
+    fontSize: 17,
+    fontWeight: '600',
+    marginBottom: Spacing.xs,
+  },
+  linkCardBody: {
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  linkActions: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    marginTop: Spacing.md,
+  },
+  linkBtn: {
+    flex: 1,
+    height: 44,
+    borderRadius: Radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   linkContainer: {
     marginTop: Spacing.md,

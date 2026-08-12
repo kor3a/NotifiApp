@@ -11,6 +11,7 @@ import {SessionProvider, useSession} from '../context/SessionContext';
 import LoginScreen from '../screens/auth/LoginScreen';
 import SignupScreen from '../screens/auth/SignupScreen';
 import ForgotPasswordScreen from '../screens/auth/ForgotPasswordScreen';
+import ProfileSetupScreen from '../screens/auth/ProfileSetupScreen';
 
 // Main screens
 import StoresScreen from '../screens/stores/StoresScreen';
@@ -147,7 +148,7 @@ function AuthNavigator() {
 }
 
 function RootNavigator() {
-  const {isAuthenticated, isLoading} = useSession();
+  const {isAuthenticated, isLoading, profileStatus} = useSession();
 
   if (isLoading) {
     return (
@@ -157,7 +158,20 @@ function RootNavigator() {
     );
   }
 
-  return isAuthenticated ? <MainTabs /> : <AuthNavigator />;
+  if (!isAuthenticated) {
+    return <AuthNavigator />;
+  }
+
+  // A first Google sign-in creates the Firebase account but no Firestore
+  // profile, and the rest of the app is keyed by the username that profile
+  // carries. Only 'needsSetup' routes here — a profile lookup that merely
+  // failed (offline) stays 'unknown' and falls through to the app, which is how
+  // it behaved before social sign-in existed.
+  if (profileStatus === 'needsSetup') {
+    return <ProfileSetupScreen />;
+  }
+
+  return <MainTabs />;
 }
 
 export default function AppNavigator() {
