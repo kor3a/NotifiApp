@@ -61,8 +61,6 @@ export default function StoresScreen() {
   }, [firebaseUser, currentUser]);
 
   function handleAddStore() {
-    console.log('handleAddStore called');
-  Alert.alert('debug', 'handleAddStore fired');
     setMenuOpen(false);
     setShowAddSheet(true);
   }
@@ -164,7 +162,9 @@ export default function StoresScreen() {
         <LinearGradient
           colors={[Colors.blue + '26', Colors.purple + '26']}
           style={styles.emptyIconBg}>
-          <Icon name="cart-outline" size={52} color={Colors.blue} />
+          {/* iOS uses cart.badge.plus here; Ionicons' nearest cart-with-a-plus
+              is bag-add-outline. */}
+          <Icon name="bag-add-outline" size={52} color={Colors.blue} />
         </LinearGradient>
         <Text style={[styles.emptyTitle, {color: textPrimary(scheme)}]}>
           No Stores Yet
@@ -241,7 +241,7 @@ export default function StoresScreen() {
               <TouchableOpacity
                 style={[styles.fabMenuItem, {backgroundColor: cardBackground(scheme)}]}
                 onPress={handleAddStore}>
-                <Icon name="cart-outline" size={20} color={textPrimary(scheme)} />
+                <Icon name="bag-add-outline" size={20} color={textPrimary(scheme)} />
                 <Text style={[styles.fabMenuText, {color: textPrimary(scheme)}]}>
                   Add Store
                 </Text>

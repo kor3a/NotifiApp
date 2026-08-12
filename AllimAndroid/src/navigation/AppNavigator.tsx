@@ -115,12 +115,16 @@ function MainTabs() {
           borderTopColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
           paddingBottom: 4,
         },
+        // Ionicons chosen to match the SF Symbols the iOS tab bar uses:
+        // storefront -> storefront, message -> chatbubble, person.2 -> people,
+        // map -> map. Ionicons has a filled and an -outline cut of each, which
+        // stands in for SF Symbols' selected/unselected weights.
         tabBarIcon: ({focused, color, size}) => {
-          let iconName = 'home';
+          let iconName = 'ellipse-outline';
           if (route.name === 'Stores') {
-            iconName = focused ? 'cart' : 'cart-outline';
+            iconName = focused ? 'storefront' : 'storefront-outline';
           } else if (route.name === 'Messages') {
-            iconName = focused ? 'chatbubbles' : 'chatbubbles-outline';
+            iconName = focused ? 'chatbubble' : 'chatbubble-outline';
           } else if (route.name === 'Friends') {
             iconName = focused ? 'people' : 'people-outline';
           } else if (route.name === 'Map') {

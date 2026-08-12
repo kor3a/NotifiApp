@@ -3,6 +3,7 @@ import {AppState, AppStateStatus, StatusBar} from 'react-native';
 import {NavigationContainer} from '@react-navigation/native';
 import {SafeAreaProvider} from 'react-native-safe-area-context';
 import {GestureHandlerRootView} from 'react-native-gesture-handler';
+import {useFonts} from 'expo-font';
 import AppNavigator from './src/navigation/AppNavigator';
 import {useColorScheme} from 'react-native';
 import messaging from '@react-native-firebase/messaging';
@@ -32,9 +33,19 @@ async function requestNotificationPermission() {
 // the foreground handler when the user opens the app by tapping the icon.
 messaging().setBackgroundMessageHandler(async () => {});
 
-function App(): React.JSX.Element {
+function App(): React.JSX.Element | null {
   const isDarkMode = useColorScheme() === 'dark';
   const appState = useRef<AppStateStatus>(AppState.currentState);
+
+  // react-native-vector-icons renders every glyph as <Text fontFamily="Ionicons">,
+  // so an unregistered family silently draws nothing — which is what turns the
+  // tab bar and the + button into blank space. The expo-font config plugin does
+  // embed Ionicons.ttf in the APK, but that only takes effect on a fresh
+  // prebuild + native build; registering the same file at runtime makes the
+  // icons appear on any binary, including an older dev client.
+  const [fontsLoaded, fontError] = useFonts({
+    Ionicons: require('react-native-vector-icons/Fonts/Ionicons.ttf'),
+  });
 
   useEffect(() => {
     requestNotificationPermission();
@@ -74,6 +85,13 @@ function App(): React.JSX.Element {
       subscription.remove();
     };
   }, []);
+
+  // Hold the first frame until the icon font is registered, so no screen paints
+  // with holes where its icons go. A load failure falls through rather than
+  // hanging the app — the icons stay blank, everything else still works.
+  if (!fontsLoaded && !fontError) {
+    return null;
+  }
 
   return (
     <GestureHandlerRootView style={{flex: 1}}>
