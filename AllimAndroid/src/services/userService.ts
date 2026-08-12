@@ -29,7 +29,10 @@ async function findUserDocByEmail(
 }
 
 export const userService = {
-  // Fetch the user document for an email (auth identity)
+  // Fetch the profile for a signed-in account by email.
+  // The `users` collection is keyed by username (matching the iOS app), not by
+  // the Firebase Auth UID, so we must look the profile up by email — the same
+  // mapping the iOS app uses to go from an authenticated account to its doc.
   async fetchUserByEmail(email: string): Promise<User | null> {
     const doc = await findUserDocByEmail(email);
     if (!doc) {
@@ -38,23 +41,8 @@ export const userService = {
     return {id: doc.id, ...doc.data()} as unknown as User;
   },
 
-  // Fetch the profile for a signed-in account by email.
-  // The `users` collection is keyed by username (matching the iOS app), not by
-  // the Firebase Auth UID, so we must look the profile up by email — the same
-  // mapping the iOS app uses to go from an authenticated account to its doc.
-  async fetchUserByEmail(email: string): Promise<User | null> {
-    const snap = await firestore()
-      .collection('users')
-      .where('email', '==', email)
-      .limit(1)
-      .get();
-    if (snap.empty) {return null;}
-    const doc = snap.docs[0];
-    return {id: doc.id, ...doc.data()} as unknown as User;
-  },
-
   // Subscribe to user changes
-  subscribeToUser(uid: string, callback: (user: User | null) => void) {
+  subscribeToUser(email: string, callback: (user: User | null) => void) {
     return firestore()
       .collection('users')
       .where('email', '==', email.toLowerCase().trim())
@@ -91,6 +79,19 @@ export const userService = {
   // Save FCM token. userId is the users doc id (username), not the auth uid.
   async saveFCMToken(userId: string, token: string): Promise<void> {
     await firestore().collection('users').doc(userId).update({fcmToken: token});
+  },
+
+  // Drop this device's push token from the signed-in user's doc on sign-out, so
+  // pushes for the account stop targeting a device it no longer occupies.
+  // Looked up by email (docs are keyed by username), mirroring iOS's
+  // FCMTokenManager.clearToken. Must run while still authenticated — the rules
+  // only allow a user to update their own document.
+  async clearFCMToken(email: string): Promise<void> {
+    const doc = await findUserDocByEmail(email);
+    if (!doc) {
+      return;
+    }
+    await doc.ref.update({fcmToken: firestore.FieldValue.delete()});
   },
 
   // Search users by email
