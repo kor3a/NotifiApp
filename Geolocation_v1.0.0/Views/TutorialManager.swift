@@ -15,6 +15,9 @@ enum TutorialStep: Int, CaseIterable {
     case welcome = 0
     case storesFAB
     case storesToolbar
+    case remindersCategories
+    case remindersInfoMenu
+    case remindersItemMenu
     case messagesCompose
     case friendsAddFriend
     case friendsFamily
@@ -24,6 +27,9 @@ enum TutorialStep: Int, CaseIterable {
     var targetTab: Int? {
         switch self {
         case .welcome, .storesFAB, .storesToolbar: return 0
+        // Reminder steps render a self-contained mock scene over the Stores tab,
+        // so keep the underlying tab on Stores (0).
+        case .remindersCategories, .remindersInfoMenu, .remindersItemMenu: return 0
         case .messagesCompose: return 1
         case .friendsAddFriend, .friendsFamily: return 2
         case .mapSearch: return 3
@@ -36,10 +42,22 @@ enum TutorialStep: Int, CaseIterable {
         case .welcome, .complete: return nil
         case .storesFAB: return "tutorial_fab"
         case .storesToolbar: return "tutorial_toolbar"
+        // Reminder steps highlight elements drawn inside the tutorial's own
+        // mock reminder scene rather than a real element in the live app.
+        case .remindersCategories, .remindersInfoMenu, .remindersItemMenu: return nil
         case .messagesCompose: return "tutorial_compose"
         case .friendsAddFriend: return "tutorial_addFriend"
         case .friendsFamily: return "tutorial_friendCard"
         case .mapSearch: return "tutorial_mapSearch"
+        }
+    }
+
+    /// Whether this step is part of the simulated Reminders walkthrough that the
+    /// tutorial overlay renders as a full-screen mock scene.
+    var isReminderScene: Bool {
+        switch self {
+        case .remindersCategories, .remindersInfoMenu, .remindersItemMenu: return true
+        default: return false
         }
     }
 
@@ -48,6 +66,9 @@ enum TutorialStep: Int, CaseIterable {
         case .welcome: return "Welcome to Allim!"
         case .storesFAB: return "Add Your First Store"
         case .storesToolbar: return "Organize Your Stores"
+        case .remindersCategories: return "Auto-Sorted Reminders"
+        case .remindersInfoMenu: return "The List Menu"
+        case .remindersItemMenu: return "Item Shortcuts"
         case .messagesCompose: return "Message Friends"
         case .friendsAddFriend: return "Add Friends"
         case .friendsFamily: return "Add to Family"
@@ -64,6 +85,12 @@ enum TutorialStep: Int, CaseIterable {
             return "Tap the blue + button to add your favorite grocery stores and start managing shopping reminders."
         case .storesToolbar:
             return "Sort your stores by reminder count, or switch between list and grid view using these toolbar icons."
+        case .remindersCategories:
+            return "Open a store to see its reminders. As you add items, Smart Category automatically groups them into sections like Produce, Dairy, and Bakery — no sorting needed."
+        case .remindersInfoMenu:
+            return "Tap the info (i) button in the top-right to open the list menu. From here you can turn on Auto Delete, toggle Smart Category, add ingredients from a recipe, and visit the store's website."
+        case .remindersItemMenu:
+            return "Touch and hold any reminder to open its shortcut menu. Mark it out of stock, move it to another store, add a photo or quantity, or change its category."
         case .messagesCompose:
             return "Tap the compose button to start a conversation. Share stores and reminders directly with friends."
         case .friendsAddFriend:
@@ -96,9 +123,14 @@ final class TutorialManager: ObservableObject {
 
     @Published var isActive: Bool = false
     @Published var currentStep: TutorialStep = .welcome
-    @Published var elementFrames: [String: CGRect] = [:]
+    /// Global frames of highlighted elements, keyed by highlight id.
+    /// Deliberately NOT @Published: rows report frame changes on every scroll
+    /// frame, so publishing each write would re-render every observing view
+    /// (the whole screen plus every visible row) at up to 120Hz while
+    /// scrolling. Changes are broadcast manually, and only while the tutorial
+    /// overlay is actually visible.
+    private(set) var elementFrames: [String: CGRect] = [:]
     @Published var pendingTabSwitch: Int? = nil
-    @Published var showSubscriptionAfterTutorial: Bool = false
 
     private(set) var currentUserId: String?
     private(set) var currentAuthUid: String?
@@ -194,7 +226,9 @@ final class TutorialManager: ObservableObject {
             isActive = false
         }
         hasCompletedTutorial = true
-        showSubscriptionAfterTutorial = true
+        // New users are not shown the paywall here — the subscription sheet is
+        // only presented when they actually hit a gated feature or open it from
+        // Profile.
     }
 
     /// Resets the tutorial so it will show again on next app launch or call to startIfNeeded().
@@ -210,6 +244,11 @@ final class TutorialManager: ObservableObject {
         // Only update if meaningfully different to avoid layout loops
         guard frame.width > 0 && frame.height > 0 else { return }
         if elementFrames[id] != frame {
+            // Frames are recorded silently while the tutorial is inactive so
+            // the dictionary is already up to date the moment it activates.
+            if isActive {
+                objectWillChange.send()
+            }
             elementFrames[id] = frame
         }
     }
@@ -219,18 +258,20 @@ final class TutorialManager: ObservableObject {
 
 struct TutorialHighlightModifier: ViewModifier {
     let id: String
-    @ObservedObject private var tutorialManager = TutorialManager.shared
 
+    // NOTE: this modifier must NOT observe TutorialManager. It only writes
+    // frames into it; observing would re-render every highlighted view (e.g.
+    // every store row) whenever any tutorial state changes.
     func body(content: Content) -> some View {
         content
             .background(
                 GeometryReader { geo in
                     Color.clear
                         .onAppear {
-                            tutorialManager.registerFrame(id: id, frame: geo.frame(in: .global))
+                            TutorialManager.shared.registerFrame(id: id, frame: geo.frame(in: .global))
                         }
                         .onChange(of: geo.frame(in: .global)) { _, frame in
-                            tutorialManager.registerFrame(id: id, frame: frame)
+                            TutorialManager.shared.registerFrame(id: id, frame: frame)
                         }
                 }
             )

@@ -236,14 +236,12 @@ export const reminderService = {
     await batch.commit();
   },
 
-  // Upload photo
-  async uploadPhoto(
-    reminderId: string,
-    uri: string,
-    uid: string,
-  ): Promise<string> {
+  // Upload photo. The storage path matches iOS (reminder_photos/{reminderId}/…)
+  // so photos attached on either platform live in one place and cleanup
+  // (photo deletion on reminder delete) finds them regardless of origin.
+  async uploadPhoto(reminderId: string, uri: string): Promise<string> {
     const filename = `${Date.now()}.jpg`;
-    const ref = storage().ref(`reminder_photos/${uid}/${reminderId}/${filename}`);
+    const ref = storage().ref(`reminder_photos/${reminderId}/${filename}`);
     await ref.putFile(uri);
     const url = await ref.getDownloadURL();
     await firestore()

@@ -74,21 +74,23 @@ service cloud.firestore {
     // ============================================================
     // Stores Collection (global catalog)
     // ============================================================
+    // This is a GLOBAL, shared catalog: every document is visible to and
+    // affects every user. The app only ever READS this collection
+    // (StoresViewModel), so client writes are locked to the app owner to
+    // prevent any authenticated user from vandalising or wiping the catalog
+    // for everyone. Seeding/maintenance is done by the owner or via the
+    // Admin SDK (which bypasses these rules).
     match /stores/{storeId} {
       // Any authenticated user can read the store catalog
       allow read: if request.auth != null;
 
-      // Allow creating store entries with required fields
-      allow create: if request.auth != null &&
-                       request.resource.data.name is string;
+      // Only the app owner may mutate shared catalog entries.
+      allow create, update: if request.auth != null &&
+                               request.auth.token.email == "kor3a5@gmail.com" &&
+                               request.resource.data.name is string;
 
-      // Allow updating store metadata (reminderCount, imageURL, etc.)
-      allow update: if request.auth != null;
-
-      // Stores are shared catalog entries. In production, consider
-      // restricting deletion to admins via custom claims:
-      //   allow delete: if request.auth.token.admin == true;
-      allow delete: if request.auth != null;
+      allow delete: if request.auth != null &&
+                       request.auth.token.email == "kor3a5@gmail.com";
     }
 
     // ============================================================
@@ -121,18 +123,48 @@ service cloud.firestore {
     }
 
     // ============================================================
+    // Reminder History (checked-off items preserved after deletion)
+    // ============================================================
+    match /reminder_history/{entryId} {
+      // Queried by userStoreId, which resolves the same way as reminders
+      // (own store, shared group, or owner's store via sourceUserStoreId),
+      // so ownership cannot be verified in rules — same limitation as the
+      // reminders collection above.
+      allow read: if request.auth != null;
+
+      // Entries are written by the app at the moment a checked-off
+      // reminder is deleted.
+      allow create: if request.auth != null &&
+                       request.resource.data.userStoreId is string &&
+                       request.resource.data.title is string &&
+                       request.resource.data.checkedOffAt is number;
+
+      // History entries are immutable; allow delete for future cleanup.
+      allow update: if false;
+      allow delete: if request.auth != null;
+    }
+
+    // ============================================================
     // Store Logos (logo URL cache for store icons)
     // ============================================================
     match /stores_logos/{logoId} {
-      // Allow authenticated users to read store logos
+      // Any authenticated user can read store logos
       allow read: if request.auth != null;
 
-      // Allow authenticated users to upload/update logos
+      // This is a GLOBAL, shared catalog: a logo written here is shown to every
+      // user who has that store. The app only ever READS this collection
+      // (StoreLogoProvider fetches logos; uploadStoreLogo/deleteStoreLogo are
+      // owner/admin seed tools, never called from the app UI), so client writes
+      // are locked to the app owner to stop any authenticated user from writing
+      // to Firestore directly and pointing a store's logo at an arbitrary image
+      // for everyone. Seeding is done by the owner or via the Admin SDK (which
+      // bypasses these rules).
       allow create, update: if request.auth != null &&
+                               request.auth.token.email == "kor3a5@gmail.com" &&
                                request.resource.data.logoURL is string;
 
-      // Allow authenticated users to delete logos
-      allow delete: if request.auth != null;
+      allow delete: if request.auth != null &&
+                       request.auth.token.email == "kor3a5@gmail.com";
     }
 
     // ============================================================
@@ -283,10 +315,16 @@ service cloud.firestore {
     match /messages/{messageId} {
       allow read: if request.auth != null;
 
+      // A message may only be created by the authenticated user it claims to
+      // be from. senderId is the app username, which is also the users/{doc}
+      // ID, so we resolve it to an email and require it to match the caller —
+      // the same username->email lookup the favorite_tags rules rely on. This
+      // stops any signed-in user from forging messages as someone else.
       allow create: if request.auth != null &&
                        request.resource.data.conversationId is string &&
                        request.resource.data.senderId is string &&
-                       request.resource.data.content is string;
+                       request.resource.data.content is string &&
+                       get(/databases/$(database)/documents/users/$(request.resource.data.senderId)).data.email == request.auth.token.email;
 
       allow update: if request.auth != null;
 
@@ -330,12 +368,17 @@ service cloud.firestore {
       allow read: if request.auth != null &&
                      resource.data.recipientEmail == request.auth.token.email;
 
-      // Any authenticated user can create a notification for another user
+      // Any authenticated user can create a notification for another user.
+      // senderEmail is optional (legacy builds don't write it), but when
+      // present it must be the caller's own email — the push function uses
+      // it to resolve a trusted sender name, so it must be unforgeable.
       allow create: if request.auth != null &&
                        request.resource.data.recipientEmail is string &&
                        request.resource.data.senderName is string &&
                        request.resource.data.storeName is string &&
-                       request.resource.data.createdAt is number;
+                       request.resource.data.createdAt is number &&
+                       (!('senderEmail' in request.resource.data) ||
+                        request.resource.data.senderEmail == request.auth.token.email);
 
       // Only the recipient can delete (after consuming the notification)
       allow delete: if request.auth != null &&
@@ -378,13 +421,18 @@ service cloud.firestore {
       allow read: if request.auth != null &&
                      resource.data.recipientEmail == request.auth.token.email;
 
-      // Any authenticated user can create a notification for another user
+      // Any authenticated user can create a notification for another user.
+      // senderEmail is optional (legacy builds don't write it), but when
+      // present it must be the caller's own email — the push function uses
+      // it to resolve a trusted sender name, so it must be unforgeable.
       allow create: if request.auth != null &&
                        request.resource.data.recipientEmail is string &&
                        request.resource.data.senderName is string &&
                        request.resource.data.storeName is string &&
                        request.resource.data.travelTimeMinutes is int &&
-                       request.resource.data.createdAt is number;
+                       request.resource.data.createdAt is number &&
+                       (!('senderEmail' in request.resource.data) ||
+                        request.resource.data.senderEmail == request.auth.token.email);
 
       // Only the recipient can delete (after consuming the notification)
       allow delete: if request.auth != null &&

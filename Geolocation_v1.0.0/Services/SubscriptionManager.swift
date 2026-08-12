@@ -18,6 +18,29 @@ class SubscriptionManager: ObservableObject {
     static let monthlyProductID = "com.kor3a.nearbuy.premium.monthly"
     static let annualProductID  = "com.kor3a.nearbuy.premium.annual"
 
+    // MARK: - Free Tier Limits
+
+    /// Maximum number of stores a non-subscribed account may create for itself.
+    ///
+    /// This is the only free-tier quota. Items within a store are unlimited on
+    /// every tier, and stores shared by another user can always be accepted.
+    static let freeStoreLimit = 3
+
+    /// Whether a user may add another store to their list *themselves*.
+    ///
+    /// The check is made against the CURRENT count at add time, so existing
+    /// users who already exceed the limit are grandfathered in: they keep all
+    /// their stores, but adding one more requires a subscription.
+    ///
+    /// This governs self-service adds only. Stores shared by a friend or family
+    /// member can always be accepted, even past the limit — see
+    /// `MessagingService.acceptSharedStore`. Those accepted stores still count
+    /// toward `currentStoreCount` here, so a free user who is above the limit
+    /// from shares cannot add any of their own until they drop back under it.
+    static func canAddStore(isSubscribed: Bool, currentStoreCount: Int) -> Bool {
+        return isSubscribed || currentStoreCount < freeStoreLimit
+    }
+
     // MARK: - Published State
     @Published var isSubscribed: Bool = false
     @Published var product: Product? = nil

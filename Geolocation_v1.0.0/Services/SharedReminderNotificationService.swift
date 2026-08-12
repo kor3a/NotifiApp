@@ -8,6 +8,7 @@
 
 import Foundation
 import UIKit
+import FirebaseAuth
 import FirebaseFirestore
 
 class SharedReminderNotificationService {
@@ -85,13 +86,17 @@ class SharedReminderNotificationService {
 
             let batch = self.db.batch()
             let now = Date().timeIntervalSince1970
+            // Verified sender identity: Firestore rules reject a senderEmail that
+            // doesn't match the authenticated user, and the push Cloud Function
+            // resolves the display name from it instead of trusting senderName.
+            let senderEmail = Auth.auth().currentUser?.email
 
             for user in sharedUsers {
                 let docRef = self.db.collection("reminder_change_notifications").document()
                 #if DEBUG
                 print("📤   Writing notification doc \(docRef.documentID) for \(user.email)")
                 #endif
-                batch.setData([
+                var payload: [String: Any] = [
                     "recipientUserId": user.userId,
                     "recipientEmail": user.email,
                     "senderName": currentUserName,
@@ -99,7 +104,11 @@ class SharedReminderNotificationService {
                     "addedCount": addedCount,
                     "otherChangeCount": otherChangeCount,
                     "createdAt": now
-                ], forDocument: docRef)
+                ]
+                if let senderEmail {
+                    payload["senderEmail"] = senderEmail
+                }
+                batch.setData(payload, forDocument: docRef)
             }
 
             batch.commit { error in

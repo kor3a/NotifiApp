@@ -33,12 +33,12 @@
  * automatically when the app launches or the token rotates.
  */
 
-const { onDocumentCreated } = require('firebase-functions/v2/firestore');
+const { onDocumentCreated, onDocumentWritten } = require('firebase-functions/v2/firestore');
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { defineSecret } = require('firebase-functions/params');
 const functions = require('firebase-functions');
 const { initializeApp } = require('firebase-admin/app');
-const { getFirestore } = require('firebase-admin/firestore');
+const { getFirestore, FieldValue } = require('firebase-admin/firestore');
 const { getMessaging } = require('firebase-admin/messaging');
 const { getStorage } = require('firebase-admin/storage');
 const { getAuth } = require('firebase-admin/auth');
@@ -52,6 +52,23 @@ const RESEND_API_KEY = defineSecret('RESEND_API_KEY');
 //   firebase functions:secrets:set GOOGLE_PLACES_API_KEY
 // Enable "Places API (New)" + billing on the Google Cloud project first.
 const GOOGLE_PLACES_API_KEY = defineSecret('GOOGLE_PLACES_API_KEY');
+
+// OpenAI API key — set once with:  firebase functions:secrets:set OPENAI_API_KEY
+// Used only by the `openAIChat` proxy so the key never ships inside the app
+// binary (where it could be extracted and used to run up charges). After the
+// app build that calls this proxy is live, ROTATE any key previously embedded
+// in the client (Info.plist / Secrets.xcconfig) — treat it as compromised.
+const OPENAI_API_KEY = defineSecret('OPENAI_API_KEY');
+
+// Logo.dev SECRET key — set once with:
+//   firebase functions:secrets:set LOGO_DEV_SECRET_KEY
+// Used only by the `logoBrandSearch` proxy so the secret never ships inside the
+// app binary (where it could be extracted and used to run up the Logo.dev
+// quota/bill). The *publishable* LOGO_DEV_TOKEN stays in the app — it is safe to
+// embed and is only used to build logo image URLs. After the app build that
+// calls this proxy is live, ROTATE any secret previously embedded in the client
+// (Info.plist / Secrets.xcconfig) — treat it as compromised.
+const LOGO_DEV_SECRET_KEY = defineSecret('LOGO_DEV_SECRET_KEY');
 
 // Sender address for verification emails. MUST be on a domain you've verified in
 // Resend (https://resend.com/domains). For quick testing Resend also allows
@@ -80,7 +97,8 @@ const db = getFirestore();
 
 /**
  * Look up a user's FCM token by their userId field in the `users` collection.
- * Returns null when no document or no token is found.
+ * Returns `{ token, userDocRef }` so callers can pass the owning document to
+ * sendFCM for stale-token cleanup, or null when no document/token is found.
  */
 async function getFCMToken(userId) {
     const snap = await db
@@ -95,8 +113,38 @@ async function getFCMToken(userId) {
     const token = snap.docs[0].data().fcmToken;
     if (!token) {
         console.warn(`getFCMToken: user "${userId}" has no fcmToken field in Firestore`);
+        return null;
     }
-    return token || null;
+    return { token, userDocRef: snap.docs[0].ref };
+}
+
+/**
+ * Resolve a trustworthy display name for a notification sender.
+ *
+ * Firestore rules guarantee that when a notification doc carries a
+ * `senderEmail` it equals the authenticated creator's email, so the name
+ * looked up here cannot be spoofed. Falls back to the client-supplied
+ * `fallbackName` when senderEmail is absent (docs written by legacy app
+ * builds) or when no user document matches the email.
+ */
+async function resolveSenderName(senderEmail, fallbackName) {
+    if (!senderEmail) return fallbackName;
+    try {
+        // users docs store emails lowercased (see SignupViewModel / MessagingService)
+        const snap = await db
+            .collection('users')
+            .where('email', '==', senderEmail.trim().toLowerCase())
+            .limit(1)
+            .get();
+        if (!snap.empty) {
+            const name = snap.docs[0].data().name;
+            if (name) return name;
+        }
+        console.warn(`resolveSenderName: no user/name for verified sender ${senderEmail}, using fallback`);
+    } catch (err) {
+        console.warn(`resolveSenderName: lookup failed for ${senderEmail}: ${err.message}`);
+    }
+    return fallbackName;
 }
 
 /**
@@ -125,6 +173,10 @@ async function getFCMToken(userId) {
  *       NotifiNotificationService extension can intercept and rewrite the
  *       notification (used to turn message pushes into communication
  *       notifications that are CarPlay-safe).
+ *   - ownerDocRef {DocumentReference} The users doc this token was read from.
+ *       When FCM reports the token as no longer registered (app uninstalled,
+ *       or the token was invalidated on sign-out), the stale fcmToken field is
+ *       deleted from that doc so future sends stop targeting a dead token.
  */
 async function sendFCM(token, title, body, data = {}, options = {}) {
     const aps = {
@@ -164,14 +216,72 @@ async function sendFCM(token, title, body, data = {}, options = {}) {
         console.error(`FCM send FAILED — token: …${token.slice(-8)}, code: ${err.code}, message: ${err.message}`);
         // Common error codes:
         //   messaging/registration-token-not-registered → stale token, app was uninstalled
+        //     or the token was invalidated on sign-out
         //   messaging/invalid-argument → APNs key not uploaded to Firebase Console
         //   messaging/authentication-error → APNs credentials missing/expired in Firebase Console
+        if (
+            err.code === 'messaging/registration-token-not-registered' &&
+            options.ownerDocRef
+        ) {
+            try {
+                await options.ownerDocRef.update({ fcmToken: FieldValue.delete() });
+                console.log(`sendFCM: cleared stale token from ${options.ownerDocRef.path}`);
+            } catch (cleanupErr) {
+                console.warn(`sendFCM: failed to clear stale token from ${options.ownerDocRef.path}: ${cleanupErr.message}`);
+            }
+        }
     }
 }
 
 // ---------------------------------------------------------------------------
+// 0. FCM token deduplication
+//
+// WHY THIS EXISTS
+// ---------------
+// An FCM token identifies a DEVICE, not a user. Historically the app wrote the
+// device token to whichever account was signed in and never cleaned up on
+// sign-out, so every account that ever signed in on a phone kept that phone's
+// token — and pushes addressed to a signed-out account were delivered to
+// whoever was signed in on the device (wrong-recipient notifications).
+//
+// The app now invalidates the token on sign-out and re-writes it on sign-in,
+// but existing user docs are still contaminated, and Firestore rules prevent
+// the client from clearing tokens off OTHER users' documents. This trigger
+// enforces one-owner-per-token with the Admin SDK: whenever a token is written
+// to a user doc, the same token is deleted from every other user doc that
+// still holds it. Existing contamination heals progressively as devices check
+// in with their tokens.
+//
+// No retrigger loop: the cleanup writes only DELETE fcmToken, and deletions
+// exit at the `!token` guard.
+// ---------------------------------------------------------------------------
+exports.dedupeFcmToken = onDocumentWritten('users/{docId}', async (event) => {
+    const before = event.data?.before?.data();
+    const after = event.data?.after?.data();
+    const token = after?.fcmToken;
+
+    // Only act when a token was newly set or changed on this doc.
+    if (!token || token === before?.fcmToken) return;
+
+    const snap = await db
+        .collection('users')
+        .where('fcmToken', '==', token)
+        .get();
+    const others = snap.docs.filter((doc) => doc.id !== event.params.docId);
+    if (others.length === 0) return;
+
+    const batch = db.batch();
+    others.forEach((doc) => batch.update(doc.ref, { fcmToken: FieldValue.delete() }));
+    await batch.commit();
+    console.log(
+        `dedupeFcmToken: token now owned by users/${event.params.docId}; ` +
+        `cleared it from ${others.length} other doc(s): ${others.map((d) => d.id).join(', ')}`
+    );
+});
+
+// ---------------------------------------------------------------------------
 // 1. "On My Way" notifications
-//    Document shape: { recipientUserId, senderName, storeName, travelTimeMinutes, createdAt }
+//    Document shape: { recipientUserId, senderName, senderEmail?, storeName, travelTimeMinutes, createdAt }
 // ---------------------------------------------------------------------------
 exports.onMyWayNotification = onDocumentCreated(
     'on_my_way_notifications/{docId}',
@@ -179,33 +289,35 @@ exports.onMyWayNotification = onDocumentCreated(
         const data = event.data?.data();
         if (!data) return;
 
-        const { recipientUserId, senderName, storeName, travelTimeMinutes } = data;
+        const { recipientUserId, senderName, senderEmail, storeName, travelTimeMinutes } = data;
         console.log(`onMyWayNotification fired — docId=${event.params.docId}, recipientUserId=${recipientUserId}`);
         if (!recipientUserId) { console.warn('onMyWayNotification: missing recipientUserId, skipping'); return; }
 
-        const token = await getFCMToken(recipientUserId);
-        if (!token) { console.warn(`onMyWayNotification: no token for ${recipientUserId}, skipping`); return; }
+        const tokenEntry = await getFCMToken(recipientUserId);
+        if (!tokenEntry) { console.warn(`onMyWayNotification: no token for ${recipientUserId}, skipping`); return; }
 
+        const displayName = await resolveSenderName(senderEmail, senderName || 'Someone');
         const mins = travelTimeMinutes || 0;
         const body =
             mins > 0
-                ? `${senderName} is on their way to ${storeName} (~${mins} min)`
-                : `${senderName} is heading to ${storeName}`;
+                ? `${displayName} is on their way to ${storeName} (~${mins} min)`
+                : `${displayName} is heading to ${storeName}`;
 
-        await sendFCM(token, '🚗 On My Way', body, {
+        await sendFCM(tokenEntry.token, '🚗 On My Way', body, {
             type: 'on_my_way',
             storeName: storeName || '',
         }, {
             // ON_MY_WAY is registered with .allowInCarPlay — shows on CarPlay.
             category: 'ON_MY_WAY',
             threadId: `on-my-way-${storeName || ''}`,
+            ownerDocRef: tokenEntry.userDocRef,
         });
     }
 );
 
 // ---------------------------------------------------------------------------
 // 2. Shared reminder change notifications
-//    Document shape: { recipientUserId, senderName, storeName, addedCount, otherChangeCount, createdAt }
+//    Document shape: { recipientUserId, senderName, senderEmail?, storeName, addedCount, otherChangeCount, createdAt }
 // ---------------------------------------------------------------------------
 exports.sharedReminderNotification = onDocumentCreated(
     'reminder_change_notifications/{docId}',
@@ -213,26 +325,28 @@ exports.sharedReminderNotification = onDocumentCreated(
         const data = event.data?.data();
         if (!data) return;
 
-        const { recipientUserId, senderName, storeName, addedCount } = data;
+        const { recipientUserId, senderName, senderEmail, storeName, addedCount } = data;
         console.log(`sharedReminderNotification fired — docId=${event.params.docId}, recipientUserId=${recipientUserId}`);
         if (!recipientUserId) { console.warn('sharedReminderNotification: missing recipientUserId, skipping'); return; }
 
-        const token = await getFCMToken(recipientUserId);
-        if (!token) { console.warn(`sharedReminderNotification: no token for ${recipientUserId}, skipping`); return; }
+        const tokenEntry = await getFCMToken(recipientUserId);
+        if (!tokenEntry) { console.warn(`sharedReminderNotification: no token for ${recipientUserId}, skipping`); return; }
 
+        const displayName = await resolveSenderName(senderEmail, senderName || 'Someone');
         const added = addedCount || 0;
         const body =
             added > 0
-                ? `${senderName} added ${added} reminder${added > 1 ? 's' : ''} to ${storeName}`
-                : `${senderName} updated reminders for ${storeName}`;
+                ? `${displayName} added ${added} reminder${added > 1 ? 's' : ''} to ${storeName}`
+                : `${displayName} updated reminders for ${storeName}`;
 
-        await sendFCM(token, '📝 Reminder Updated', body, {
+        await sendFCM(tokenEntry.token, '📝 Reminder Updated', body, {
             type: 'reminder_change',
             storeName: storeName || '',
         }, {
             // SHARED_REMINDER_CHANGE is registered with .allowInCarPlay.
             category: 'SHARED_REMINDER_CHANGE',
             threadId: `shared-reminder-${storeName || ''}`,
+            ownerDocRef: tokenEntry.userDocRef,
         });
     }
 );
@@ -275,9 +389,9 @@ exports.newMessageNotification = onDocumentCreated(
 
         await Promise.all(
             recipients.map(async (userId) => {
-                const token = await getFCMToken(userId);
-                if (!token) return;
-                await sendFCM(token, notificationTitle, notificationBody, {
+                const tokenEntry = await getFCMToken(userId);
+                if (!tokenEntry) return;
+                await sendFCM(tokenEntry.token, notificationTitle, notificationBody, {
                     type: 'message',
                     conversationId: conversationId,
                     isGroup: String(isGroup),
@@ -297,6 +411,7 @@ exports.newMessageNotification = onDocumentCreated(
                     category: 'NEW_MESSAGE',
                     threadId: conversationId,
                     mutableContent: true,
+                    ownerDocRef: tokenEntry.userDocRef,
                 });
             })
         );
@@ -393,16 +508,16 @@ exports.friendRequestNotification = onDocumentCreated(
         console.log(`friendRequestNotification fired — docId=${event.params.docId}, receiverId=${receiverId}`);
         if (!receiverId) { console.warn('friendRequestNotification: missing receiverId, skipping'); return; }
 
-        const token = await getFCMToken(receiverId);
-        if (!token) { console.warn(`friendRequestNotification: no token for ${receiverId}, skipping`); return; }
+        const tokenEntry = await getFCMToken(receiverId);
+        if (!tokenEntry) { console.warn(`friendRequestNotification: no token for ${receiverId}, skipping`); return; }
 
         await sendFCM(
-            token,
+            tokenEntry.token,
             '👋 Friend Request',
             `${requesterName || 'Someone'} sent you a friend request`,
             { type: 'friend_request' },
             // FRIEND_REQUEST is registered with .allowInCarPlay.
-            { category: 'FRIEND_REQUEST' }
+            { category: 'FRIEND_REQUEST', ownerDocRef: tokenEntry.userDocRef }
         );
     }
 );
@@ -938,5 +1053,293 @@ exports.searchNearbyStores = onCall(
         );
 
         return { results };
+    }
+);
+
+// ---------------------------------------------------------------------------
+// 10. OpenAI chat proxy (Smart Recipe / Smart Category)
+//
+// WHY THIS EXISTS
+// ---------------
+// The iOS app used to call the OpenAI API directly with a key read from
+// Info.plist (injected from Secrets.xcconfig). Anything compiled into the app
+// binary can be extracted from the shipped .ipa, so that key was effectively
+// public and could be used to run up charges on the account. This callable
+// keeps the key in Functions secrets (server-side only) and exposes just the
+// narrow chat-completion the app needs, behind an authenticated caller.
+//
+// Callable from the app via:
+//   Functions.functions().httpsCallable("openAIChat")
+//     ({ messages: [{role, content}], temperature?, maxTokens?, model? })
+// Returns: { content: <assistant message string> }
+// ---------------------------------------------------------------------------
+
+// Only these models may be requested — prevents a caller from selecting an
+// arbitrarily expensive model. The app only uses gpt-4o-mini.
+const ALLOWED_OPENAI_MODELS = ['gpt-4o-mini'];
+const OPENAI_MAX_MESSAGES = 40;
+const OPENAI_MAX_TOTAL_CHARS = 24000; // ~ cap request size / cost
+const OPENAI_MAX_OUTPUT_TOKENS = 1024;
+
+exports.openAIChat = onCall(
+    { secrets: [OPENAI_API_KEY] },
+    async (request) => {
+        if (!request.auth) {
+            throw new HttpsError(
+                'unauthenticated',
+                'You must be signed in to use this feature.'
+            );
+        }
+
+        const {
+            messages,
+            temperature,
+            maxTokens,
+            model,
+        } = request.data ?? {};
+
+        // Validate messages.
+        if (!Array.isArray(messages) || messages.length === 0) {
+            throw new HttpsError('invalid-argument', 'messages must be a non-empty array.');
+        }
+        if (messages.length > OPENAI_MAX_MESSAGES) {
+            throw new HttpsError('invalid-argument', 'Too many messages.');
+        }
+        let totalChars = 0;
+        const sanitizedMessages = messages.map((m) => {
+            const role = m && typeof m.role === 'string' ? m.role : '';
+            const content = m && typeof m.content === 'string' ? m.content : '';
+            if (!['system', 'user', 'assistant'].includes(role)) {
+                throw new HttpsError('invalid-argument', 'Invalid message role.');
+            }
+            totalChars += content.length;
+            return { role, content };
+        });
+        if (totalChars > OPENAI_MAX_TOTAL_CHARS) {
+            throw new HttpsError('invalid-argument', 'Request is too large.');
+        }
+
+        // Validate/clamp tuning params.
+        const chosenModel =
+            typeof model === 'string' && ALLOWED_OPENAI_MODELS.includes(model)
+                ? model
+                : 'gpt-4o-mini';
+        const chosenTemperature =
+            typeof temperature === 'number' && temperature >= 0 && temperature <= 2
+                ? temperature
+                : 0.7;
+        const chosenMaxTokens =
+            typeof maxTokens === 'number' && maxTokens > 0
+                ? Math.min(Math.floor(maxTokens), OPENAI_MAX_OUTPUT_TOKENS)
+                : OPENAI_MAX_OUTPUT_TOKENS;
+
+        const apiKey = OPENAI_API_KEY.value();
+        if (!apiKey) {
+            throw new HttpsError(
+                'failed-precondition',
+                'OpenAI key is not configured on the server.'
+            );
+        }
+
+        let response;
+        try {
+            response = await fetch('https://api.openai.com/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${apiKey}`,
+                },
+                body: JSON.stringify({
+                    model: chosenModel,
+                    messages: sanitizedMessages,
+                    temperature: chosenTemperature,
+                    max_tokens: chosenMaxTokens,
+                }),
+            });
+        } catch (err) {
+            console.error('openAIChat: fetch failed', err);
+            throw new HttpsError('unavailable', 'AI request failed.');
+        }
+
+        if (!response.ok) {
+            const body = await response.text().catch(() => '');
+            console.error(`openAIChat: OpenAI API ${response.status} — ${body}`);
+            throw new HttpsError('internal', `AI service error (${response.status}).`);
+        }
+
+        const json = await response.json();
+        const content = json?.choices?.[0]?.message?.content;
+        if (typeof content !== 'string') {
+            throw new HttpsError('internal', 'Unexpected AI response.');
+        }
+
+        return { content };
+    }
+);
+
+// ---------------------------------------------------------------------------
+// 11. One-time backfill: populate conversations.participantEmails
+//
+// WHY THIS EXISTS
+// ---------------
+// The strict Firestore rules (firestore.rules.pending) verify conversation
+// membership using a `participantEmails` array. New app builds write this field
+// on create; this callable backfills it onto conversations that predate that
+// build so the strict rules can be deployed without breaking history. Run it
+// ONCE (from an admin account) after most users are on the new build and BEFORE
+// swapping in the strict rules. Safe to re-run — it is idempotent.
+//
+// Callable from an admin (owner) account via:
+//   Functions.functions().httpsCallable("backfillMessagingIdentity")()
+// ---------------------------------------------------------------------------
+
+const ADMIN_EMAIL = 'kor3a5@gmail.com';
+
+exports.backfillMessagingIdentity = onCall(async (request) => {
+    if (!request.auth) {
+        throw new HttpsError('unauthenticated', 'Sign in required.');
+    }
+    if (request.auth.token.email !== ADMIN_EMAIL) {
+        throw new HttpsError('permission-denied', 'Admin only.');
+    }
+
+    // Build a username(docId) -> email map from the users collection.
+    const usersSnap = await db.collection('users').get();
+    const emailByUsername = new Map();
+    usersSnap.forEach((doc) => {
+        const email = doc.data().email;
+        if (typeof email === 'string' && email) {
+            emailByUsername.set(doc.id, email);
+            emailByUsername.set(doc.id.toLowerCase(), email);
+        }
+    });
+
+    const convSnap = await db.collection('conversations').get();
+    let updated = 0;
+    let skipped = 0;
+    const BATCH_SIZE = 400;
+    let batch = db.batch();
+    let ops = 0;
+
+    for (const doc of convSnap.docs) {
+        const data = doc.data();
+        const participantIds = Array.isArray(data.participantIds)
+            ? data.participantIds
+            : [];
+        const emails = Array.from(
+            new Set(
+                participantIds
+                    .map((u) => emailByUsername.get(u) || emailByUsername.get(String(u).toLowerCase()))
+                    .filter((e) => typeof e === 'string' && e)
+            )
+        );
+
+        // Skip if unchanged (idempotent re-runs).
+        const existing = Array.isArray(data.participantEmails)
+            ? data.participantEmails
+            : null;
+        const unchanged =
+            existing &&
+            existing.length === emails.length &&
+            emails.every((e) => existing.includes(e));
+        if (unchanged) {
+            skipped += 1;
+            continue;
+        }
+
+        batch.update(doc.ref, { participantEmails: emails });
+        ops += 1;
+        updated += 1;
+        if (ops >= BATCH_SIZE) {
+            await batch.commit();
+            batch = db.batch();
+            ops = 0;
+        }
+    }
+    if (ops > 0) await batch.commit();
+
+    console.log(`backfillMessagingIdentity: updated=${updated}, skipped=${skipped}`);
+    return { updated, skipped, total: convSnap.size };
+});
+
+// ---------------------------------------------------------------------------
+// 12. Logo.dev Brand Search proxy
+//
+// WHY THIS EXISTS
+// ---------------
+// The Logo.dev Brand Search API requires a SECRET key. Previously the app called
+// api.logo.dev/search directly with that secret in Info.plist, which meant the
+// secret shipped in the .ipa and could be extracted to run up the Logo.dev bill.
+// This callable holds the secret server-side (Functions secrets) and returns
+// only the resolved domain, so the client never sees it. The publishable
+// LOGO_DEV_TOKEN stays in the app for building the img.logo.dev image URL.
+//
+// Callable from any signed-in user:
+//   Functions.functions().httpsCallable("logoBrandSearch").call(["query": name])
+// Returns { domain: string|null, name: string|null }.
+// ---------------------------------------------------------------------------
+
+const LOGO_SEARCH_MAX_QUERY_CHARS = 200;
+
+exports.logoBrandSearch = onCall(
+    { secrets: [LOGO_DEV_SECRET_KEY] },
+    async (request) => {
+        if (!request.auth) {
+            throw new HttpsError(
+                'unauthenticated',
+                'You must be signed in to use this feature.'
+            );
+        }
+
+        const query =
+            request.data && typeof request.data.query === 'string'
+                ? request.data.query.trim()
+                : '';
+        if (!query) {
+            throw new HttpsError('invalid-argument', 'query must be a non-empty string.');
+        }
+        if (query.length > LOGO_SEARCH_MAX_QUERY_CHARS) {
+            throw new HttpsError('invalid-argument', 'query is too long.');
+        }
+
+        const secretKey = LOGO_DEV_SECRET_KEY.value();
+        if (!secretKey) {
+            throw new HttpsError(
+                'failed-precondition',
+                'Logo.dev secret key is not configured on the server.'
+            );
+        }
+
+        const url = `https://api.logo.dev/search?q=${encodeURIComponent(query)}`;
+
+        let response;
+        try {
+            response = await fetch(url, {
+                headers: { Authorization: `Bearer ${secretKey}` },
+            });
+        } catch (err) {
+            console.error('logoBrandSearch: fetch failed', err);
+            throw new HttpsError('unavailable', 'Logo search failed.');
+        }
+
+        if (!response.ok) {
+            const body = await response.text().catch(() => '');
+            console.error(`logoBrandSearch: Logo.dev API ${response.status} — ${body}`);
+            throw new HttpsError('internal', `Logo service error (${response.status}).`);
+        }
+
+        let results;
+        try {
+            results = await response.json();
+        } catch (err) {
+            console.error('logoBrandSearch: bad JSON', err);
+            throw new HttpsError('internal', 'Unexpected logo response.');
+        }
+
+        const top = Array.isArray(results) ? results[0] : null;
+        const domain = top && typeof top.domain === 'string' ? top.domain : null;
+        const name = top && typeof top.name === 'string' ? top.name : null;
+
+        return { domain, name };
     }
 );

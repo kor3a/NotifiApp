@@ -46,426 +46,82 @@ struct ShareStoreView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(spacing: 24) {
-                    // Store Info
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Sharing Store")
-                            .font(.headline)
-                            .foregroundStyle(.secondary)
+            ZStack {
+                Color.backgroundGradient(for: colorScheme)
+                    .ignoresSafeArea()
 
-                        HStack {
-                            Image(systemName: "cart.fill")
-                                .foregroundStyle(.blue)
-                                .font(.title2)
+                ScrollView {
+                    VStack(spacing: 20) {
+                        // Store Info — hero header
+                        storeHeader
 
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(userStoreItem.store.name)
-                                    .font(.title3)
-                                    .bold()
-
-                                Text("All locations")
-                                    .font(.subheadline)
-                                    .foregroundStyle(.secondary)
-                            }
-
-                            Spacer()
+                        // Show who shared the store with the current user (if applicable)
+                        if let sharedByName = userStoreItem.sharedFromName {
+                            sharedBySection(sharedByName: sharedByName)
                         }
-                        .padding()
-                        .background(
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(.ultraThinMaterial)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 12)
-                                        .stroke(Color.gray.opacity(0.2), lineWidth: 1)
-                                )
-                        )
-                    }
 
-                    // Show who shared the store with the current user (if applicable)
-                    if let sharedByName = userStoreItem.sharedFromName {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Shared By")
-                                .font(.headline)
-
-                            HStack {
-                                Image(systemName: "person.fill.badge.plus")
-                                    .foregroundStyle(.blue)
-                                    .frame(width: 24)
-
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(sharedByName)
-                                        .font(.subheadline)
-                                        .bold()
-
-                                    Text(userStoreItem.permission == .edit ? "Can Edit" : "View Only")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-
-                                Spacer()
-                            }
-                            .padding()
-                            .background(
-                                RoundedRectangle(cornerRadius: 10)
-                                    .fill(Color.blue.opacity(0.1))
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 10)
-                                            .stroke(Color.blue.opacity(0.3), lineWidth: 1)
-                                    )
-                            )
+                        // Shared Users List
+                        if !sharedUsers.isEmpty {
+                            sharedWithSection
                         }
-                    }
 
-                    // Shared Users List
-                    if !sharedUsers.isEmpty {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Shared With")
-                                .font(.headline)
-
-                            VStack(spacing: 8) {
-                                ForEach(sharedUsers) { sharedUser in
-                                    HStack {
-                                        Image(systemName: sharedUser.permission == .view ? "eye.fill" : "person.fill.checkmark")
-                                            .foregroundStyle(sharedUser.permission == .view ? .orange : .green)
-                                            .frame(width: 24)
-
-                                        VStack(alignment: .leading, spacing: 2) {
-                                            Text(sharedUser.userEmail)
-                                                .font(.subheadline)
-                                                .bold()
-
-                                            Text(sharedUser.permission == .view ? "View Only" : "Can Edit")
-                                                .font(.caption)
-                                                .foregroundStyle(.secondary)
-                                        }
-
-                                        Spacer()
-
-                                        Button(action: {
-                                            unshareWithUser(sharedUser)
-                                        }) {
-                                            Image(systemName: "xmark.circle.fill")
-                                                .foregroundStyle(.red)
-                                        }
-                                    }
-                                    .padding()
-                                    .background(
-                                        RoundedRectangle(cornerRadius: 10)
-                                            .fill(colorScheme == .dark ? Color(white: 0.15) : Color.white)
-                                            .overlay(
-                                                RoundedRectangle(cornerRadius: 10)
-                                                    .stroke(Color.gray.opacity(0.3), lineWidth: 1)
-                                            )
-                                    )
-                                }
-                            }
-                        }
-                    }
-
-                    // Only show sharing UI if user is the owner (not a recipient)
-                    if userStoreItem.sharedFromName == nil {
-                        Divider()
-
-                        // Family Section
-                    if !friendsViewModel.familyMembers.isEmpty {
-                        VStack(alignment: .leading, spacing: 12) {
-                            HStack(spacing: 6) {
-                                Image(systemName: "house.fill")
-                                    .foregroundColor(.purple)
-                                Text("Share with Family")
-                                    .font(.headline)
+                        // Only show sharing UI if user is the owner (not a recipient)
+                        if userStoreItem.sharedFromName == nil {
+                            // Family Section
+                            if !friendsViewModel.familyMembers.isEmpty {
+                                familySection
                             }
 
-                            if isSharingWithAllFamily {
-                                HStack(spacing: 8) {
-                                    ProgressView()
-                                    Text(familyShareProgress)
-                                        .font(.subheadline)
-                                        .foregroundColor(.secondary)
-                                }
-                                .padding(12)
-                                .frame(maxWidth: .infinity)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 10)
-                                        .fill(Color.purple.opacity(0.1))
-                                )
+                            // Friends Section
+                            if !friendsViewModel.friends.isEmpty {
+                                friendsSection
                             }
-
-                            ScrollView(.horizontal, showsIndicators: false) {
-                                HStack(spacing: 12) {
-                                    // Share with all family button
-                                    Button(action: {
-                                        shareWithAllFamily()
-                                    }) {
-                                        VStack(spacing: 8) {
-                                            Circle()
-                                                .fill(allFamilyAlreadyShared ? Color.appSuccess.opacity(0.2) : Color.purple.opacity(0.2))
-                                                .frame(width: 50, height: 50)
-                                                .overlay(
-                                                    Group {
-                                                        if allFamilyAlreadyShared {
-                                                            Image(systemName: "checkmark")
-                                                                .font(.system(size: 16))
-                                                                .foregroundColor(.appSuccess)
-                                                        } else {
-                                                            Image(systemName: "person.3.fill")
-                                                                .font(.system(size: 16))
-                                                                .foregroundColor(.purple)
-                                                        }
-                                                    }
-                                                )
-
-                                            Text("All Family")
-                                                .font(.caption)
-                                                .foregroundColor(allFamilyAlreadyShared ? .secondary : .primary)
-                                                .lineLimit(1)
-                                                .frame(width: 60)
-                                        }
-                                    }
-                                    .buttonStyle(.plain)
-                                    .disabled(isSharingWithAllFamily || isSharing || allFamilyAlreadyShared)
-
-                                    ForEach(friendsViewModel.familyMembers) { friendship in
-                                        let contact = friendship.toContact(currentUserId: viewModel.sessionManager.currentUser?.userId ?? "")
-                                        let isAlreadyShared = sharedUsers.contains { $0.userEmail.lowercased() == contact.email.lowercased() }
-
-                                        Button(action: {
-                                            if !isAlreadyShared {
-                                                selectedFriend = contact
-                                                recipientEmail = contact.email
-                                            }
-                                        }) {
-                                            VStack(spacing: 8) {
-                                                ZStack(alignment: .bottomTrailing) {
-                                                    Group {
-                                                        if isAlreadyShared {
-                                                            Circle()
-                                                                .fill(Color.appSuccess.opacity(0.2))
-                                                                .frame(width: 50, height: 50)
-                                                                .overlay(
-                                                                    Image(systemName: "checkmark")
-                                                                        .foregroundColor(.appSuccess)
-                                                                )
-                                                        } else {
-                                                            ProfilePictureView(profilePictureURL: contact.profilePictureURL, size: 50) {
-                                                                Circle()
-                                                                    .fill(Color.purple.opacity(0.2))
-                                                                    .frame(width: 50, height: 50)
-                                                                    .overlay(
-                                                                        Text(String(contact.name.prefix(1)).uppercased())
-                                                                            .font(.headline)
-                                                                            .foregroundColor(.purple)
-                                                                    )
-                                                            }
-                                                        }
-                                                    }
-
-                                                    Image(systemName: "house.fill")
-                                                        .font(.system(size: 8))
-                                                        .foregroundColor(.white)
-                                                        .padding(3)
-                                                        .background(Color.purple)
-                                                        .clipShape(Circle())
-                                                        .offset(x: 2, y: 2)
-                                                }
-
-                                                Text(contact.name)
-                                                    .font(.caption)
-                                                    .foregroundColor(isAlreadyShared ? .secondary : .primary)
-                                                    .lineLimit(1)
-                                                    .frame(width: 60)
-                                            }
-                                        }
-                                        .buttonStyle(.plain)
-                                        .disabled(isAlreadyShared)
-                                    }
-                                }
-                                .padding(.vertical, 4)
-                            }
-                        }
-                    }
-
-                        // Friends Section
-                    if !friendsViewModel.friends.isEmpty {
-                        VStack(alignment: .leading, spacing: 12) {
-                            Text("Share with Friends")
-                                .font(.headline)
-
-                            ScrollView(.horizontal, showsIndicators: false) {
-                                HStack(spacing: 12) {
-                                    ForEach(friendsViewModel.friends) { friendship in
-                                        let contact = friendship.toContact(currentUserId: viewModel.sessionManager.currentUser?.userId ?? "")
-                                        // Check if already shared with this friend
-                                        let isAlreadyShared = sharedUsers.contains { $0.userEmail.lowercased() == contact.email.lowercased() }
-
-                                        Button(action: {
-                                            if !isAlreadyShared {
-                                                selectedFriend = contact
-                                                recipientEmail = contact.email
-                                            }
-                                        }) {
-                                            VStack(spacing: 8) {
-                                                if isAlreadyShared {
-                                                    Circle()
-                                                        .fill(Color.appSuccess.opacity(0.2))
-                                                        .frame(width: 50, height: 50)
-                                                        .overlay(
-                                                            Image(systemName: "checkmark")
-                                                                .foregroundColor(.appSuccess)
-                                                        )
-                                                } else {
-                                                    ProfilePictureView(profilePictureURL: contact.profilePictureURL, size: 50) {
-                                                        Circle()
-                                                            .fill(Color.appAccent.opacity(0.2))
-                                                            .frame(width: 50, height: 50)
-                                                            .overlay(
-                                                                Text(String(contact.name.prefix(1)).uppercased())
-                                                                    .font(.headline)
-                                                                    .foregroundColor(.appAccent)
-                                                            )
-                                                    }
-                                                }
-
-                                                Text(contact.name)
-                                                    .font(.caption)
-                                                    .foregroundColor(isAlreadyShared ? .secondary : .primary)
-                                                    .lineLimit(1)
-                                                    .frame(width: 60)
-                                            }
-                                        }
-                                        .buttonStyle(.plain)
-                                        .disabled(isAlreadyShared)
-                                    }
-                                }
-                                .padding(.vertical, 4)
-                            }
-                        }
-                    }
 
                             if selectedFriend != nil {
+                                selectedFriendChip
+                            }
+
+                            if !friendsViewModel.friends.isEmpty || !friendsViewModel.familyMembers.isEmpty {
                                 HStack {
-                                    Image(systemName: "person.fill.checkmark")
-                                        .foregroundColor(.appAccent)
-                                    Text("Selected: \(selectedFriend?.name ?? "")")
-                                        .font(.subheadline)
-                                    Spacer()
-                                    Button(action: {
-                                        selectedFriend = nil
-                                        recipientEmail = ""
-                                    }) {
-                                        Image(systemName: "xmark.circle.fill")
-                                            .foregroundColor(.secondary)
-                                    }
+                                    Rectangle()
+                                        .fill(Color.secondary.opacity(0.25))
+                                        .frame(height: 1)
+                                    Text("or enter email manually")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                        .fixedSize()
+                                    Rectangle()
+                                        .fill(Color.secondary.opacity(0.25))
+                                        .frame(height: 1)
                                 }
-                                .padding(12)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 10)
-                                        .fill(Color.appAccent.opacity(0.1))
-                                )
+                                .padding(.vertical, 4)
                             }
 
-                    if !friendsViewModel.friends.isEmpty || !friendsViewModel.familyMembers.isEmpty {
-                        Text("Or enter email manually")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                            .frame(maxWidth: .infinity, alignment: .center)
-                            .padding(.vertical, 8)
-                    }
+                            // Email Input
+                            emailInputSection
 
-                    // Email Input
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Recipient's Email")
-                        .font(.headline)
+                            // Permission Selection
+                            permissionSection
 
-                    TextField("Enter email address", text: $recipientEmail)
-                        .textInputAutocapitalization(.never)
-                        .keyboardType(.emailAddress)
-                        .autocorrectionDisabled()
-                        .padding()
-                        .background(
-                            RoundedRectangle(cornerRadius: 10)
-                                .fill(colorScheme == .dark ? Color(white: 0.15) : Color.white)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 10)
-                                        .stroke(Color.gray.opacity(0.3), lineWidth: 1)
+                            // Info Text
+                            infoCallout(
+                                icon: "info.circle.fill",
+                                tint: .appAccent,
+                                text: "A share request will be sent to the recipient's messages. They must accept before the store appears in their list. The recipient must have an account with the email address you provide."
+                            )
+
+                            // Show reminder count
+                            if !reminderTitles.isEmpty {
+                                infoCallout(
+                                    icon: "checklist",
+                                    tint: .appSuccess,
+                                    text: "\(reminderTitles.count) active reminder\(reminderTitles.count == 1 ? "" : "s") will be included with this store."
                                 )
-                        )
-                        .onChange(of: recipientEmail) { _, newValue in
-                            // Clear selected friend if email changes
-                            if selectedFriend != nil && newValue != selectedFriend?.email {
-                                selectedFriend = nil
                             }
-                        }
-                }
-
-                // Permission Selection
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Permission")
-                        .font(.headline)
-
-                    Picker("Permission", selection: $selectedPermission) {
-                        Text("Can Edit").tag(StorePermission.edit)
-                        Text("View Only").tag(StorePermission.view)
+                        } // End of owner-only sharing UI
                     }
-                    .pickerStyle(.segmented)
-
-                    // Permission description
-                    HStack(alignment: .top, spacing: 8) {
-                        Image(systemName: selectedPermission == .edit ? "pencil.circle.fill" : "eye.circle.fill")
-                            .foregroundStyle(selectedPermission == .edit ? .green : .orange)
-
-                        Text(selectedPermission == .edit
-                            ? "Can Edit: Recipient gets full ownership. Changes and deletions sync between both users."
-                            : "View Only: Recipient can view reminders but cannot edit, share, delete, or check them off.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                    .padding()
-                    .background(
-                        RoundedRectangle(cornerRadius: 10)
-                            .fill((selectedPermission == .edit ? Color.green : Color.orange).opacity(0.1))
-                    )
+                    .padding(20)
                 }
-
-                // Info Text
-                HStack(alignment: .top, spacing: 8) {
-                    Image(systemName: "info.circle.fill")
-                        .foregroundStyle(.blue)
-
-                    Text("A share request will be sent to the recipient's messages. They must accept before the store appears in their list. The recipient must have an account with the email address you provide.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                .padding()
-                .background(
-                    RoundedRectangle(cornerRadius: 10)
-                        .fill(Color.blue.opacity(0.1))
-                )
-
-                // Show reminder count
-                if !reminderTitles.isEmpty {
-                    HStack(alignment: .top, spacing: 8) {
-                        Image(systemName: "list.bullet")
-                            .foregroundStyle(.green)
-
-                        Text("\(reminderTitles.count) active reminder(s) will be included with this store.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                    .padding()
-                    .background(
-                        RoundedRectangle(cornerRadius: 10)
-                            .fill(Color.green.opacity(0.1))
-                    )
-                }
-
-                    } // End of owner-only sharing UI
-                }
-                .padding()
             }
             .navigationTitle("Share Store")
             .navigationBarTitleDisplayMode(.inline)
@@ -476,12 +132,26 @@ struct ShareStoreView: View {
                     }
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(action: {
+                        inviteFriends()
+                    }) {
+                        Image(systemName: "square.and.arrow.up.badge.checkmark")
+                    }
+                    .accessibilityLabel("Invite Friends")
+                }
+                // Break the shared Liquid Glass capsule so the invite button
+                // renders in its own circle, separate from the Share button.
+                if #available(iOS 26.0, *) {
+                    ToolbarSpacer(.fixed, placement: .navigationBarTrailing)
+                }
+                ToolbarItem(placement: .navigationBarTrailing) {
                     if isSharing {
                         ProgressView()
                     } else {
                         Button("Share") {
                             shareStore()
                         }
+                        .fontWeight(.semibold)
                         .disabled(recipientEmail.trimmingCharacters(in: .whitespaces).isEmpty || isSharingWithAllFamily)
                     }
                 }
@@ -508,17 +178,464 @@ struct ShareStoreView: View {
         }
     }
 
+    // MARK: - SUBVIEWS
+
+    /// Hero header showing the store being shared.
+    private var storeHeader: some View {
+        HStack(spacing: 16) {
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(Color.iconGradient)
+                .frame(width: 60, height: 60)
+                .overlay(
+                    Image(systemName: "cart.fill")
+                        .font(.system(size: 26, weight: .semibold))
+                        .foregroundStyle(.white)
+                )
+                .shadow(color: Color.appAccent.opacity(0.35), radius: 8, x: 0, y: 4)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Sharing")
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(.secondary)
+                    .textCase(.uppercase)
+
+                Text(userStoreItem.store.name)
+                    .font(.title2)
+                    .fontWeight(.bold)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+
+                Text("All locations")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(18)
+        .cardStyle()
+    }
+
+    /// Section shown to a recipient describing who shared the store with them.
+    private func sharedBySection(sharedByName: String) -> some View {
+        sectionContainer(title: "Shared By", icon: "person.fill.badge.plus", tint: .appAccent) {
+            HStack(spacing: 12) {
+                Circle()
+                    .fill(Color.appAccent.opacity(0.15))
+                    .frame(width: 44, height: 44)
+                    .overlay(
+                        Text(String(sharedByName.prefix(1)).uppercased())
+                            .font(.headline)
+                            .foregroundStyle(Color.appAccent)
+                    )
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(sharedByName)
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+
+                    Text(userStoreItem.permission == .edit ? "Can Edit" : "View Only")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer(minLength: 0)
+
+                permissionBadge(userStoreItem.permission)
+            }
+        }
+    }
+
+    /// List of users this store is currently shared with.
+    private var sharedWithSection: some View {
+        sectionContainer(title: "Shared With", icon: "person.2.fill", tint: .appSuccess) {
+            VStack(spacing: 10) {
+                ForEach(sharedUsers) { sharedUser in
+                    sharedUserRow(sharedUser)
+                }
+            }
+        }
+    }
+
+    /// A single row in the "Shared With" list.
+    private func sharedUserRow(_ sharedUser: SharedUser) -> some View {
+        let isView = sharedUser.permission == .view
+        let tint: Color = isView ? .appWarning : .appSuccess
+
+        return HStack(spacing: 12) {
+            Circle()
+                .fill(tint.opacity(0.15))
+                .frame(width: 44, height: 44)
+                .overlay(
+                    Image(systemName: isView ? "eye.fill" : "person.fill.checkmark")
+                        .foregroundStyle(tint)
+                )
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(sharedUser.userEmail)
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .lineLimit(1)
+
+                Text(isView ? "View Only" : "Can Edit")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer(minLength: 0)
+
+            Button(action: {
+                unshareWithUser(sharedUser)
+            }) {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.title3)
+                    .foregroundStyle(Color.appError.opacity(0.8))
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(12)
+        .background(
+            // Sits inside a card, which light mode lightens — the old 0.03 fill
+            // washed out against it, leaving the rows with no visible boundary.
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(Color.primary.opacity(0.06))
+        )
+    }
+
+    /// Horizontally scrolling family member avatars.
+    private var familySection: some View {
+        sectionContainer(title: "Share with Family", icon: "house.fill", tint: .purple) {
+            VStack(alignment: .leading, spacing: 12) {
+                if isSharingWithAllFamily {
+                    HStack(spacing: 8) {
+                        ProgressView()
+                        Text(familyShareProgress)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(12)
+                    .frame(maxWidth: .infinity)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .fill(Color.purple.opacity(0.1))
+                    )
+                }
+
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 16) {
+                        allFamilyButton
+
+                        ForEach(friendsViewModel.familyMembers) { friendship in
+                            contactAvatarButton(
+                                contact: friendship.toContact(currentUserId: currentUserId),
+                                tint: .purple,
+                                badge: "house.fill"
+                            )
+                        }
+                    }
+                    .padding(.vertical, 4)
+                }
+            }
+        }
+    }
+
+    /// The "All Family" quick-share chip.
+    private var allFamilyButton: some View {
+        Button(action: {
+            shareWithAllFamily()
+        }) {
+            avatarChip(
+                name: "All Family",
+                isShared: allFamilyAlreadyShared,
+                tint: .purple,
+                avatar: AnyView(
+                    Circle()
+                        .fill(Color.purple.opacity(0.15))
+                        .overlay(
+                            Image(systemName: "person.3.fill")
+                                .font(.system(size: 18))
+                                .foregroundStyle(.purple)
+                        )
+                )
+            )
+        }
+        .buttonStyle(.plain)
+        .disabled(isSharingWithAllFamily || isSharing || allFamilyAlreadyShared)
+    }
+
+    /// Horizontally scrolling friend avatars.
+    private var friendsSection: some View {
+        sectionContainer(title: "Share with Friends", icon: "person.2.fill", tint: .appAccent) {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 16) {
+                    ForEach(friendsViewModel.friends) { friendship in
+                        contactAvatarButton(
+                            contact: friendship.toContact(currentUserId: currentUserId),
+                            tint: .appAccent
+                        )
+                    }
+                }
+                .padding(.vertical, 4)
+            }
+        }
+    }
+
+    /// A tappable avatar button for a single contact, used by the family and
+    /// friends rows. Selecting it pre-fills the recipient email.
+    private func contactAvatarButton(contact: Contact, tint: Color, badge: String? = nil) -> some View {
+        let isAlreadyShared = sharedUsers.contains { $0.userEmail.lowercased() == contact.email.lowercased() }
+
+        return Button(action: {
+            if !isAlreadyShared {
+                selectedFriend = contact
+                recipientEmail = contact.email
+            }
+        }) {
+            avatarChip(
+                name: contact.name,
+                isShared: isAlreadyShared,
+                tint: tint,
+                badge: badge,
+                badgeTint: tint,
+                avatar: AnyView(
+                    ProfilePictureView(profilePictureURL: contact.profilePictureURL, size: 56) {
+                        Circle()
+                            .fill(tint.opacity(0.15))
+                            .overlay(
+                                Text(String(contact.name.prefix(1)).uppercased())
+                                    .font(.headline)
+                                    .foregroundStyle(tint)
+                            )
+                    }
+                )
+            )
+        }
+        .buttonStyle(.plain)
+        .disabled(isAlreadyShared)
+    }
+
+    /// Chip confirming the currently selected friend/family recipient.
+    private var selectedFriendChip: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "person.fill.checkmark")
+                .foregroundStyle(Color.appAccent)
+            Text("Selected: \(selectedFriend?.name ?? "")")
+                .font(.subheadline)
+                .fontWeight(.medium)
+            Spacer(minLength: 0)
+            Button(action: {
+                selectedFriend = nil
+                recipientEmail = ""
+            }) {
+                Image(systemName: "xmark.circle.fill")
+                    .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(14)
+        .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(Color.appAccent.opacity(0.12))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .stroke(Color.appAccent.opacity(0.3), lineWidth: 1)
+                )
+        )
+    }
+
+    /// Manual email entry.
+    private var emailInputSection: some View {
+        sectionContainer(title: "Recipient's Email", icon: "envelope.fill", tint: .appAccent) {
+            TextField("Enter email address", text: $recipientEmail)
+                .textInputAutocapitalization(.never)
+                .keyboardType(.emailAddress)
+                .autocorrectionDisabled()
+                .padding(14)
+                .background(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(Color.primary.opacity(colorScheme == .dark ? 0.08 : 0.07))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .stroke(Color.secondary.opacity(0.35), lineWidth: 1)
+                        )
+                )
+                .onChange(of: recipientEmail) { _, newValue in
+                    // Clear selected friend if email changes
+                    if selectedFriend != nil && newValue != selectedFriend?.email {
+                        selectedFriend = nil
+                    }
+                }
+        }
+    }
+
+    /// Permission picker plus an explanation of the selected mode.
+    private var permissionSection: some View {
+        sectionContainer(title: "Permission", icon: "lock.shield.fill", tint: .appAccent) {
+            VStack(alignment: .leading, spacing: 12) {
+                Picker("Permission", selection: $selectedPermission) {
+                    Text("Can Edit").tag(StorePermission.edit)
+                    Text("View Only").tag(StorePermission.view)
+                }
+                .pickerStyle(.segmented)
+
+                HStack(alignment: .top, spacing: 10) {
+                    Image(systemName: selectedPermission == .edit ? "pencil.circle.fill" : "eye.circle.fill")
+                        .foregroundStyle(selectedPermission == .edit ? Color.appSuccess : Color.appWarning)
+
+                    Text(selectedPermission == .edit
+                        ? "Can Edit: Recipient gets full ownership. Changes and deletions sync between both users."
+                        : "View Only: Recipient can view reminders but cannot edit, share, delete, or check them off.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(12)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill((selectedPermission == .edit ? Color.appSuccess : Color.appWarning).opacity(0.1))
+                )
+            }
+        }
+    }
+
+    // MARK: - Reusable building blocks
+
+    /// A titled card container used by most sections.
+    private func sectionContainer<Content: View>(
+        title: String,
+        icon: String,
+        tint: Color,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 8) {
+                Image(systemName: icon)
+                    .font(.subheadline)
+                    .foregroundStyle(tint)
+                Text(title)
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+            }
+
+            content()
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(18)
+        .cardStyle()
+    }
+
+    /// A small pill describing a permission level.
+    private func permissionBadge(_ permission: StorePermission) -> some View {
+        let isEdit = permission == .edit
+        return Text(isEdit ? "Edit" : "View")
+            .font(.caption2)
+            .fontWeight(.semibold)
+            .foregroundStyle(isEdit ? Color.appSuccess : Color.appWarning)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 4)
+            .background(
+                Capsule()
+                    .fill((isEdit ? Color.appSuccess : Color.appWarning).opacity(0.15))
+            )
+    }
+
+    /// A circular avatar chip with a name label and a shared/selectable state.
+    /// `avatar` is type-erased to keep the call sites' type-checking cheap.
+    private func avatarChip(
+        name: String,
+        isShared: Bool,
+        tint: Color,
+        badge: String? = nil,
+        badgeTint: Color = .purple,
+        avatar: AnyView
+    ) -> some View {
+        VStack(spacing: 8) {
+            ZStack(alignment: .bottomTrailing) {
+                avatarCircle(isShared: isShared, avatar: avatar)
+
+                if let badge, !isShared {
+                    Image(systemName: badge)
+                        .font(.system(size: 9))
+                        .foregroundStyle(.white)
+                        .padding(4)
+                        .background(badgeTint)
+                        .clipShape(Circle())
+                        .overlay(Circle().stroke(Color(.systemBackground), lineWidth: 1.5))
+                        .offset(x: 2, y: 2)
+                }
+            }
+
+            Text(name)
+                .font(.caption)
+                .foregroundStyle(isShared ? Color.secondary : Color.primary)
+                .lineLimit(1)
+                .frame(width: 64)
+        }
+        .opacity(isShared ? 0.7 : 1.0)
+    }
+
+    /// The 56pt circular avatar, showing a checkmark when already shared.
+    @ViewBuilder
+    private func avatarCircle(isShared: Bool, avatar: AnyView) -> some View {
+        Group {
+            if isShared {
+                Circle()
+                    .fill(Color.appSuccess.opacity(0.18))
+                    .overlay(
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 18, weight: .bold))
+                            .foregroundStyle(Color.appSuccess)
+                    )
+            } else {
+                avatar
+            }
+        }
+        .frame(width: 56, height: 56)
+        .clipShape(Circle())
+    }
+
+    /// A tinted informational callout row.
+    private func infoCallout(icon: String, tint: Color, text: String) -> some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: icon)
+                .foregroundStyle(tint)
+            Text(text)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+        }
+        .padding(14)
+        .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(tint.opacity(0.1))
+        )
+    }
+
     // MARK: - Computed Properties
 
+    private var currentUserId: String {
+        viewModel.sessionManager.currentUser?.userId ?? ""
+    }
+
     private var allFamilyAlreadyShared: Bool {
-        let userId = viewModel.sessionManager.currentUser?.userId ?? ""
-        return friendsViewModel.familyMembers.allSatisfy { friendship in
-            let contact = friendship.toContact(currentUserId: userId)
+        friendsViewModel.familyMembers.allSatisfy { friendship in
+            let contact = friendship.toContact(currentUserId: currentUserId)
             return sharedUsers.contains { $0.userEmail.lowercased() == contact.email.lowercased() }
         }
     }
 
     // MARK: - FUNCTIONS
+
+    /// Copies Allim's App Store link so the user can invite friends who don't have the app yet.
+    private func inviteFriends() {
+        AppInvite.copyLinkToClipboard()
+        alertTitle = "Invite Friends"
+        alertMessage = AppInvite.linkCopiedMessage
+        showAlert = true
+    }
 
     private func shareWithAllFamily() {
         guard let currentUserName = viewModel.sessionManager.currentUser?.name else {

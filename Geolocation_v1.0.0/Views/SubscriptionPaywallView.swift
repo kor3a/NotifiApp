@@ -52,12 +52,27 @@ struct SubscriptionPaywallView: View {
 
                     // Feature rows
                     VStack(alignment: .leading, spacing: 16) {
+                        featureRow(icon: "infinity.circle.fill", color: .orange,
+                                   title: "Unlimited Stores",
+                                   description: "Free accounts are limited to \(SubscriptionManager.freeStoreLimit) stores of your own — go unlimited with Premium")
+                        // Don't advertise what a release build can't deliver.
+                        if FeatureFlags.voiceCommands {
+                            featureRow(icon: "mic.circle.fill", color: .red,
+                                       title: "Voice Commands",
+                                       description: "Swipe any store and just say it — add items, check them off, or remove them, with a confirmation before anything changes")
+                        }
                         featureRow(icon: "fork.knife.circle.fill", color: .blue,
                                    title: "Smart Recipe",
                                    description: "Ask for any recipe and add ingredients directly to your stores")
                         featureRow(icon: "sparkles", color: .purple,
                                    title: "Smart Category",
                                    description: "AI auto-categorizes every item you add to your shopping list")
+                        featureRow(icon: "chart.bar.xaxis", color: .indigo,
+                                   title: "Store Analytics",
+                                   description: "Shopping trends, category breakdowns, and your most-gotten items for every store")
+                        featureRow(icon: "photo.on.rectangle.angled", color: .pink,
+                                   title: "Photo Backgrounds",
+                                   description: "Use your own photos as the backdrop for any screen — colors are free for everyone")
                         featureRow(icon: "hand.thumbsup.fill", color: .green,
                                    title: "Ad-Free Experience",
                                    description: "Enjoy the app without any banner advertisements")

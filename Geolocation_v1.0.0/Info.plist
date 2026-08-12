@@ -47,18 +47,21 @@
 			</array>
 		</dict>
 	</array>
-	<key>OPENAI_API_KEY</key>
-	<string>$(OPENAI_API_KEY)</string>
+	<!-- Publishable token only — safe to embed; used to build img.logo.dev image URLs.
+	     The Logo.dev SECRET key is NOT shipped in the app: Brand Search now goes
+	     through the `logoBrandSearch` Cloud Function, which holds the secret. -->
 	<key>LOGO_DEV_TOKEN</key>
 	<string>$(LOGO_DEV_TOKEN)</string>
-	<key>LOGO_DEV_SECRET_KEY</key>
-	<string>$(LOGO_DEV_SECRET_KEY)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>We need your location to notify you when you&apos;re near stores with pending reminders, even when the app is in the background.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>We need your location to show nearby stores and notify you when you&apos;re near stores with pending reminders.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Allim uses the microphone when you tap the record button on a store so you can add, check off, or remove reminders by voice.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Allim turns what you say into text so it can understand voice commands like &quot;add milk&quot; or &quot;check off bread&quot;. You always confirm before anything changes.</string>
 	<key>NSSiriUsageDescription</key>
 	<string>NearBuy uses Siri to let you send and receive messages about your shopping reminders hands-free while driving.</string>
 	<key>NSUserActivityTypes</key>

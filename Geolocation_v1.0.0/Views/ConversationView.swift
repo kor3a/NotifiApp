@@ -23,6 +23,7 @@ struct ConversationView: View {
     @State private var showImagePicker = false
     @State private var isSendingPhoto = false
     @State private var showGroupInfo = false
+    @State private var showingBackgroundPicker = false
 
     private var currentUserId: String {
         sessionManager.currentUser?.userId ?? ""
@@ -113,7 +114,7 @@ struct ConversationView: View {
             // Input bar
             inputBar
         }
-        .background(Color.backgroundGradient(for: colorScheme))
+        .background(SurfaceBackground(surface: .conversation(id: conversation.id)))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .principal) {
@@ -146,6 +147,26 @@ struct ConversationView: View {
                     }
                 }
             }
+
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Menu {
+                    Button {
+                        showingBackgroundPicker = true
+                    } label: {
+                        Label("Change Background", systemImage: "photo.on.rectangle.angled")
+                    }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                }
+                .accessibilityLabel("Chat options")
+            }
+        }
+        .sheet(isPresented: $showingBackgroundPicker) {
+            // Keyed to this conversation, so every chat keeps its own look.
+            BackgroundPickerView(
+                surface: .conversation(id: conversation.id),
+                title: conversation.displayName(currentUserId: currentUserId)
+            )
         }
         .sheet(isPresented: $showGroupInfo) {
             GroupInfoView(conversation: conversation, viewModel: viewModel, onLeaveGroup: {
@@ -226,37 +247,34 @@ struct ConversationView: View {
                     .padding(.horizontal)
                     .padding(.vertical, 8)
                 }
-                .background(colorScheme == .dark ? Color.white.opacity(0.05) : Color.gray.opacity(0.07))
-
-                Divider()
+                .background(
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .fill(colorScheme == .dark ? Color.white.opacity(0.05) : Color.gray.opacity(0.07))
+                )
+                .padding(.horizontal)
+                .padding(.top, 8)
             }
 
-            HStack(spacing: 12) {
-                // Photo picker button
+            // Single rounded input field containing the photo, text and send controls
+            HStack(alignment: .bottom, spacing: 8) {
+                // Photo picker button (inside the field, on the left)
                 Button {
                     showImagePicker = true
                 } label: {
                     Image(systemName: "photo")
                         .font(.system(size: 22))
                         .foregroundColor(.appAccent)
+                        .frame(width: 32, height: 32)
                 }
                 .disabled(isSendingPhoto)
 
                 TextField("Type a message...", text: $messageText, axis: .vertical)
                     .textFieldStyle(.plain)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 10)
-                    .background(
-                        RoundedRectangle(cornerRadius: 20)
-                            .fill(colorScheme == .dark ? Color.white.opacity(0.1) : Color.white)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 20)
-                                    .stroke(Color.gray.opacity(0.3), lineWidth: 1)
-                            )
-                    )
+                    .padding(.vertical, 6)
                     .focused($isInputFocused)
                     .lineLimit(1...5)
 
+                // Send button (inside the field, on the right)
                 if isSendingPhoto {
                     ProgressView()
                         .frame(width: 32, height: 32)
@@ -269,14 +287,19 @@ struct ConversationView: View {
                     .disabled(!canSend)
                 }
             }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(
+                RoundedRectangle(cornerRadius: 24, style: .continuous)
+                    .fill(colorScheme == .dark ? Color.white.opacity(0.1) : Color.white)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 24, style: .continuous)
+                            .stroke(Color.gray.opacity(0.3), lineWidth: 1)
+                    )
+            )
             .padding(.horizontal)
             .padding(.vertical, 8)
         }
-        .background(
-            Rectangle()
-                .fill(.ultraThinMaterial)
-                .shadow(color: .black.opacity(0.1), radius: 5, y: -2)
-        )
         .sheet(isPresented: $showImagePicker) {
             ImagePicker(selectedImage: .constant(nil), allowsEditing: false) { image in
                 selectedImages.append(image)
@@ -561,15 +584,13 @@ struct ReminderCard: View {
         isProcessing = true
         viewModel.acceptSharedReminder(message: message) { success in
             isProcessing = false
+            #if DEBUG
             if success {
-                #if DEBUG
                 print("ReminderCard: Successfully accepted reminder")
-                #endif
             } else {
-                #if DEBUG
                 print("ReminderCard: Failed to accept reminder")
-                #endif
             }
+            #endif
         }
     }
 

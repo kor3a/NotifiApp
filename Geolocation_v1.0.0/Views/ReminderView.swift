@@ -7,6 +7,19 @@
 
 import SwiftUI
 
+/// Holds the global frames of each row's checkbox for the AutoDeleteSwipeRail's
+/// pan hit-testing.
+///
+/// Deliberately a reference type held in `@State` rather than a `@State`
+/// dictionary: rows report their frame on every displayed frame while the list
+/// scrolls, and each write to a `@State` value invalidated ReminderView's entire
+/// body — every visible row plus the store-wide avatar/member maps — at up to
+/// 120Hz. The frames are never read during rendering, only inside the rail's
+/// drag handler, so they don't need to drive view updates at all.
+private final class CheckboxFrameStore {
+    var frames: [String: CGRect] = [:]
+}
+
 struct ReminderView: View {
     let userStoreItem: UserStoreItem
     var availableStores: [UserStoreItem] = []
@@ -18,13 +31,16 @@ struct ReminderView: View {
     @AppStorage("autoDeleteReminders") private var autoDeleteEnabled = false
     @State private var smartCategoryEnabled = true
     @State private var showInfoPanel = false
+    @State private var showBarcodePanel = false
     @State private var showingRecipePicker = false
+    @State private var showingHistory = false
+    @State private var showingAnalytics = false
+    @State private var showingBackgroundPicker = false
     @State private var showingEditWebsite = false
     @State private var websiteInputText = ""
     @State private var fadingReminderIds: Set<String> = []
     @State private var reminderToShare: Reminder?
     @State private var reminderToDelete: Reminder?
-    @State private var showingSharedInfo: Reminder?
     @State private var reminderForPhoto: Reminder?
     @State private var selectedImage: UIImage?
     @State private var enlargedPhotoURL: String?
@@ -43,7 +59,7 @@ struct ReminderView: View {
     @State private var autosaveWorkItem: DispatchWorkItem?
     @State private var lastSubmittedAt: Date?
     @State private var showRemoveAllFavoritesConfirmation = false
-    @State private var checkboxFrames: [String: CGRect] = [:]
+    @State private var checkboxFrames = CheckboxFrameStore()
     @State private var swipedIds: Set<String> = []
     @State private var pendingDeleteReminder: Reminder?
     @State private var undoWorkItem: DispatchWorkItem?
@@ -62,7 +78,12 @@ struct ReminderView: View {
     }
 
     @ObservedObject private var subscriptionManager = SubscriptionManager.shared
-    @ObservedObject private var logoProvider = StoreLogoProvider.shared
+    /// Observed so the toolbar icon and the top sheet react when a card is
+    /// added, edited or removed.
+    @ObservedObject private var membershipCardStore = MembershipCardStore.shared
+    // NOTE: don't observe StoreLogoProvider here. This view never reads a logo,
+    // and observing the shared provider re-rendered the whole screen whenever a
+    // logo resolved anywhere in the app.
 
     private var isSubscribed: Bool {
         subscriptionManager.isSubscribed
@@ -71,6 +92,95 @@ struct ReminderView: View {
     /// Smart Category is active only when the user is subscribed AND has the toggle enabled.
     private var effectiveSmartCategoryEnabled: Bool {
         isSubscribed && smartCategoryEnabled
+    }
+
+    /// Recipient names this (owner's) store is shared with, used to flag newly
+    /// added reminders as shared so they get the shared icon.
+    ///
+    /// The owner's `user_store.sharedWith` is only written when the recipient
+    /// accepts the invite, and `userStoreItem` is a snapshot that can be stale,
+    /// so relying on it alone leaves reminders added later unflagged. When it's
+    /// empty we recover the recipient list from reminders already marked shared
+    /// (stamped at share time by `markRemindersAsShared`), excluding the current
+    /// user's own name. Returns nil only when the store truly isn't shared.
+    private var effectiveSharedWith: [String]? {
+        if let sharedWith = userStoreItem.sharedWith, !sharedWith.isEmpty {
+            return sharedWith
+        }
+        let currentUserName = UserSessionManager.shared.currentUser?.name
+        let recovered = Set(
+            viewModel.reminders
+                .filter { $0.isShared == true }
+                .flatMap { $0.sharedWith ?? [] }
+        ).subtracting([currentUserName].compactMap { $0 })
+        return recovered.isEmpty ? nil : Array(recovered)
+    }
+
+    /// userId → display name for everyone who participates in this store. Built
+    /// from the current user, the store owner, and any reminder that recorded
+    /// both an author id and name — so an author's name (and initial) can be
+    /// recovered for reminders that carry only `sharedFromId`.
+    private var storeMemberNames: [String: String] {
+        // Start with names resolved from the user's friends list, then let the
+        // local (authoritative) sources below override.
+        var names: [String: String] = viewModel.authorNamesById
+        let currentUser = UserSessionManager.shared.currentUser
+        if let id = currentUser?.userId, !id.isEmpty,
+           let name = currentUser?.name, !name.isEmpty {
+            names[id] = name
+        }
+        // Store owner (present on a recipient's copy of the store).
+        if let id = userStoreItem.sharedFromId, !id.isEmpty,
+           let name = userStoreItem.sharedFromName, !name.isEmpty {
+            names[id] = name
+        }
+        // Any reminder that recorded both fields teaches us that id's name.
+        for reminder in viewModel.reminders {
+            if let id = reminder.sharedFromId, !id.isEmpty,
+               let name = reminder.sharedFrom, !name.isEmpty {
+                names[id] = name
+            }
+        }
+        return names
+    }
+
+    /// Store-wide avatar color assignment. Collects the identity of every author
+    /// whose avatar can appear in this store and resolves colors so members who
+    /// share a first initial never share a color. Authors are keyed by userId
+    /// (via `authorIdentity`), so two *different* accounts with the same display
+    /// name still get distinct colors. Computed from the full author set so the
+    /// mapping is stable across every reminder row.
+    private var avatarColorMap: [String: Color] {
+        let currentUser = UserSessionManager.shared.currentUser
+        let members = storeMemberNames
+        var identities: [(key: String, name: String)] = []
+
+        // The current user always participates (they may have authored items).
+        if let name = currentUser?.name, !name.isEmpty {
+            identities.append((
+                SharedAvatarPalette.identityKey(id: currentUser?.userId, name: name),
+                name
+            ))
+        }
+
+        for reminder in viewModel.reminders where reminder.isShared == true {
+            // Recover the author name from the member map when the reminder
+            // itself carries only the author id, so the color key and initial
+            // agree with what the badge renders.
+            let resolvedName = (reminder.sharedFrom?.isEmpty == false)
+                ? reminder.sharedFrom
+                : reminder.sharedFromId.flatMap { members[$0] }
+            if let identity = SharedAvatarPalette.authorIdentity(
+                sharedFrom: resolvedName,
+                sharedFromId: reminder.sharedFromId,
+                currentUserName: currentUser?.name,
+                currentUserId: currentUser?.userId
+            ) {
+                identities.append(identity)
+            }
+        }
+
+        return SharedAvatarPalette.colorMap(for: identities)
     }
 
     /// Email allowed to edit shared store website overrides (writes to `store_websites`,
@@ -86,13 +196,41 @@ struct ReminderView: View {
         "smartCategoryEnabled_\(userStoreItem.id)"
     }
 
+    /// Whether the auto-delete swipe rail is mounted. Rows only report checkbox
+    /// frames while it is, since nothing else reads them.
+    private var isSwipeRailActive: Bool {
+        autoDeleteEnabled && userStoreItem.permission != .view
+    }
+
     var body: some View {
         coreView
             .sheet(item: $reminderToShare) { reminder in
                 ShareReminderView(reminder: reminder, store: userStoreItem.store)
             }
             .sheet(isPresented: $showingRecipePicker) {
-                RecipePickerView(userStoreItem: userStoreItem)
+                RecipePickerView(
+                    userStoreItem: userStoreItem,
+                    useSmartCategory: effectiveSmartCategoryEnabled
+                )
+            }
+            .sheet(isPresented: $showingHistory) {
+                HistoryView(
+                    userStoreItem: userStoreItem,
+                    currentReminderTitles: Set(viewModel.displayedReminders.map {
+                        $0.title.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+                    })
+                )
+            }
+            .sheet(isPresented: $showingAnalytics) {
+                StoreAnalyticsView(userStoreItem: userStoreItem)
+            }
+            .sheet(isPresented: $showingBackgroundPicker) {
+                // Keyed to this store's user_store document, so each store's
+                // list keeps its own look.
+                BackgroundPickerView(
+                    surface: .reminders(storeId: userStoreItem.id),
+                    title: userStoreItem.store.name
+                )
             }
             .sheet(item: $reminderForPhoto) { reminder in
                 ImagePicker(selectedImage: $selectedImage) { image in
@@ -114,16 +252,6 @@ struct ReminderView: View {
                 }
             } message: {
                 deleteSharedReminderMessage
-            }
-            .alert("Shared Reminder", isPresented: .init(
-                get: { showingSharedInfo != nil },
-                set: { if !$0 { showingSharedInfo = nil } }
-            )) {
-                Button("OK", role: .cancel) {
-                    showingSharedInfo = nil
-                }
-            } message: {
-                sharedReminderInfoMessage
             }
             .alert("Duplicate Reminder", isPresented: $showDuplicateAlert) {
                 Button("OK", role: .cancel) {
@@ -230,12 +358,12 @@ struct ReminderView: View {
             // The rail's custom hitTest only claims touches starting in the
             // left handle strip (x < 40 pt), so checkboxes and all other row
             // interactions remain fully functional.
-            if autoDeleteEnabled && userStoreItem.permission != .view {
+            if isSwipeRailActive {
                 AutoDeleteSwipeRail(
                     captureWidth: 40,
                     isEnabled: autoDeleteEnabled,
                     onDragChanged: { location in
-                        for (id, frame) in checkboxFrames {
+                        for (id, frame) in checkboxFrames.frames {
                             guard !swipedIds.contains(id) else { continue }
                             if location.y >= (frame.minY - 20) && location.y <= (frame.maxY + 20),
                                let target = viewModel.reminders.first(where: { $0.id == id }) {
@@ -278,6 +406,32 @@ struct ReminderView: View {
                     .transition(.opacity.combined(with: .scale(scale: 0.95, anchor: .topTrailing)))
                     .zIndex(10)
             }
+
+            // Membership barcode — slides down from the top of the screen.
+            if showBarcodePanel {
+                Color.black.opacity(0.18)
+                    .contentShape(Rectangle())
+                    .onTapGesture { dismissBarcodePanel() }
+                    .ignoresSafeArea()
+                    .transition(.opacity)
+                    .zIndex(19)
+            }
+
+            // The top-aligned container stays mounted so the panel's own
+            // move transition travels its own height (sliding out from behind
+            // the navigation bar) rather than a full screen height.
+            VStack(spacing: 0) {
+                if showBarcodePanel {
+                    MembershipBarcodeTopSheet(
+                        storeName: userStoreItem.store.name,
+                        onDismiss: dismissBarcodePanel
+                    )
+                    .transition(.move(edge: .top).combined(with: .opacity))
+                }
+                Spacer(minLength: 0)
+            }
+            .allowsHitTesting(showBarcodePanel)
+            .zIndex(20)
 
             // Sticky banner ad above tab bar (hidden for subscribers)
             if !isSubscribed {
@@ -344,7 +498,7 @@ struct ReminderView: View {
 
             let vm = viewModel
             let storeId = userStoreItem.reminderStoreId
-            let shared = userStoreItem.sharedWith
+            let shared = effectiveSharedWith
             let sharedFrom = userStoreItem.sharedFromName
             let userName = UserSessionManager.shared.currentUser?.name
 
@@ -390,7 +544,7 @@ struct ReminderView: View {
                     viewModel.autosaveReminder(
                         userStoreId: userStoreItem.reminderStoreId,
                         title: title,
-                        sharedWith: userStoreItem.sharedWith,
+                        sharedWith: effectiveSharedWith,
                         sharedFromName: userStoreItem.sharedFromName,
                         currentUserName: UserSessionManager.shared.currentUser?.name
                     )
@@ -460,7 +614,17 @@ struct ReminderView: View {
     }
 
     private var reminderListView: some View {
-        ScrollViewReader { proxy in
+        // Resolved once per list rebuild and handed to every row. Both maps scan
+        // all reminders (and avatarColorMap runs the palette solver), so reading
+        // them inside reminderRow made building the list O(n²) in the number of
+        // reminders.
+        let avatarColors = avatarColorMap
+        let memberNames = storeMemberNames
+        // Same reason: this scans every displayed reminder and was evaluated
+        // once per section header.
+        let showsCategoryHeaders = viewModel.hasDisplayedCategorizedReminders
+
+        return ScrollViewReader { proxy in
             List {
                 // Favorite tags section
                 if !viewModel.favoriteTags.isEmpty {
@@ -480,11 +644,15 @@ struct ReminderView: View {
                         Section {
                             if !collapsedCategories.contains(category) {
                                 ForEach(viewModel.displayedReminders(for: category)) { reminder in
-                                    reminderRow(for: reminder)
+                                    reminderRow(
+                                        for: reminder,
+                                        avatarColors: avatarColors,
+                                        memberNames: memberNames
+                                    )
                                 }
                             }
                         } header: {
-                            if viewModel.hasDisplayedCategorizedReminders {
+                            if showsCategoryHeaders {
                                 categoryHeader(for: category)
                             }
                         }
@@ -492,7 +660,11 @@ struct ReminderView: View {
                 } else {
                     // Reorder mode requires a flat ForEach for .onMove to work.
                     ForEach(viewModel.displayedReminders) { reminder in
-                        reminderRow(for: reminder)
+                        reminderRow(
+                            for: reminder,
+                            avatarColors: avatarColors,
+                            memberNames: memberNames
+                        )
                     }
                     .onMove(perform: { source, destination in
                         viewModel.moveReminder(from: source, to: destination)
@@ -511,10 +683,7 @@ struct ReminderView: View {
                 Color.clear.frame(height: 50)
             }
             .environment(\.editMode, editMode)
-            .background(
-                Color.backgroundGradient(for: colorScheme)
-                    .ignoresSafeArea()
-            )
+            .background(SurfaceBackground(surface: .reminders(storeId: userStoreItem.id)))
             .onChange(of: isAddingNewReminder) { _, newValue in
                 if newValue {
                     withAnimation {
@@ -596,30 +765,14 @@ struct ReminderView: View {
     }
 
     private func categoryIcon(for category: String) -> String {
-        switch category.lowercased() {
-        case "produce": return "leaf"
-        case "dairy": return "cup.and.saucer"
-        case "meat & seafood": return "fish"
-        case "bakery": return "birthday.cake"
-        case "beverages": return "waterbottle"
-        case "snacks": return "popcorn"
-        case "frozen": return "snowflake"
-        case "canned goods": return "cylinder"
-        case "condiments & sauces": return "flask"
-        case "grains & pasta": return "takeoutbag.and.cup.and.straw"
-        case "household": return "house"
-        case "personal care": return "hands.sparkles"
-        case "baby": return "stroller"
-        case "pet": return "pawprint"
-        case "health": return "cross.case"
-        case "electronics": return "bolt"
-        case "clothing": return "tshirt"
-        case "uncategorized": return "questionmark.folder"
-        default: return "tag"
-        }
+        CategoryIcon.symbol(for: category)
     }
 
-    private func reminderRow(for reminder: Reminder) -> some View {
+    private func reminderRow(
+        for reminder: Reminder,
+        avatarColors: [String: Color],
+        memberNames: [String: String]
+    ) -> some View {
         // Filter out any photo URLs that are staged for deletion so they
         // disappear immediately while the undo window is open.
         let displayReminder: Reminder = {
@@ -700,12 +853,17 @@ struct ReminderView: View {
                 customCategoryText = reminder.category ?? ""
                 reminderForCategory = reminder
             } : nil,
-            onCheckboxFrameChanged: { frame in
-                checkboxFrames[reminder.id] = frame
-            },
+            // Only track frames while the swipe rail is actually mounted —
+            // otherwise every visible row would recompute its global frame on
+            // each scroll frame for a feature that isn't running.
+            onCheckboxFrameChanged: isSwipeRailActive ? { frame in
+                checkboxFrames.frames[reminder.id] = frame
+            } : nil,
             onDragChanged: nil,
             onDragEnded: nil,
-            autoDeleteEnabled: autoDeleteEnabled
+            autoDeleteEnabled: autoDeleteEnabled,
+            avatarColorMap: avatarColors,
+            memberNames: memberNames
         )
         .contentShape(Rectangle())
         .listRowBackground(cardRowBackground)
@@ -732,15 +890,6 @@ struct ReminderView: View {
                 Image(systemName: "square.and.arrow.up")
             }
             .tint(.blue)
-
-            if reminder.isShared == true {
-                Button {
-                    showingSharedInfo = reminder
-                } label: {
-                    Image(systemName: "person.2.fill")
-                }
-                .tint(.appAccent)
-            }
         }
     }
 
@@ -754,8 +903,11 @@ struct ReminderView: View {
                         lineWidth: 1.5
                     )
             )
+            // Flatten fill + stroke before the shadow so it is computed once per
+            // row; the second decorative shadow cost an extra offscreen pass per
+            // row while scrolling. Matches the StoresView card fix.
+            .compositingGroup()
             .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.3 : 0.1), radius: 8, x: 0, y: 4)
-            .shadow(color: Color.white.opacity(colorScheme == .dark ? 0.05 : 0.5), radius: 2, x: 0, y: -2)
             .padding(.vertical, 4)
     }
 
@@ -777,7 +929,7 @@ struct ReminderView: View {
                             .onTapGesture {
                                 viewModel.addReminderFromFavorite(
                                     tag: tag,
-                                    sharedWith: userStoreItem.sharedWith,
+                                    sharedWith: effectiveSharedWith,
                                     sharedFromName: userStoreItem.sharedFromName,
                                     currentUserName: UserSessionManager.shared.currentUser?.name,
                                     useSmartCategory: effectiveSmartCategoryEnabled
@@ -814,7 +966,11 @@ struct ReminderView: View {
         if isAddingNewReminder {
             HStack {
                 Image(systemName: "square")
+                    .font(.system(size: 24))
                     .foregroundStyle(.gray.opacity(0.4))
+                    // Match the checkbox footprint in ReminderItemView so the
+                    // text field lines up with the reminder titles below it.
+                    .frame(width: 32, height: 32)
                 TextField("What do you need?", text: $newReminderText)
                     .font(.headline)
                     .focused($isNewReminderFocused)
@@ -964,10 +1120,34 @@ struct ReminderView: View {
             }
         }
 
+        // Membership barcode
+        ToolbarItem(placement: .navigationBarTrailing) {
+            if !isReorderMode {
+                Button {
+                    withAnimation(.easeInOut(duration: 0.25)) {
+                        showInfoPanel = false
+                        showBarcodePanel.toggle()
+                    }
+                } label: {
+                    Image(systemName: hasMembershipCard ? "barcode.viewfinder" : "barcode")
+                        .frame(width: 22, height: 22)
+                }
+                .frame(width: 44, height: 44)
+                .accessibilityLabel("Membership barcode")
+            }
+        }
+
+        // Break the shared Liquid Glass capsule so the barcode button renders in
+        // its own circle, separate from the info button.
+        if #available(iOS 26.0, *) {
+            ToolbarSpacer(.fixed, placement: .navigationBarTrailing)
+        }
+
         ToolbarItem(placement: .navigationBarTrailing) {
             if !isReorderMode {
                 Button {
                     withAnimation(.easeInOut(duration: 0.18)) {
+                        showBarcodePanel = false
                         showInfoPanel.toggle()
                     }
                 } label: {
@@ -976,6 +1156,18 @@ struct ReminderView: View {
                 }
                 .frame(width: 44, height: 44)
             }
+        }
+    }
+
+    /// Whether a membership card is saved for this store, used to fill in the
+    /// toolbar barcode icon.
+    private var hasMembershipCard: Bool {
+        membershipCardStore.card(forStoreNamed: userStoreItem.store.name) != nil
+    }
+
+    private func dismissBarcodePanel() {
+        withAnimation(.easeInOut(duration: 0.25)) {
+            showBarcodePanel = false
         }
     }
 
@@ -988,42 +1180,6 @@ struct ReminderView: View {
                 Text("This reminder was shared by \(sharedFrom). Deleting it will remove it for everyone.")
             } else {
                 Text("This reminder is shared. Deleting it will remove it for everyone.")
-            }
-        }
-    }
-
-    @ViewBuilder
-    private var sharedReminderInfoMessage: some View {
-        if let reminder = showingSharedInfo {
-            let currentUserName = UserSessionManager.shared.currentUser?.name
-            let currentUserId = UserSessionManager.shared.currentUser?.userId
-            // Prefer ID-based comparison (reliable after name changes), fall back to name
-            let isCurrentUserTheSharer: Bool = {
-                if let sharedFromId = reminder.sharedFromId, !sharedFromId.isEmpty,
-                   let currentUserId = currentUserId {
-                    return sharedFromId == currentUserId
-                }
-                return reminder.sharedFrom != nil &&
-                    !reminder.sharedFrom!.isEmpty &&
-                    reminder.sharedFrom == currentUserName
-            }()
-
-            if isCurrentUserTheSharer {
-                if let sharedWith = reminder.sharedWith, !sharedWith.isEmpty {
-                    Text("You shared this reminder with:\n\(sharedWith.joined(separator: "\n"))\n\nChanges sync automatically.")
-                } else {
-                    Text("You shared this reminder.\n\nChanges sync automatically.")
-                }
-            } else if let sharedFrom = reminder.sharedFrom, !sharedFrom.isEmpty {
-                if let sharedWith = reminder.sharedWith, !sharedWith.isEmpty {
-                    Text("Shared by: \(sharedFrom)\nAlso shared with: \(sharedWith.filter { $0 != sharedFrom }.joined(separator: ", "))\n\nChanges sync automatically.")
-                } else {
-                    Text("Shared by: \(sharedFrom)\n\nChanges sync automatically.")
-                }
-            } else if let sharedWith = reminder.sharedWith, !sharedWith.isEmpty {
-                Text("You shared this reminder with:\n\(sharedWith.joined(separator: "\n"))\n\nChanges sync automatically.")
-            } else {
-                Text("This reminder is synced across users.")
             }
         }
     }
@@ -1062,7 +1218,7 @@ struct ReminderView: View {
             viewModel.addReminder(
                 userStoreId: userStoreItem.reminderStoreId,
                 title: title,
-                sharedWith: userStoreItem.sharedWith,
+                sharedWith: effectiveSharedWith,
                 sharedFromName: userStoreItem.sharedFromName,
                 currentUserName: UserSessionManager.shared.currentUser?.name,
                 useSmartCategory: effectiveSmartCategoryEnabled
@@ -1085,10 +1241,19 @@ struct ReminderView: View {
             // Add to fading set for animation
             fadingReminderIds.insert(reminder.id)
 
+            // Auto-delete skips the Firestore isDone toggle, so stamp the
+            // check-off on the local copy — deleteReminder uses it to record
+            // the reminder_history entry with the right attribution.
+            var checkedOff = reminder
+            checkedOff.isDone = true
+            checkedOff.checkedOffAt = Date().timeIntervalSince1970
+            checkedOff.checkedOffBy = UserSessionManager.shared.currentUser?.name
+            checkedOff.checkedOffById = UserSessionManager.shared.currentUser?.userId
+
             // After fade animation, stage the deletion (undo still possible)
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                 fadingReminderIds.remove(reminder.id)
-                stageReminderForDeletion(reminder)
+                stageReminderForDeletion(checkedOff)
             }
         } else {
             // Normal toggle behavior
@@ -1364,82 +1529,7 @@ struct ReminderView: View {
                         .buttonStyle(.plain)
                     }
 
-                    // Store app / website row. The URL is derived from the store name
-                    // (no per-store data to maintain); iOS opens the store's app via
-                    // universal links when installed, otherwise falls back to Safari.
-                    if let storeURL = storeWebsiteURL {
-                        Divider()
-                            .padding(.horizontal, 16)
-
-                        Button {
-                            withAnimation(.easeInOut(duration: 0.18)) {
-                                showInfoPanel = false
-                            }
-                            openURL(storeURL)
-                        } label: {
-                            HStack(spacing: 12) {
-                                Image(systemName: "safari")
-                                    .font(.body)
-                                    .foregroundColor(Color.appAccent)
-                                    .frame(width: 24)
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text("Visit store")
-                                        .font(.subheadline)
-                                        .fontWeight(.medium)
-                                        .foregroundStyle(Color.primary)
-                                    Text("Open the store's app or website")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-                                Spacer()
-                                Image(systemName: "arrow.up.right")
-                                    .font(.caption)
-                                    .foregroundStyle(.tertiary)
-                            }
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 12)
-                        }
-                        .buttonStyle(.plain)
-                    }
-
-                    // Set / edit store website (admin only). Writes a shared override to
-                    // the store_websites collection so it applies for everyone with this
-                    // store, so it is restricted to the app owner's account.
-                    if isStoreAdmin {
-                        Divider()
-                            .padding(.horizontal, 16)
-
-                        Button {
-                            websiteInputText = storeWebsiteURL?.absoluteString ?? ""
-                            withAnimation(.easeInOut(duration: 0.18)) {
-                                showInfoPanel = false
-                            }
-                            showingEditWebsite = true
-                        } label: {
-                            HStack(spacing: 12) {
-                                Image(systemName: "link")
-                                    .font(.body)
-                                    .foregroundColor(Color.appAccent)
-                                    .frame(width: 24)
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(storeWebsiteURL == nil ? "Set store website" : "Edit store website")
-                                        .font(.subheadline)
-                                        .fontWeight(.medium)
-                                        .foregroundStyle(Color.primary)
-                                    Text("Add a link to this store's website or app")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-                                Spacer()
-                                Image(systemName: "chevron.right")
-                                    .font(.caption)
-                                    .foregroundStyle(.tertiary)
-                            }
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 12)
-                        }
-                        .buttonStyle(.plain)
-                    }
+                    infoPanelSecondaryRows
                 }
                 .background(
                     RoundedRectangle(cornerRadius: 16)
@@ -1453,6 +1543,195 @@ struct ReminderView: View {
         }
         .padding(.top, 8)
         .allowsHitTesting(true)
+    }
+
+    /// The lower half of the info panel.
+    ///
+    /// Split out of `infoPanelOverlay` purely for the ViewBuilder child
+    /// limit — the panel's rows had outgrown the ten a single stack allows.
+    private var infoPanelSecondaryRows: some View {
+        Group {
+            Divider()
+                .padding(.horizontal, 16)
+
+            // History row — checked-off items no longer in the list
+            Button {
+                withAnimation(.easeInOut(duration: 0.18)) {
+                    showInfoPanel = false
+                }
+                showingHistory = true
+            } label: {
+                HStack(spacing: 12) {
+                    Image(systemName: "clock.arrow.circlepath")
+                        .font(.body)
+                        .foregroundColor(Color.appAccent)
+                        .frame(width: 24)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("History")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .foregroundStyle(Color.primary)
+                        Text("Checked-off items no longer in the list")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+            }
+            .buttonStyle(.plain)
+
+            Divider()
+                .padding(.horizontal, 16)
+
+            // Analytics row — premium shopping insights for this store.
+            // The view itself shows an upgrade pitch for free users.
+            Button {
+                withAnimation(.easeInOut(duration: 0.18)) {
+                    showInfoPanel = false
+                }
+                showingAnalytics = true
+            } label: {
+                HStack(spacing: 12) {
+                    Image(systemName: "chart.bar.xaxis")
+                        .font(.body)
+                        .foregroundColor(isSubscribed ? Color.appAccent : .secondary)
+                        .frame(width: 24)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Analytics")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .foregroundStyle(isSubscribed ? Color.primary : Color.secondary)
+                        Text(isSubscribed ? "Shopping trends and item insights" : "Available for subscribers")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Image(systemName: isSubscribed ? "chevron.right" : "lock.fill")
+                        .font(isSubscribed ? .caption : .subheadline)
+                        .foregroundStyle(isSubscribed ? AnyShapeStyle(.tertiary) : AnyShapeStyle(.secondary))
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+            }
+            .buttonStyle(.plain)
+
+            Divider()
+                .padding(.horizontal, 16)
+
+            // Background row — colors are free, so this is never locked. The
+            // picker itself pitches the upgrade for photos.
+            Button {
+                withAnimation(.easeInOut(duration: 0.18)) {
+                    showInfoPanel = false
+                }
+                showingBackgroundPicker = true
+            } label: {
+                HStack(spacing: 12) {
+                    Image(systemName: "photo.on.rectangle.angled")
+                        .font(.body)
+                        .foregroundColor(Color.appAccent)
+                        .frame(width: 24)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Change Background")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .foregroundStyle(Color.primary)
+                        Text(isSubscribed ? "A photo or color just for this store" : "A color just for this store")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+            }
+            .buttonStyle(.plain)
+
+            // Store app / website row. The URL is derived from the store name
+            // (no per-store data to maintain); iOS opens the store's app via
+            // universal links when installed, otherwise falls back to Safari.
+            if let storeURL = storeWebsiteURL {
+                Divider()
+                    .padding(.horizontal, 16)
+
+                Button {
+                    withAnimation(.easeInOut(duration: 0.18)) {
+                        showInfoPanel = false
+                    }
+                    openURL(storeURL)
+                } label: {
+                    HStack(spacing: 12) {
+                        Image(systemName: "safari")
+                            .font(.body)
+                            .foregroundColor(Color.appAccent)
+                            .frame(width: 24)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Visit store")
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                                .foregroundStyle(Color.primary)
+                            Text("Open the store's app or website")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Image(systemName: "arrow.up.right")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                }
+                .buttonStyle(.plain)
+            }
+
+            // Set / edit store website (admin only). Writes a shared override to
+            // the store_websites collection so it applies for everyone with this
+            // store, so it is restricted to the app owner's account.
+            if isStoreAdmin {
+                Divider()
+                    .padding(.horizontal, 16)
+
+                Button {
+                    websiteInputText = storeWebsiteURL?.absoluteString ?? ""
+                    withAnimation(.easeInOut(duration: 0.18)) {
+                        showInfoPanel = false
+                    }
+                    showingEditWebsite = true
+                } label: {
+                    HStack(spacing: 12) {
+                        Image(systemName: "link")
+                            .font(.body)
+                            .foregroundColor(Color.appAccent)
+                            .frame(width: 24)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(storeWebsiteURL == nil ? "Set store website" : "Edit store website")
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                                .foregroundStyle(Color.primary)
+                            Text("Add a link to this store's website or app")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                }
+                .buttonStyle(.plain)
+            }
+        }
     }
 
     /// The store's website URL, derived from its name via the shared domain map.

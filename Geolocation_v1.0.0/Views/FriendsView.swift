@@ -20,6 +20,7 @@ struct FriendsView: View {
     @State private var showingRemoveAlert = false
     @State private var friendshipToCancel: Friendship?
     @State private var showingCancelAlert = false
+    @State private var showInviteAlert = false
     @Environment(\.colorScheme) var colorScheme
 
     private let gridColumns = [
@@ -103,6 +104,11 @@ struct FriendsView: View {
                 Text("Are you sure you want to remove this friend?")
             }
         }
+        .alert("Invite Friends", isPresented: $showInviteAlert) {
+            Button("OK") { }
+        } message: {
+            Text(AppInvite.linkCopiedMessage)
+        }
         .alert("Cancel Request", isPresented: $showingCancelAlert) {
             Button("No", role: .cancel) {
                 friendshipToCancel = nil
@@ -152,6 +158,9 @@ struct FriendsView: View {
                     emptyState
                         .padding(.top, 60)
                 }
+
+                // Invite Friends card
+                inviteFriendsSection
             }
             .padding(.top, 8)
             .padding(.bottom, 20)
@@ -316,6 +325,51 @@ struct FriendsView: View {
         }
     }
 
+    // MARK: - Invite Friends Section
+
+    private var inviteFriendsSection: some View {
+        Button(action: inviteFriends) {
+            HStack(spacing: 14) {
+                Circle()
+                    .fill(Color.appAccent.opacity(0.15))
+                    .frame(width: 44, height: 44)
+                    .overlay(
+                        Image(systemName: "envelope.open.fill")
+                            .font(.system(size: 18))
+                            .foregroundColor(.appAccent)
+                    )
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Invite Friends")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.primary)
+
+                    Text("Copy Allim's App Store link to share with friends")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+
+                Spacer()
+
+                Image(systemName: "doc.on.doc")
+                    .font(.subheadline)
+                    .foregroundColor(.appAccent)
+            }
+            .padding(16)
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(.ultraThinMaterial)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16)
+                            .stroke(Color.cardBorder(for: colorScheme), lineWidth: 1.5)
+                    )
+                    .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.3 : 0.08), radius: 8, x: 0, y: 4)
+            )
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal)
+    }
+
     // MARK: - Empty State
 
     private var emptyState: some View {
@@ -339,12 +393,24 @@ struct FriendsView: View {
             }
             .buttonStyle(PrimaryButtonStyle())
             .padding(.horizontal, 40)
+
+            Button(action: inviteFriends) {
+                Label("Invite Friends", systemImage: "envelope.open.fill")
+                    .font(.subheadline.weight(.medium))
+                    .foregroundColor(.appAccent)
+            }
         }
         .padding()
         .frame(maxWidth: .infinity)
     }
 
     // MARK: - Actions
+
+    /// Copies Allim's App Store link so the user can invite friends who don't have the app yet.
+    private func inviteFriends() {
+        AppInvite.copyLinkToClipboard()
+        showInviteAlert = true
+    }
 
     private func startConversation(with friendship: Friendship) {
         guard let userId = sessionManager.currentUser?.userId,

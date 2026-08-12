@@ -8,6 +8,7 @@
 import SwiftUI
 import UIKit
 import Combine
+import UserNotifications
 
 struct HomeView: View {
     @ObservedObject private var sessionManager = UserSessionManager.shared
@@ -19,9 +20,7 @@ struct HomeView: View {
     @StateObject private var messagesViewModel = MessagesViewModel()
     @StateObject private var friendsViewModel = FriendsViewModel()
     @ObservedObject private var tutorialManager = TutorialManager.shared
-    @ObservedObject private var subscriptionManager = SubscriptionManager.shared
     @State private var selectedTab = 0
-    @State private var showSubscriptionSheet = false
     @State private var isSearchExpanded = false
     @State private var searchQuery = ""
     @State private var hasRequestedPermissions = false
@@ -186,17 +185,6 @@ struct HomeView: View {
             }
             tutorialManager.pendingTabSwitch = nil
         }
-        .onChange(of: tutorialManager.showSubscriptionAfterTutorial) { _, shouldShow in
-            if shouldShow && !subscriptionManager.isSubscribed {
-                showSubscriptionSheet = true
-                tutorialManager.showSubscriptionAfterTutorial = false
-            } else if shouldShow {
-                tutorialManager.showSubscriptionAfterTutorial = false
-            }
-        }
-        .sheet(isPresented: $showSubscriptionSheet) {
-            SubscriptionPaywallView()
-        }
         .onChange(of: sessionManager.currentUser) { oldUser, newUser in
 
             // Fetch unread message count whenever user data becomes available
@@ -217,8 +205,12 @@ struct HomeView: View {
                 }
             }
 
-            // Start monitoring when user data becomes available
-            if let userId = newUser?.userId, !locationMonitor.isMonitoring {
+            // Start monitoring when user data becomes available. Deliberately not
+            // gated on `isMonitoring` — monitoring may already be running under the
+            // user ID restored from UserDefaults, and this is where the actual
+            // signed-in account takes over. startMonitoring is idempotent when the
+            // user is unchanged.
+            if let userId = newUser?.userId {
                 let locationStatus = locationMonitor.checkLocationPermission()
                 if locationStatus == .authorizedAlways || locationStatus == .authorizedWhenInUse {
                     locationMonitor.startMonitoring(userId: userId)
@@ -266,9 +258,19 @@ struct HomeView: View {
         print("🚀 HomeView: Initializing location and notification permissions")
         #endif
 
-        // Request notification permission
+        // Request notification permission. New accounts have already been asked
+        // from PermissionOnboardingView, so this only fires for anyone who
+        // reached the app without being prompted (an install that predates the
+        // walkthrough, or a permission reset).
         Task {
-            let notificationGranted = await notificationManager.requestAuthorization()
+            let status = await notificationManager.authorizationStatus()
+            let notificationGranted: Bool
+            if status == .notDetermined {
+                notificationGranted = await notificationManager.requestAuthorization()
+            } else {
+                notificationManager.checkAuthorizationStatus()
+                notificationGranted = status == .authorized
+            }
             #if DEBUG
             if notificationGranted {
                 print("✅ HomeView: Notification permission granted")
@@ -279,6 +281,13 @@ struct HomeView: View {
 
             // Debug: Print detailed notification settings
             notificationManager.debugNotificationSettings()
+
+            // Right after the permission walkthrough, a decline the user made
+            // seconds ago doesn't need an alert about itself landing on top of
+            // the tutorial. The nudge returns on the next launch.
+            if PermissionOnboardingManager.shared.didRunThisSession {
+                return
+            }
 
             if !notificationGranted {
                 // Permission is denied — iOS won't re-prompt, user must go to Settings manually

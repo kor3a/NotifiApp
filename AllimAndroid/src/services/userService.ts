@@ -1,14 +1,41 @@
-import firestore from '@react-native-firebase/firestore';
+import firestore, {FirebaseFirestoreTypes} from '@react-native-firebase/firestore';
 import storage from '@react-native-firebase/storage';
-import auth from '@react-native-firebase/auth';
 import {User} from '../models';
 
+// The `users` collection is keyed by the lowercased username (the `userId`
+// field) to match the iOS app — one document per person across platforms, so
+// Cloud Functions that look users up by userId or email resolve a single doc
+// (push tokens, account cleanup, sender-name resolution).
+//
+// Legacy Android builds keyed these docs by Firebase Auth UID instead. All
+// lookups therefore go through an email query — which finds both keying
+// schemes — and prefer the canonical username-keyed doc when a user has one
+// of each (e.g. signed up on Android, later used iOS).
+
+async function findUserDocByEmail(
+  email: string,
+): Promise<FirebaseFirestoreTypes.QueryDocumentSnapshot | null> {
+  const snap = await firestore()
+    .collection('users')
+    .where('email', '==', email.toLowerCase().trim())
+    .get();
+  if (snap.empty) {
+    return null;
+  }
+  const canonical = snap.docs.find(
+    doc => doc.id === (doc.data() as User).userId,
+  );
+  return canonical ?? snap.docs[0];
+}
+
 export const userService = {
-  // Fetch user by Firebase UID
-  async fetchUserByUid(uid: string): Promise<User | null> {
-    const snap = await firestore().collection('users').doc(uid).get();
-    if (!snap.exists) {return null;}
-    return {id: snap.id, ...snap.data()} as unknown as User;
+  // Fetch the user document for an email (auth identity)
+  async fetchUserByEmail(email: string): Promise<User | null> {
+    const doc = await findUserDocByEmail(email);
+    if (!doc) {
+      return null;
+    }
+    return {id: doc.id, ...doc.data()} as unknown as User;
   },
 
   // Fetch the profile for a signed-in account by email.
@@ -30,13 +57,16 @@ export const userService = {
   subscribeToUser(uid: string, callback: (user: User | null) => void) {
     return firestore()
       .collection('users')
-      .doc(uid)
+      .where('email', '==', email.toLowerCase().trim())
       .onSnapshot(snap => {
-        if (!snap.exists) {
+        if (!snap || snap.empty) {
           callback(null);
           return;
         }
-        callback({...snap.data()} as User);
+        const canonical =
+          snap.docs.find(doc => doc.id === (doc.data() as User).userId) ??
+          snap.docs[0];
+        callback({...canonical.data()} as User);
       });
   },
 

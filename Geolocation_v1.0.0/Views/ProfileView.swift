@@ -169,8 +169,10 @@ struct ProfileView: View {
                     }
                     Button("Cancel", role: .cancel) { }
                 } message: {
-                    Text("This will permanently delete your account and all associated data. This action cannot be undone.")
+                    Text(deleteAccountMessage)
                 }
+                // Only password accounts get here — Apple/Google accounts confirm
+                // through their provider's sheet instead.
                 .alert("Confirm Your Identity", isPresented: $viewModel.needsReauthForDeletion) {
                     SecureField("Password", text: $reauthPassword)
                     Button("Delete Account", role: .destructive) {
@@ -196,6 +198,17 @@ struct ProfileView: View {
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                             TutorialManager.shared.startIfNeeded(userId: userId)
                         }
+                    }
+                }
+                .foregroundStyle(.orange)
+
+                // Replays the primer screens themselves. The iOS prompts behind
+                // them are one-shot per install, so an already-answered
+                // permission just advances when its button is tapped.
+                Button("Replay Permission Screens") {
+                    dismiss()
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                        PermissionOnboardingManager.shared.replayForDebug()
                     }
                 }
                 .foregroundStyle(.orange)
@@ -233,6 +246,20 @@ struct ProfileView: View {
             if viewModel.newName.isEmpty {
                 viewModel.newName = user.name
             }
+        }
+    }
+
+    /// Social accounts confirm deletion through their provider's sheet, so the
+    /// warning tells them what to expect rather than implying a password prompt.
+    private var deleteAccountMessage: String {
+        let warning = "This will permanently delete your account and all associated data. This action cannot be undone."
+        switch viewModel.reauthMethod {
+        case .apple:
+            return warning + "\n\nYou'll be asked to confirm with Apple first."
+        case .google:
+            return warning + "\n\nYou may be asked to confirm with Google first."
+        case .password:
+            return warning
         }
     }
 }

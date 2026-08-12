@@ -184,6 +184,13 @@ class NotificationManager: NSObject, ObservableObject {
         }
     }
 
+    /// The system's current answer for this app. Distinguishes "never asked"
+    /// from "asked and declined", which `isAuthorized` alone can't — the
+    /// permission primer only shows while the prompt can still appear.
+    func authorizationStatus() async -> UNAuthorizationStatus {
+        await notificationCenter.notificationSettings().authorizationStatus
+    }
+
     enum CarPlayNotificationStatus {
         case enabled    // Explicit per-app CarPlay toggle exists and is ON
         case disabled   // Per-app CarPlay toggle exists but is OFF
@@ -350,10 +357,16 @@ class NotificationManager: NSObject, ObservableObject {
             let content = UNMutableNotificationContent()
             content.title = "📍 You're near \(storeName)"
 
+            // The banner is delivered as a communication notification, so iOS
+            // replaces the title with the sender name ("Allim") — the store name
+            // has to live in the body or the user never sees which store it is.
+            let trimmedName = storeName.trimmingCharacters(in: .whitespacesAndNewlines)
+            let place = trimmedName.isEmpty ? "this store" : trimmedName
+
             if reminderCount == 1 {
-                content.body = "You have 1 reminder waiting for you at this store."
+                content.body = "You have 1 reminder waiting for you at \(place)."
             } else {
-                content.body = "You have \(reminderCount) reminders waiting for you at this store."
+                content.body = "You have \(reminderCount) reminders waiting for you at \(place)."
             }
 
             #if DEBUG

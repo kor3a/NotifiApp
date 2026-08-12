@@ -17,7 +17,19 @@ struct MapView: View {
     @State private var viewingRegion: MKCoordinateRegion?
     @State private var searchText = ""
     @State private var results = [MKMapItem]()
+    // The Map's own selection binding. Kept so MapKit renders and handles the
+    // annotations exactly as before, but it is NOT used to drive the details
+    // sheet — see `selectedSearchItem` below.
     @State private var mapSelection: MKMapItem?
+    // Dedicated state for a tapped search-result pin that drives the details
+    // sheet. This intentionally does NOT rely on the Map's `selection:` binding:
+    // custom `Annotation`s aren't registered as selectable, so MapKit writes
+    // `nil` back into its selection on the next update (e.g. when the continuous
+    // camera change rebuilds the `results` array as the sheet resizes the map) —
+    // which was instantly dismissing the sheet. Managing our own state decouples
+    // the sheet from MapKit's selection lifecycle, exactly like
+    // `selectedStoreLocation` already does for stores.
+    @State private var selectedSearchItem: MKMapItem?
     @State private var showDetails = false
     @State private var wasTrackingBeforeSearch = true // Track if we were in userLocation mode before search opened
     @State private var previousSearchRegion: MKCoordinateRegion?
@@ -63,7 +75,8 @@ struct MapView: View {
                     .onTapGesture {
                         // Set selection first; onChange(of: selectedStoreLocation)
                         // will open the sheet after the state is committed.
-                        mapSelection = nil // Clear any search result selection
+                        mapSelection = nil       // Clear any Map selection
+                        selectedSearchItem = nil // Clear any search result selection
                         selectedStoreLocation = storeLocation
                     }
                 }
@@ -76,7 +89,11 @@ struct MapView: View {
                 Annotation(placemark.name ?? "", coordinate: placemark.coordinate) {
                     SearchResultPinView(name: placemark.name ?? "Location")
                         .onTapGesture {
-                            mapSelection = item
+                            // Drive the sheet from our own state (not the Map's
+                            // selection binding) so a subsequent camera-change
+                            // auto-search can't clear it and dismiss the sheet.
+                            selectedStoreLocation = nil
+                            selectedSearchItem = item
                         }
                 }
                 .annotationTitles(.hidden)
@@ -172,8 +189,9 @@ struct MapView: View {
         }
         .mapScope(mapScope)
         .sheet(isPresented: $showDetails, onDismiss: {
-            // Clear both selection sources when sheet is dismissed
+            // Clear all selection sources when sheet is dismissed
             selectedStoreLocation = nil
+            selectedSearchItem = nil
             mapSelection = nil
         }, content: {
             LocationDetailsView(
@@ -238,8 +256,9 @@ struct MapView: View {
                 }
             }
         }
-        .onChange(of: mapSelection, { oldValue, newValue in
-            // Only update showDetails from mapSelection if we don't have a store location selected
+        .onChange(of: selectedSearchItem, { oldValue, newValue in
+            // Only update showDetails from the search selection if we don't have
+            // a store location selected
             if selectedStoreLocation == nil {
                 showDetails = newValue != nil
             }
@@ -378,7 +397,9 @@ struct MapView: View {
                                     previousSearchRegion = region
                                 }
                                 Task {
-                                    await searchPlaces()
+                                    // Explicit search: recenter so the user's
+                                    // location and the top result are both visible.
+                                    await searchPlaces(recenter: true)
                                 }
                                 isSearchFocused = false
                             } else {
@@ -435,11 +456,12 @@ extension MapView {
                 if let storeLocation = selectedStoreLocation {
                     return createMapItemForStoreLocation(storeLocation)
                 }
-                return mapSelection
+                return selectedSearchItem
             },
             set: { newValue in
                 if newValue == nil {
                     selectedStoreLocation = nil
+                    selectedSearchItem = nil
                     mapSelection = nil
                 }
             }
@@ -512,7 +534,12 @@ extension MapView {
         return mapItem
     }
 
-    func searchPlaces() async {
+    /// - Parameter recenter: when true (an explicit, user-initiated search),
+    ///   the map animates to a region framing both the user's location and the
+    ///   top result pin — even if that result is outside the current view. Auto
+    ///   searches (triggered by panning/zooming) pass false so the camera stays
+    ///   put while the user explores.
+    func searchPlaces(recenter: Bool = false) async {
         // Use the current viewing region if available, otherwise use user location
         let searchCenter: CLLocationCoordinate2D
         let baseRegion: MKCoordinateRegion
@@ -564,16 +591,18 @@ extension MapView {
 
         // Don't wipe existing result pins if an auto-search (triggered by
         // panning/zooming) comes back empty — keep the current pins on screen
-        // until the user changes the query. Always update on an explicit
-        // search (previousSearchRegion == nil) or when we actually found something.
-        if !foundResults.isEmpty || previousSearchRegion == nil {
+        // until the user changes the query. An explicit search always updates
+        // (including clearing to empty for a no-match query).
+        if recenter || !foundResults.isEmpty {
             self.results = foundResults
         }
 
-        /// Only zoom to show results on initial search (not when auto-searching)
-        /// This prevents the map from jumping when user is exploring
-        if !self.results.isEmpty && previousSearchRegion == nil {
-            let region = calculateRegionForResults(self.results)
+        // On an explicit search, frame the map so both the user's location
+        // (blue dot) and the top/nearest result pin are visible — even if the
+        // result is well outside the current view. Auto searches leave the
+        // camera where it is so panning around isn't interrupted.
+        if recenter, let firstResult = self.results.first {
+            let region = calculateRegionForUserAndResult(firstResult)
             withAnimation(.smooth(duration: 0.5)) {
                 cameraPosition = .region(region)
             }
@@ -589,42 +618,30 @@ extension MapView {
         )
     }
 
-    /// Calculate a region that encompasses user location and all search results
-    func calculateRegionForResults(_ mapItems: [MKMapItem]) -> MKCoordinateRegion {
-        guard !mapItems.isEmpty else {
-            return viewModel.region
-        }
+    /// Calculate a region that frames both the user's current location (the
+    /// blue dot) and a single result pin, with padding so neither sits against
+    /// the screen edge. Used to reveal an off-screen search result while keeping
+    /// the user's own position in view.
+    func calculateRegionForUserAndResult(_ result: MKMapItem) -> MKCoordinateRegion {
+        let userCoord = viewModel.region.center
+        let resultCoord = result.placemark.coordinate
 
-        // Start with user's location
-        let userLat = viewModel.region.center.latitude
-        let userLon = viewModel.region.center.longitude
-        var minLat = userLat
-        var maxLat = userLat
-        var minLon = userLon
-        var maxLon = userLon
+        let minLat = min(userCoord.latitude, resultCoord.latitude)
+        let maxLat = max(userCoord.latitude, resultCoord.latitude)
+        let minLon = min(userCoord.longitude, resultCoord.longitude)
+        let maxLon = max(userCoord.longitude, resultCoord.longitude)
 
-        // Expand bounds to include all search results
-        for item in mapItems {
-            let coordinate = item.placemark.coordinate
-            minLat = min(minLat, coordinate.latitude)
-            maxLat = max(maxLat, coordinate.latitude)
-            minLon = min(minLon, coordinate.longitude)
-            maxLon = max(maxLon, coordinate.longitude)
-        }
-
-        // Calculate center and span with padding
         let centerLat = (minLat + maxLat) / 2
         let centerLon = (minLon + maxLon) / 2
-        let spanLat = (maxLat - minLat) * 1.3 // Add 30% padding
-        let spanLon = (maxLon - minLon) * 1.3
 
-        // Ensure minimum span for visibility
-        let finalSpanLat = max(spanLat, 0.01)
-        let finalSpanLon = max(spanLon, 0.01)
+        // 40% padding around the two points, with a minimum span so a nearby
+        // result doesn't zoom in uncomfortably tight.
+        let spanLat = max((maxLat - minLat) * 1.4, 0.01)
+        let spanLon = max((maxLon - minLon) * 1.4, 0.01)
 
         return MKCoordinateRegion(
             center: CLLocationCoordinate2D(latitude: centerLat, longitude: centerLon),
-            span: MKCoordinateSpan(latitudeDelta: finalSpanLat, longitudeDelta: finalSpanLon)
+            span: MKCoordinateSpan(latitudeDelta: spanLat, longitudeDelta: spanLon)
         )
     }
 }

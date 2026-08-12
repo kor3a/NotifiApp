@@ -34,20 +34,22 @@ struct StoresView: View {
     @State private var selectedOnMyWayStore: UserStoreItem?
     @State private var storeToDelete: UserStoreItem?
     @State private var notificationDestination: UserStoreItem? = nil
+    @State private var voiceCommandStore: UserStoreItem? = nil
     @State private var pressedStoreId: String? = nil
     @AppStorage("storeViewMode") private var storeViewMode: StoreViewMode = .list
     @State private var isFloatEditMode: Bool = false
     @State private var isFabShrunk: Bool = false
     @State private var isAtScrollBottom: Bool = false
     @State private var fabInactivityTimer: Timer? = nil
+    @State private var showingBackgroundPicker = false
     @Environment(\.colorScheme) var colorScheme
 
     var body: some View {
         NavigationStack {
             ZStack {
-                // Background always visible
-                Color.backgroundGradient(for: colorScheme)
-                    .ignoresSafeArea()
+                // Background always visible — the user's chosen color for
+                // subscribers, the default gradient otherwise.
+                SurfaceBackground(surface: .stores)
 
                 // Hidden navigation destination for notification taps
                 Color.clear
@@ -177,8 +179,14 @@ struct StoresView: View {
         .sheet(isPresented: $showingPaywall) {
             SubscriptionPaywallView()
         }
+        .sheet(isPresented: $showingBackgroundPicker) {
+            BackgroundPickerView(surface: .stores)
+        }
         .sheet(item: $selectedStoreToShare) { storeToShare in
             ShareStoreView(viewModel: viewModel, messagesViewModel: messagesViewModel, userStoreItem: storeToShare)
+        }
+        .sheet(item: $voiceCommandStore) { storeItem in
+            VoiceCommandView(userStoreItem: storeItem)
         }
         .alert("On My Way", isPresented: $showOnMyWayConfirmation) {
             Button("Send") {
@@ -336,7 +344,7 @@ struct StoresView: View {
                         .fontWeight(.semibold)
                         .foregroundColor(.primary)
 
-                    Text("Add your favourite grocery stores\nto start managing your shopping reminders.")
+                    Text("Add your favorite grocery stores\nto start managing your shopping reminders.")
                         .font(.body)
                         .foregroundColor(.secondary)
                         .multilineTextAlignment(.center)
@@ -372,15 +380,26 @@ struct StoresView: View {
             .background(
                 RoundedRectangle(cornerRadius: 16)
                     .fill(.ultraThinMaterial)
+                    // In light mode the material takes on the light backdrop
+                    // behind it, so a row ends up almost the same brightness as
+                    // the background and the rows blur together. The shared card
+                    // tint and border lift each row off the background.
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(Color.cardFillTint(for: colorScheme))
+                    )
                     .overlay(
                         RoundedRectangle(cornerRadius: 16)
                             .stroke(
-                                Color.cardBorder(for: colorScheme),
+                                Color.cardBorderStyle(for: colorScheme),
                                 lineWidth: 1.5
                             )
                     )
-                    .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.3 : 0.1), radius: 8, x: 0, y: 4)
-                    .shadow(color: Color.white.opacity(colorScheme == .dark ? 0.05 : 0.5), radius: 2, x: 0, y: -2)
+                    // Flatten fill + stroke before the shadow so it is computed
+                    // once per row; a second decorative shadow here cost an
+                    // extra offscreen pass per row while scrolling.
+                    .compositingGroup()
+                    .shadow(color: Color.black.opacity(Color.cardShadowOpacity(for: colorScheme)), radius: 8, x: 0, y: 4)
             )
             .padding(.vertical, 4)
     }
@@ -438,6 +457,24 @@ struct StoresView: View {
                             Label("Share", systemImage: "square.and.arrow.up")
                         }
                         .tint(.blue)
+
+                        // DEBUG-only for now (see FeatureFlags), and Premium
+                        // when it ships. Absent rather than gated on tap —
+                        // accounts without it never see the action at all; the
+                        // paywall is where the feature is advertised.
+                        //
+                        // Declared last so it lands furthest from the trailing
+                        // edge — trailing swipe actions fill inward in
+                        // declaration order, putting this left of Share.
+                        if FeatureFlags.voiceCommands && subscriptionManager.isSubscribed {
+                            Button {
+                                voiceCommandStore = userStoreItem
+                            } label: {
+                                Label("Voice", systemImage: "mic.fill")
+                            }
+                            .tint(Color.appError)
+                            .accessibilityHint("Speak to add, check off, or remove reminders")
+                        }
                     }
                 }
                 .swipeActions(edge: .leading, allowsFullSwipe: false) {
@@ -525,7 +562,16 @@ struct StoresView: View {
                                         isFabShrunk = true
                                     }
                                 }
-                                showingAddStore = true
+                                // Free-tier store limit: existing stores over the limit are
+                                // kept, but adding another requires a subscription.
+                                if tutorialManager.isActive || SubscriptionManager.canAddStore(
+                                    isSubscribed: subscriptionManager.isSubscribed,
+                                    currentStoreCount: viewModel.userStoreItems.count
+                                ) {
+                                    showingAddStore = true
+                                } else {
+                                    showingPaywall = true
+                                }
                             }) {
                                 HStack {
                                     Image(systemName: "cart.badge.plus")
@@ -585,6 +631,31 @@ struct StoresView: View {
                                     Image(systemName: "fork.knife.circle")
                                         .font(.system(size: 20))
                                     Text("Smart Recipe")
+                                        .font(.system(size: 17))
+                                    Spacer()
+                                }
+                                .padding()
+                                .frame(width: 200)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 16)
+                                        .fill(.ultraThinMaterial)
+                                )
+                                .foregroundColor(.primary)
+                            }
+
+                            Button(action: {
+                                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                                    isMenuExpanded = false
+                                    if storeViewMode == .float {
+                                        isFabShrunk = true
+                                    }
+                                }
+                                showingBackgroundPicker = true
+                            }) {
+                                HStack {
+                                    Image(systemName: "paintpalette")
+                                        .font(.system(size: 20))
+                                    Text("Colors")
                                         .font(.system(size: 17))
                                     Spacer()
                                 }

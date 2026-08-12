@@ -58,7 +58,9 @@ class AuthenticationManager: NSObject, ObservableObject {
         let email: String
         let credential: AuthCredential
         let providerLabel: String
-        /// Carried through so the new provider's name can seed a missing profile.
+        /// The provider's name for the user. Linking always lands on an account
+        /// that already has a profile, so this is carried for context only —
+        /// `firebaseSignIn` stashes the name suggestion for profile setup.
         let displayName: String?
     }
 
@@ -89,6 +91,9 @@ class AuthenticationManager: NSObject, ObservableObject {
     private var currentNonce: String?
     /// Set when a *programmatic* Apple sign-in is being used to re-auth for linking.
     private var appleLinkAfter: LinkAfter?
+    /// Set when Apple is being used to re-authenticate the *already signed-in* user
+    /// (account deletion). Takes priority over the linking path in the delegate.
+    private var appleCredentialCompletion: ((CredentialOutcome) -> Void)?
 
     private let db = Firestore.firestore()
 
@@ -264,7 +269,7 @@ class AuthenticationManager: NSObject, ObservableObject {
                     if code == AuthErrorCode.providerAlreadyLinked.rawValue ||
                        code == AuthErrorCode.credentialAlreadyInUse.rawValue {
                         DispatchQueue.main.async { self.pendingLink = nil }
-                        self.ensureUserDocument(for: user, displayName: pending.displayName)
+                        self.ensureUserDocument(for: user)
                         return
                     }
                     self.finishLink(error: "Couldn't link your \(pending.providerLabel) account: \(linkError.localizedDescription)")
@@ -272,7 +277,7 @@ class AuthenticationManager: NSObject, ObservableObject {
                 }
 
                 DispatchQueue.main.async { self.pendingLink = nil }
-                self.ensureUserDocument(for: user, displayName: pending.displayName)
+                self.ensureUserDocument(for: user)
             }
         }
     }
@@ -357,6 +362,12 @@ class AuthenticationManager: NSObject, ObservableObject {
                 return
             }
 
+            // Stash the provider's name before anything can route to profile setup:
+            // the auth-state listener's `fetchUser` runs concurrently with the
+            // profile lookup below and may reach setup first, and Apple only ever
+            // sends the full name on the very first authorization.
+            UserSessionManager.storeSuggestedName(displayName, uid: user.uid)
+
             // Linking re-auth path: verify the right account, then attach the
             // pending credential from the provider the user originally tried.
             if let linkAfter = linkAfter {
@@ -377,12 +388,12 @@ class AuthenticationManager: NSObject, ObservableObject {
                             return
                         }
                     }
-                    self.ensureUserDocument(for: user, displayName: linkAfter.displayName ?? displayName)
+                    self.ensureUserDocument(for: user)
                 }
                 return
             }
 
-            self.ensureUserDocument(for: user, displayName: displayName)
+            self.ensureUserDocument(for: user)
         }
     }
 
@@ -443,10 +454,170 @@ class AuthenticationManager: NSObject, ObservableObject {
         }
     }
 
+    // MARK: - Re-authentication (for account deletion)
+
+    /// How the signed-in user proves their identity when Firebase demands a
+    /// recent login. Social accounts have no password to type.
+    enum ReauthMethod {
+        case password
+        case google
+        case apple
+    }
+
+    /// Result of an OAuth re-authentication.
+    enum ReauthOutcome {
+        /// Apple hands back an authorization code that must be used to revoke the
+        /// token when deleting the account; Google re-auth carries `nil`.
+        case success(appleAuthorizationCode: String?)
+        /// User dismissed the provider sheet — not an error worth surfacing.
+        case cancelled
+        case failure(String)
+    }
+
+    /// Intermediate result of asking a provider for a fresh credential.
+    private enum CredentialOutcome {
+        case credential(AuthCredential, appleAuthorizationCode: String?)
+        case cancelled
+        case failure(String)
+    }
+
+    /// The provider the signed-in user must re-authenticate with.
+    ///
+    /// OAuth providers are preferred over `password`: an account that was created
+    /// with Apple or Google has no password, and asking for one is the bug this
+    /// resolves. A user who linked both still gets the one-tap provider sheet.
+    static func reauthMethod(for user: FirebaseAuth.User? = Auth.auth().currentUser) -> ReauthMethod {
+        let providers = Set((user?.providerData ?? []).map { $0.providerID })
+        if providers.contains("apple.com") { return .apple }
+        if providers.contains("google.com") { return .google }
+        return .password
+    }
+
+    /// Whether the account has an email/password credential at all. Accounts created
+    /// with Apple or Google don't, so there is no password to enter or change.
+    static func hasPasswordProvider(for user: FirebaseAuth.User? = Auth.auth().currentUser) -> Bool {
+        (user?.providerData ?? []).contains { $0.providerID == "password" }
+    }
+
+    /// Re-authenticate the signed-in user through their OAuth provider. The
+    /// completion is always delivered on the main queue.
+    func reauthenticateWithProvider(_ method: ReauthMethod,
+                                    completion: @escaping (ReauthOutcome) -> Void) {
+        guard let authUser = Auth.auth().currentUser else {
+            DispatchQueue.main.async { completion(.failure("No authenticated user found")) }
+            return
+        }
+
+        let handle: (CredentialOutcome) -> Void = { outcome in
+            switch outcome {
+            case .cancelled:
+                DispatchQueue.main.async { completion(.cancelled) }
+
+            case .failure(let message):
+                DispatchQueue.main.async { completion(.failure(message)) }
+
+            case .credential(let credential, let appleAuthorizationCode):
+                authUser.reauthenticate(with: credential) { _, error in
+                    DispatchQueue.main.async {
+                        if let error = error {
+                            completion(.failure(Self.reauthErrorMessage(error, method: method)))
+                        } else {
+                            completion(.success(appleAuthorizationCode: appleAuthorizationCode))
+                        }
+                    }
+                }
+            }
+        }
+
+        switch method {
+        case .google:
+            requestGoogleCredential(completion: handle)
+        case .apple:
+            requestAppleCredential(completion: handle)
+        case .password:
+            // Password accounts re-authenticate through
+            // `UserSessionManager.reauthenticateAndDeleteAccount(password:)`.
+            DispatchQueue.main.async {
+                completion(.failure("This account signs in with a password. Please enter it to continue."))
+            }
+        }
+    }
+
+    /// Ask Google for a fresh credential. Deliberately independent of the sign-in
+    /// state machine — no `isLoading`/`isProvisioningProfile` side effects, since
+    /// the user is already signed in and no profile is being created.
+    private func requestGoogleCredential(completion: @escaping (CredentialOutcome) -> Void) {
+        guard let clientID = FirebaseApp.app()?.options.clientID else {
+            completion(.failure("Google Sign-In is not configured correctly. Please try again later."))
+            return
+        }
+
+        GIDSignIn.sharedInstance.configuration = GIDConfiguration(clientID: clientID)
+
+        guard let presenter = Self.topViewController() else {
+            completion(.failure("Unable to present Google Sign-In. Please try again."))
+            return
+        }
+
+        GIDSignIn.sharedInstance.signIn(withPresenting: presenter) { result, error in
+            if let error = error {
+                if (error as NSError).code == GIDSignInError.canceled.rawValue {
+                    completion(.cancelled)
+                } else {
+                    completion(.failure("Google Sign-In failed: \(error.localizedDescription)"))
+                }
+                return
+            }
+
+            guard let gidUser = result?.user,
+                  let idToken = gidUser.idToken?.tokenString else {
+                completion(.failure("Google Sign-In failed: missing credentials. Please try again."))
+                return
+            }
+
+            completion(.credential(
+                GoogleAuthProvider.credential(withIDToken: idToken,
+                                              accessToken: gidUser.accessToken.tokenString),
+                appleAuthorizationCode: nil
+            ))
+        }
+    }
+
+    /// Ask Apple for a fresh credential plus the authorization code needed to
+    /// revoke the token on deletion.
+    private func requestAppleCredential(completion: @escaping (CredentialOutcome) -> Void) {
+        let nonce = Self.randomNonceString()
+        currentNonce = nonce
+        appleCredentialCompletion = completion
+
+        let request = ASAuthorizationAppleIDProvider().createRequest()
+        request.requestedScopes = [.fullName, .email]
+        request.nonce = Self.sha256(nonce)
+
+        let controller = ASAuthorizationController(authorizationRequests: [request])
+        controller.delegate = self
+        controller.presentationContextProvider = self
+        controller.performRequests()
+    }
+
+    private static func reauthErrorMessage(_ error: Error, method: ReauthMethod) -> String {
+        let label = method == .apple ? "Apple" : "Google"
+        switch (error as NSError).code {
+        case AuthErrorCode.userMismatch.rawValue:
+            return "That \(label) account doesn't match the one you're signed in with. Please try again with the same account."
+        case AuthErrorCode.tooManyRequests.rawValue:
+            return "Too many attempts. Please wait a few minutes and try again."
+        case AuthErrorCode.networkError.rawValue:
+            return "Network error. Please check your connection and try again."
+        default:
+            return "Couldn't verify your \(label) account: \(error.localizedDescription)"
+        }
+    }
+
     // MARK: - Firestore profile (no duplicate profiles)
 
     /// Ensure exactly one Firestore `users` profile exists for this account.
-    private func ensureUserDocument(for user: FirebaseAuth.User, displayName: String?) {
+    private func ensureUserDocument(for user: FirebaseAuth.User) {
         guard let email = user.email, !email.isEmpty else {
             self.finish(error: "Your account is missing an email address and can't be set up.")
             return
@@ -468,28 +639,15 @@ class AuthenticationManager: NSObject, ObservableObject {
                     return
                 }
 
-                // No profile yet — create a single new one with a unique username.
-                let seed = displayName?.isEmpty == false ? displayName! : String(email.prefix(while: { $0 != "@" }))
-                self.generateUniqueUsername(seed: seed) { username in
-                    let newUser = User(
-                        userId: username,
-                        name: (displayName?.isEmpty == false ? displayName! : "New User"),
-                        email: email,
-                        joined: Date().timeIntervalSince1970,
-                        isSubscribed: false,
-                        subscriptionToken: UUID().uuidString
-                    )
-
-                    self.db.collection("users")
-                        .document(username)
-                        .setData(newUser.asDict()) { [weak self] error in
-                            guard let self = self else { return }
-                            if let error = error {
-                                self.finish(error: "Couldn't create your profile: \(error.localizedDescription)")
-                                return
-                            }
-                            self.loadSessionAndFinish()
-                        }
+                // No profile yet — this is a first-time social sign-up. Hand off to
+                // ProfileSetupView so the user picks their own username and name
+                // instead of being handed a generated one. Nothing is written here;
+                // the profile is created when they finish setup.
+                DispatchQueue.main.async {
+                    self.isLoading = false
+                    self.errorMessage = ""
+                    UserSessionManager.shared.isProvisioningProfile = false
+                    UserSessionManager.shared.setProfileStatus(.needsSetup)
                 }
             }
     }
@@ -500,32 +658,6 @@ class AuthenticationManager: NSObject, ObservableObject {
             self.errorMessage = ""
             UserSessionManager.shared.isProvisioningProfile = false
             UserSessionManager.shared.fetchUser()
-        }
-    }
-
-    /// Produce a Firestore-safe username that isn't already taken.
-    private func generateUniqueUsername(seed: String, attempt: Int = 0, completion: @escaping (String) -> Void) {
-        let candidate: String
-        if attempt == 0 {
-            var base = seed.lowercased().filter { $0.isLetter || $0.isNumber }
-            if base.count < 3 { base = "user" + base }
-            candidate = String(base.prefix(20))
-        } else if attempt < 5 {
-            var base = seed.lowercased().filter { $0.isLetter || $0.isNumber }
-            if base.isEmpty { base = "user" }
-            let suffix = String(Int.random(in: 1000...9999))
-            candidate = String(base.prefix(20 - suffix.count)) + suffix
-        } else {
-            candidate = "user" + String(UUID().uuidString.prefix(8)).lowercased()
-        }
-
-        db.collection("users").document(candidate).getDocument { [weak self] document, error in
-            guard let self = self else { return }
-            if error != nil || document?.exists == false {
-                completion(candidate)
-            } else {
-                self.generateUniqueUsername(seed: seed, attempt: attempt + 1, completion: completion)
-            }
         }
     }
 
@@ -636,6 +768,38 @@ extension AuthenticationManager: ASAuthorizationControllerDelegate, ASAuthorizat
 
     func authorizationController(controller: ASAuthorizationController,
                                  didCompleteWithAuthorization authorization: ASAuthorization) {
+        // Re-authentication (account deletion) hands the credential straight back
+        // to its caller — no sign-in or profile provisioning involved.
+        if let credentialCompletion = appleCredentialCompletion {
+            appleCredentialCompletion = nil
+
+            guard let appleIDCredential = authorization.credential as? ASAuthorizationAppleIDCredential else {
+                credentialCompletion(.failure("Sign in with Apple failed: unexpected credential."))
+                return
+            }
+            guard let nonce = currentNonce else {
+                credentialCompletion(.failure("Sign in with Apple failed: invalid state. Please try again."))
+                return
+            }
+            guard let identityToken = appleIDCredential.identityToken,
+                  let idTokenString = String(data: identityToken, encoding: .utf8) else {
+                credentialCompletion(.failure("Sign in with Apple failed: unable to read identity token."))
+                return
+            }
+
+            currentNonce = nil
+            let authorizationCode = appleIDCredential.authorizationCode
+                .flatMap { String(data: $0, encoding: .utf8) }
+
+            credentialCompletion(.credential(
+                OAuthProvider.appleCredential(withIDToken: idTokenString,
+                                              rawNonce: nonce,
+                                              fullName: appleIDCredential.fullName),
+                appleAuthorizationCode: authorizationCode
+            ))
+            return
+        }
+
         let linkAfter = appleLinkAfter
         appleLinkAfter = nil
 
@@ -648,6 +812,17 @@ extension AuthenticationManager: ASAuthorizationControllerDelegate, ASAuthorizat
     }
 
     func authorizationController(controller: ASAuthorizationController, didCompleteWithError error: Error) {
+        if let credentialCompletion = appleCredentialCompletion {
+            appleCredentialCompletion = nil
+            currentNonce = nil
+            if let authError = error as? ASAuthorizationError, authError.code == .canceled {
+                credentialCompletion(.cancelled)
+            } else {
+                credentialCompletion(.failure("Sign in with Apple failed: \(error.localizedDescription)"))
+            }
+            return
+        }
+
         appleLinkAfter = nil
         if let authError = error as? ASAuthorizationError, authError.code == .canceled {
             self.abort()

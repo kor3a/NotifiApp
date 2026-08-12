@@ -10,9 +10,20 @@ import SwiftUI
 struct AddStoreView: View {
     @Environment(\.dismiss) var dismiss
     @ObservedObject var viewModel: StoresViewModel
+    @ObservedObject private var subscriptionManager = SubscriptionManager.shared
     @StateObject private var locationSearchManager = LocationSearchManager()
     @State private var searchText = ""
-    
+    @State private var showingPaywall = false
+
+    /// Free-tier store limit check. Existing stores over the limit are kept
+    /// (grandfathered), but adding another store requires a subscription.
+    private var canAddStore: Bool {
+        TutorialManager.shared.isActive || SubscriptionManager.canAddStore(
+            isSubscribed: subscriptionManager.isSubscribed,
+            currentStoreCount: viewModel.userStoreItems.count
+        )
+    }
+
     var body: some View {
         NavigationStack {
             VStack {
@@ -90,6 +101,10 @@ struct AddStoreView: View {
                     List {
                         ForEach(locationSearchManager.searchResults) { searchResult in
                             Button(action: {
+                                guard canAddStore else {
+                                    showingPaywall = true
+                                    return
+                                }
                                 let store = searchResult.toStore()
                                 viewModel.addStoreToUser(store: store)
                                 dismiss()
@@ -162,6 +177,9 @@ struct AddStoreView: View {
                 }
             }
             .searchable(text: $searchText, prompt: "Search for store name")
+            .sheet(isPresented: $showingPaywall) {
+                SubscriptionPaywallView()
+            }
             .onChange(of: searchText) { _, newValue in
                 locationSearchManager.searchNearbyStores(query: newValue)
             }

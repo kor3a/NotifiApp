@@ -340,7 +340,12 @@ struct RecipeEditView: View {
 
 struct RecipePickerView: View {
     let userStoreItem: UserStoreItem
+    /// Whether the added ingredients should be auto-categorized. Passed in from
+    /// ReminderView so this sheet uses the same rule as the rest of the store
+    /// (subscriber with the store's Smart Category toggle on).
+    var useSmartCategory: Bool = false
     @StateObject private var viewModel = RecipeViewModel()
+    @ObservedObject private var subscriptionManager = SubscriptionManager.shared
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) var colorScheme
     @State private var addedCount: Int?
@@ -402,7 +407,11 @@ struct RecipePickerView: View {
                 RecipePickerRowView(recipe: recipe)
                     .contentShape(Rectangle())
                     .onTapGesture {
-                        viewModel.addIngredientsToStore(recipe, userStoreItem: userStoreItem) { count in
+                        viewModel.addIngredientsToStore(
+                            recipe,
+                            userStoreItem: userStoreItem,
+                            useSmartCategory: useSmartCategory && subscriptionManager.isSubscribed
+                        ) { count in
                             addedCount = count
                             addedForRecipeName = recipe.name
                         }

@@ -29,6 +29,12 @@ class MainViewModel: NSObject, ObservableObject {
 
                 // Only fetch user data for verified users; clear session otherwise
                 if let user = user, user.isEmailVerified {
+                    // Route from the cached status synchronously, before any view
+                    // renders: a known account goes straight to where it belongs,
+                    // and an account this device hasn't resolved yet waits on the
+                    // launch screen rather than flashing the app it may not want.
+                    UserSessionManager.shared.profileStatus =
+                        UserSessionManager.cachedProfileStatus(uid: user.uid) ?? .resolving
                     UserSessionManager.shared.fetchUser()
                 } else {
                     UserSessionManager.shared.clearSession()

@@ -8,6 +8,7 @@
 
 import Foundation
 import UIKit
+import FirebaseAuth
 import FirebaseFirestore
 
 class OnMyWayNotificationService {
@@ -73,17 +74,25 @@ class OnMyWayNotificationService {
 
             let batch = self.db.batch()
             let now = Date().timeIntervalSince1970
+            // Verified sender identity: Firestore rules reject a senderEmail that
+            // doesn't match the authenticated user, and the push Cloud Function
+            // resolves the display name from it instead of trusting senderName.
+            let senderEmail = Auth.auth().currentUser?.email
 
             for user in sharedUsers {
                 let docRef = self.db.collection("on_my_way_notifications").document()
-                batch.setData([
+                var payload: [String: Any] = [
                     "recipientUserId": user.userId,
                     "recipientEmail": user.email,
                     "senderName": currentUserName,
                     "storeName": storeName,
                     "travelTimeMinutes": travelTimeMinutes,
                     "createdAt": now
-                ], forDocument: docRef)
+                ]
+                if let senderEmail {
+                    payload["senderEmail"] = senderEmail
+                }
+                batch.setData(payload, forDocument: docRef)
             }
 
             batch.commit { error in

@@ -124,8 +124,12 @@ class MessagingService: ObservableObject {
         completion: @escaping (Result<Conversation, Error>) -> Void
     ) {
         let now = Date().timeIntervalSince1970
+        // Resolve participant emails so security rules can verify membership.
+        resolveParticipantEmails(for: [currentUserId, otherUserId]) { [weak self] participantEmails in
+            guard let self = self else { return }
         let conversationData: [String: Any] = [
             "participantIds": [currentUserId, otherUserId],
+            "participantEmails": participantEmails,
             "participantNames": [currentUserId: currentUserName, otherUserId: otherUserName],
             "createdAt": now,
             "lastMessageContent": "",
@@ -135,7 +139,7 @@ class MessagingService: ObservableObject {
         ]
 
         var ref: DocumentReference?
-        ref = db.collection("conversations").addDocument(data: conversationData) { error in
+        ref = self.db.collection("conversations").addDocument(data: conversationData) { error in
             if let error = error {
                 completion(.failure(error))
                 return
@@ -158,6 +162,55 @@ class MessagingService: ObservableObject {
             )
 
             completion(.success(conversation))
+        }
+        }
+    }
+
+    // MARK: - Participant email resolution (for security rules)
+
+    /// Resolve app usernames to their account emails from the `users` collection.
+    ///
+    /// Conversations are keyed by username, but Firestore security rules can only
+    /// check the caller's email (`request.auth.token.email`). Storing the
+    /// resolved emails in a `participantEmails` array lets the (strict) rules
+    /// verify conversation membership — rules cannot map a variable-length list
+    /// of usernames to emails at read time. Best-effort: usernames without a
+    /// matching user document are simply omitted.
+    private func resolveParticipantEmails(
+        for usernames: [String],
+        completion: @escaping ([String]) -> Void
+    ) {
+        let ids = Array(Set(usernames.map { $0.lowercased() })).filter { !$0.isEmpty }
+        guard !ids.isEmpty else { completion([]); return }
+
+        var emails: [String] = []
+        let lock = NSLock()
+        let group = DispatchGroup()
+
+        // Firestore `in` queries accept at most 10 values — chunk accordingly.
+        var start = 0
+        while start < ids.count {
+            let chunk = Array(ids[start..<min(start + 10, ids.count)])
+            start += 10
+            group.enter()
+            db.collection("users")
+                .whereField(FieldPath.documentID(), in: chunk)
+                .getDocuments { snapshot, _ in
+                    if let docs = snapshot?.documents {
+                        lock.lock()
+                        for doc in docs {
+                            if let email = doc.data()["email"] as? String, !email.isEmpty {
+                                emails.append(email)
+                            }
+                        }
+                        lock.unlock()
+                    }
+                    group.leave()
+                }
+        }
+
+        group.notify(queue: .main) {
+            completion(Array(Set(emails)))
         }
     }
 
@@ -740,8 +793,12 @@ class MessagingService: ObservableObject {
         var unreadCount: [String: Int] = [:]
         for pid in participantIds { unreadCount[pid] = 0 }
 
+        // Resolve participant emails so security rules can verify membership.
+        resolveParticipantEmails(for: participantIds) { [weak self] participantEmails in
+            guard let self = self else { return }
         let conversationData: [String: Any] = [
             "participantIds": participantIds,
+            "participantEmails": participantEmails,
             "participantNames": participantNames,
             "createdAt": now,
             "lastMessageContent": "",
@@ -754,7 +811,7 @@ class MessagingService: ObservableObject {
         ]
 
         var ref: DocumentReference?
-        ref = db.collection("conversations").addDocument(data: conversationData) { error in
+        ref = self.db.collection("conversations").addDocument(data: conversationData) { error in
             if let error = error {
                 completion(.failure(error))
                 return
@@ -780,6 +837,7 @@ class MessagingService: ObservableObject {
                 groupAvatarURL: nil
             )
             completion(.success(conversation))
+        }
         }
     }
 
@@ -808,7 +866,8 @@ class MessagingService: ObservableObject {
         completion: @escaping (Result<Void, Error>) -> Void
     ) {
         let ref = db.collection("conversations").document(conversationId)
-        ref.getDocument { snapshot, error in
+        ref.getDocument { [weak self] snapshot, error in
+            guard let self = self else { return }
             if let error = error { completion(.failure(error)); return }
             guard let data = snapshot?.data() else {
                 completion(.failure(NSError(domain: "MessagingService", code: -1, userInfo: [NSLocalizedDescriptionKey: "Conversation not found"])))
@@ -828,12 +887,16 @@ class MessagingService: ObservableObject {
             participantNames[userId] = userName
             unreadCount[userId] = 0
 
-            ref.updateData([
-                "participantIds": participantIds,
-                "participantNames": participantNames,
-                "unreadCount": unreadCount
-            ]) { error in
-                if let error = error { completion(.failure(error)) } else { completion(.success(())) }
+            // Recompute participantEmails so the new member passes membership rules.
+            self.resolveParticipantEmails(for: participantIds) { participantEmails in
+                ref.updateData([
+                    "participantIds": participantIds,
+                    "participantEmails": participantEmails,
+                    "participantNames": participantNames,
+                    "unreadCount": unreadCount
+                ]) { error in
+                    if let error = error { completion(.failure(error)) } else { completion(.success(())) }
+                }
             }
         }
     }
@@ -845,7 +908,8 @@ class MessagingService: ObservableObject {
         completion: @escaping (Result<Void, Error>) -> Void
     ) {
         let ref = db.collection("conversations").document(conversationId)
-        ref.getDocument { snapshot, error in
+        ref.getDocument { [weak self] snapshot, error in
+            guard let self = self else { return }
             if let error = error { completion(.failure(error)); return }
             guard let data = snapshot?.data() else {
                 completion(.failure(NSError(domain: "MessagingService", code: -1, userInfo: [NSLocalizedDescriptionKey: "Conversation not found"])))
@@ -860,12 +924,16 @@ class MessagingService: ObservableObject {
             participantNames.removeValue(forKey: userId)
             unreadCount.removeValue(forKey: userId)
 
-            ref.updateData([
-                "participantIds": participantIds,
-                "participantNames": participantNames,
-                "unreadCount": unreadCount
-            ]) { error in
-                if let error = error { completion(.failure(error)) } else { completion(.success(())) }
+            // Recompute participantEmails so the removed member loses read access.
+            self.resolveParticipantEmails(for: participantIds) { participantEmails in
+                ref.updateData([
+                    "participantIds": participantIds,
+                    "participantEmails": participantEmails,
+                    "participantNames": participantNames,
+                    "unreadCount": unreadCount
+                ]) { error in
+                    if let error = error { completion(.failure(error)) } else { completion(.success(())) }
+                }
             }
         }
     }
@@ -1054,6 +1122,14 @@ class MessagingService: ObservableObject {
     // MARK: - Shared Store Accept/Reject
 
     /// Accept a shared store - adds the store to the user's list with appropriate permission
+    ///
+    /// The free-tier store limit is deliberately NOT enforced here. Stores arriving from a
+    /// friend or family member are always acceptable, even when the recipient is already at
+    /// (or above) `SubscriptionManager.freeStoreLimit` — the cap only governs stores a user
+    /// adds themselves. Accepted shares still count toward that cap, so a free user who
+    /// accepts their way past the limit can no longer add stores on their own.
+    /// The per-store item limit is likewise not enforced: recipients may accept stores with
+    /// any number of items; they just can't add more items until the count drops below the limit.
     func acceptSharedStore(
         messageId: String,
         linkedStore: LinkedStore,
@@ -1604,6 +1680,10 @@ class MessagingService: ObservableObject {
     }
 
     /// Accept a shared reminder - adds the store and reminder to the user's list and links them for sync
+    ///
+    /// Like `acceptSharedStore`, the free-tier store limit is not enforced here: accepting a
+    /// reminder for a store the recipient doesn't have yet creates that store regardless of
+    /// how many they already have. The cap only applies to stores a user adds themselves.
     func acceptSharedReminder(
         messageId: String,
         linkedReminder: LinkedReminder,
@@ -1662,7 +1742,8 @@ class MessagingService: ObservableObject {
                         completion: completion
                     )
                 } else {
-                    // User doesn't have this store, add store first then add reminder
+                    // User doesn't have this store — accepting creates a NEW store for
+                    // them. Allowed regardless of the free-tier limit (see doc comment).
                     self.addStoreAndReminder(
                         storeId: storeId,
                         linkedReminder: linkedReminder,
