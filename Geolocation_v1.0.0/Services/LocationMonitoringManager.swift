@@ -10,6 +10,7 @@ import CoreLocation
 import Combine
 import FirebaseFirestore
 import MapKit
+import UIKit
 
 class LocationMonitoringManager: NSObject, ObservableObject {
     static let shared = LocationMonitoringManager()
@@ -27,6 +28,18 @@ class LocationMonitoringManager: NSObject, ObservableObject {
     // Track recently notified stores to avoid spam (normalized store name -> last notification time)
     private var recentlyNotifiedStores: [String: Date] = [:]
     private let notificationCooldown: TimeInterval = 3600 // 1 hour cooldown
+
+    // Store names with a count fetch in flight, so overlapping region entries for
+    // the same store don't stack up. Kept separate from `recentlyNotifiedStores`:
+    // an in-flight check must never consume the hour-long cooldown, or a fetch that
+    // fails silences the store until it expires.
+    private var proximityChecksInFlight: Set<String> = []
+
+    // Hard ceiling on the pre-notification count fetch. A geofence wake gets only a
+    // few seconds of background runtime, and Firestore has to rebuild its connection
+    // after suspension — past this we notify from the cached count instead of
+    // dropping the notification entirely.
+    private let liveCountTimeout: TimeInterval = 4
 
     // Maps geofence region identifiers to the normalized store name they cover.
     // A name can have several user_store rows behind it (e.g. an owned list plus
@@ -170,6 +183,7 @@ class LocationMonitoringManager: NSObject, ObservableObject {
         userStoresListener?.remove()
         userStoresListener = nil
         removeAllReminderCountListeners()
+        proximityChecksInFlight.removeAll()
         #if DEBUG
         print("Stopped location monitoring")
         #endif
@@ -408,8 +422,12 @@ class LocationMonitoringManager: NSObject, ObservableObject {
     /// Read the current incomplete-reminder count straight from Firestore rather
     /// than trusting `storeReminders`. Snapshot listeners are disconnected while
     /// the app is suspended, so the cached counts can be hours stale by the time a
-    /// geofence wakes us — which is exactly when we're about to notify. Falls back
-    /// to the cached value for any list whose fetch fails.
+    /// geofence wakes us — which is exactly when we're about to notify.
+    ///
+    /// Best-effort only: the completion always runs. Any list whose fetch errors
+    /// falls back to its cached value, and if the whole fetch outlives
+    /// `liveCountTimeout` the cached total is used. Getting a slightly stale count
+    /// out is better than getting nothing out.
     private func fetchLiveReminderCount(
         for reminderStoreIds: Set<String>,
         completion: @escaping (Int) -> Void
@@ -417,6 +435,24 @@ class LocationMonitoringManager: NSObject, ObservableObject {
         let group = DispatchGroup()
         var total = 0
         let totalLock = NSLock()
+
+        // Deliver exactly once, whichever of the fetch and the timeout lands first.
+        // Both paths run on main, so the flag needs no synchronization.
+        var didComplete = false
+        let finish: (Int) -> Void = { count in
+            guard !didComplete else { return }
+            didComplete = true
+            completion(count)
+        }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + liveCountTimeout) { [weak self] in
+            guard !didComplete, let self = self else { return }
+            let cached = reminderStoreIds.reduce(0) { $0 + (self.storeReminders[$1] ?? 0) }
+            #if DEBUG
+            print("⏱️ LocationMonitoring: Live count timed out, falling back to cached (\(cached))")
+            #endif
+            finish(cached)
+        }
 
         for reminderStoreId in reminderStoreIds {
             group.enter()
@@ -445,7 +481,7 @@ class LocationMonitoringManager: NSObject, ObservableObject {
         }
 
         group.notify(queue: .main) {
-            completion(total)
+            finish(total)
         }
     }
 
@@ -482,22 +518,46 @@ class LocationMonitoringManager: NSObject, ObservableObject {
         let reminderStoreIds = Set(matchingStores.compactMap { $0.reminderStoreId })
         guard !reminderStoreIds.isEmpty else { return }
 
-        // Claim the cooldown slot before the fetch so a second region entry for the
-        // same store name can't slip through while this one is still in flight.
-        recentlyNotifiedStores[normalizedStoreName] = Date()
+        // Hold off duplicate region entries while a check runs, without touching the
+        // cooldown — the cooldown is only stamped once a notification actually goes out.
+        guard !proximityChecksInFlight.contains(normalizedStoreName) else {
+            #if DEBUG
+            print("⏸️ LocationMonitoring: Check already in flight for '\(displayStore.storeName)'")
+            #endif
+            return
+        }
+        proximityChecksInFlight.insert(normalizedStoreName)
+
+        // Keep the app alive long enough to finish the count and schedule. Without
+        // this, a geofence wake can be suspended mid-fetch and deliver nothing.
+        var backgroundTask: UIBackgroundTaskIdentifier = .invalid
+        backgroundTask = UIApplication.shared.beginBackgroundTask(withName: "StoreProximityCount") {
+            if backgroundTask != .invalid {
+                UIApplication.shared.endBackgroundTask(backgroundTask)
+                backgroundTask = .invalid
+            }
+        }
 
         fetchLiveReminderCount(for: reminderStoreIds) { [weak self] reminderCount in
+            defer {
+                if backgroundTask != .invalid {
+                    UIApplication.shared.endBackgroundTask(backgroundTask)
+                    backgroundTask = .invalid
+                }
+            }
+
             guard let self = self else { return }
+            self.proximityChecksInFlight.remove(normalizedStoreName)
 
             guard reminderCount > 0 else {
-                // Nothing was sent, so release the slot rather than suppressing a
-                // legitimate notification for the next hour.
-                self.recentlyNotifiedStores.removeValue(forKey: normalizedStoreName)
                 #if DEBUG
                 print("❌ LocationMonitoring: No incomplete reminders for '\(displayStore.storeName)' - skipping")
                 #endif
                 return
             }
+
+            // Stamp the cooldown only now that something is actually being sent.
+            self.recentlyNotifiedStores[normalizedStoreName] = Date()
 
             self.notificationManager.scheduleStoreProximityNotification(
                 storeName: displayStore.storeName,
