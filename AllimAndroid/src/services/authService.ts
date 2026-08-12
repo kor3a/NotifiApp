@@ -107,15 +107,13 @@ export const authService = {
     const credential = auth.EmailAuthProvider.credential(user.email, password);
     await user.reauthenticateWithCredential(credential);
 
-    // Delete every user doc for this email — covers both the canonical
-    // username-keyed doc and any legacy UID-keyed doc from older Android
-    // builds. The cleanupDeletedUser Cloud Function also sweeps related data
-    // once the auth user is deleted below.
-    const snap = await firestore()
+    // Delete the Firestore user doc. It's keyed by username, so find it by
+    // email rather than assuming the doc id is the auth uid.
+    const userDocs = await firestore()
       .collection('users')
-      .where('email', '==', user.email.toLowerCase().trim())
+      .where('email', '==', user.email)
       .get();
-    await Promise.all(snap.docs.map(doc => doc.ref.delete()));
+    await Promise.all(userDocs.docs.map(d => d.ref.delete()));
     await user.delete();
   },
 

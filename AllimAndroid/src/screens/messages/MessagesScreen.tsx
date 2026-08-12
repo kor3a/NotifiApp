@@ -40,6 +40,7 @@ export default function MessagesScreen() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Conversations are keyed by username (userId), not the Firebase Auth uid.
     if (!currentUser) {return;}
     const unsub = messageService.subscribeToConversations(
       currentUser.userId,

@@ -50,7 +50,7 @@ export default function ConversationScreen() {
       setTimeout(() => listRef.current?.scrollToEnd({animated: true}), 100);
     });
 
-    // Mark as read
+    // Mark as read (conversations are keyed by username, not the auth uid).
     if (currentUser) {
       messageService.markAsRead(conversationId, currentUser.userId);
     }
@@ -59,7 +59,7 @@ export default function ConversationScreen() {
   }, [conversationId, currentUser]);
 
   async function handleSend() {
-    if (!input.trim() || !firebaseUser || !currentUser) {return;}
+    if (!input.trim() || !currentUser) {return;}
     const text = input.trim();
     setInput('');
     setSending(true);

@@ -46,7 +46,16 @@ export default function ReminderScreen() {
   const navigation = useNavigation();
   const {firebaseUser, currentUser} = useSession();
 
-  const {userStoreId, storeName, storeId, permission} = route.params;
+  const {
+    userStoreId,
+    reminderStoreId,
+    storeName,
+    storeId,
+    permission,
+    isSharedStore,
+    sharedWith,
+    sharedFromName,
+  } = route.params;
   const canEdit = permission !== 'view';
 
   const [reminders, setReminders] = useState<Reminder[]>([]);
@@ -63,12 +72,14 @@ export default function ReminderScreen() {
   const [smartCategoryLoading, setSmartCategoryLoading] = useState(false);
 
   useEffect(() => {
-    const unsub = reminderService.subscribeToReminders(userStoreId, items => {
+    // Reminders for a shared store live under the owner's store id, so always
+    // subscribe via reminderStoreId (not this user's own user_store id).
+    const unsub = reminderService.subscribeToReminders(reminderStoreId, items => {
       setReminders(items);
       setLoading(false);
     });
     return unsub;
-  }, [userStoreId]);
+  }, [reminderStoreId]);
 
   // Subscribe to smartCategoryEnabled from the user_stores doc
   useEffect(() => {
@@ -87,7 +98,7 @@ export default function ReminderScreen() {
       await storeService.updateSmartCategory(userStoreId, value);
       // When turning ON, run a one-time categorization pass on uncategorized items
       if (value) {
-        await reminderService.smartCategorizeAll(userStoreId);
+        await reminderService.smartCategorizeAll(reminderStoreId);
       }
     } catch (err: any) {
       Alert.alert('Error', err.message ?? 'Failed to update Smart Category.');
@@ -100,7 +111,13 @@ export default function ReminderScreen() {
     if (!newTitle.trim()) {return;}
     setAddingNew(true);
     try {
-      await reminderService.addReminder(userStoreId, storeId, newTitle.trim());
+      await reminderService.addReminder(reminderStoreId, storeId, newTitle.trim(), {
+        isSharedStore,
+        sharedWith,
+        sharedFromName,
+        currentUserName: currentUser?.name,
+        currentUserId: currentUser?.userId,
+      });
       setNewTitle('');
     } catch (err: any) {
       Alert.alert('Error', err.message);

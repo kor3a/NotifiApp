@@ -38,8 +38,23 @@ export const userService = {
     return {id: doc.id, ...doc.data()} as unknown as User;
   },
 
-  // Subscribe to user changes (by email, resilient to either doc keying)
-  subscribeToUser(email: string, callback: (user: User | null) => void) {
+  // Fetch the profile for a signed-in account by email.
+  // The `users` collection is keyed by username (matching the iOS app), not by
+  // the Firebase Auth UID, so we must look the profile up by email — the same
+  // mapping the iOS app uses to go from an authenticated account to its doc.
+  async fetchUserByEmail(email: string): Promise<User | null> {
+    const snap = await firestore()
+      .collection('users')
+      .where('email', '==', email)
+      .limit(1)
+      .get();
+    if (snap.empty) {return null;}
+    const doc = snap.docs[0];
+    return {id: doc.id, ...doc.data()} as unknown as User;
+  },
+
+  // Subscribe to user changes
+  subscribeToUser(uid: string, callback: (user: User | null) => void) {
     return firestore()
       .collection('users')
       .where('email', '==', email.toLowerCase().trim())
@@ -55,46 +70,27 @@ export const userService = {
       });
   },
 
-  // Update profile
-  async updateProfile(email: string, updates: Partial<User>): Promise<void> {
-    const doc = await findUserDocByEmail(email);
-    if (!doc) {
-      throw new Error('User profile not found.');
-    }
-    await doc.ref.update(updates);
+  // Update profile. userId is the users doc id (username), not the auth uid.
+  async updateProfile(userId: string, updates: Partial<User>): Promise<void> {
+    await firestore().collection('users').doc(userId).update(updates);
   },
 
-  // Upload profile picture. The storage path is keyed by username to match
-  // iOS and the cleanupDeletedUser Cloud Function (profile_pictures/{userId}.jpg).
-  async uploadProfilePicture(
-    email: string,
-    userId: string,
-    uri: string,
-  ): Promise<string> {
+  // Upload profile picture. userId is the users doc id (username), matching the
+  // iOS storage path (profile_pictures/{username}.jpg).
+  async uploadProfilePicture(userId: string, uri: string): Promise<string> {
     const ref = storage().ref(`profile_pictures/${userId}.jpg`);
     await ref.putFile(uri);
     const url = await ref.getDownloadURL();
-    await userService.updateProfile(email, {profilePictureURL: url});
+    await firestore()
+      .collection('users')
+      .doc(userId)
+      .update({profilePictureURL: url});
     return url;
   },
 
-  // Save FCM token to the account's document
-  async saveFCMToken(email: string, token: string): Promise<void> {
-    const doc = await findUserDocByEmail(email);
-    if (!doc) {
-      return;
-    }
-    await doc.ref.update({fcmToken: token});
-  },
-
-  // Remove the FCM token from the account's document (called before sign-out,
-  // while the rules still allow updating the user's own document)
-  async clearFCMToken(email: string): Promise<void> {
-    const doc = await findUserDocByEmail(email);
-    if (!doc) {
-      return;
-    }
-    await doc.ref.update({fcmToken: firestore.FieldValue.delete()});
+  // Save FCM token. userId is the users doc id (username), not the auth uid.
+  async saveFCMToken(userId: string, token: string): Promise<void> {
+    await firestore().collection('users').doc(userId).update({fcmToken: token});
   },
 
   // Search users by email

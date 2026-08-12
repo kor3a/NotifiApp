@@ -44,6 +44,7 @@ export default function FriendsScreen() {
   const [searching, setSearching] = useState(false);
 
   useEffect(() => {
+    // Friendships are keyed by username (userId), not the Firebase Auth uid.
     if (!currentUser) {return;}
 
     const unsubFriends = friendService.subscribeToFriends(currentUser.userId, f => {
@@ -114,7 +115,7 @@ export default function FriendsScreen() {
   }
 
   async function handleMessage(friendship: Friendship) {
-    if (!firebaseUser || !currentUser) {return;}
+    if (!currentUser) {return;}
     const otherId =
       friendship.requesterId === currentUser.userId
         ? friendship.receiverId
