@@ -24,7 +24,7 @@ class SubscriptionManager: ObservableObject {
     ///
     /// This is the only free-tier quota. Items within a store are unlimited on
     /// every tier, and stores shared by another user can always be accepted.
-    static let freeStoreLimit = 3
+    static let freeStoreLimit = 5
 
     /// Whether a user may add another store to their list *themselves*.
     ///
