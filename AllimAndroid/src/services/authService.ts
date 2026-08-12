@@ -1,4 +1,4 @@
-import auth from '@react-native-firebase/auth';
+import auth, {FirebaseAuthTypes} from '@react-native-firebase/auth';
 import firestore from '@react-native-firebase/firestore';
 import functions from '@react-native-firebase/functions';
 import {userService} from './userService';
@@ -8,6 +8,15 @@ import {userService} from './userService';
 // locked default template, whose link isn't tappable in many mobile mail apps.
 const sendVerificationEmail = () =>
   functions().httpsCallable('sendVerificationEmail')();
+
+// Roll back a half-finished signup so the email isn't left claimed by an auth
+// account with no profile behind it. Best-effort: if the delete itself fails
+// the original signup error is still what the user needs to see.
+const discardAuthUser = async (user: FirebaseAuthTypes.User) => {
+  try {
+    await user.delete();
+  } catch (_) {}
+};
 
 export const authService = {
   // Sign in with email/password
@@ -27,21 +36,16 @@ export const authService = {
     userId: string,
   ): Promise<void> {
     // User docs are keyed by the lowercased username, matching iOS — one doc
-    // per person across platforms. Check availability BEFORE creating the
-    // auth account so a taken username doesn't leave an orphaned auth user.
+    // per person across platforms.
     const normalizedUserId = userId.toLowerCase().trim();
     const normalizedEmail = email.toLowerCase().trim();
-    const existing = await firestore()
-      .collection('users')
-      .doc(normalizedUserId)
-      .get();
-    if (existing.exists) {
-      throw new Error('This username is already taken. Please choose another.');
-    }
 
     let result;
     try {
-      result = await auth().createUserWithEmailAndPassword(email, password);
+      result = await auth().createUserWithEmailAndPassword(
+        normalizedEmail,
+        password,
+      );
     } catch (err: any) {
       // The email may belong to an earlier signup that was never confirmed.
       // Firebase reports that identically to a fully-registered email, so ask
@@ -57,18 +61,62 @@ export const authService = {
       }
       throw err;
     }
-    await sendVerificationEmail();
 
-    // Create user document in Firestore, keyed by username like iOS
-    await firestore().collection('users').doc(normalizedUserId).set({
-      userId: normalizedUserId,
-      firebaseUid: result.user.uid,
-      name: name,
-      email: normalizedEmail,
-      isSubscribed: false,
-      adminSubscribed: false,
-      createdAt: firestore.FieldValue.serverTimestamp(),
-    });
+    // The username availability check has to run *after* the auth account
+    // exists: the `users` rules only grant reads to signed-in callers, so
+    // checking first failed with firestore/permission-denied before the user
+    // ever got an account. Matches iOS (SignupViewModel), which creates the
+    // auth user, then checks, then deletes the auth user if the name is taken
+    // — so a rejected signup still leaves the email free to try again.
+    let usernameTaken: boolean;
+    try {
+      const existing = await firestore()
+        .collection('users')
+        .doc(normalizedUserId)
+        .get();
+      usernameTaken = existing.exists;
+    } catch (err: any) {
+      await discardAuthUser(result.user);
+      throw new Error(
+        `Couldn't check whether that username is available: ${
+          err?.message ?? 'please try again.'
+        }`,
+      );
+    }
+    if (usernameTaken) {
+      await discardAuthUser(result.user);
+      throw new Error('This username is already taken. Please choose another.');
+    }
+
+    // Create user document in Firestore, keyed by username like iOS. Written
+    // while signed in, since the rules only accept a create from the account
+    // whose email the document carries.
+    try {
+      await firestore().collection('users').doc(normalizedUserId).set({
+        userId: normalizedUserId,
+        firebaseUid: result.user.uid,
+        name: name,
+        email: normalizedEmail,
+        isSubscribed: false,
+        adminSubscribed: false,
+        createdAt: firestore.FieldValue.serverTimestamp(),
+      });
+    } catch (err) {
+      // No profile means no usable account, so don't leave the auth user (and
+      // its claim on the email address) behind — same rollback as iOS.
+      await discardAuthUser(result.user);
+      throw err;
+    }
+
+    // Non-fatal: the account exists either way, and the login screen offers a
+    // resend if the email never arrives.
+    try {
+      await sendVerificationEmail();
+    } catch (_) {}
+
+    // Sign back out so an unverified account can't walk straight into the app
+    // — login() enforces the same rule, and it's what iOS does after signup.
+    await auth().signOut();
   },
 
   // Send password reset email

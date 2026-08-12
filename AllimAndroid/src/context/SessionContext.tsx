@@ -48,9 +48,24 @@ export function SessionProvider({children}: {children: React.ReactNode}) {
     const unsubscribe = auth().onAuthStateChanged(async fbUser => {
       setFirebaseUser(fbUser);
       if (fbUser) {
-        const user = fbUser.email
-          ? await userService.fetchUserByEmail(fbUser.email)
-          : null;
+        hasSeenSignedInUser.current = true;
+
+        // The profile read is racing sign-out: logging in with an unverified
+        // email signs straight back out, and a Firestore read that lands after
+        // that is rejected with firestore/permission-denied. Swallow it (and
+        // any offline error) so it can't become an unhandled rejection that
+        // leaves isLoading stuck true and the app parked on the splash screen.
+        let user: User | null = null;
+        try {
+          user = fbUser.email
+            ? await userService.fetchUserByEmail(fbUser.email)
+            : null;
+        } catch (_) {}
+        // Don't apply a stale result over a newer auth state.
+        if (auth().currentUser?.uid !== fbUser.uid) {
+          setIsLoading(false);
+          return;
+        }
         setCurrentUser(user);
 
         // Save FCM token against the users doc (keyed by username, not uid).
