@@ -51,6 +51,28 @@ class LocationMonitoringManager: NSObject, ObservableObject {
     private var lastGeofenceRefreshTime: Date?
     private let geofenceRefreshDebounce: TimeInterval = 300 // Refresh at most every 5 minutes
 
+    /// Core Location caps an app at 20 simultaneously monitored regions. This is a
+    /// system limit — there's no entitlement that raises it — so the budget has to
+    /// be allocated to the stores most likely to matter.
+    private let maxMonitoredRegions = 20
+
+    /// Ceiling on how many locations of the same store can hold regions at once, so
+    /// one dense chain can't consume the whole budget.
+    private let maxLocationsPerStore = 2
+
+    /// A store's second location only earns a slot when it's this close; beyond it,
+    /// the nearest one is enough.
+    private let secondLocationMaxDistance: CLLocationDistance = 2500
+
+    // Guards against overlapping refreshes, since a refresh now spans every store's
+    // MapKit search before anything is registered.
+    private var isRefreshingGeofences = false
+
+    // Coalesces the burst of reminder-count updates that arrives on initial load
+    // into a single re-prioritization.
+    private var pendingPriorityRefresh: DispatchWorkItem?
+    private let priorityRefreshCoalesceDelay: TimeInterval = 2
+
     @Published var isMonitoring = false
     @Published var lastLocation: CLLocation?
 
@@ -209,6 +231,9 @@ class LocationMonitoringManager: NSObject, ObservableObject {
         proximityChecksInFlight.removeAll()
         recentlyNotifiedStores.removeAll()
         lastGeofenceRefreshTime = nil
+        pendingPriorityRefresh?.cancel()
+        pendingPriorityRefresh = nil
+        isRefreshingGeofences = false
 
         #if DEBUG
         print("Stopped location monitoring")
@@ -238,8 +263,23 @@ class LocationMonitoringManager: NSObject, ObservableObject {
         #endif
     }
 
+    /// One candidate location for a store, before the region budget is allocated.
+    private struct GeofenceCandidate {
+        let storeName: String
+        let normalizedName: String
+        let coordinate: CLLocationCoordinate2D
+        let distance: CLLocationDistance
+        let hasReminders: Bool
+    }
+
     /// Re-evaluate geofences around the given location. Called on initial location
-    /// fix and after significant location changes.
+    /// fix, after significant location changes, and when reminder counts change the
+    /// priority ordering.
+    ///
+    /// Every store is searched first and the results are ranked together, because
+    /// the region budget is scarce and has to be spent deliberately — registering
+    /// as each search returns hands the whole budget to whichever chain MapKit
+    /// answers for first.
     private func refreshGeofences(for location: CLLocation) {
         // Debounce: avoid hammering MapKit on rapid successive calls
         if let last = lastGeofenceRefreshTime,
@@ -249,7 +289,16 @@ class LocationMonitoringManager: NSObject, ObservableObject {
             #endif
             return
         }
-        lastGeofenceRefreshTime = Date()
+
+        guard !isRefreshingGeofences else {
+            #if DEBUG
+            print("🗺️ LocationMonitoring: Deferring geofence refresh (already in progress)")
+            #endif
+            // Re-arm rather than drop it, or a priority change that lands during a
+            // refresh is lost until the user next moves.
+            requestGeofenceRefreshForPriorityChange()
+            return
+        }
 
         let storeNames = Set(userStores.map { $0.storeName })
         guard !storeNames.isEmpty else {
@@ -259,21 +308,54 @@ class LocationMonitoringManager: NSObject, ObservableObject {
             return
         }
 
+        lastGeofenceRefreshTime = Date()
+        isRefreshingGeofences = true
+
         #if DEBUG
         print("🗺️ LocationMonitoring: Refreshing geofences for \(storeNames.count) store name(s)")
         #endif
 
-        // Clear existing app-registered geofences before registering fresh ones
-        stopAllGeofences()
+        var candidates: [GeofenceCandidate] = []
+        let candidatesLock = NSLock()
+        let group = DispatchGroup()
 
         for storeName in storeNames {
-            searchAndRegisterGeofences(for: storeName, near: location)
+            group.enter()
+            searchCandidates(for: storeName, near: location) { found in
+                candidatesLock.lock()
+                candidates.append(contentsOf: found)
+                candidatesLock.unlock()
+                group.leave()
+            }
+        }
+
+        group.notify(queue: .main) { [weak self] in
+            guard let self = self else { return }
+
+            // stopMonitoring clears this flag, so a user switch or a stop that
+            // landed while the searches were in flight cancels the registration —
+            // otherwise the previous account's stores get geofenced.
+            guard self.isRefreshingGeofences else {
+                #if DEBUG
+                print("🗺️ LocationMonitoring: Discarding geofence refresh (cancelled mid-flight)")
+                #endif
+                return
+            }
+            self.isRefreshingGeofences = false
+
+            guard self.isMonitoring else { return }
+            self.registerGeofences(from: candidates)
         }
     }
 
-    /// Search MapKit for a store by name near the user and register a geofence
-    /// for each matching result that falls within the search radius.
-    private func searchAndRegisterGeofences(for storeName: String, near userLocation: CLLocation) {
+    /// Search MapKit for a store by name near the user and return every matching
+    /// location within the search radius. Registers nothing — allocation happens
+    /// once all searches are in.
+    private func searchCandidates(
+        for storeName: String,
+        near userLocation: CLLocation,
+        completion: @escaping ([GeofenceCandidate]) -> Void
+    ) {
         let request = MKLocalSearch.Request()
         request.naturalLanguageQuery = storeName
         request.region = MKCoordinateRegion(
@@ -284,18 +366,28 @@ class LocationMonitoringManager: NSObject, ObservableObject {
 
         let search = MKLocalSearch(request: request)
         search.start { [weak self] response, error in
-            guard let self = self else { return }
+            guard let self = self else {
+                completion([])
+                return
+            }
 
             if let error = error {
                 #if DEBUG
                 print("   ❌ Geofence search error for '\(storeName)': \(error.localizedDescription)")
                 #endif
+                completion([])
                 return
             }
 
-            guard let response = response else { return }
+            guard let response = response else {
+                completion([])
+                return
+            }
 
             let normalizedSearchName = Store.normalizedId(from: storeName)
+            let hasReminders = self.hasIncompleteReminders(forNormalizedName: normalizedSearchName)
+
+            var found: [GeofenceCandidate] = []
 
             for mapItem in response.mapItems {
                 guard let itemName = mapItem.name,
@@ -309,32 +401,114 @@ class LocationMonitoringManager: NSObject, ObservableObject {
                 let distance = userLocation.distance(from: itemLocation)
                 guard distance <= self.searchRadius else { continue }
 
-                // Cap total monitored regions at iOS limit (20)
-                guard self.locationManager.monitoredRegions.count < 20 else {
-                    #if DEBUG
-                    print("⚠️ LocationMonitoring: Reached 20-region iOS limit, skipping remaining stores")
-                    #endif
-                    return
-                }
+                found.append(GeofenceCandidate(
+                    storeName: storeName,
+                    normalizedName: normalizedSearchName,
+                    coordinate: mapItem.placemark.coordinate,
+                    distance: distance,
+                    hasReminders: hasReminders
+                ))
+            }
 
-                // Use a UUID-keyed identifier to avoid parsing store names back out of strings
-                let identifier = UUID().uuidString
-                let region = CLCircularRegion(
-                    center: mapItem.placemark.coordinate,
-                    radius: self.proximityThreshold,
-                    identifier: identifier
-                )
-                region.notifyOnEntry = true
-                region.notifyOnExit = false
+            completion(found)
+        }
+    }
 
-                self.regionToStoreName[identifier] = normalizedSearchName
-                self.locationManager.startMonitoring(for: region)
+    /// Spend the region budget: cap how many locations any one store name can take,
+    /// then rank stores with reminders ahead of empty ones and nearer ahead of
+    /// farther.
+    private func registerGeofences(from candidates: [GeofenceCandidate]) {
+        // Every search came back empty — most likely MapKit rate-limited us. Keep
+        // the regions already registered rather than tearing them down for nothing.
+        guard !candidates.isEmpty else {
+            #if DEBUG
+            print("⚠️ LocationMonitoring: No candidates found, keeping \(locationManager.monitoredRegions.count) existing region(s)")
+            #endif
+            return
+        }
 
-                #if DEBUG
-                print("   📍 Geofenced '\(storeName)' at \(Int(distance))m away (id: \(identifier.prefix(8))…)")
-                #endif
+        var byName: [String: [GeofenceCandidate]] = [:]
+        for candidate in candidates {
+            byName[candidate.normalizedName, default: []].append(candidate)
+        }
+
+        // Per-name cap. A store gets its nearest location outright; a second only
+        // earns a slot when it's close enough to plausibly be on the user's routine.
+        var shortlist: [GeofenceCandidate] = []
+        for (_, locations) in byName {
+            for (index, candidate) in locations.sorted(by: { $0.distance < $1.distance }).enumerated() {
+                guard index < maxLocationsPerStore else { break }
+                guard index == 0 || candidate.distance <= secondLocationMaxDistance else { break }
+                shortlist.append(candidate)
             }
         }
+
+        // Stores with something waiting in them win the budget; distance breaks ties.
+        shortlist.sort {
+            if $0.hasReminders != $1.hasReminders { return $0.hasReminders }
+            return $0.distance < $1.distance
+        }
+
+        let selected = Array(shortlist.prefix(maxMonitoredRegions))
+
+        // Swap old fences for new only now that the replacements are known, so the
+        // user is never left with nothing monitored while searches are in flight.
+        stopAllGeofences()
+
+        for candidate in selected {
+            // Use a UUID-keyed identifier to avoid parsing store names back out of strings
+            let identifier = UUID().uuidString
+            let region = CLCircularRegion(
+                center: candidate.coordinate,
+                radius: proximityThreshold,
+                identifier: identifier
+            )
+            region.notifyOnEntry = true
+            region.notifyOnExit = false
+
+            regionToStoreName[identifier] = candidate.normalizedName
+            locationManager.startMonitoring(for: region)
+
+            #if DEBUG
+            let tag = candidate.hasReminders ? "📝" : "  "
+            print("   📍 \(tag) Geofenced '\(candidate.storeName)' at \(Int(candidate.distance))m away (id: \(identifier.prefix(8))…)")
+            #endif
+        }
+
+        #if DEBUG
+        print("🗺️ LocationMonitoring: Registered \(selected.count)/\(maxMonitoredRegions) regions from \(candidates.count) candidate location(s)")
+        for candidate in shortlist.dropFirst(selected.count) {
+            print("   ⏭️ No region slot for '\(candidate.storeName)' at \(Int(candidate.distance))m (\(candidate.hasReminders ? "has reminders" : "empty"))")
+        }
+        #endif
+    }
+
+    /// Whether any list behind this store name currently has incomplete reminders.
+    private func hasIncompleteReminders(forNormalizedName normalizedName: String) -> Bool {
+        let reminderStoreIds = Set(
+            userStores
+                .filter { Store.normalizedId(from: $0.storeName) == normalizedName }
+                .compactMap { $0.reminderStoreId }
+        )
+        return reminderStoreIds.contains { (storeReminders[$0] ?? 0) > 0 }
+    }
+
+    /// Reminder counts decide which stores deserve the scarce region slots, so a
+    /// list gaining its first item — or losing its last — can change the allocation.
+    /// Coalesced, because the initial load delivers a burst of count updates.
+    private func requestGeofenceRefreshForPriorityChange() {
+        guard let location = lastLocation else { return }
+
+        pendingPriorityRefresh?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            guard let self = self else { return }
+            // Priorities changed rather than the user moving, so the movement
+            // debounce shouldn't suppress this.
+            self.lastGeofenceRefreshTime = nil
+            self.refreshGeofences(for: location)
+        }
+        pendingPriorityRefresh = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + priorityRefreshCoalesceDelay, execute: work)
     }
 
     // MARK: - Data Loading
@@ -438,10 +612,17 @@ class LocationMonitoringManager: NSObject, ObservableObject {
                     }
 
                     let count = snapshot?.documents.count ?? 0
+                    let previousCount = self.storeReminders[reminderStoreId]
                     self.storeReminders[reminderStoreId] = count
                     #if DEBUG
                     print("LocationMonitoring: List '\(reminderStoreId)' has \(count) incomplete reminders")
                     #endif
+
+                    // Whether a list is empty decides who gets a region slot, so a
+                    // change here can change the allocation.
+                    if previousCount != count {
+                        self.requestGeofenceRefreshForPriorityChange()
+                    }
                 }
 
             reminderCountListeners[reminderStoreId] = listener
