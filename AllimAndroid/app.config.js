@@ -12,6 +12,16 @@
 const MAPS_API_KEY =
   process.env.MAPS_API_KEY || 'AIzaSyDfqvH3s2BwiwmAy46AT4NLYAjboTF4gkY';
 
+// OAuth client of type 3 ("web") from google-services.json. Google Sign-In on
+// Android hands back an ID token minted for this client, which is what Firebase
+// Auth verifies — the Android OAuth client (type 1, keyed by package name +
+// signing SHA-1) authorizes the request but is never named here. Not a secret:
+// it only identifies the Firebase project's web client, and it is already
+// embedded in google-services.json, which ships inside the APK.
+const GOOGLE_WEB_CLIENT_ID =
+  process.env.GOOGLE_WEB_CLIENT_ID ||
+  '903190692128-pvjlr0hn70tdf1834o2toh4117oeqsh0.apps.googleusercontent.com';
+
 module.exports = {
   expo: {
     name: 'Allim',
@@ -92,12 +102,19 @@ module.exports = {
           fonts: ['./node_modules/react-native-vector-icons/Fonts/Ionicons.ttf'],
         },
       ],
+      // Adds the google-services Gradle plugin/classpath the sign-in SDK needs.
+      // Called with no options so it reads google-services.json rather than
+      // asking for a standalone client id; the Firebase plugins above apply the
+      // same Gradle edits, and both sides no-op when they are already present.
+      '@react-native-google-signin/google-signin',
       // Must come after expo-build-properties so its Gradle edits land on top.
       './plugins/withAllimNativeBuild',
       'expo-dev-client',
     ],
 
     extra: {
+      // Read at runtime by src/services/googleAuthService.ts.
+      googleWebClientId: GOOGLE_WEB_CLIENT_ID,
       eas: {
         // The EAS project this app builds under. `eas init` cannot write this
         // itself because app.config.js is a dynamic config, so it is set here.

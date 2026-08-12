@@ -119,6 +119,25 @@ Only needed if you'd rather not build in the cloud.
 `expo.android.googleServicesFile` in `app.config.js`; prebuild copies it into
 `android/app/`. It is already registered for package `com.allimandroid`.
 
+### Sign in with Google
+
+The "Continue with Google" button on the login screen needs **one manual step**
+that has to be done once in the Firebase Console: registering the SHA-1
+fingerprint of every keystore that signs the app (EAS debug, EAS release, Google
+Play's app-signing key, and your local debug keystore), then re-downloading
+`google-services.json`.
+
+Without it the account picker opens and closes again with `DEVELOPER_ERROR`
+(status code 10) — Google identifies an Android app by package name + signing
+certificate, and rejects builds signed by a certificate it doesn't know.
+
+Full instructions, including where to find each fingerprint:
+[`../SOCIAL_LOGIN_SETUP.md` § 5](../SOCIAL_LOGIN_SETUP.md#5-android--sha-1-fingerprints-required).
+
+The web client ID the app sends is `extra.googleWebClientId` in `app.config.js`
+(overridable with `GOOGLE_WEB_CLIENT_ID`); it is the `client_type: 3` OAuth
+client already present in `google-services.json`.
+
 ---
 
 ## Regenerating the native project
@@ -174,6 +193,10 @@ npx expo start --dev-client --clear
 
 **Maps renders blank** → key restriction or **Maps SDK for Android** not enabled
 for the key. See "Maps API key" above.
+
+**Google Sign-In closes instantly / `DEVELOPER_ERROR`** → this build's signing
+SHA-1 isn't registered in Firebase, or `google-services.json` wasn't
+re-downloaded afterwards. See "Sign in with Google" above.
 
 **`expo prebuild` fails on a plugin anchor** → `withAllimNativeBuild` throws a
 descriptive error when Expo's Gradle template changes shape. Update the anchor

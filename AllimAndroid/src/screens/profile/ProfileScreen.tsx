@@ -31,11 +31,16 @@ import {
 import {useSession} from '../../context/SessionContext';
 import {userService} from '../../services/userService';
 import {authService} from '../../services/authService';
+import {googleAuthService} from '../../services/googleAuthService';
 
 export default function ProfileScreen() {
   const scheme = useColorScheme();
   const navigation = useNavigation();
-  const {currentUser, refreshUser} = useSession();
+  const {currentUser, firebaseUser, refreshUser} = useSession();
+
+  // An account created with Google has no password to type — Firebase's
+  // "recent login" requirement is met by re-running the Google sheet instead.
+  const usesPassword = googleAuthService.hasPasswordProvider(firebaseUser);
 
   const [editName, setEditName] = useState(currentUser?.name ?? '');
   const [saving, setSaving] = useState(false);
@@ -86,15 +91,21 @@ export default function ProfileScreen() {
   }
 
   async function handleDeleteAccount() {
-    if (!deletePassword) {return;}
+    if (usesPassword && !deletePassword) {return;}
     setDeleting(true);
     try {
-      await authService.deleteAccount(deletePassword);
+      const deleted = await authService.deleteAccount(deletePassword);
+      // Dismissing the Google re-auth sheet leaves the account untouched, so
+      // keep the confirmation open rather than implying anything happened.
+      if (!deleted) {
+        return;
+      }
+      setShowDeleteModal(false);
     } catch (err: any) {
       Alert.alert('Error', err.message ?? 'Failed to delete account.');
+      setShowDeleteModal(false);
     } finally {
       setDeleting(false);
-      setShowDeleteModal(false);
     }
   }
 
@@ -233,16 +244,20 @@ export default function ProfileScreen() {
                 Delete Account
               </Text>
               <Text style={[styles.deleteWarning, {color: textSecondary(scheme)}]}>
-                This action is permanent. Enter your password to confirm.
+                {usesPassword
+                  ? 'This action is permanent. Enter your password to confirm.'
+                  : 'This action is permanent. You\'ll be asked to confirm with Google.'}
               </Text>
-              <TextInput
-                placeholder="Password"
-                placeholderTextColor={textSecondary(scheme)}
-                value={deletePassword}
-                onChangeText={setDeletePassword}
-                secureTextEntry
-                style={[styles.nameInput, {color: textPrimary(scheme), marginBottom: Spacing.md}]}
-              />
+              {usesPassword && (
+                <TextInput
+                  placeholder="Password"
+                  placeholderTextColor={textSecondary(scheme)}
+                  value={deletePassword}
+                  onChangeText={setDeletePassword}
+                  secureTextEntry
+                  style={[styles.nameInput, {color: textPrimary(scheme), marginBottom: Spacing.md}]}
+                />
+              )}
               <View style={styles.deleteActions}>
                 <TouchableOpacity
                   style={[styles.deleteBtn, {backgroundColor: Colors.blue + '1A'}]}

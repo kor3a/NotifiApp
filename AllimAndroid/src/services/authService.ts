@@ -2,6 +2,10 @@ import auth, {FirebaseAuthTypes} from '@react-native-firebase/auth';
 import firestore from '@react-native-firebase/firestore';
 import functions from '@react-native-firebase/functions';
 import {userService} from './userService';
+import {googleAuthService} from './googleAuthService';
+
+/** Same rule as the email/password signup form, so usernames stay consistent. */
+export const USERNAME_REGEX = /^[a-zA-Z0-9]{3,20}$/;
 
 // Sends a custom, mobile-friendly verification email via the
 // `sendVerificationEmail` Cloud Function (Resend) instead of Firebase Auth's
@@ -119,6 +123,39 @@ export const authService = {
     await auth().signOut();
   },
 
+  // Create the Firestore profile for a first-time social sign-in. The Firebase
+  // Auth account already exists (Google made it) and its email is verified, so
+  // unlike `signup` there is no account to create, no verification mail to send
+  // and no sign-out afterwards — the user goes straight into the app.
+  async createSocialProfile(userId: string, name: string): Promise<void> {
+    const user = auth().currentUser;
+    if (!user?.email) {
+      throw new Error('No authenticated user found. Please sign in again.');
+    }
+
+    const normalizedUserId = userId.toLowerCase().trim();
+    const normalizedEmail = user.email.toLowerCase().trim();
+
+    // The username is the document id, so it has to be free.
+    const existing = await firestore()
+      .collection('users')
+      .doc(normalizedUserId)
+      .get();
+    if (existing.exists) {
+      throw new Error('This username is already taken. Please choose another.');
+    }
+
+    await firestore().collection('users').doc(normalizedUserId).set({
+      userId: normalizedUserId,
+      firebaseUid: user.uid,
+      name: name.trim(),
+      email: normalizedEmail,
+      isSubscribed: false,
+      adminSubscribed: false,
+      createdAt: firestore.FieldValue.serverTimestamp(),
+    });
+  },
+
   // Send password reset email
   async sendPasswordReset(email: string): Promise<void> {
     await auth().sendPasswordResetEmail(email);
@@ -146,14 +183,32 @@ export const authService = {
       ]).catch(() => {});
     }
     await auth().signOut();
+    // Forget the chosen Google account too, so the next sign-in shows the
+    // picker rather than dropping straight back into the account just left.
+    await googleAuthService.signOut();
   },
 
-  // Delete account
-  async deleteAccount(password: string): Promise<void> {
+  // Delete account. `password` is ignored for accounts that sign in with
+  // Google and have never set one — those re-authenticate through the Google
+  // sheet instead, since there is no password to ask for. Returns false when
+  // the user dismissed that sheet, leaving the account untouched.
+  async deleteAccount(password: string): Promise<boolean> {
     const user = auth().currentUser;
     if (!user || !user.email) {throw new Error('No user');}
-    const credential = auth.EmailAuthProvider.credential(user.email, password);
-    await user.reauthenticateWithCredential(credential);
+
+    if (googleAuthService.hasPasswordProvider(user)) {
+      const credential = auth.EmailAuthProvider.credential(user.email, password);
+      await user.reauthenticateWithCredential(credential);
+    } else if (googleAuthService.isGoogleAccount(user)) {
+      const reauthenticated = await googleAuthService.reauthenticate();
+      if (!reauthenticated) {
+        return false;
+      }
+    } else {
+      throw new Error(
+        'This account signs in with a provider that cannot be re-authenticated on Android. Please delete it from the iOS app.',
+      );
+    }
 
     // Delete the Firestore user doc. It's keyed by username, so find it by
     // email rather than assuming the doc id is the auth uid.
@@ -163,6 +218,8 @@ export const authService = {
       .get();
     await Promise.all(userDocs.docs.map(d => d.ref.delete()));
     await user.delete();
+    await googleAuthService.signOut();
+    return true;
   },
 
   getCurrentUser() {
