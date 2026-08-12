@@ -95,8 +95,12 @@ module.exports = {
 
     extra: {
       eas: {
-        // Populated by `eas init` / `eas build:configure`.
-        projectId: process.env.EAS_PROJECT_ID || undefined,
+        // The EAS project this app builds under. `eas init` cannot write this
+        // itself because app.config.js is a dynamic config, so it is set here.
+        // Not a secret — it only identifies the project, and access is
+        // controlled by your Expo account.
+        projectId:
+          process.env.EAS_PROJECT_ID || 'c0718b2f-967f-4cdf-9915-dda86b1ead0e',
       },
     },
   },
