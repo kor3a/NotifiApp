@@ -51,6 +51,8 @@
 		01A339A52FE1A86E00207C36 /* AppIntentVocabulary.plist in Resources */ = {isa = PBXBuildFile; fileRef = 01A339A42FE1A86E00207C36 /* AppIntentVocabulary.plist */; };
 		01AA00022F900000AB942902 /* ProfileSetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01AA00012F900000AB942901 /* ProfileSetupView.swift */; };
 		01AA00042F900000AB942904 /* ProfileSetupViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01AA00032F900000AB942903 /* ProfileSetupViewModel.swift */; };
+		01AA00122F900000AB942912 /* PermissionOnboardingManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01AA00112F900000AB942911 /* PermissionOnboardingManager.swift */; };
+		01AA00142F900000AB942914 /* PermissionOnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01AA00132F900000AB942913 /* PermissionOnboardingView.swift */; };
 		01B408232F3BECB100EA1F25 /* MessagesViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01B408222F3BECB100EA1F25 /* MessagesViewModel.swift */; };
 		01B408252F3BECB800EA1F25 /* FriendsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01B408242F3BECB800EA1F25 /* FriendsViewModel.swift */; };
 		01B408272F3BECC300EA1F25 /* Friend.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01B408262F3BECC300EA1F25 /* Friend.swift */; };
@@ -100,11 +102,6 @@
 		82EC11832C64755300A6CD8C /* LocationDetailsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82EC11822C64755300A6CD8C /* LocationDetailsView.swift */; };
 		A1B2C3D400000000000000F2 /* FirebaseFunctions in Frameworks */ = {isa = PBXBuildFile; productRef = A1B2C3D400000000000000F1 /* FirebaseFunctions */; };
 		AA1234560001AABB00CC0004 /* OpenAIService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0001 /* OpenAIService.swift */; };
-		AA1234560001AABB00CC0502 /* VoiceCommand.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0501 /* VoiceCommand.swift */; };
-		AA1234560001AABB00CC0510 /* FeatureFlags.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0509 /* FeatureFlags.swift */; };
-		AA1234560001AABB00CC0504 /* SpeechRecognitionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0503 /* SpeechRecognitionManager.swift */; };
-		AA1234560001AABB00CC0506 /* VoiceCommandViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0505 /* VoiceCommandViewModel.swift */; };
-		AA1234560001AABB00CC0508 /* VoiceCommandView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0507 /* VoiceCommandView.swift */; };
 		AA1234560001AABB00CC0005 /* SmartRecipeViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0002 /* SmartRecipeViewModel.swift */; };
 		AA1234560001AABB00CC0006 /* SmartRecipeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0003 /* SmartRecipeView.swift */; };
 		AA1234560001AABB00CC0020 /* FriendRequestService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0010 /* FriendRequestService.swift */; };
@@ -114,8 +111,6 @@
 		AA1234560001AABB00CC0025 /* MessagingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0015 /* MessagingService.swift */; };
 		AA1234560001AABB00CC0026 /* NotificationLogStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0016 /* NotificationLogStore.swift */; };
 		AA1234560001AABB00CC0027 /* NotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0017 /* NotificationManager.swift */; };
-		01AA00122F900000AB942912 /* PermissionOnboardingManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01AA00112F900000AB942911 /* PermissionOnboardingManager.swift */; };
-		01AA00142F900000AB942914 /* PermissionOnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01AA00132F900000AB942913 /* PermissionOnboardingView.swift */; };
 		AA1234560001AABB00CC0028 /* StoreLogoProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0018 /* StoreLogoProvider.swift */; };
 		AA1234560001AABB00CC0029 /* UserSessionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0019 /* UserSessionManager.swift */; };
 		AA1234560001AABB00CC0031 /* SubscriptionPaywallView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0030 /* SubscriptionPaywallView.swift */; };
@@ -124,6 +119,11 @@
 		AA1234560001AABB00CC0306 /* HistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0305 /* HistoryView.swift */; };
 		AA1234560001AABB00CC0308 /* StoreAnalytics.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0307 /* StoreAnalytics.swift */; };
 		AA1234560001AABB00CC0310 /* StoreAnalyticsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0309 /* StoreAnalyticsView.swift */; };
+		AA1234560001AABB00CC0502 /* VoiceCommand.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0501 /* VoiceCommand.swift */; };
+		AA1234560001AABB00CC0504 /* SpeechRecognitionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0503 /* SpeechRecognitionManager.swift */; };
+		AA1234560001AABB00CC0506 /* VoiceCommandViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0505 /* VoiceCommandViewModel.swift */; };
+		AA1234560001AABB00CC0508 /* VoiceCommandView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0507 /* VoiceCommandView.swift */; };
+		AA1234560001AABB00CC0510 /* FeatureFlags.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0509 /* FeatureFlags.swift */; };
 		BC0200000001AABB00CC0001 /* MembershipCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC0100000001AABB00CC0001 /* MembershipCard.swift */; };
 		BC0200000001AABB00CC0002 /* BarcodeGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC0100000001AABB00CC0002 /* BarcodeGenerator.swift */; };
 		BC0200000001AABB00CC0003 /* MembershipBarcodeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC0100000001AABB00CC0003 /* MembershipBarcodeView.swift */; };
@@ -230,6 +230,8 @@
 		01A339A32FE1A86E00207C36 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = en; path = en.lproj/AppIntentVocabulary.plist; sourceTree = "<group>"; };
 		01AA00012F900000AB942901 /* ProfileSetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileSetupView.swift; sourceTree = "<group>"; };
 		01AA00032F900000AB942903 /* ProfileSetupViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileSetupViewModel.swift; sourceTree = "<group>"; };
+		01AA00112F900000AB942911 /* PermissionOnboardingManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionOnboardingManager.swift; sourceTree = "<group>"; };
+		01AA00132F900000AB942913 /* PermissionOnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionOnboardingView.swift; sourceTree = "<group>"; };
 		01B408212F3BEC7F00EA1F25 /* Secrets.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Secrets.xcconfig; sourceTree = "<group>"; };
 		01B408222F3BECB100EA1F25 /* MessagesViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessagesViewModel.swift; sourceTree = "<group>"; };
 		01B408242F3BECB800EA1F25 /* FriendsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FriendsViewModel.swift; sourceTree = "<group>"; };
@@ -277,11 +279,6 @@
 		82D715C52C8D6B230000D1E3 /* MapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapView.swift; sourceTree = "<group>"; };
 		82EC11822C64755300A6CD8C /* LocationDetailsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationDetailsView.swift; sourceTree = "<group>"; };
 		AA1234560001AABB00CC0001 /* OpenAIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenAIService.swift; sourceTree = "<group>"; };
-		AA1234560001AABB00CC0501 /* VoiceCommand.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceCommand.swift; sourceTree = "<group>"; };
-		AA1234560001AABB00CC0509 /* FeatureFlags.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeatureFlags.swift; sourceTree = "<group>"; };
-		AA1234560001AABB00CC0503 /* SpeechRecognitionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechRecognitionManager.swift; sourceTree = "<group>"; };
-		AA1234560001AABB00CC0505 /* VoiceCommandViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceCommandViewModel.swift; sourceTree = "<group>"; };
-		AA1234560001AABB00CC0507 /* VoiceCommandView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceCommandView.swift; sourceTree = "<group>"; };
 		AA1234560001AABB00CC0002 /* SmartRecipeViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SmartRecipeViewModel.swift; sourceTree = "<group>"; };
 		AA1234560001AABB00CC0003 /* SmartRecipeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SmartRecipeView.swift; sourceTree = "<group>"; };
 		AA1234560001AABB00CC0010 /* FriendRequestService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FriendRequestService.swift; sourceTree = "<group>"; };
@@ -291,8 +288,6 @@
 		AA1234560001AABB00CC0015 /* MessagingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessagingService.swift; sourceTree = "<group>"; };
 		AA1234560001AABB00CC0016 /* NotificationLogStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationLogStore.swift; sourceTree = "<group>"; };
 		AA1234560001AABB00CC0017 /* NotificationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationManager.swift; sourceTree = "<group>"; };
-		01AA00112F900000AB942911 /* PermissionOnboardingManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionOnboardingManager.swift; sourceTree = "<group>"; };
-		01AA00132F900000AB942913 /* PermissionOnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionOnboardingView.swift; sourceTree = "<group>"; };
 		AA1234560001AABB00CC0018 /* StoreLogoProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoreLogoProvider.swift; sourceTree = "<group>"; };
 		AA1234560001AABB00CC0019 /* UserSessionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserSessionManager.swift; sourceTree = "<group>"; };
 		AA1234560001AABB00CC0030 /* SubscriptionPaywallView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionPaywallView.swift; sourceTree = "<group>"; };
@@ -301,6 +296,11 @@
 		AA1234560001AABB00CC0305 /* HistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryView.swift; sourceTree = "<group>"; };
 		AA1234560001AABB00CC0307 /* StoreAnalytics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoreAnalytics.swift; sourceTree = "<group>"; };
 		AA1234560001AABB00CC0309 /* StoreAnalyticsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoreAnalyticsView.swift; sourceTree = "<group>"; };
+		AA1234560001AABB00CC0501 /* VoiceCommand.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceCommand.swift; sourceTree = "<group>"; };
+		AA1234560001AABB00CC0503 /* SpeechRecognitionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechRecognitionManager.swift; sourceTree = "<group>"; };
+		AA1234560001AABB00CC0505 /* VoiceCommandViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceCommandViewModel.swift; sourceTree = "<group>"; };
+		AA1234560001AABB00CC0507 /* VoiceCommandView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceCommandView.swift; sourceTree = "<group>"; };
+		AA1234560001AABB00CC0509 /* FeatureFlags.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeatureFlags.swift; sourceTree = "<group>"; };
 		BC0100000001AABB00CC0001 /* MembershipCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MembershipCard.swift; sourceTree = "<group>"; };
 		BC0100000001AABB00CC0002 /* BarcodeGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BarcodeGenerator.swift; sourceTree = "<group>"; };
 		BC0100000001AABB00CC0003 /* MembershipBarcodeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MembershipBarcodeView.swift; sourceTree = "<group>"; };
@@ -1341,7 +1341,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.3.12;
+				MARKETING_VERSION = 1.3.13;
 				PRODUCT_BUNDLE_IDENTIFIER = com.kor3a.nearbuy;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -1373,7 +1373,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.3.12;
+				MARKETING_VERSION = 1.3.13;
 				PRODUCT_BUNDLE_IDENTIFIER = com.kor3a.nearbuy;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
