@@ -205,8 +205,12 @@ struct HomeView: View {
                 }
             }
 
-            // Start monitoring when user data becomes available
-            if let userId = newUser?.userId, !locationMonitor.isMonitoring {
+            // Start monitoring when user data becomes available. Deliberately not
+            // gated on `isMonitoring` — monitoring may already be running under the
+            // user ID restored from UserDefaults, and this is where the actual
+            // signed-in account takes over. startMonitoring is idempotent when the
+            // user is unchanged.
+            if let userId = newUser?.userId {
                 let locationStatus = locationMonitor.checkLocationPermission()
                 if locationStatus == .authorizedAlways || locationStatus == .authorizedWhenInUse {
                     locationMonitor.startMonitoring(userId: userId)

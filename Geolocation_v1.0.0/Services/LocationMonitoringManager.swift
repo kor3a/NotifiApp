@@ -144,11 +144,30 @@ class LocationMonitoringManager: NSObject, ObservableObject {
     }
 
     func startMonitoring(userId: String) {
-        currentUserId = userId
-
         #if DEBUG
         print("🔵 LocationMonitoring: startMonitoring called for userId: \(userId)")
         #endif
+
+        // Already running for this account — nothing to rebuild.
+        if isMonitoring, currentUserId == userId {
+            #if DEBUG
+            print("   ↩️ Already monitoring for \(userId)")
+            #endif
+            return
+        }
+
+        // A different account is taking over. The restored-from-UserDefaults ID
+        // starts monitoring before the session is known, so this is the point where
+        // the real signed-in user displaces it. Tear the previous user's geofences,
+        // listeners, stores and counts down rather than layering on top of them.
+        if let previousUserId = currentUserId, previousUserId != userId {
+            #if DEBUG
+            print("   🔁 Switching monitored user: \(previousUserId) → \(userId)")
+            #endif
+            stopMonitoring()
+        }
+
+        currentUserId = userId
 
         let permission = checkLocationPermission()
 
@@ -183,9 +202,27 @@ class LocationMonitoringManager: NSObject, ObservableObject {
         userStoresListener?.remove()
         userStoresListener = nil
         removeAllReminderCountListeners()
+
+        // Everything below is per-account. Leaving any of it behind lets one user's
+        // stores drive another user's notifications.
+        userStores.removeAll()
         proximityChecksInFlight.removeAll()
+        recentlyNotifiedStores.removeAll()
+        lastGeofenceRefreshTime = nil
+
         #if DEBUG
         print("Stopped location monitoring")
+        #endif
+    }
+
+    /// Stop monitoring and forget the account entirely, including the user ID
+    /// persisted for background launches. Call this on sign-out — otherwise the
+    /// next launch restores the signed-out user and geofences their stores.
+    func clearUser() {
+        stopMonitoring()
+        currentUserId = nil
+        #if DEBUG
+        print("🧹 LocationMonitoring: Cleared stored user")
         #endif
     }
 
