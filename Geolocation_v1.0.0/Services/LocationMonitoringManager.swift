@@ -22,8 +22,12 @@ class LocationMonitoringManager: NSObject, ObservableObject {
     // Distance threshold in meters for proximity notification (geofence radius)
     private let proximityThreshold: CLLocationDistance = 150
 
-    // Search radius for finding nearby stores to geofence (5km)
-    private let searchRadius: CLLocationDistance = 5000
+    /// How far out to look for store locations worth monitoring. Generous on
+    /// purpose: the notification still only fires inside a 150m fence, so a wider
+    /// search costs nothing but eligibility, and the region budget is usually
+    /// under-spent rather than over-subscribed. Stores a 15-minute drive away are
+    /// exactly the ones a "you're passing it" reminder is useful for.
+    private let searchRadius: CLLocationDistance = 15000
 
     // Track recently notified stores to avoid spam (normalized store name -> last notification time)
     private var recentlyNotifiedStores: [String: Date] = [:]
@@ -395,7 +399,7 @@ class LocationMonitoringManager: NSObject, ObservableObject {
 
                 // Only consider results whose name matches the saved store name
                 let normalizedResultName = Store.normalizedId(from: itemName)
-                guard normalizedSearchName == normalizedResultName else { continue }
+                guard Self.storeNamesMatch(normalizedSearchName, normalizedResultName) else { continue }
 
                 // Only geofence stores within the search radius
                 let distance = userLocation.distance(from: itemLocation)
@@ -409,6 +413,20 @@ class LocationMonitoringManager: NSObject, ObservableObject {
                     hasReminders: hasReminders
                 ))
             }
+
+            #if DEBUG
+            if found.isEmpty {
+                // A store that yields nothing is invisible to the allocator, which is
+                // indistinguishable from "no slot available" without this. Show what
+                // MapKit actually returned so the reason is obvious.
+                let rejected = response.mapItems.prefix(5).map { item -> String in
+                    let name = item.name ?? "(unnamed)"
+                    guard let loc = item.placemark.location else { return "'\(name)' (no location)" }
+                    return "'\(name)' @\(Int(userLocation.distance(from: loc)))m"
+                }
+                print("   🔎 No candidates for '\(storeName)' from \(response.mapItems.count) result(s): \(rejected.joined(separator: ", "))")
+            }
+            #endif
 
             completion(found)
         }
@@ -481,6 +499,18 @@ class LocationMonitoringManager: NSObject, ObservableObject {
             print("   ⏭️ No region slot for '\(candidate.storeName)' at \(Int(candidate.distance))m (\(candidate.hasReminders ? "has reminders" : "empty"))")
         }
         #endif
+    }
+
+    /// Whether a MapKit result names the same store the user saved.
+    ///
+    /// Exact equality is too strict: MapKit routinely returns a branch-qualified
+    /// name for the same POI ("H Mart Rancho Cucamonga" for a store saved as
+    /// "H Mart"), and can return the shorter form for one saved longer. Either name
+    /// being a prefix of the other covers both without matching unrelated stores.
+    static func storeNamesMatch(_ normalizedA: String, _ normalizedB: String) -> Bool {
+        if normalizedA == normalizedB { return true }
+        guard !normalizedA.isEmpty, !normalizedB.isEmpty else { return false }
+        return normalizedA.hasPrefix(normalizedB) || normalizedB.hasPrefix(normalizedA)
     }
 
     /// Whether any list behind this store name currently has incomplete reminders.
