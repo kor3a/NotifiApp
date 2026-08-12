@@ -41,6 +41,11 @@ class ProfileViewModel: ObservableObject {
         // account to sign in on this device starts from the default look.
         BackgroundPreferences.shared.resetAll()
 
+        // Drop the geofences, cached counts and persisted user ID for this account.
+        // Without this the ID survives in UserDefaults and the next launch silently
+        // monitors the signed-out user's stores.
+        LocationMonitoringManager.shared.clearUser()
+
         // Remove this device's push token from the user's document first —
         // rules only allow updating your own doc, so it must happen while
         // still authenticated. Times out internally so sign-out never hangs;
