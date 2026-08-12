@@ -16,6 +16,10 @@ module.exports = {
   expo: {
     name: 'Allim',
     slug: 'allim',
+    // The Expo account that owns the EAS project below. Required because the
+    // project belongs to the kor3as-team organization rather than to a personal
+    // account — without it, EAS rejects builds from any individual member.
+    owner: 'kor3as-team',
     version: '1.0.0',
     orientation: 'portrait',
     icon: './assets/icon.png',
