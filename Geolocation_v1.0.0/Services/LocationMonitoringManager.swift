@@ -28,8 +28,11 @@ class LocationMonitoringManager: NSObject, ObservableObject {
     private var recentlyNotifiedStores: [String: Date] = [:]
     private let notificationCooldown: TimeInterval = 3600 // 1 hour cooldown
 
-    // Maps geofence region identifiers to user store IDs
-    private var regionToUserStoreId: [String: String] = [:]
+    // Maps geofence region identifiers to the normalized store name they cover.
+    // A name can have several user_store rows behind it (e.g. an owned list plus
+    // one shared from a friend), so regions map to the name rather than to a
+    // single row and the counts are resolved at notification time.
+    private var regionToStoreName: [String: String] = [:]
 
     // Debounce geofence refresh so we don't hammer MapKit on every significant change
     private var lastGeofenceRefreshTime: Date?
@@ -44,7 +47,12 @@ class LocationMonitoringManager: NSObject, ObservableObject {
     @Published private(set) var authorizationStatus: CLAuthorizationStatus = .notDetermined
 
     private var userStores: [UserStore] = []
-    private var storeReminders: [String: Int] = [:] // userStoreId -> incomplete reminder count
+    private var storeReminders: [String: Int] = [:] // reminderStoreId -> incomplete reminder count
+
+    // Firestore listeners, retained so they can be torn down instead of stacking
+    // up every time the store list changes.
+    private var userStoresListener: ListenerRegistration?
+    private var reminderCountListeners: [String: ListenerRegistration] = [:] // reminderStoreId -> listener
     private var currentUserId: String? {
         didSet {
             if let userId = currentUserId {
@@ -159,6 +167,9 @@ class LocationMonitoringManager: NSObject, ObservableObject {
         isMonitoring = false
         locationManager.stopMonitoringSignificantLocationChanges()
         stopAllGeofences()
+        userStoresListener?.remove()
+        userStoresListener = nil
+        removeAllReminderCountListeners()
         #if DEBUG
         print("Stopped location monitoring")
         #endif
@@ -170,7 +181,7 @@ class LocationMonitoringManager: NSObject, ObservableObject {
         for region in locationManager.monitoredRegions {
             locationManager.stopMonitoring(for: region)
         }
-        regionToUserStoreId.removeAll()
+        regionToStoreName.removeAll()
         #if DEBUG
         print("🗺️ LocationMonitoring: Removed all geofences")
         #endif
@@ -247,11 +258,6 @@ class LocationMonitoringManager: NSObject, ObservableObject {
                 let distance = userLocation.distance(from: itemLocation)
                 guard distance <= self.searchRadius else { continue }
 
-                // Find the user store entry so we can map the region identifier to it
-                guard let userStore = self.userStores.first(where: {
-                    Store.normalizedId(from: $0.storeName) == normalizedSearchName
-                }), let userStoreId = userStore.id else { continue }
-
                 // Cap total monitored regions at iOS limit (20)
                 guard self.locationManager.monitoredRegions.count < 20 else {
                     #if DEBUG
@@ -270,7 +276,7 @@ class LocationMonitoringManager: NSObject, ObservableObject {
                 region.notifyOnEntry = true
                 region.notifyOnExit = false
 
-                self.regionToUserStoreId[identifier] = userStoreId
+                self.regionToStoreName[identifier] = normalizedSearchName
                 self.locationManager.startMonitoring(for: region)
 
                 #if DEBUG
@@ -287,7 +293,9 @@ class LocationMonitoringManager: NSObject, ObservableObject {
         print("🔄 LocationMonitoring: Loading user stores for userId: \(userId)")
         #endif
 
-        db.collection("user_stores")
+        // Replace any previous listener so repeated startMonitoring() calls don't stack
+        userStoresListener?.remove()
+        userStoresListener = db.collection("user_stores")
             .whereField("userId", isEqualTo: userId)
             .addSnapshotListener { [weak self] snapshot, error in
                 guard let self = self else { return }
@@ -305,8 +313,6 @@ class LocationMonitoringManager: NSObject, ObservableObject {
                     #endif
                     return
                 }
-
-                self.storeReminders.removeAll()
 
                 self.userStores = documents.compactMap { doc -> UserStore? in
                     do {
@@ -347,17 +353,27 @@ class LocationMonitoringManager: NSObject, ObservableObject {
     }
 
     private func loadReminderCounts() {
+        var reminderStoreIds: Set<String> = []
         for userStore in userStores {
-            guard let userStoreId = userStore.id else {
+            guard let reminderStoreId = userStore.reminderStoreId else {
                 #if DEBUG
                 print("⚠️ LocationMonitoring: Store '\(userStore.storeName)' has no ID, skipping")
                 #endif
                 continue
             }
+            reminderStoreIds.insert(reminderStoreId)
+        }
 
-            let reminderStoreId = userStore.sourceUserStoreId ?? userStore.sharedStoreGroupId ?? userStoreId
+        // Tear down listeners for lists we no longer track, and drop their counts
+        for (id, listener) in reminderCountListeners where !reminderStoreIds.contains(id) {
+            listener.remove()
+            reminderCountListeners.removeValue(forKey: id)
+            storeReminders.removeValue(forKey: id)
+        }
 
-            db.collection("reminders")
+        // Register a listener for each list we aren't already watching
+        for reminderStoreId in reminderStoreIds where reminderCountListeners[reminderStoreId] == nil {
+            let listener = db.collection("reminders")
                 .whereField("userStoreId", isEqualTo: reminderStoreId)
                 .whereField("isDone", isEqualTo: false)
                 .addSnapshotListener { [weak self] snapshot, error in
@@ -371,55 +387,127 @@ class LocationMonitoringManager: NSObject, ObservableObject {
                     }
 
                     let count = snapshot?.documents.count ?? 0
-                    self.storeReminders[userStoreId] = count
+                    self.storeReminders[reminderStoreId] = count
                     #if DEBUG
-                    print("LocationMonitoring: Store '\(userStore.storeName)' has \(count) incomplete reminders")
+                    print("LocationMonitoring: List '\(reminderStoreId)' has \(count) incomplete reminders")
                     #endif
                 }
+
+            reminderCountListeners[reminderStoreId] = listener
+        }
+    }
+
+    private func removeAllReminderCountListeners() {
+        for (_, listener) in reminderCountListeners {
+            listener.remove()
+        }
+        reminderCountListeners.removeAll()
+        storeReminders.removeAll()
+    }
+
+    /// Read the current incomplete-reminder count straight from Firestore rather
+    /// than trusting `storeReminders`. Snapshot listeners are disconnected while
+    /// the app is suspended, so the cached counts can be hours stale by the time a
+    /// geofence wakes us — which is exactly when we're about to notify. Falls back
+    /// to the cached value for any list whose fetch fails.
+    private func fetchLiveReminderCount(
+        for reminderStoreIds: Set<String>,
+        completion: @escaping (Int) -> Void
+    ) {
+        let group = DispatchGroup()
+        var total = 0
+        let totalLock = NSLock()
+
+        for reminderStoreId in reminderStoreIds {
+            group.enter()
+            db.collection("reminders")
+                .whereField("userStoreId", isEqualTo: reminderStoreId)
+                .whereField("isDone", isEqualTo: false)
+                .getDocuments { [weak self] snapshot, error in
+                    defer { group.leave() }
+                    guard let self = self else { return }
+
+                    let count: Int
+                    if let error = error {
+                        #if DEBUG
+                        print("⚠️ LocationMonitoring: Live count failed for '\(reminderStoreId)', using cached: \(error)")
+                        #endif
+                        count = self.storeReminders[reminderStoreId] ?? 0
+                    } else {
+                        count = snapshot?.documents.count ?? 0
+                        self.storeReminders[reminderStoreId] = count
+                    }
+
+                    totalLock.lock()
+                    total += count
+                    totalLock.unlock()
+                }
+        }
+
+        group.notify(queue: .main) {
+            completion(total)
         }
     }
 
     // MARK: - Proximity Handling
 
-    private func handleStoreProximity(userStoreId: String) {
-        guard let userStore = userStores.first(where: { $0.id == userStoreId }) else {
+    private func handleStoreProximity(normalizedStoreName: String) {
+        // Every list the user keeps under this store name — an owned one, plus any
+        // shared with them — counts toward what's waiting for them at this location.
+        let matchingStores = userStores.filter {
+            Store.normalizedId(from: $0.storeName) == normalizedStoreName
+        }
+
+        guard let displayStore = matchingStores.first else {
             #if DEBUG
-            print("⚠️ LocationMonitoring: No user store found for id \(userStoreId)")
+            print("⚠️ LocationMonitoring: No user store found named '\(normalizedStoreName)'")
             #endif
             return
         }
 
-        let normalizedName = Store.normalizedId(from: userStore.storeName)
-
         // Cooldown check
-        if let lastNotification = recentlyNotifiedStores[normalizedName] {
+        if let lastNotification = recentlyNotifiedStores[normalizedStoreName] {
             let timeSinceLastNotification = Date().timeIntervalSince(lastNotification)
             guard timeSinceLastNotification >= notificationCooldown else {
                 #if DEBUG
                 let minutesAgo = Int(timeSinceLastNotification / 60)
-                print("⏸️ LocationMonitoring: In cooldown for '\(userStore.storeName)' (notified \(minutesAgo) min ago)")
+                print("⏸️ LocationMonitoring: In cooldown for '\(displayStore.storeName)' (notified \(minutesAgo) min ago)")
                 #endif
                 return
             }
         }
 
-        let reminderCount = storeReminders[userStoreId] ?? 0
-        guard reminderCount > 0 else {
+        // Distinct lists only — two rows can point at the same shared list, and
+        // counting it twice would inflate the number in the notification.
+        let reminderStoreIds = Set(matchingStores.compactMap { $0.reminderStoreId })
+        guard !reminderStoreIds.isEmpty else { return }
+
+        // Claim the cooldown slot before the fetch so a second region entry for the
+        // same store name can't slip through while this one is still in flight.
+        recentlyNotifiedStores[normalizedStoreName] = Date()
+
+        fetchLiveReminderCount(for: reminderStoreIds) { [weak self] reminderCount in
+            guard let self = self else { return }
+
+            guard reminderCount > 0 else {
+                // Nothing was sent, so release the slot rather than suppressing a
+                // legitimate notification for the next hour.
+                self.recentlyNotifiedStores.removeValue(forKey: normalizedStoreName)
+                #if DEBUG
+                print("❌ LocationMonitoring: No incomplete reminders for '\(displayStore.storeName)' - skipping")
+                #endif
+                return
+            }
+
+            self.notificationManager.scheduleStoreProximityNotification(
+                storeName: displayStore.storeName,
+                reminderCount: reminderCount
+            )
+
             #if DEBUG
-            print("❌ LocationMonitoring: No incomplete reminders for '\(userStore.storeName)' - skipping")
+            print("✅ LocationMonitoring: Notification sent for '\(displayStore.storeName)' (\(reminderCount) reminders)")
             #endif
-            return
         }
-
-        notificationManager.scheduleStoreProximityNotification(
-            storeName: userStore.storeName,
-            reminderCount: reminderCount
-        )
-        recentlyNotifiedStores[normalizedName] = Date()
-
-        #if DEBUG
-        print("✅ LocationMonitoring: Notification sent for '\(userStore.storeName)' (\(reminderCount) reminders)")
-        #endif
     }
 
     // MARK: - Helper Methods
@@ -459,18 +547,25 @@ extension LocationMonitoringManager: CLLocationManagerDelegate {
 
     /// Called by iOS when the user enters a monitored geofence region.
     func locationManager(_ manager: CLLocationManager, didEnterRegion region: CLRegion) {
-        guard let userStoreId = regionToUserStoreId[region.identifier] else {
+        // Hop to main before touching the region map and reminder counts — the
+        // Firestore callbacks that write them land on the main queue, and the live
+        // count fetch completes there too.
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+
+            guard let normalizedStoreName = self.regionToStoreName[region.identifier] else {
+                #if DEBUG
+                print("⚠️ LocationMonitoring: Entered unknown region \(region.identifier.prefix(8))…")
+                #endif
+                return
+            }
+
             #if DEBUG
-            print("⚠️ LocationMonitoring: Entered unknown region \(region.identifier.prefix(8))…")
+            print("📍 LocationMonitoring: Entered geofence for '\(normalizedStoreName)'")
             #endif
-            return
+
+            self.handleStoreProximity(normalizedStoreName: normalizedStoreName)
         }
-
-        #if DEBUG
-        print("📍 LocationMonitoring: Entered geofence for store id \(userStoreId)")
-        #endif
-
-        handleStoreProximity(userStoreId: userStoreId)
     }
 
     func locationManager(_ manager: CLLocationManager, didExitRegion region: CLRegion) {

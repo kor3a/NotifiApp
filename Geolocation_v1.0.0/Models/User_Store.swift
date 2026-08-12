@@ -23,6 +23,19 @@ struct UserStore: Codable, Identifiable {
     var sharedWith: [String]? = nil // Names of users this store is shared with (for owner)
     var notificationsEnabled: Bool = true // Whether notifications are enabled for this store
 
+    /// Returns the ID to use for fetching this store's reminders, or nil if the
+    /// document ID hasn't been set yet. Mirrors `UserStoreItem.reminderStoreId`:
+    /// - Owners always use their own user_store ID, even if `sourceUserStoreId` is
+    ///   set (the merge flow sets it for tracking purposes without changing which
+    ///   reminders the owner sees).
+    /// - View-only and edit recipients use `sourceUserStoreId` (owner's store) or
+    ///   `sharedStoreGroupId`.
+    var reminderStoreId: String? {
+        guard let id = id else { return nil }
+        guard permission != .owner else { return id }
+        return sourceUserStoreId ?? sharedStoreGroupId ?? id
+    }
+
     enum CodingKeys: String, CodingKey {
         // Note: id is excluded from CodingKeys and set manually from doc.documentID
         case userId
