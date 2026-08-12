@@ -37,6 +37,13 @@ allprojects {
             // Force to a version compatible with the current AGP 8.6.0 / compileSdk 35 setup.
             force 'androidx.core:core-ktx:1.15.0'
             force 'androidx.core:core:1.15.0'
+			
+			// react-native-geolocation-service@5.3.1 was compiled against
+        // play-services-location 21.0.1, where FusedLocationProviderClient was
+        // a class. 21.1.0+ changed it to an interface, which triggers
+        // "Found interface ... but class was expected" at runtime. Pin to the
+        // last compatible version.
+        force 'com.google.android.gms:play-services-location:21.0.1'
         }
     }
 }

@@ -61,6 +61,8 @@ export default function StoresScreen() {
   }, [firebaseUser, currentUser]);
 
   function handleAddStore() {
+    console.log('handleAddStore called');
+  Alert.alert('debug', 'handleAddStore fired');
     setMenuOpen(false);
     setShowAddSheet(true);
   }
@@ -223,6 +225,15 @@ export default function StoresScreen() {
           />
         )}
 
+{/* Tap outside to close menu */}
+        {menuOpen && (
+          <TouchableOpacity
+            style={StyleSheet.absoluteFill}
+            onPress={() => setMenuOpen(false)}
+            activeOpacity={1}
+          />
+        )}
+        
         {/* FAB */}
         <View style={styles.fabContainer}>
           {menuOpen && (
@@ -250,14 +261,7 @@ export default function StoresScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Tap outside to close menu */}
-        {menuOpen && (
-          <TouchableOpacity
-            style={StyleSheet.absoluteFill}
-            onPress={() => setMenuOpen(false)}
-            activeOpacity={1}
-          />
-        )}
+        
       </SafeAreaView>
 
       {/* Add Store Sheet */}
