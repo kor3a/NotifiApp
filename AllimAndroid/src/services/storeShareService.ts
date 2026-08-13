@@ -189,6 +189,300 @@ async function setLinkedStoreStatus(
     .update({'linkedStore.status': status});
 }
 
+// ─── Unshare / departure cleanup ─────────────────────────────────────────────
+//
+// These mirror the iOS app's cleanup helpers (StoresViewModel and
+// ShareStoreView) one for one, so a store torn down on either platform leaves
+// the same documents behind. They are exported because store deletion
+// (storeService) and explicit unsharing (this service) share them exactly as
+// the Swift code shares them between StoresViewModel and ShareStoreView.
+
+// Every reminder in a store, regardless of isDone. The isShared filter is
+// applied in JS rather than in the query so this needs no composite index.
+async function remindersIn(userStoreId: string) {
+  const snap = await firestore()
+    .collection('reminders')
+    .where('userStoreId', '==', userStoreId)
+    .get();
+  return snap.docs;
+}
+
+// Look up the current display names for a list of user ids. Firestore `in`
+// queries take at most 10 values, so the ids are queried in chunks — the same
+// shape as the iOS fetchUsersNames.
+export async function fetchUserNames(
+  userIds: string[],
+): Promise<Map<string, string>> {
+  const names = new Map<string, string>();
+  const unique = [...new Set(userIds.filter(Boolean))];
+  for (let i = 0; i < unique.length; i += 10) {
+    const chunk = unique.slice(i, i + 10);
+    try {
+      const snap = await firestore()
+        .collection('users')
+        .where('userId', 'in', chunk)
+        .get();
+      snap.docs.forEach(doc => {
+        const data = doc.data();
+        if (data.userId && data.name) {
+          names.set(data.userId as string, data.name as string);
+        }
+      });
+    } catch (_) {
+      // A failed lookup only costs a display name — the caller falls back.
+    }
+  }
+  return names;
+}
+
+// Message the other side about a store that was deleted, left, or unshared.
+// Notifications are best effort: failing to send one must never abort the
+// cleanup that has already been committed.
+export async function sendStoreNotice(params: {
+  currentUser: User;
+  recipientId: string;
+  recipientName: string;
+  message: string;
+}): Promise<void> {
+  const {currentUser, recipientId, recipientName, message} = params;
+  if (!recipientId || recipientId === currentUser.userId) {
+    return;
+  }
+  try {
+    const conversationId = await messageService.getOrCreateConversation(
+      currentUser.userId,
+      recipientId,
+      currentUser.name,
+      recipientName,
+      currentUser.profilePictureURL,
+    );
+    await messageService.sendMessage(
+      conversationId,
+      currentUser.userId,
+      currentUser.name,
+      message,
+    );
+  } catch (_) {}
+}
+
+// Strip a departed recipient from the owner's reminders: items the recipient
+// contributed are deleted, and the owner's own items lose them from sharedWith
+// (clearing the shared flag once nobody is left).
+export async function updateOwnerRemindersAfterRecipientLeaves(
+  ownerUserStoreId: string,
+  recipientName: string,
+): Promise<void> {
+  if (!ownerUserStoreId || !recipientName) {
+    return;
+  }
+  const docs = (await remindersIn(ownerUserStoreId)).filter(
+    d => d.data().isShared === true,
+  );
+  if (docs.length === 0) {
+    return;
+  }
+
+  const batch = firestore().batch();
+  let updated = 0;
+
+  docs.forEach(doc => {
+    const data = doc.data();
+    const sharedWith: string[] = data.sharedWith ?? [];
+
+    // The recipient created this item and added it to the owner's store —
+    // it leaves with them.
+    if (data.sharedFrom === recipientName) {
+      batch.delete(doc.ref);
+      updated += 1;
+      return;
+    }
+
+    // The owner's own item, shared with the recipient.
+    if (!sharedWith.includes(recipientName)) {
+      return;
+    }
+    const remaining = sharedWith.filter(name => name !== recipientName);
+    updated += 1;
+    if (remaining.length === 0) {
+      batch.update(doc.ref, {
+        isShared: false,
+        sharedWith: firestore.FieldValue.delete(),
+        sharedFrom: firestore.FieldValue.delete(),
+      });
+    } else {
+      batch.update(doc.ref, {sharedWith: remaining});
+    }
+  });
+
+  if (updated > 0) {
+    await batch.commit();
+  }
+}
+
+// Drop a departed recipient from the owner's user_store, clearing the shared
+// flags entirely once they were the last one.
+export async function updateOwnerUserStoreAfterRecipientLeaves(
+  ownerUserStoreId: string,
+  recipientName: string,
+): Promise<void> {
+  if (!ownerUserStoreId || !recipientName) {
+    return;
+  }
+  const ref = firestore().collection('user_stores').doc(ownerUserStoreId);
+  const snap = await ref.get();
+  if (!snap.exists) {
+    return;
+  }
+  const sharedWith: string[] = snap.data()?.sharedWith ?? [];
+  const remaining = sharedWith.filter(name => name !== recipientName);
+  if (remaining.length === 0) {
+    await ref.update({
+      sharedWith: firestore.FieldValue.delete(),
+      isSharedStore: firestore.FieldValue.delete(),
+    });
+  } else {
+    await ref.update({sharedWith: remaining});
+  }
+}
+
+// Unlink a merged store from a departing owner.
+//
+// This only ever runs for a recipient who owns their OWN store — they had it
+// before merging with the other owner. So the store is never deleted and the
+// recipient's reminders are never deleted: the merge re-attributes the
+// recipient's own duplicate items to the other owner (sharedFromId ==
+// ownerUserId), which makes them indistinguishable from items that owner
+// contributed. Deleting on that basis would destroy the recipient's own data.
+//
+// Instead only the link to the departing owner is severed: items attributed to
+// them become the recipient's own again, their name comes off any sharedWith,
+// and the user_store keeps existing minus its link fields — so the recipient
+// stays the owner and keeps any shares of their own.
+export async function clearMergedStoreSharing(params: {
+  mergedUserStoreId: string;
+  ownerUserId: string;
+  ownerName: string;
+}): Promise<void> {
+  const {mergedUserStoreId, ownerUserId, ownerName} = params;
+  const docs = await remindersIn(mergedUserStoreId);
+
+  if (docs.length > 0) {
+    const batch = firestore().batch();
+    let updated = 0;
+
+    docs.forEach(doc => {
+      const data = doc.data();
+      const sharedFromId: string | undefined = data.sharedFromId;
+      const sharedFromName: string | undefined = data.sharedFrom;
+      const sharedWith: string[] = data.sharedWith ?? [];
+
+      // Attributed to the departing owner — either a copy they contributed or
+      // one of the recipient's own duplicates the merge re-attributed. Either
+      // way it stays as the recipient's own item now.
+      const attributedToOwner =
+        (!!ownerUserId && sharedFromId === ownerUserId) ||
+        (sharedFromId == null && !!ownerName && sharedFromName === ownerName);
+
+      const updates: {[key: string]: any} = {};
+
+      if (attributedToOwner) {
+        updates.sharedFrom = firestore.FieldValue.delete();
+        updates.sharedFromId = firestore.FieldValue.delete();
+      }
+
+      const remaining = sharedWith.filter(name => name !== ownerName);
+      if (remaining.length !== sharedWith.length) {
+        updates.sharedWith =
+          remaining.length === 0 ? firestore.FieldValue.delete() : remaining;
+      }
+
+      // Still shared only if shared with somebody else, or still attributed to
+      // someone other than the departing owner.
+      const stillSharedWithOthers = remaining.length > 0;
+      const stillSharedFromOther = !attributedToOwner && sharedFromName != null;
+      if (
+        data.isShared === true &&
+        !stillSharedWithOthers &&
+        !stillSharedFromOther
+      ) {
+        updates.isShared = false;
+      }
+
+      if (Object.keys(updates).length > 0) {
+        batch.update(doc.ref, updates);
+        updated += 1;
+      }
+    });
+
+    if (updated > 0) {
+      await batch.commit();
+    }
+  }
+
+  // Always KEEP the recipient's store; just sever the link to the departing
+  // owner. Only their name comes off sharedWith so any independent shares the
+  // recipient has survive.
+  await firestore()
+    .collection('user_stores')
+    .doc(mergedUserStoreId)
+    .update({
+      sourceUserStoreId: firestore.FieldValue.delete(),
+      sharedFrom: firestore.FieldValue.delete(),
+      sharedFromEmail: firestore.FieldValue.delete(),
+      sharedFromName: firestore.FieldValue.delete(),
+      sharedWith: firestore.FieldValue.arrayRemove(ownerName),
+    });
+}
+
+// Deletes the items a merged recipient contributed to the owner's store, and
+// takes the recipient off sharedWith on the owner's own items.
+async function removeRecipientRemindersFromOwnerStore(params: {
+  ownerStoreId: string;
+  recipientUserId: string;
+  recipientName: string;
+}): Promise<void> {
+  const {ownerStoreId, recipientUserId, recipientName} = params;
+  const docs = (await remindersIn(ownerStoreId)).filter(
+    d => d.data().isShared === true,
+  );
+  if (docs.length === 0) {
+    return;
+  }
+
+  const batch = firestore().batch();
+  let updated = 0;
+
+  docs.forEach(doc => {
+    const data = doc.data();
+    const sharedWith: string[] = data.sharedWith ?? [];
+
+    if (!!recipientUserId && data.sharedFromId === recipientUserId) {
+      // Came from the recipient during the merge — it leaves with them.
+      batch.delete(doc.ref);
+      updated += 1;
+      return;
+    }
+
+    if (!sharedWith.includes(recipientName)) {
+      return;
+    }
+    const remaining = sharedWith.filter(name => name !== recipientName);
+    updated += 1;
+    if (remaining.length === 0) {
+      batch.update(doc.ref, {
+        isShared: false,
+        sharedWith: firestore.FieldValue.delete(),
+      });
+    } else {
+      batch.update(doc.ref, {sharedWith: remaining});
+    }
+  });
+
+  if (updated > 0) {
+    await batch.commit();
+  }
+}
+
 export const storeShareService = {
   // Everyone who currently has access to the store whose reminders live under
   // `ownerUserStoreId`. Recipients are read from their own user_store documents
@@ -380,5 +674,61 @@ export const storeShareService = {
 
   async rejectSharedStore(messageId: string): Promise<void> {
     await setLinkedStoreStatus(messageId, 'rejected');
+  },
+
+  // Revoke one person's access to a store the current user owns. Mirrors the
+  // iOS unshareWithUser: a regular recipient loses their user_store outright,
+  // while a recipient who merged the store into one they already own keeps
+  // their store and only has the link severed.
+  async unshareWithUser(params: {
+    item: UserStoreItem;
+    sharedUser: SharedStoreUser;
+    currentUser: User;
+  }): Promise<void> {
+    const {item, sharedUser, currentUser} = params;
+
+    // The recipient's current display name drives every sharedWith edit, so it
+    // is read fresh rather than taken from the (possibly stale) copy stored on
+    // their user_store.
+    const names = await fetchUserNames([sharedUser.userId]);
+    const recipientName =
+      names.get(sharedUser.userId) || sharedUser.name || sharedUser.email;
+
+    // Where this store's reminders live — the group id for a legacy shared
+    // "Can Edit" store, otherwise the owner's own document.
+    const ownerStoreId = item.sharedStoreGroupId ?? item.id;
+
+    if (sharedUser.permission === 'owner') {
+      // Merged store: the recipient owns their copy. Sever only the link
+      // between the two stores, never the store itself.
+      await clearMergedStoreSharing({
+        mergedUserStoreId: sharedUser.id,
+        ownerUserId: currentUser.userId,
+        ownerName: currentUser.name,
+      });
+
+      await removeRecipientRemindersFromOwnerStore({
+        ownerStoreId,
+        recipientUserId: sharedUser.userId,
+        recipientName,
+      });
+    } else {
+      // Regular recipient: their user_store only exists because of this share.
+      await firestore().collection('user_stores').doc(sharedUser.id).delete();
+
+      await updateOwnerRemindersAfterRecipientLeaves(
+        ownerStoreId,
+        recipientName,
+      );
+    }
+
+    await updateOwnerUserStoreAfterRecipientLeaves(item.id, recipientName);
+
+    await sendStoreNotice({
+      currentUser,
+      recipientId: sharedUser.userId,
+      recipientName,
+      message: `I've stopped sharing ${item.store.name} with you.`,
+    });
   },
 };

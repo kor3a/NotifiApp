@@ -1,9 +1,257 @@
 import firestore from '@react-native-firebase/firestore';
 import storage from '@react-native-firebase/storage';
-import {Store, UserStore, UserStoreItem, reminderStoreIdFor} from '../models';
+import {
+  Store,
+  User,
+  UserStore,
+  UserStoreItem,
+  isRecipientStore,
+  reminderStoreIdFor,
+} from '../models';
+import {
+  clearMergedStoreSharing,
+  fetchUserNames,
+  sendStoreNotice,
+  updateOwnerRemindersAfterRecipientLeaves,
+  updateOwnerUserStoreAfterRecipientLeaves,
+} from './storeShareService';
 
 function normalizeStoreName(name: string): string {
   return name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+}
+
+// ─── Store removal ───────────────────────────────────────────────────────────
+//
+// The three paths below mirror the iOS StoresViewModel one for one
+// (deleteSingleUserStore / deleteRecipientUserStore / deleteSharedStoreGroup),
+// so a store torn down on either platform leaves the same documents behind —
+// most importantly, an owner's delete also clears the store off every
+// recipient's account instead of stranding it there.
+
+// Delete every photo attached to these reminders from Storage before their
+// documents go, otherwise the files are orphaned. Best effort: a file that is
+// already gone must not abort the deletion.
+async function deleteReminderPhotos(
+  docs: {data: () => {[key: string]: any}}[],
+): Promise<void> {
+  const urls = new Set<string>();
+  docs.forEach(doc => {
+    ((doc.data().photoURLs ?? []) as string[]).forEach(url => urls.add(url));
+  });
+  await Promise.all(
+    [...urls].map(async url => {
+      try {
+        await storage().refFromURL(url).delete();
+      } catch (_) {}
+    }),
+  );
+}
+
+// The owner deleting a store they own: their reminders and user_store go, and
+// every recipient's side is cleaned up too.
+async function deleteSingleUserStore(
+  item: UserStoreItem,
+  currentUser: User,
+): Promise<void> {
+  const ownerUserStoreId = item.id;
+
+  // Recipients are cleaned up before the owner's own document goes: the
+  // Firestore rules authorise these writes through `sharedFrom`/
+  // `sharedFromEmail` on the recipients' documents, and doing them first means
+  // an interrupted delete can never leave a recipient pointing at a store that
+  // no longer exists.
+  const recipientDocs = (
+    await firestore()
+      .collection('user_stores')
+      .where('sourceUserStoreId', '==', ownerUserStoreId)
+      .get()
+  ).docs.filter(doc => (doc.data().userId as string) !== currentUser.userId);
+
+  // A recipient with an explicit edit/view permission only has this store
+  // because of the share, so their copy goes. A missing permission means they
+  // own their store and merged this one into it — that store is theirs and is
+  // only unlinked.
+  const regularDocs = recipientDocs.filter(doc => {
+    const permission = doc.data().permission;
+    return permission === 'edit' || permission === 'view';
+  });
+  const mergedDocs = recipientDocs.filter(doc => {
+    const permission = doc.data().permission;
+    return !(permission === 'edit' || permission === 'view');
+  });
+
+  if (regularDocs.length > 0) {
+    const batch = firestore().batch();
+    regularDocs.forEach(doc => batch.delete(doc.ref));
+    await batch.commit();
+  }
+
+  for (const doc of mergedDocs) {
+    // Failing on one merged recipient must not strand the others, nor stop the
+    // owner's own store from being deleted.
+    try {
+      await clearMergedStoreSharing({
+        mergedUserStoreId: doc.id,
+        ownerUserId: currentUser.userId,
+        ownerName: currentUser.name,
+      });
+    } catch (_) {}
+  }
+
+  // The owner's own reminders and store.
+  const reminders = await firestore()
+    .collection('reminders')
+    .where('userStoreId', '==', ownerUserStoreId)
+    .get();
+
+  await deleteReminderPhotos(reminders.docs);
+
+  const batch = firestore().batch();
+  reminders.docs.forEach(d => batch.delete(d.ref));
+  batch.delete(firestore().collection('user_stores').doc(ownerUserStoreId));
+  await batch.commit();
+
+  // Tell each recipient what happened to the store that just vanished from
+  // their list.
+  const regularIds = regularDocs
+    .map(doc => doc.data().userId as string)
+    .filter(Boolean);
+  const mergedIds = mergedDocs
+    .map(doc => doc.data().userId as string)
+    .filter(Boolean);
+  if (regularIds.length === 0 && mergedIds.length === 0) {
+    return;
+  }
+
+  const names = await fetchUserNames([...regularIds, ...mergedIds]);
+  const nameFor = (userId: string) => names.get(userId) ?? 'Unknown';
+
+  for (const recipientId of regularIds) {
+    await sendStoreNotice({
+      currentUser,
+      recipientId,
+      recipientName: nameFor(recipientId),
+      message: `${currentUser.name} deleted ${item.store.name}, which was shared with you. The store has been removed from your account.`,
+    });
+  }
+  for (const recipientId of mergedIds) {
+    await sendStoreNotice({
+      currentUser,
+      recipientId,
+      recipientName: nameFor(recipientId),
+      message: `${currentUser.name} deleted ${item.store.name}. Their shared items have been removed from your list.`,
+    });
+  }
+}
+
+// A recipient removing a store that was shared with them. Only their side goes
+// — deleting the reminders is the owner's action alone.
+async function deleteRecipientUserStore(
+  item: UserStoreItem,
+  currentUser: User,
+): Promise<void> {
+  const ownerId = item.sharedFromId ?? '';
+  const ownerName = item.sharedFromName ?? '';
+
+  // Merged store: this user owns it (they had it before the merge), so it is
+  // never deleted — only the link to the other owner is severed.
+  if (item.permission === 'owner') {
+    await clearMergedStoreSharing({
+      mergedUserStoreId: item.id,
+      ownerUserId: ownerId,
+      ownerName,
+    });
+
+    if (item.sourceUserStoreId) {
+      await updateOwnerRemindersAfterRecipientLeaves(
+        item.sourceUserStoreId,
+        currentUser.name,
+      );
+      await updateOwnerUserStoreAfterRecipientLeaves(
+        item.sourceUserStoreId,
+        currentUser.name,
+      );
+    }
+
+    await sendStoreNotice({
+      currentUser,
+      recipientId: ownerId,
+      recipientName: ownerName,
+      message: `${currentUser.name} disconnected from the shared ${item.store.name}. Their shared items have been removed from your list.`,
+    });
+    return;
+  }
+
+  await firestore().collection('user_stores').doc(item.id).delete();
+
+  if (item.sourceUserStoreId) {
+    await updateOwnerRemindersAfterRecipientLeaves(
+      item.sourceUserStoreId,
+      currentUser.name,
+    );
+    await updateOwnerUserStoreAfterRecipientLeaves(
+      item.sourceUserStoreId,
+      currentUser.name,
+    );
+  }
+
+  await sendStoreNotice({
+    currentUser,
+    recipientId: ownerId,
+    recipientName: ownerName,
+    message:
+      item.permission === 'edit'
+        ? `${currentUser.name} left the shared ${item.store.name} store. The store is no longer shared with them.`
+        : `${currentUser.name} removed ${item.store.name} from their account. The store is no longer shared with them.`,
+  });
+}
+
+// Legacy "Can Edit" shared group, deleted by the user who created it: the group
+// document goes first, which is what lets the Firestore rules permit deleting
+// the other members' user_stores.
+async function deleteSharedStoreGroup(
+  sharedGroupId: string,
+  item: UserStoreItem,
+  currentUser: User,
+): Promise<void> {
+  const members = await firestore()
+    .collection('user_stores')
+    .where('sharedStoreGroupId', '==', sharedGroupId)
+    .get();
+
+  const coEditorIds = members.docs
+    .map(doc => doc.data().userId as string)
+    .filter(userId => !!userId && userId !== currentUser.userId);
+
+  await firestore()
+    .collection('shared_store_groups')
+    .doc(sharedGroupId)
+    .delete();
+
+  const reminders = await firestore()
+    .collection('reminders')
+    .where('userStoreId', '==', sharedGroupId)
+    .get();
+
+  await deleteReminderPhotos(reminders.docs);
+
+  const batch = firestore().batch();
+  members.docs.forEach(doc => batch.delete(doc.ref));
+  reminders.docs.forEach(doc => batch.delete(doc.ref));
+  await batch.commit();
+
+  if (coEditorIds.length === 0) {
+    return;
+  }
+  const names = await fetchUserNames(coEditorIds);
+  for (const coEditorId of coEditorIds) {
+    await sendStoreNotice({
+      currentUser,
+      recipientId: coEditorId,
+      recipientName: names.get(coEditorId) ?? 'Unknown',
+      message: `${currentUser.name} deleted the shared ${item.store.name} store. It has been removed from your account.`,
+    });
+  }
 }
 
 export const storeService = {
@@ -29,6 +277,10 @@ export const storeService = {
     // accepted on iOS.
     const recipients = new Map<string, string[]>();
     const recipientUnsubs = new Map<string, () => void>();
+    // Owner documents behind stores shared with this user, keyed by the owner's
+    // user_store id — watched so this side notices if the owner's store is
+    // deleted without their device cleaning up here.
+    const sourceUnsubs = new Map<string, () => void>();
     let latestItems: UserStoreItem[] = [];
 
     function emit() {
@@ -112,6 +364,103 @@ export const storeService = {
       });
     }
 
+    // Watch the owner's user_store behind every store that was shared with this
+    // user, so its deletion is noticed here too. Mirrors the iOS
+    // setupSourceStoreListeners: the owner's own delete already clears both
+    // sides, and this is the backstop for when that write never lands (the
+    // owner went offline mid-delete, or an older build deleted only its own
+    // documents) — the cleanup then runs with this user's own credentials.
+    function syncSourceStoreListeners(items: UserStoreItem[]) {
+      const linked = items.filter(
+        item => !!item.sourceUserStoreId && isRecipientStore(item),
+      );
+      const wanted = new Set(linked.map(item => item.sourceUserStoreId!));
+
+      sourceUnsubs.forEach((unsub, id) => {
+        if (!wanted.has(id)) {
+          unsub();
+          sourceUnsubs.delete(id);
+        }
+      });
+
+      linked.forEach(item => {
+        const sourceId = item.sourceUserStoreId!;
+        if (sourceUnsubs.has(sourceId)) {
+          return;
+        }
+        const unsub = firestore()
+          .collection('user_stores')
+          .doc(sourceId)
+          .onSnapshot(
+            sourceSnap => {
+              // React only to the owner's document being deleted, and only on
+              // word from the server: offline, a document this device has
+              // never cached also arrives as "missing", and acting on that
+              // would drop a store that is perfectly alive.
+              if (
+                !sourceSnap ||
+                sourceSnap.exists ||
+                sourceSnap.metadata?.fromCache
+              ) {
+                return;
+              }
+              sourceUnsubs.get(sourceId)?.();
+              sourceUnsubs.delete(sourceId);
+
+              if (item.permission === 'owner') {
+                // Merged store: this user owns it, so it survives the owner's
+                // departure with only the link severed.
+                clearMergedStoreSharing({
+                  mergedUserStoreId: item.id,
+                  ownerUserId: item.sharedFromId ?? '',
+                  ownerName: item.sharedFromName ?? '',
+                }).catch(() => {});
+              } else {
+                // The store only existed because of the share.
+                firestore()
+                  .collection('user_stores')
+                  .doc(item.id)
+                  .delete()
+                  .catch(() => {});
+              }
+            },
+            // A failed listener must not take down the store list.
+            () => {},
+          );
+        sourceUnsubs.set(sourceId, unsub);
+      });
+    }
+
+    // Look up the sharer's current display name for every store shared with
+    // this user and rewrite a stale `sharedFromName`. Mirrors the iOS
+    // refreshSharedFromNames: the name is cached on the recipient's own
+    // document at accept time, so a later rename would otherwise show the old
+    // one forever. The write only happens when the name actually differs, so
+    // the listener it re-triggers settles immediately.
+    async function refreshSharedFromNames(items: UserStoreItem[]) {
+      const sharers = items.filter(item => !!item.sharedFromId);
+      if (sharers.length === 0) {
+        return;
+      }
+      const names = await fetchUserNames(
+        sharers.map(item => item.sharedFromId!),
+      );
+      await Promise.all(
+        sharers.map(async item => {
+          const current = names.get(item.sharedFromId!);
+          if (!current || current === item.sharedFromName) {
+            return;
+          }
+          try {
+            await firestore()
+              .collection('user_stores')
+              .doc(item.id)
+              .update({sharedFromName: current});
+          } catch (_) {}
+        }),
+      );
+    }
+
     function syncCountListeners(items: UserStoreItem[]) {
       const wanted = new Set(items.map(reminderStoreIdFor));
 
@@ -168,16 +517,23 @@ export const storeService = {
           items.push({
             id: us.id,
             store,
-            permission: us.permission,
+            // A store the user created carries no permission field, so a
+            // missing value means they own it — the same default the iOS
+            // parser applies. Defaulting to a recipient permission would send
+            // reminder lookups to `sourceUserStoreId` and route deletes down
+            // the recipient path.
+            permission: us.permission ?? 'owner',
             sharedWith: us.sharedWith,
             sharedFromName: us.sharedFromName,
+            sharedFromId: us.sharedFrom,
+            sharedFromEmail: us.sharedFromEmail,
             sourceUserStoreId: us.sourceUserStoreId,
             sharedStoreGroupId: us.sharedStoreGroupId,
             // A store is shared if the owner is sharing it with others
             // (sharedWith populated) OR it was shared to this user (recipient).
             isShared:
               (!!us.sharedWith && us.sharedWith.length > 0) ||
-              !!us.sharedFromEmail,
+              !!us.sharedFromName,
             sortOrder: (us as any).sortOrder ?? 0,
           } as any);
         }
@@ -186,7 +542,10 @@ export const storeService = {
         latestItems = items;
         syncCountListeners(items);
         syncRecipientListeners(items);
+        syncSourceStoreListeners(items);
         emit();
+        // Best effort and off the critical path — the list is already rendered.
+        refreshSharedFromNames(items).catch(() => {});
       });
 
     return () => {
@@ -197,6 +556,8 @@ export const storeService = {
       recipientUnsubs.forEach(unsub => unsub());
       recipientUnsubs.clear();
       recipients.clear();
+      sourceUnsubs.forEach(unsub => unsub());
+      sourceUnsubs.clear();
     };
   },
 
@@ -234,39 +595,26 @@ export const storeService = {
     });
   },
 
-  // Delete store
-  async deleteStore(
-    userStoreId: string,
-    uid: string,
-    email: string,
+  // Remove a store from the current user's list.
+  //
+  // Which of the three paths runs is decided exactly as the iOS app decides it:
+  // anyone with a `sharedFromName` is a recipient and only affects their own
+  // side, the creator of a legacy "Can Edit" group tears the whole group down,
+  // and everyone else is an owner deleting their own store — which also clears
+  // it off every recipient's account.
+  async removeStoreFromUser(
+    item: UserStoreItem,
+    currentUser: User,
   ): Promise<void> {
-    const reminders = await firestore()
-      .collection('reminders')
-      .where('userStoreId', '==', userStoreId)
-      .get();
+    const isRecipient = isRecipientStore(item);
 
-    // Delete every photo attached to any reminder in this store from Storage
-    // before removing the Firestore docs, otherwise the files are orphaned.
-    const photoURLs = reminders.docs.flatMap(
-      d => (d.data().photoURLs ?? []) as string[],
-    );
-    await Promise.all(
-      photoURLs.map(async url => {
-        try {
-          await storage().refFromURL(url).delete();
-        } catch (_) {}
-      }),
-    );
-
-    const batch = firestore().batch();
-    reminders.docs.forEach(d => batch.delete(d.ref));
-    batch.delete(firestore().collection('user_stores').doc(userStoreId));
-    await batch.commit();
-  },
-
-  // Remove a shared store (view/edit permission)
-  async removeSharedStore(userStoreId: string): Promise<void> {
-    await firestore().collection('user_stores').doc(userStoreId).delete();
+    if (item.permission === 'edit' && item.sharedStoreGroupId && !isRecipient) {
+      await deleteSharedStoreGroup(item.sharedStoreGroupId, item, currentUser);
+    } else if (isRecipient) {
+      await deleteRecipientUserStore(item, currentUser);
+    } else {
+      await deleteSingleUserStore(item, currentUser);
+    }
   },
 
   // Toggle smart category for a user store
