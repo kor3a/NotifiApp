@@ -83,8 +83,9 @@ export const messageService = {
     }
     batch.set(msgRef, data);
 
-    // Update conversation last message + unread count. `lastMessage` is what
-    // this app's list reads; `lastMessageContent` is the field iOS reads.
+    // Update conversation last message + unread count. `lastMessageContent` is
+    // the preview both platforms read; `lastMessage` is written alongside it
+    // only so older Android builds, which read that field first, stay current.
     const convoRef = firestore().collection('conversations').doc(conversationId);
     const convoSnap = await convoRef.get();
     if (convoSnap.exists) {
@@ -141,6 +142,7 @@ export const messageService = {
           [uid2]: photo2 ?? '',
         },
         lastMessage: '',
+        lastMessageContent: '',
         lastMessageAt: nowSeconds(),
         unreadCount: {[uid1]: 0, [uid2]: 0},
         createdAt: nowSeconds(),

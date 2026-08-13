@@ -158,8 +158,8 @@ export interface Conversation {
   participantIds: string[];
   participantNames?: {[uid: string]: string};
   participantPhotos?: {[uid: string]: string};
-  lastMessage?: string;
-  lastMessageContent?: string; // the field iOS writes for the same preview
+  lastMessage?: string; // legacy Android-only preview, kept in step on send
+  lastMessageContent?: string; // the preview both platforms write and read
   lastMessageAt?: any;
   unreadCount?: {[uid: string]: number};
   createdAt?: any;
