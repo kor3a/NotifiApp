@@ -138,7 +138,7 @@ export default function ReminderScreen() {
       {
         text: 'Delete',
         style: 'destructive',
-        onPress: () => reminderService.deleteReminder(reminder.id, storeId),
+        onPress: () => reminderService.deleteReminder(reminder.id),
       },
     ]);
   }
