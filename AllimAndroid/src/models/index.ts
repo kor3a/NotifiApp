@@ -73,6 +73,7 @@ export interface Reminder {
   isDone: boolean;
   userStoreId: string;
   order?: number;
+  sortOrder?: number; // the field iOS orders by
   isShared?: boolean;
   sharedReminderId?: string;
   photoURLs?: string[];

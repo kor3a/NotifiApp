@@ -208,11 +208,21 @@ export default function StoresScreen() {
                 {reminderCount === 0
                   ? 'No reminders'
                   : `${reminderCount} reminder${reminderCount !== 1 ? 's' : ''}`}
-                {item.isShared ? ' · Shared' : ''}
+                {item.sharedFromName ? ` · Shared by ${item.sharedFromName}` : ''}
               </Text>
             </View>
 
             <View style={styles.storeRight}>
+              {/* Shared either way — this user gave the store to someone, or
+                  someone gave it to them. Matches the iOS row's person icon. */}
+              {item.isShared && (
+                <Icon
+                  name="people"
+                  size={17}
+                  color={Colors.blue}
+                  style={{marginRight: 6}}
+                />
+              )}
               {item.permission === 'view' && (
                 <Icon name="eye-outline" size={16} color={textSecondary(scheme)} style={{marginRight: 4}} />
               )}

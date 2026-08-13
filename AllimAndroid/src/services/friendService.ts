@@ -70,7 +70,9 @@ export const friendService = {
       receiverPhoto: toUser.profilePictureURL ?? null,
       participantIds: [fromUser.userId, toUser.userId],
       status: 'pending',
-      createdAt: firestore.FieldValue.serverTimestamp(),
+      // Epoch seconds, not a server timestamp: iOS drops any friendship whose
+      // createdAt does not cast to a TimeInterval.
+      createdAt: Date.now() / 1000,
     });
   },
 
