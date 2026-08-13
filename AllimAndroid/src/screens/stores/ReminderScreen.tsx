@@ -16,7 +16,7 @@ import {
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {useRoute, useNavigation, RouteProp} from '@react-navigation/native';
-import Icon from 'react-native-vector-icons/Ionicons';
+import Icon from '../../components/AppIcon';
 import {launchImageLibrary} from 'react-native-image-picker';
 
 import GradientBackground from '../../components/GradientBackground';

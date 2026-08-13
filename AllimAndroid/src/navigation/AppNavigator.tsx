@@ -3,7 +3,7 @@ import {ActivityIndicator, View} from 'react-native';
 import {createNativeStackNavigator} from '@react-navigation/native-stack';
 import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 import {useColorScheme} from 'react-native';
-import Icon from 'react-native-vector-icons/Ionicons';
+import Icon from '../components/AppIcon';
 
 import {SessionProvider, useSession} from '../context/SessionContext';
 
@@ -115,12 +115,19 @@ function MainTabs() {
           borderTopColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
           paddingBottom: 4,
         },
+        // Ionicons chosen to match the SF Symbols the iOS tab bar uses:
+        // storefront -> storefront, message -> chatbubble, person.2 -> people,
+        // map -> map. Ionicons has a filled and an -outline cut of each, which
+        // stands in for SF Symbols' selected/unselected weights.
         tabBarIcon: ({focused, color, size}) => {
-          let iconName = 'home';
+          // Icon's `name` is a union of the 1338 real glyph names, so a typo
+          // here is a compile error rather than a silently blank tab.
+          let iconName: React.ComponentProps<typeof Icon>['name'] =
+            'ellipse-outline';
           if (route.name === 'Stores') {
-            iconName = focused ? 'cart' : 'cart-outline';
+            iconName = focused ? 'storefront' : 'storefront-outline';
           } else if (route.name === 'Messages') {
-            iconName = focused ? 'chatbubbles' : 'chatbubbles-outline';
+            iconName = focused ? 'chatbubble' : 'chatbubble-outline';
           } else if (route.name === 'Friends') {
             iconName = focused ? 'people' : 'people-outline';
           } else if (route.name === 'Map') {
