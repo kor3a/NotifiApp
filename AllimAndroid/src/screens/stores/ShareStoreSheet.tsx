@@ -6,12 +6,15 @@ import {
   TextInput,
   StyleSheet,
   TouchableOpacity,
+  Pressable,
   FlatList,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
   useColorScheme,
   Alert,
 } from 'react-native';
-import {SafeAreaView} from 'react-native-safe-area-context';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import Icon from '../../components/AppIcon';
 
 import ProfileAvatar from '../../components/ProfileAvatar';
@@ -21,8 +24,8 @@ import {
   Radius,
   textPrimary,
   textSecondary,
-  cardBackground,
-  cardBorder,
+  sheetBackground,
+  sheetFill,
 } from '../../theme/AppTheme';
 import {useSession} from '../../context/SessionContext';
 import {friendService} from '../../services/friendService';
@@ -53,6 +56,7 @@ function contactFrom(friendship: Friendship, currentUserId: string): User {
 
 export default function ShareStoreSheet({visible, item, onClose}: Props) {
   const scheme = useColorScheme();
+  const insets = useSafeAreaInsets();
   const {currentUser} = useSession();
 
   const [friends, setFriends] = useState<User[]>([]);
@@ -142,36 +146,43 @@ export default function ShareStoreSheet({visible, item, onClose}: Props) {
     await performShare(user, cleaned);
   }
 
-  function renderFriend({friend}: {friend: User}) {
+  function renderFriend(friend: User) {
     const shared = alreadyShared.has(friend.name);
     const busy = sharingWith === friend.userId;
     return (
       <TouchableOpacity
-        style={[styles.friendRow, {borderBottomColor: cardBorder(scheme)}]}
+        style={[styles.friendRow, {backgroundColor: sheetFill(scheme)}]}
         onPress={() => share(friend)}
         disabled={!!sharingWith}
         activeOpacity={0.7}>
         <ProfileAvatar
           url={friend.profilePictureURL}
           name={friend.name}
-          size={40}
+          size={42}
         />
         <View style={styles.friendText}>
-          <Text style={[styles.friendName, {color: textPrimary(scheme)}]}>
+          <Text
+            style={[styles.friendName, {color: textPrimary(scheme)}]}
+            numberOfLines={1}>
             {friend.name}
           </Text>
-          <Text style={[styles.friendEmail, {color: textSecondary(scheme)}]}>
-            {shared ? 'Already shared' : friend.email}
+          <Text
+            style={[styles.friendEmail, {color: textSecondary(scheme)}]}
+            numberOfLines={1}>
+            {friend.email}
           </Text>
         </View>
+        {shared && (
+          <View style={styles.sharedPill}>
+            <Text style={styles.sharedPillText}>Shared</Text>
+          </View>
+        )}
         {busy ? (
           <ActivityIndicator color={Colors.blue} />
         ) : (
-          <Icon
-            name={shared ? 'refresh-circle-outline' : 'share-outline'}
-            size={22}
-            color={Colors.blue}
-          />
+          <View style={styles.friendAction}>
+            <Icon name="arrow-forward" size={18} color={Colors.blue} />
+          </View>
         )}
       </TouchableOpacity>
     );
@@ -181,184 +192,225 @@ export default function ShareStoreSheet({visible, item, onClose}: Props) {
     <Modal
       visible={visible}
       animationType="slide"
-      presentationStyle="pageSheet"
+      transparent
+      statusBarTranslucent
       onRequestClose={onClose}>
-      <SafeAreaView
-        style={[
-          styles.container,
-          {
-            backgroundColor:
-              scheme === 'dark'
-                ? Colors.backgroundTopDark
-                : Colors.backgroundTopLight,
-          },
-        ]}>
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity onPress={onClose}>
-            <Text style={[styles.cancel, {color: Colors.blue}]}>Cancel</Text>
-          </TouchableOpacity>
-          <Text style={[styles.title, {color: textPrimary(scheme)}]}>
-            Share Store
-          </Text>
-          <View style={{width: 60}} />
-        </View>
+      <View style={styles.backdrop}>
+        {/* Tapping the dimmed area behind the sheet closes it. */}
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
 
-        <Text style={[styles.storeName, {color: textPrimary(scheme)}]}>
-          {item?.store.name ?? ''}
-        </Text>
-
-        {/* Permission */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionLabel, {color: textSecondary(scheme)}]}>
-            PERMISSION
-          </Text>
+        {/* box-none so taps outside the sheet still reach the backdrop. */}
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          pointerEvents="box-none"
+          style={styles.sheetWrapper}>
           <View
             style={[
-              styles.segment,
+              styles.sheet,
               {
-                backgroundColor: cardBackground(scheme),
-                borderColor: cardBorder(scheme),
+                backgroundColor: sheetBackground(scheme),
+                paddingBottom: Math.max(insets.bottom, Spacing.md),
               },
             ]}>
-            {(['edit', 'view'] as const).map(value => {
-              const selected = permission === value;
-              return (
-                <TouchableOpacity
-                  key={value}
-                  style={[
-                    styles.segmentItem,
-                    selected && {backgroundColor: Colors.blue},
-                  ]}
-                  onPress={() => setPermission(value)}
-                  activeOpacity={0.8}>
-                  <Icon
-                    name={value === 'edit' ? 'pencil-outline' : 'eye-outline'}
-                    size={16}
-                    color={selected ? '#fff' : textSecondary(scheme)}
-                  />
-                  <Text
-                    style={[
-                      styles.segmentText,
-                      {color: selected ? '#fff' : textPrimary(scheme)},
-                    ]}>
-                    {value === 'edit' ? 'Can Edit' : 'View Only'}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-          <Text style={[styles.hint, {color: textSecondary(scheme)}]}>
-            {permission === 'edit'
-              ? 'They can add, check off, and remove reminders in this store.'
-              : 'They can see this store and its reminders, but not change them.'}
-          </Text>
-        </View>
-
-        {/* Friends */}
-        <View style={[styles.section, {flex: 1}]}>
-          <Text style={[styles.sectionLabel, {color: textSecondary(scheme)}]}>
-            FRIENDS
-          </Text>
-          <FlatList
-            data={friends}
-            renderItem={({item: friend}) => renderFriend({friend})}
-            keyExtractor={friend => friend.userId}
-            keyboardShouldPersistTaps="handled"
-            ListEmptyComponent={
-              <Text style={[styles.empty, {color: textSecondary(scheme)}]}>
-                No friends yet. Add friends from the Friends tab, or share by
-                email below.
-              </Text>
-            }
-          />
-        </View>
-
-        {/* Email fallback */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionLabel, {color: textSecondary(scheme)}]}>
-            SHARE BY EMAIL
-          </Text>
-          <View
-            style={[
-              styles.emailRow,
-              {
-                backgroundColor: cardBackground(scheme),
-                borderColor: cardBorder(scheme),
-              },
-            ]}>
-            <TextInput
-              placeholder="name@example.com"
-              placeholderTextColor={textSecondary(scheme)}
-              value={email}
-              onChangeText={setEmail}
-              style={[styles.emailInput, {color: textPrimary(scheme)}]}
-              autoCapitalize="none"
-              autoCorrect={false}
-              keyboardType="email-address"
-              returnKeyType="send"
-              onSubmitEditing={shareByEmail}
-            />
-            <TouchableOpacity
-              onPress={shareByEmail}
-              disabled={!email.trim() || !!sharingWith}
+            {/* Grab handle */}
+            <View
               style={[
-                styles.sendBtn,
-                {opacity: email.trim() && !sharingWith ? 1 : 0.4},
-              ]}>
-              {sharingWith === email.trim().toLowerCase() ? (
-                <ActivityIndicator color="#fff" size="small" />
-              ) : (
-                <Icon name="send" size={18} color="#fff" />
-              )}
-            </TouchableOpacity>
+                styles.handle,
+                {backgroundColor: scheme === 'dark' ? '#4A4A57' : '#D8DCE6'},
+              ]}
+            />
+
+            {/* Header */}
+            <View style={styles.header}>
+              <View style={styles.headerText}>
+                <Text style={[styles.title, {color: textPrimary(scheme)}]}>
+                  Share Store
+                </Text>
+                <Text
+                  style={[styles.subtitle, {color: textSecondary(scheme)}]}
+                  numberOfLines={1}>
+                  {item?.store.name ?? ''}
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={[styles.closeBtn, {backgroundColor: sheetFill(scheme)}]}
+                onPress={onClose}
+                hitSlop={8}
+                activeOpacity={0.7}>
+                <Icon name="close" size={20} color={textSecondary(scheme)} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Permission */}
+            <Text style={[styles.sectionLabel, {color: textSecondary(scheme)}]}>
+              Permission
+            </Text>
+            <View style={[styles.segment, {backgroundColor: sheetFill(scheme)}]}>
+              {(['edit', 'view'] as const).map(value => {
+                const selected = permission === value;
+                return (
+                  <TouchableOpacity
+                    key={value}
+                    style={[
+                      styles.segmentItem,
+                      selected && styles.segmentItemSelected,
+                    ]}
+                    onPress={() => setPermission(value)}
+                    activeOpacity={0.8}>
+                    <Icon
+                      name={value === 'edit' ? 'pencil' : 'eye'}
+                      size={15}
+                      color={selected ? '#fff' : textSecondary(scheme)}
+                    />
+                    <Text
+                      style={[
+                        styles.segmentText,
+                        {color: selected ? '#fff' : textSecondary(scheme)},
+                      ]}>
+                      {value === 'edit' ? 'Can Edit' : 'View Only'}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+            <Text style={[styles.hint, {color: textSecondary(scheme)}]}>
+              {permission === 'edit'
+                ? 'They can add, check off, and remove reminders in this store.'
+                : 'They can see this store and its reminders, but not change them.'}
+            </Text>
+
+            {/* Friends */}
+            <Text style={[styles.sectionLabel, {color: textSecondary(scheme)}]}>
+              Send to
+            </Text>
+            <FlatList
+              data={friends}
+              renderItem={({item: friend}) => renderFriend(friend)}
+              keyExtractor={friend => friend.userId}
+              style={styles.friendList}
+              contentContainerStyle={styles.friendListContent}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+              ListEmptyComponent={
+                <View style={styles.empty}>
+                  <View
+                    style={[
+                      styles.emptyIcon,
+                      {backgroundColor: sheetFill(scheme)},
+                    ]}>
+                    <Icon
+                      name="people-outline"
+                      size={26}
+                      color={textSecondary(scheme)}
+                    />
+                  </View>
+                  <Text
+                    style={[styles.emptyText, {color: textSecondary(scheme)}]}>
+                    No friends yet — add them from the Friends tab, or share by
+                    email below.
+                  </Text>
+                </View>
+              }
+            />
+
+            {/* Email fallback */}
+            <View
+              style={[styles.emailRow, {backgroundColor: sheetFill(scheme)}]}>
+              <Icon name="mail-outline" size={18} color={textSecondary(scheme)} />
+              <TextInput
+                placeholder="Share by email address"
+                placeholderTextColor={textSecondary(scheme)}
+                value={email}
+                onChangeText={setEmail}
+                style={[styles.emailInput, {color: textPrimary(scheme)}]}
+                autoCapitalize="none"
+                autoCorrect={false}
+                keyboardType="email-address"
+                returnKeyType="send"
+                onSubmitEditing={shareByEmail}
+              />
+              <TouchableOpacity
+                onPress={shareByEmail}
+                disabled={!email.trim() || !!sharingWith}
+                style={[
+                  styles.sendBtn,
+                  {opacity: email.trim() && !sharingWith ? 1 : 0.4},
+                ]}
+                activeOpacity={0.8}>
+                {sharingWith === email.trim().toLowerCase() ? (
+                  <ActivityIndicator color="#fff" size="small" />
+                ) : (
+                  <Icon name="arrow-up" size={18} color="#fff" />
+                )}
+              </TouchableOpacity>
+            </View>
           </View>
-        </View>
-      </SafeAreaView>
+        </KeyboardAvoidingView>
+      </View>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  backdrop: {
     flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'flex-end',
+  },
+  // Fills the screen so the sheet's percentage max height has something to
+  // resolve against; the sheet itself is pinned to the bottom.
+  sheetWrapper: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  sheet: {
+    maxHeight: '88%',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.sm,
+  },
+  handle: {
+    alignSelf: 'center',
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    marginBottom: Spacing.md,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
+    gap: Spacing.md,
+    marginBottom: Spacing.lg,
   },
-  cancel: {
-    fontSize: 17,
-    width: 60,
+  headerText: {
+    flex: 1,
   },
   title: {
-    fontSize: 17,
-    fontWeight: '600',
-  },
-  storeName: {
     fontSize: 22,
     fontWeight: '700',
-    paddingHorizontal: Spacing.md,
-    paddingBottom: Spacing.sm,
   },
-  section: {
-    paddingHorizontal: Spacing.md,
-    paddingBottom: Spacing.md,
+  subtitle: {
+    fontSize: 14,
+    marginTop: 2,
+  },
+  closeBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   sectionLabel: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '600',
-    letterSpacing: 0.5,
     marginBottom: Spacing.sm,
   },
   segment: {
     flexDirection: 'row',
     borderRadius: Radius.md,
-    borderWidth: 1,
-    overflow: 'hidden',
+    padding: 4,
+    gap: 4,
   },
   segmentItem: {
     flex: 1,
@@ -366,7 +418,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.sm,
-    paddingVertical: Spacing.sm + 4,
+    paddingVertical: Spacing.sm + 2,
+    borderRadius: Radius.sm + 2,
+  },
+  segmentItemSelected: {
+    backgroundColor: Colors.blue,
   },
   segmentText: {
     fontSize: 15,
@@ -374,15 +430,26 @@ const styles = StyleSheet.create({
   },
   hint: {
     fontSize: 13,
-    marginTop: Spacing.sm,
     lineHeight: 18,
+    marginTop: Spacing.sm,
+    marginBottom: Spacing.lg,
+  },
+  // Grows with the list but yields once the sheet hits its max height, so a
+  // long friends list scrolls instead of pushing the email row off-screen.
+  friendList: {
+    flexGrow: 0,
+    flexShrink: 1,
+  },
+  friendListContent: {
+    gap: Spacing.sm,
+    paddingBottom: Spacing.md,
   },
   friendRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.md,
-    paddingVertical: Spacing.md,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    padding: Spacing.sm + 2,
+    borderRadius: Radius.lg,
   },
   friendText: {
     flex: 1,
@@ -395,29 +462,62 @@ const styles = StyleSheet.create({
   friendEmail: {
     fontSize: 13,
   },
+  sharedPill: {
+    backgroundColor: Colors.green + '26',
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 3,
+    borderRadius: Radius.full,
+  },
+  sharedPillText: {
+    color: Colors.green,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  friendAction: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.blue + '1F',
+  },
   empty: {
+    alignItems: 'center',
+    gap: Spacing.sm,
+    paddingVertical: Spacing.lg,
+  },
+  emptyIcon: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyText: {
     fontSize: 14,
     lineHeight: 20,
-    paddingVertical: Spacing.md,
+    textAlign: 'center',
+    paddingHorizontal: Spacing.md,
   },
   emailRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    borderRadius: Radius.md,
-    borderWidth: 1,
+    paddingLeft: Spacing.md,
+    paddingRight: 5,
+    paddingVertical: 5,
+    borderRadius: Radius.full,
+    marginTop: Spacing.sm,
   },
   emailInput: {
     flex: 1,
-    fontSize: 16,
+    fontSize: 15,
     padding: 0,
   },
   sendBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     backgroundColor: Colors.blue,
     alignItems: 'center',
     justifyContent: 'center',

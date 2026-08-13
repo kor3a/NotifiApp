@@ -60,6 +60,18 @@ export function cardBorder(scheme: ColorSchemeName) {
   return scheme === 'dark' ? Colors.cardBorderDark : Colors.cardBorderLight;
 }
 
+// Bottom sheets sit above the app's gradient rather than on it, so they take a
+// solid surface of their own instead of the translucent card fill.
+export function sheetBackground(scheme: ColorSchemeName) {
+  return scheme === 'dark' ? '#20202B' : Colors.white;
+}
+
+// A filled-but-quiet surface for controls inside a sheet (segmented tracks,
+// input rows) — enough contrast to read as an affordance on either surface.
+export function sheetFill(scheme: ColorSchemeName) {
+  return scheme === 'dark' ? 'rgba(255,255,255,0.08)' : '#F1F3F8';
+}
+
 export function textPrimary(scheme: ColorSchemeName) {
   return scheme === 'dark' ? Colors.textPrimaryDark : Colors.textPrimaryLight;
 }
