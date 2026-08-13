@@ -13,6 +13,11 @@ export const Colors = {
   backgroundTopLight: '#F2F3F8',
   backgroundBottomLight: '#E0E8F5',
   cardBackgroundLight: 'rgba(255,255,255,0.72)',
+  // Opaque stand-in for the translucent fill above, pre-composited over the
+  // middle of the background gradient. Android draws its elevation shadow from
+  // the view outline assuming an opaque fill, so a translucent card lets the
+  // shadow bleed through it and past its corners as a pale sheet.
+  cardBackgroundLightSolid: '#F9FAFC',
   cardBorderLight: 'rgba(255,255,255,0.6)',
   textPrimaryLight: '#000000',
   textSecondaryLight: '#6C6C70',
@@ -21,6 +26,7 @@ export const Colors = {
   backgroundTopDark: '#1A1A26',
   backgroundBottomDark: '#262633',
   cardBackgroundDark: 'rgba(255,255,255,0.08)',
+  cardBackgroundDarkSolid: '#30303B',
   cardBorderDark: 'rgba(255,255,255,0.15)',
   textPrimaryDark: '#FFFFFF',
   textSecondaryDark: '#8E8E93',
@@ -43,7 +49,11 @@ export function iconGradient() {
 
 // ─── Dynamic helpers ──────────────────────────────────────────────────────────
 export function cardBackground(scheme: ColorSchemeName) {
-  return scheme === 'dark' ? Colors.cardBackgroundDark : Colors.cardBackgroundLight;
+  const dark = scheme === 'dark';
+  if (Platform.OS === 'android') {
+    return dark ? Colors.cardBackgroundDarkSolid : Colors.cardBackgroundLightSolid;
+  }
+  return dark ? Colors.cardBackgroundDark : Colors.cardBackgroundLight;
 }
 
 export function cardBorder(scheme: ColorSchemeName) {
@@ -96,12 +106,11 @@ export function cardStyle(scheme: ColorSchemeName) {
     borderWidth: 1.5,
     borderColor: cardBorder(scheme),
     marginVertical: 4,
-    // iOS renders the soft drop shadow from the shadow* props. Android ignores
-    // them and only understands `elevation`, whose shadow is drawn from the
-    // view outline on the assumption the fill is opaque. Our cards are
-    // translucent white, so the shadow bleeds out around the rounded corners
-    // and reads as a washed-out sheet sitting behind every row instead of a
-    // shadow. Drop elevation there and let the border carry the separation.
+    // iOS renders the soft drop shadow from the shadow* props; Android ignores
+    // them and only understands `elevation`. It works there because
+    // cardBackground() hands Android an opaque fill — with the translucent one
+    // the elevation shadow bleeds through the card and past its rounded
+    // corners as a pale sheet instead of reading as a shadow.
     ...Platform.select({
       ios: {
         shadowColor: Colors.black,
@@ -109,6 +118,7 @@ export function cardStyle(scheme: ColorSchemeName) {
         shadowOpacity: scheme === 'dark' ? 0.3 : 0.1,
         shadowRadius: 8,
       },
+      android: {elevation: 3},
       default: {},
     }),
   };
