@@ -55,6 +55,20 @@ export interface UserStoreItem {
   isShared: boolean;
 }
 
+// Someone a store is currently shared with. Built from the recipient's own
+// user_store document, so it only ever describes shares that were accepted —
+// a pending request has nothing on the recipient's side yet.
+export interface SharedStoreUser {
+  id: string; // the recipient's user_store doc id
+  userId: string;
+  name: string;
+  email: string;
+  // 'owner' when the recipient merged the store into one they already had, so
+  // their reminders keep living in their own document.
+  permission: StorePermission;
+  sharedAt?: number;
+}
+
 // Returns the user_store id under which a store's reminders actually live.
 // Owners always use their own id; recipients funnel to the owner's store via
 // sourceUserStoreId (or the shared group). Mirrors the iOS app's reminderStoreId.

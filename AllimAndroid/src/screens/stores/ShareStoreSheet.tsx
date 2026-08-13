@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
   useColorScheme,
   Alert,
 } from 'react-native';
@@ -30,7 +31,14 @@ import {
 import {useSession} from '../../context/SessionContext';
 import {friendService} from '../../services/friendService';
 import {storeShareService} from '../../services/storeShareService';
-import {Friendship, User, UserStoreItem} from '../../models';
+import {
+  Friendship,
+  SharedStoreUser,
+  StorePermission,
+  User,
+  UserStoreItem,
+  reminderStoreIdFor,
+} from '../../models';
 
 interface Props {
   visible: boolean;
@@ -54,12 +62,32 @@ function contactFrom(friendship: Friendship, currentUserId: string): User {
   };
 }
 
+function permissionLabel(permission: StorePermission): string {
+  if (permission === 'view') {
+    return 'View Only';
+  }
+  if (permission === 'edit') {
+    return 'Can Edit';
+  }
+  // They accepted the share onto a store they already owned, so the two lists
+  // were merged and they keep their own copy.
+  return 'Merged list';
+}
+
+function permissionTint(permission: StorePermission): string {
+  if (permission === 'view') {
+    return Colors.orange;
+  }
+  return permission === 'edit' ? Colors.green : Colors.blue;
+}
+
 export default function ShareStoreSheet({visible, item, onClose}: Props) {
   const scheme = useColorScheme();
   const insets = useSafeAreaInsets();
   const {currentUser} = useSession();
 
   const [friends, setFriends] = useState<User[]>([]);
+  const [sharedUsers, setSharedUsers] = useState<SharedStoreUser[]>([]);
   const [permission, setPermission] = useState<'edit' | 'view'>('edit');
   const [email, setEmail] = useState('');
   const [sharingWith, setSharingWith] = useState<string | null>(null);
@@ -82,7 +110,48 @@ export default function ShareStoreSheet({visible, item, onClose}: Props) {
     );
   }, [currentUser]);
 
-  const alreadyShared = new Set(item?.sharedWith ?? []);
+  // Where this store's reminders live, which is also what every recipient's
+  // user_store points at — so it identifies the share on both sides.
+  const shareTargetId = item ? reminderStoreIdFor(item) : null;
+  const currentUserId = currentUser?.userId;
+
+  useEffect(() => {
+    if (!visible || !shareTargetId || !currentUserId) {
+      setSharedUsers([]);
+      return;
+    }
+    return storeShareService.subscribeToSharedUsers(shareTargetId, users =>
+      // A recipient opening this sheet matches the same query through their own
+      // document; everyone else on it is who the store is shared with.
+      setSharedUsers(users.filter(u => u.userId !== currentUserId)),
+    );
+  }, [visible, shareTargetId, currentUserId]);
+
+  // Friends carry the only profile pictures we have — recipient user_store
+  // documents store just a name and an email.
+  const friendPhotos = new Map<string, string | undefined>();
+  friends.forEach(friend => {
+    friendPhotos.set(friend.userId, friend.profilePictureURL);
+    if (friend.email) {
+      friendPhotos.set(friend.email.toLowerCase(), friend.profilePictureURL);
+    }
+  });
+
+  const sharedUserIds = new Set(sharedUsers.map(u => u.userId));
+  const sharedEmails = new Set(
+    sharedUsers.map(u => u.email.toLowerCase()).filter(Boolean),
+  );
+  // The owner's own document only records names, so it stays as a fallback for
+  // shares that predate the recipient list (or whose accept has not landed yet).
+  const sharedNames = new Set(item?.sharedWith ?? []);
+
+  function isSharedWith(user: User): boolean {
+    return (
+      sharedUserIds.has(user.userId) ||
+      (!!user.email && sharedEmails.has(user.email.toLowerCase())) ||
+      sharedNames.has(user.name)
+    );
+  }
 
   async function share(recipient: User) {
     if (sharingWith) {
@@ -146,8 +215,43 @@ export default function ShareStoreSheet({visible, item, onClose}: Props) {
     await performShare(user, cleaned);
   }
 
+  function renderSharedUser(user: SharedStoreUser) {
+    const tint = permissionTint(user.permission);
+    return (
+      <View
+        key={user.id}
+        style={[styles.sharedRow, {backgroundColor: sheetFill(scheme)}]}>
+        <ProfileAvatar
+          url={
+            friendPhotos.get(user.userId) ??
+            friendPhotos.get(user.email.toLowerCase())
+          }
+          name={user.name}
+          size={38}
+        />
+        <View style={styles.friendText}>
+          <Text
+            style={[styles.friendName, {color: textPrimary(scheme)}]}
+            numberOfLines={1}>
+            {user.name}
+          </Text>
+          <Text
+            style={[styles.friendEmail, {color: textSecondary(scheme)}]}
+            numberOfLines={1}>
+            {user.email}
+          </Text>
+        </View>
+        <View style={[styles.permissionPill, {backgroundColor: tint + '26'}]}>
+          <Text style={[styles.permissionPillText, {color: tint}]}>
+            {permissionLabel(user.permission)}
+          </Text>
+        </View>
+      </View>
+    );
+  }
+
   function renderFriend(friend: User) {
-    const shared = alreadyShared.has(friend.name);
+    const shared = isSharedWith(friend);
     const busy = sharingWith === friend.userId;
     return (
       <TouchableOpacity
@@ -240,6 +344,72 @@ export default function ShareStoreSheet({visible, item, onClose}: Props) {
                 <Icon name="close" size={20} color={textSecondary(scheme)} />
               </TouchableOpacity>
             </View>
+
+            {/* Who shared this store with the current user */}
+            {!!item?.sharedFromName && (
+              <>
+                <Text
+                  style={[styles.sectionLabel, {color: textSecondary(scheme)}]}>
+                  Shared by
+                </Text>
+                <View
+                  style={[
+                    styles.sharedRow,
+                    styles.sharedBySpacing,
+                    {backgroundColor: sheetFill(scheme)},
+                  ]}>
+                  <ProfileAvatar name={item.sharedFromName} size={38} />
+                  <View style={styles.friendText}>
+                    <Text
+                      style={[styles.friendName, {color: textPrimary(scheme)}]}
+                      numberOfLines={1}>
+                      {item.sharedFromName}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.friendEmail,
+                        {color: textSecondary(scheme)},
+                      ]}
+                      numberOfLines={1}>
+                      Shared this store with you
+                    </Text>
+                  </View>
+                  <View
+                    style={[
+                      styles.permissionPill,
+                      {backgroundColor: permissionTint(item.permission) + '26'},
+                    ]}>
+                    <Text
+                      style={[
+                        styles.permissionPillText,
+                        {color: permissionTint(item.permission)},
+                      ]}>
+                      {permissionLabel(item.permission)}
+                    </Text>
+                  </View>
+                </View>
+              </>
+            )}
+
+            {/* People this store is already shared with */}
+            {sharedUsers.length > 0 && (
+              <>
+                <Text
+                  style={[styles.sectionLabel, {color: textSecondary(scheme)}]}>
+                  Shared with ({sharedUsers.length})
+                </Text>
+                {/* Capped and scrollable so a widely shared store still leaves
+                    room for the friends list and the email row below. */}
+                <ScrollView
+                  style={styles.sharedList}
+                  contentContainerStyle={styles.sharedListContent}
+                  nestedScrollEnabled
+                  keyboardShouldPersistTaps="handled"
+                  showsVerticalScrollIndicator={false}>
+                  {sharedUsers.map(renderSharedUser)}
+                </ScrollView>
+              </>
+            )}
 
             {/* Permission */}
             <Text style={[styles.sectionLabel, {color: textSecondary(scheme)}]}>
@@ -405,6 +575,34 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     marginBottom: Spacing.sm,
+  },
+  // Tops out at roughly three rows, then scrolls on its own.
+  sharedList: {
+    flexGrow: 0,
+    maxHeight: 186,
+    marginBottom: Spacing.lg,
+  },
+  sharedListContent: {
+    gap: Spacing.sm,
+  },
+  sharedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    padding: Spacing.sm + 2,
+    borderRadius: Radius.lg,
+  },
+  sharedBySpacing: {
+    marginBottom: Spacing.lg,
+  },
+  permissionPill: {
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 4,
+    borderRadius: Radius.full,
+  },
+  permissionPillText: {
+    fontSize: 11,
+    fontWeight: '700',
   },
   segment: {
     flexDirection: 'row',

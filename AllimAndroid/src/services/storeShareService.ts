@@ -4,6 +4,7 @@ import firestore, {
 import {
   LinkedStore,
   Message,
+  SharedStoreUser,
   User,
   UserStoreItem,
   reminderStoreIdFor,
@@ -189,6 +190,46 @@ async function setLinkedStoreStatus(
 }
 
 export const storeShareService = {
+  // Everyone who currently has access to the store whose reminders live under
+  // `ownerUserStoreId`. Recipients are read from their own user_store documents
+  // (each points back at the owner's via sourceUserStoreId) rather than from the
+  // owner's `sharedWith` array, which only holds names and which nothing updates
+  // when a share is accepted on iOS. Same source the store list already uses.
+  subscribeToSharedUsers(
+    ownerUserStoreId: string,
+    callback: (users: SharedStoreUser[]) => void,
+  ): () => void {
+    return firestore()
+      .collection('user_stores')
+      .where('sourceUserStoreId', '==', ownerUserStoreId)
+      .onSnapshot(
+        snap => {
+          const users = snap.docs
+            .map(doc => {
+              const data = doc.data();
+              const email: string = data.userEmail ?? '';
+              return {
+                id: doc.id,
+                userId: (data.userId as string) ?? '',
+                name: (data.userName as string) || email || 'Someone',
+                email,
+                // A missing permission means the recipient owns their copy —
+                // they merged this store into one they already had. Defaulting
+                // to 'edit' would mislabel that as a store they only borrow.
+                permission: (data.permission as SharedStoreUser['permission']) ??
+                  'owner',
+                sharedAt: data.sharedAt as number | undefined,
+              };
+            })
+            .filter(user => !!user.userId)
+            .sort((a, b) => (b.sharedAt ?? 0) - (a.sharedAt ?? 0));
+          callback(users);
+        },
+        // A failed listener must not take down the share sheet.
+        () => callback([]),
+      );
+  },
+
   // Send a share request for `item` to `recipient`. Nothing is created on the
   // recipient's side here — they get a message they can accept or decline.
   async shareStore(params: {
