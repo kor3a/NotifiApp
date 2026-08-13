@@ -23,18 +23,93 @@ export const storeService = {
     // shared with this user.
     const counts = new Map<string, number>();
     const countUnsubs = new Map<string, () => void>();
+    // Recipients of each store this user owns, keyed by the owner's user_store
+    // id. Derived from the recipients' own documents rather than from the
+    // owner's `sharedWith` field, which nothing updates when the share is
+    // accepted on iOS.
+    const recipients = new Map<string, string[]>();
+    const recipientUnsubs = new Map<string, () => void>();
     let latestItems: UserStoreItem[] = [];
 
     function emit() {
       callback(
-        latestItems.map(item => ({
-          ...item,
-          store: {
-            ...item.store,
-            reminderCount: counts.get(reminderStoreIdFor(item)) ?? 0,
-          },
-        })),
+        latestItems.map(item => {
+          const shared =
+            item.permission === 'owner'
+              ? recipients.get(item.id) ?? item.sharedWith ?? []
+              : item.sharedWith ?? [];
+          return {
+            ...item,
+            sharedWith: shared.length > 0 ? shared : undefined,
+            isShared: shared.length > 0 || item.isShared,
+            store: {
+              ...item.store,
+              reminderCount: counts.get(reminderStoreIdFor(item)) ?? 0,
+            },
+          };
+        }),
       );
+    }
+
+    // Watch for user_stores pointing at a store this user owns — one exists per
+    // person who accepted a share of it. Mirrors the iOS shared-status listener,
+    // including writing the names back onto the owner's document so the other
+    // platform reads the same list.
+    function syncRecipientListeners(items: UserStoreItem[]) {
+      const owned = new Set(
+        items.filter(i => i.permission === 'owner').map(i => i.id),
+      );
+
+      recipientUnsubs.forEach((unsub, id) => {
+        if (!owned.has(id)) {
+          unsub();
+          recipientUnsubs.delete(id);
+          recipients.delete(id);
+        }
+      });
+
+      owned.forEach(ownerStoreId => {
+        if (recipientUnsubs.has(ownerStoreId)) {
+          return;
+        }
+        const unsub = firestore()
+          .collection('user_stores')
+          .where('sourceUserStoreId', '==', ownerStoreId)
+          .onSnapshot(
+            snap => {
+              const names = snap.docs
+                .map(d => d.data().userName as string | undefined)
+                .filter((name): name is string => !!name);
+              recipients.set(ownerStoreId, names);
+              emit();
+
+              // Keep the owner's own document in step, so iOS (and this app's
+              // other reads of sharedWith) see the same thing.
+              const stored =
+                latestItems.find(i => i.id === ownerStoreId)?.sharedWith ?? [];
+              const changed =
+                stored.length !== names.length ||
+                names.some(name => !stored.includes(name));
+              if (changed) {
+                firestore()
+                  .collection('user_stores')
+                  .doc(ownerStoreId)
+                  .update(
+                    names.length > 0
+                      ? {sharedWith: names, isSharedStore: true}
+                      : {
+                          sharedWith: firestore.FieldValue.delete(),
+                          isSharedStore: firestore.FieldValue.delete(),
+                        },
+                  )
+                  .catch(() => {});
+              }
+            },
+            // A failed listener must not take down the store list.
+            () => {},
+          );
+        recipientUnsubs.set(ownerStoreId, unsub);
+      });
     }
 
     function syncCountListeners(items: UserStoreItem[]) {
@@ -110,6 +185,7 @@ export const storeService = {
         items.sort((a: any, b: any) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
         latestItems = items;
         syncCountListeners(items);
+        syncRecipientListeners(items);
         emit();
       });
 
@@ -118,6 +194,9 @@ export const storeService = {
       countUnsubs.forEach(unsub => unsub());
       countUnsubs.clear();
       counts.clear();
+      recipientUnsubs.forEach(unsub => unsub());
+      recipientUnsubs.clear();
+      recipients.clear();
     };
   },
 

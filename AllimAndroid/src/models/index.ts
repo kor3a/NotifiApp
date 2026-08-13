@@ -73,6 +73,7 @@ export interface Reminder {
   isDone: boolean;
   userStoreId: string;
   order?: number;
+  sortOrder?: number; // the field iOS orders by
   isShared?: boolean;
   sharedReminderId?: string;
   photoURLs?: string[];
@@ -85,6 +86,24 @@ export interface Reminder {
 
 // ─── Message ──────────────────────────────────────────────────────────────────
 
+// A store attached to a message as a share request. Field names and shape match
+// the `linkedStore` map the iOS app writes and reads, so a share sent from one
+// platform can be accepted on the other.
+export interface LinkedStore {
+  storeName: string;
+  storeId: string;
+  senderUserId: string;
+  senderUserStoreId?: string; // sender's user_store — where the reminders live
+  senderEmail?: string; // lets the Firestore rules authorise the sender later
+  status?: SharedReminderStatus;
+  permission: 'edit' | 'view';
+  storeAddress?: string;
+  storeLatitude?: number;
+  storeLongitude?: number;
+  storeImageURL?: string;
+  reminderTitles?: string[];
+}
+
 export interface Message {
   id: string;
   content: string;
@@ -92,9 +111,30 @@ export interface Message {
   senderName?: string;
   conversationId: string;
   createdAt: any;
+  isRead?: boolean;
   linkedReminderId?: string;
   linkedStoreId?: string;
   linkedStoreName?: string;
+  linkedStore?: LinkedStore;
+}
+
+// Timestamps arrive as either an epoch-seconds number (what iOS writes, and what
+// this app now writes too) or a Firestore Timestamp (what older Android builds
+// wrote). Normalising here keeps sorting and formatting working across both.
+export function timestampMillis(value: any): number {
+  if (value == null) {
+    return 0;
+  }
+  if (typeof value === 'number') {
+    return value * 1000;
+  }
+  if (typeof value.toMillis === 'function') {
+    return value.toMillis();
+  }
+  if (typeof value.seconds === 'number') {
+    return value.seconds * 1000;
+  }
+  return 0;
 }
 
 // ─── Conversation ─────────────────────────────────────────────────────────────
@@ -105,6 +145,7 @@ export interface Conversation {
   participantNames?: {[uid: string]: string};
   participantPhotos?: {[uid: string]: string};
   lastMessage?: string;
+  lastMessageContent?: string; // the field iOS writes for the same preview
   lastMessageAt?: any;
   unreadCount?: {[uid: string]: number};
   createdAt?: any;

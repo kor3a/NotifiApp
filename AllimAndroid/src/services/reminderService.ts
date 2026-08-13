@@ -1,4 +1,6 @@
-import firestore from '@react-native-firebase/firestore';
+import firestore, {
+  FirebaseFirestoreTypes,
+} from '@react-native-firebase/firestore';
 import storage from '@react-native-firebase/storage';
 import {Reminder} from '../models';
 
@@ -60,6 +62,50 @@ function guessCategory(title: string): string {
   return 'Other';
 }
 
+// iOS parses a reminder's createdAt as a TimeInterval and drops the document
+// outright when the cast fails, so a Firestore server timestamp makes every
+// reminder written here invisible to anyone sharing the store from an iPhone.
+// Epoch seconds is the format both platforms read.
+function nowSeconds(): number {
+  return Date.now() / 1000;
+}
+
+// This app orders by `order`, iOS by `sortOrder`. Both are written on create and
+// on reorder; reads prefer whichever the document carries so a list reordered on
+// either platform keeps its order on the other.
+function positionOf(reminder: Reminder): number {
+  return reminder.order ?? reminder.sortOrder ?? 0;
+}
+
+// Reminders written by earlier builds of this app hold a Firestore Timestamp
+// (or nothing) in createdAt, which iOS cannot read — those items are invisible
+// there. Rewrite them as epoch seconds the first time they are seen, keeping
+// the original instant where there is one. Once per document per session.
+const repairedTimestamps = new Set<string>();
+
+function repairLegacyTimestamps(
+  docs: FirebaseFirestoreTypes.QueryDocumentSnapshot[],
+) {
+  const stale = docs.filter(d => {
+    const value = d.data().createdAt;
+    return typeof value !== 'number' && !repairedTimestamps.has(d.id);
+  });
+  if (stale.length === 0) {
+    return;
+  }
+
+  const batch = firestore().batch();
+  stale.forEach(d => {
+    repairedTimestamps.add(d.id);
+    const value = d.data().createdAt;
+    const seconds =
+      value && typeof value.seconds === 'number' ? value.seconds : nowSeconds();
+    batch.update(d.ref, {createdAt: seconds});
+  });
+  // Best effort — a failed repair must not disturb the list.
+  batch.commit().catch(() => {});
+}
+
 export const reminderService = {
   // Subscribe to reminders for a user store
   subscribeToReminders(
@@ -70,10 +116,11 @@ export const reminderService = {
       .collection('reminders')
       .where('userStoreId', '==', userStoreId)
       .onSnapshot(snap => {
+        repairLegacyTimestamps(snap.docs);
         const reminders = snap.docs.map(
           d => ({id: d.id, ...d.data()} as Reminder),
         );
-        reminders.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+        reminders.sort((a, b) => positionOf(a) - positionOf(b));
         callback(reminders);
       });
   },
@@ -97,7 +144,8 @@ export const reminderService = {
       .where('userStoreId', '==', userStoreId)
       .get();
     const maxOrder = existing.docs.reduce((max, d) => {
-      return Math.max(max, d.data().order ?? 0);
+      const data = d.data();
+      return Math.max(max, data.order ?? data.sortOrder ?? 0);
     }, -1);
 
     const reminderData: any = {
@@ -106,11 +154,12 @@ export const reminderService = {
       userStoreId,
       storeId,
       order: maxOrder + 1,
+      sortOrder: maxOrder + 1,
       category: options?.category ?? null,
       quantity: null,
       photoURLs: [],
       isShared: false,
-      createdAt: firestore.FieldValue.serverTimestamp(),
+      createdAt: nowSeconds(),
     };
 
     // When the store is shared, stamp the reminder with sharing metadata so the
@@ -118,7 +167,7 @@ export const reminderService = {
     // (mirrors the iOS app's addReminder behaviour).
     if (options?.isSharedStore) {
       reminderData.isShared = true;
-      reminderData.sharedAt = Date.now() / 1000;
+      reminderData.sharedAt = nowSeconds();
       if (options.sharedFromName) {
         // Recipient adding: share back to the owner.
         reminderData.sharedWith = [options.sharedFromName];
@@ -222,7 +271,10 @@ export const reminderService = {
   async reorderReminders(updates: {id: string; order: number}[]): Promise<void> {
     const batch = firestore().batch();
     updates.forEach(({id, order}) => {
-      batch.update(firestore().collection('reminders').doc(id), {order});
+      batch.update(firestore().collection('reminders').doc(id), {
+        order,
+        sortOrder: order,
+      });
     });
     await batch.commit();
   },
