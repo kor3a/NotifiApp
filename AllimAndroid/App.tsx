@@ -33,7 +33,7 @@ async function requestNotificationPermission() {
 // the foreground handler when the user opens the app by tapping the icon.
 messaging().setBackgroundMessageHandler(async () => {});
 
-function App(): React.JSX.Element | null {
+function App(): React.JSX.Element {
   const isDarkMode = useColorScheme() === 'dark';
   const appState = useRef<AppStateStatus>(AppState.currentState);
 
@@ -43,7 +43,14 @@ function App(): React.JSX.Element | null {
   // embed Ionicons.ttf in the APK, but that only takes effect on a fresh
   // prebuild + native build; registering the same file at runtime makes the
   // icons appear on any binary, including an older dev client.
-  const [fontsLoaded, fontError] = useFonts({
+  //
+  // Deliberately not gated on: in a release build the embedded font is already
+  // registered, so this resolves instantly, while in dev the .ttf is an asset
+  // fetched from Metro — blocking the first frame on that download turns a slow
+  // or unreachable packager into a permanently blank screen. Loading it in the
+  // background costs at most one frame of missing glyphs; the state update on
+  // completion re-renders every Icon.
+  useFonts({
     Ionicons: require('react-native-vector-icons/Fonts/Ionicons.ttf'),
   });
 
@@ -85,13 +92,6 @@ function App(): React.JSX.Element | null {
       subscription.remove();
     };
   }, []);
-
-  // Hold the first frame until the icon font is registered, so no screen paints
-  // with holes where its icons go. A load failure falls through rather than
-  // hanging the app — the icons stay blank, everything else still works.
-  if (!fontsLoaded && !fontError) {
-    return null;
-  }
 
   return (
     <GestureHandlerRootView style={{flex: 1}}>
