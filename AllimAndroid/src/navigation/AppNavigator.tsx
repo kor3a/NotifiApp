@@ -3,7 +3,7 @@ import {ActivityIndicator, View} from 'react-native';
 import {createNativeStackNavigator} from '@react-navigation/native-stack';
 import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 import {useColorScheme} from 'react-native';
-import Icon from 'react-native-vector-icons/Ionicons';
+import Icon from '@expo/vector-icons/Ionicons';
 
 import {SessionProvider, useSession} from '../context/SessionContext';
 
@@ -120,7 +120,10 @@ function MainTabs() {
         // map -> map. Ionicons has a filled and an -outline cut of each, which
         // stands in for SF Symbols' selected/unselected weights.
         tabBarIcon: ({focused, color, size}) => {
-          let iconName = 'ellipse-outline';
+          // Icon's `name` is a union of the 1338 real glyph names, so a typo
+          // here is a compile error rather than a silently blank tab.
+          let iconName: React.ComponentProps<typeof Icon>['name'] =
+            'ellipse-outline';
           if (route.name === 'Stores') {
             iconName = focused ? 'storefront' : 'storefront-outline';
           } else if (route.name === 'Messages') {

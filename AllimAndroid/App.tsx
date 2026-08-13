@@ -3,7 +3,6 @@ import {AppState, AppStateStatus, StatusBar} from 'react-native';
 import {NavigationContainer} from '@react-navigation/native';
 import {SafeAreaProvider} from 'react-native-safe-area-context';
 import {GestureHandlerRootView} from 'react-native-gesture-handler';
-import {useFonts} from 'expo-font';
 import AppNavigator from './src/navigation/AppNavigator';
 import {useColorScheme} from 'react-native';
 import messaging from '@react-native-firebase/messaging';
@@ -36,34 +35,6 @@ messaging().setBackgroundMessageHandler(async () => {});
 function App(): React.JSX.Element {
   const isDarkMode = useColorScheme() === 'dark';
   const appState = useRef<AppStateStatus>(AppState.currentState);
-
-  // react-native-vector-icons renders every glyph as <Text fontFamily="Ionicons">,
-  // so an unregistered family silently draws nothing — which is what turns the
-  // tab bar and the + button into blank space. The expo-font config plugin does
-  // embed Ionicons.ttf in the APK, but that only takes effect on a fresh
-  // prebuild + native build; registering the same file at runtime makes the
-  // icons appear on any binary, including an older dev client.
-  //
-  // Deliberately not gated on: in a release build the embedded font is already
-  // registered, so this resolves instantly, while in dev the .ttf is an asset
-  // fetched from Metro — blocking the first frame on that download turns a slow
-  // or unreachable packager into a permanently blank screen. Loading it in the
-  // background costs at most one frame of missing glyphs; the state update on
-  // completion re-renders every Icon.
-  const [iconFontLoaded, iconFontError] = useFonts({
-    Ionicons: require('react-native-vector-icons/Fonts/Ionicons.ttf'),
-  });
-
-  // TEMPORARY: diagnosing why the glyphs still do not draw. Remove once the
-  // cause is known.
-  useEffect(() => {
-    console.log(
-      '[icon-font] loaded=',
-      iconFontLoaded,
-      'error=',
-      iconFontError ? String(iconFontError) : 'none',
-    );
-  }, [iconFontLoaded, iconFontError]);
 
   useEffect(() => {
     requestNotificationPermission();
