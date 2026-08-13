@@ -91,6 +91,7 @@ export default function ShareStoreSheet({visible, item, onClose}: Props) {
   const [permission, setPermission] = useState<'edit' | 'view'>('edit');
   const [email, setEmail] = useState('');
   const [sharingWith, setSharingWith] = useState<string | null>(null);
+  const [unsharingWith, setUnsharingWith] = useState<string | null>(null);
 
   useEffect(() => {
     if (!visible) {
@@ -99,6 +100,7 @@ export default function ShareStoreSheet({visible, item, onClose}: Props) {
     setPermission('edit');
     setEmail('');
     setSharingWith(null);
+    setUnsharingWith(null);
   }, [visible]);
 
   useEffect(() => {
@@ -114,6 +116,10 @@ export default function ShareStoreSheet({visible, item, onClose}: Props) {
   // user_store points at — so it identifies the share on both sides.
   const shareTargetId = item ? reminderStoreIdFor(item) : null;
   const currentUserId = currentUser?.userId;
+  // Everyone listed under a store this user owns is there because this user
+  // shared it with them, so their access is this user's to revoke. A recipient
+  // opening the sheet sees the same list but cannot act on it.
+  const canUnshare = item?.permission === 'owner';
 
   useEffect(() => {
     if (!visible || !shareTargetId || !currentUserId) {
@@ -215,6 +221,46 @@ export default function ShareStoreSheet({visible, item, onClose}: Props) {
     await performShare(user, cleaned);
   }
 
+  // Revoke someone's access. A recipient who merged the store into one they
+  // already owned keeps their store — only the link between the two is cut —
+  // so the prompt says which of the two is about to happen.
+  function confirmUnshare(user: SharedStoreUser) {
+    if (!item || !currentUser || unsharingWith) {
+      return;
+    }
+    const merged = user.permission === 'owner';
+    Alert.alert(
+      `Stop sharing with ${user.name}?`,
+      merged
+        ? `${item.store.name} stays on their list — they had it before you shared — but your items will be removed from it.`
+        : `${item.store.name} will be removed from their account.`,
+      [
+        {text: 'Cancel', style: 'cancel'},
+        {
+          text: 'Stop Sharing',
+          style: 'destructive',
+          onPress: async () => {
+            setUnsharingWith(user.id);
+            try {
+              await storeShareService.unshareWithUser({
+                item,
+                sharedUser: user,
+                currentUser,
+              });
+            } catch (err: any) {
+              Alert.alert(
+                'Error',
+                err?.message ?? 'Failed to remove access to this store.',
+              );
+            } finally {
+              setUnsharingWith(null);
+            }
+          },
+        },
+      ],
+    );
+  }
+
   function renderSharedUser(user: SharedStoreUser) {
     const tint = permissionTint(user.permission);
     return (
@@ -246,6 +292,20 @@ export default function ShareStoreSheet({visible, item, onClose}: Props) {
             {permissionLabel(user.permission)}
           </Text>
         </View>
+        {/* Only the owner of the store can revoke access — an edit recipient
+            seeing the other recipients here would just hit a rules denial. */}
+        {!canUnshare ? null : unsharingWith === user.id ? (
+          <ActivityIndicator color={Colors.red} style={styles.unshareBtn} />
+        ) : (
+          <TouchableOpacity
+            style={styles.unshareBtn}
+            onPress={() => confirmUnshare(user)}
+            disabled={!!unsharingWith}
+            hitSlop={8}
+            activeOpacity={0.7}>
+            <Icon name="close-circle" size={22} color={Colors.red} />
+          </TouchableOpacity>
+        )}
       </View>
     );
   }
@@ -603,6 +663,11 @@ const styles = StyleSheet.create({
   permissionPillText: {
     fontSize: 11,
     fontWeight: '700',
+  },
+  unshareBtn: {
+    width: 26,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   segment: {
     flexDirection: 'row',

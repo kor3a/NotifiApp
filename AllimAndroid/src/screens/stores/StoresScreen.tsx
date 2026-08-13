@@ -32,7 +32,11 @@ import {
 } from '../../theme/AppTheme';
 import {useSession} from '../../context/SessionContext';
 import {storeService} from '../../services/storeService';
-import {UserStoreItem, reminderStoreIdFor} from '../../models';
+import {
+  UserStoreItem,
+  isRecipientStore,
+  reminderStoreIdFor,
+} from '../../models';
 import {StoresStackParamList} from '../../navigation/AppNavigator';
 
 type Nav = NativeStackNavigationProp<StoresStackParamList, 'StoresList'>;
@@ -79,19 +83,20 @@ export default function StoresScreen() {
     );
   }
 
-  // A store the user was given (view or edit) is only removed from their own
-  // account; deleting the reminders too is the owner's action alone.
-  function isRecipientStore(item: UserStoreItem): boolean {
-    return item.permission !== 'owner';
-  }
-
   async function handleDeleteStore(item: UserStoreItem) {
     if (!firebaseUser || !currentUser) {return;}
+    // A store the user was given is only removed from their own account;
+    // deleting the reminders too is the owner's action alone. An owner who is
+    // sharing the store deletes it for their recipients as well, so the prompt
+    // says so.
     const isRecipient = isRecipientStore(item);
+    const sharedWithOthers = !isRecipient && (item.sharedWith?.length ?? 0) > 0;
     Alert.alert(
       isRecipient ? `Remove ${item.store.name}?` : `Delete ${item.store.name}?`,
       isRecipient
         ? 'This will remove the store from your account only.'
+        : sharedWithOthers
+        ? 'All reminders will also be deleted, and the store will be removed from everyone you shared it with.'
         : 'All reminders will also be deleted.',
       [
         {text: 'Cancel', style: 'cancel'},
@@ -100,15 +105,7 @@ export default function StoresScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              if (isRecipient) {
-                await storeService.removeSharedStore(item.id);
-              } else {
-                await storeService.deleteStore(
-                  item.id,
-                  currentUser.userId,
-                  currentUser.email,
-                );
-              }
+              await storeService.removeStoreFromUser(item, currentUser);
             } catch (err: any) {
               Alert.alert('Error', err.message);
             }

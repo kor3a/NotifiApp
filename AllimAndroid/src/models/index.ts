@@ -31,12 +31,15 @@ export interface Store {
 export interface UserStore {
   id: string; // Firestore doc id
   userId: string;
+  userName?: string;
+  userEmail?: string;
   storeId: string;
   storeName: string;
   permission: StorePermission;
   order?: number;
-  sharedWith?: string[]; // emails of people store is shared with
+  sharedWith?: string[]; // names of people the store is shared with
   sourceUserStoreId?: string; // for view/edit stores
+  sharedFrom?: string; // userId of the person who shared it (iOS field name)
   sharedFromEmail?: string;
   sharedFromName?: string;
   sharedStoreGroupId?: string;
@@ -50,6 +53,8 @@ export interface UserStoreItem {
   permission: StorePermission;
   sharedWith?: string[];
   sharedFromName?: string;
+  sharedFromId?: string; // userId of the sharer, from the `sharedFrom` field
+  sharedFromEmail?: string;
   sourceUserStoreId?: string; // recipient: owner's user_store id (where reminders live)
   sharedStoreGroupId?: string;
   isShared: boolean;
@@ -67,6 +72,14 @@ export interface SharedStoreUser {
   // their reminders keep living in their own document.
   permission: StorePermission;
   sharedAt?: number;
+}
+
+// Whether this store reached the user through someone else's share. Keyed off
+// sharedFromName exactly as the iOS app is: a store merged into one the user
+// already owned keeps permission 'owner', so the permission alone cannot tell
+// an owner apart from someone who accepted a share.
+export function isRecipientStore(item: UserStoreItem): boolean {
+  return !!item.sharedFromName;
 }
 
 // Returns the user_store id under which a store's reminders actually live.
