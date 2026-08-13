@@ -50,9 +50,20 @@ function App(): React.JSX.Element {
   // or unreachable packager into a permanently blank screen. Loading it in the
   // background costs at most one frame of missing glyphs; the state update on
   // completion re-renders every Icon.
-  useFonts({
+  const [iconFontLoaded, iconFontError] = useFonts({
     Ionicons: require('react-native-vector-icons/Fonts/Ionicons.ttf'),
   });
+
+  // TEMPORARY: diagnosing why the glyphs still do not draw. Remove once the
+  // cause is known.
+  useEffect(() => {
+    console.log(
+      '[icon-font] loaded=',
+      iconFontLoaded,
+      'error=',
+      iconFontError ? String(iconFontError) : 'none',
+    );
+  }, [iconFontLoaded, iconFontError]);
 
   useEffect(() => {
     requestNotificationPermission();
