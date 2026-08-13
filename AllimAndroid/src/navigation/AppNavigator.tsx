@@ -47,7 +47,12 @@ export type StoresStackParamList = {
 
 export type MessagesStackParamList = {
   MessagesList: undefined;
-  Conversation: {conversationId: string; otherUserId: string; otherUserName: string};
+  Conversation: {
+    conversationId: string;
+    otherUserId: string; // empty for a group — there is no single other person
+    otherUserName: string; // the group's name for a group conversation
+    isGroup?: boolean;
+  };
 };
 
 export type FriendsStackParamList = {

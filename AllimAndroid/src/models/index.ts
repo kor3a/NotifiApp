@@ -171,11 +171,71 @@ export interface Conversation {
   participantIds: string[];
   participantNames?: {[uid: string]: string};
   participantPhotos?: {[uid: string]: string};
+  // Participant emails, resolved from their usernames. iOS keeps this in step on
+  // every membership change so the Firestore rules can verify who belongs to a
+  // conversation — usernames alone can't be matched against an auth token.
+  participantEmails?: string[];
   lastMessage?: string; // legacy Android-only preview, kept in step on send
   lastMessageContent?: string; // the preview both platforms write and read
   lastMessageAt?: any;
+  lastMessageSenderId?: string;
   unreadCount?: {[uid: string]: number};
   createdAt?: any;
+
+  // Group fields — absent on 1:1 conversations, matching the iOS Conversation.
+  isGroup?: boolean;
+  groupName?: string;
+  groupCreatorId?: string;
+  groupAvatarURL?: string;
+}
+
+export function isGroupConversation(convo: Conversation): boolean {
+  return convo.isGroup === true;
+}
+
+// The other participant of a 1:1 conversation. Undefined for a group, or for a
+// conversation the current user has somehow been removed from.
+export function otherParticipantId(
+  convo: Conversation,
+  currentUserId: string,
+): string | undefined {
+  return convo.participantIds.find(id => id !== currentUserId);
+}
+
+export function otherParticipantName(
+  convo: Conversation,
+  currentUserId: string,
+): string {
+  const otherId = otherParticipantId(convo, currentUserId);
+  return (otherId && convo.participantNames?.[otherId]) || 'Unknown';
+}
+
+// Title for the row: the group's name for a group, the other person otherwise.
+export function conversationDisplayName(
+  convo: Conversation,
+  currentUserId: string,
+): string {
+  if (isGroupConversation(convo)) {
+    return convo.groupName || 'Group';
+  }
+  return otherParticipantName(convo, currentUserId);
+}
+
+export function unreadCountFor(convo: Conversation, userId: string): number {
+  return convo.unreadCount?.[userId] ?? 0;
+}
+
+// Sorted member names for the subtitle of a group row, as iOS builds it.
+export function memberNamesSubtitle(
+  convo: Conversation,
+  currentUserId: string,
+): string {
+  return convo.participantIds
+    .filter(id => id !== currentUserId)
+    .map(id => convo.participantNames?.[id])
+    .filter((name): name is string => !!name)
+    .sort()
+    .join(', ');
 }
 
 // ─── Friendship ───────────────────────────────────────────────────────────────

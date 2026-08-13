@@ -40,7 +40,7 @@ export default function ConversationScreen() {
   const navigation = useNavigation();
   const {currentUser, firebaseUser} = useSession();
 
-  const {conversationId, otherUserName} = route.params;
+  const {conversationId, otherUserName, isGroup} = route.params;
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
@@ -55,8 +55,10 @@ export default function ConversationScreen() {
     });
 
     // Mark as read (conversations are keyed by username, not the auth uid).
+    // Best effort: a failure here only leaves the badge up until next time, and
+    // must not surface as an unhandled rejection.
     if (currentUser) {
-      messageService.markAsRead(conversationId, currentUser.userId);
+      messageService.markAsRead(conversationId, currentUser.userId).catch(() => {});
     }
 
     return unsub;
@@ -183,6 +185,13 @@ export default function ConversationScreen() {
 
     return (
       <View style={[styles.msgRow, isMine && styles.msgRowMine]}>
+        {/* Who sent it, on incoming messages in a group only — the same label
+            iOS puts above a group bubble. */}
+        {isGroup && !isMine && !!item.senderName && (
+          <Text style={[styles.senderName, {color: textSecondary(scheme)}]}>
+            {item.senderName}
+          </Text>
+        )}
         <View
           style={[
             styles.bubble,
@@ -291,6 +300,12 @@ const styles = StyleSheet.create({
   },
   msgRowMine: {
     alignItems: 'flex-end',
+  },
+  senderName: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginBottom: 2,
+    marginLeft: Spacing.xs,
   },
   bubble: {
     maxWidth: '75%',
