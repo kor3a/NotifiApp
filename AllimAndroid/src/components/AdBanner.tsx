@@ -1,6 +1,6 @@
 import React from 'react';
 import {View, Text, StyleSheet, useColorScheme} from 'react-native';
-import Icon from '@expo/vector-icons/Ionicons';
+import Icon from './AppIcon';
 import {Colors, Spacing, Radius, cardStyle, textPrimary, textSecondary} from '../theme/AppTheme';
 
 export default function AdBanner() {

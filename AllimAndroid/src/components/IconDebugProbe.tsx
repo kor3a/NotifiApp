@@ -1,46 +1,32 @@
 /**
- * TEMPORARY diagnostic — delete once the icon rendering is understood.
+ * TEMPORARY diagnostic — delete once the fix is confirmed.
  *
- * Renders the same glyph four ways so the failure can be located by looking at
- * which swatches are blank:
+ * Four renderings of the same glyph, to confirm the diagnosis:
  *
- *   1 (red)   Icon component from @expo/vector-icons
- *   2 (green) raw <Text> with fontFamily 'Ionicons' — bypasses the component
- *   3 (blue)  raw <Text> with no fontFamily — control, must always render '+'
- *   4 (black) Icon from react-native-vector-icons — the previous library
+ *   1 (red)   AppIcon — the fix
+ *   2 (green) raw <Text> with fontFamily only — known to work
+ *   3 (blue)  plain '+' — control
+ *   4 (black) raw <Text> with fontFamily PLUS fontWeight/fontStyle 'normal',
+ *             exactly what the icon libraries force on. Expected to be BLANK:
+ *             that pair of properties is the whole bug.
  *
- * 3 blank        -> nothing renders here at all; look higher up the tree.
- * 3 only         -> the Ionicons typeface is not registered natively.
- * 2 + 3, not 1/4 -> the font works; the icon components are the problem.
- * all four       -> icons work, and the real issue is elsewhere on the screen.
+ * Expected: 1, 2, 3 render and 4 is blank.
  */
 import React from 'react';
 import {Text, View, StyleSheet} from 'react-native';
-import * as Font from 'expo-font';
-import ExpoIcon from '@expo/vector-icons/Ionicons';
-import RnviIcon from 'react-native-vector-icons/Ionicons';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import AppIcon from './AppIcon';
 
-const glyphMap: Record<string, number> =
-  (ExpoIcon as any).glyphMap ?? (ExpoIcon as any).getRawGlyphMap?.() ?? {};
-const addCode = glyphMap.add;
+const addCode = (Ionicons.glyphMap as unknown as Record<string, number>).add;
+const glyph = String.fromCodePoint(addCode);
 
 export default function IconDebugProbe() {
-  React.useEffect(() => {
-    console.log('[probe] Font.isLoaded(Ionicons) =', Font.isLoaded('Ionicons'));
-    console.log('[probe] glyphMap entries =', Object.keys(glyphMap).length);
-    console.log('[probe] glyph code for "add" =', addCode);
-    console.log('[probe] typeof ExpoIcon =', typeof ExpoIcon);
-    console.log('[probe] typeof RnviIcon =', typeof RnviIcon);
-  }, []);
-
   return (
     <View style={styles.row}>
-      <ExpoIcon name="add" size={36} color="#FF0000" />
-      <Text style={styles.fontFamilyText}>
-        {addCode ? String.fromCharCode(addCode) : '?'}
-      </Text>
-      <Text style={styles.controlText}>+</Text>
-      <RnviIcon name="add" size={36} color="#000000" />
+      <AppIcon name="add" size={36} color="#FF0000" />
+      <Text style={styles.fontFamilyOnly}>{glyph}</Text>
+      <Text style={styles.control}>+</Text>
+      <Text style={styles.withWeightAndStyle}>{glyph}</Text>
     </View>
   );
 }
@@ -55,6 +41,13 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: '#FF00FF',
   },
-  fontFamilyText: {fontFamily: 'Ionicons', fontSize: 36, color: '#00AA00'},
-  controlText: {fontSize: 36, color: '#0000FF'},
+  fontFamilyOnly: {fontFamily: 'Ionicons', fontSize: 36, color: '#00AA00'},
+  control: {fontSize: 36, color: '#0000FF'},
+  withWeightAndStyle: {
+    fontFamily: 'Ionicons',
+    fontSize: 36,
+    color: '#000000',
+    fontWeight: 'normal',
+    fontStyle: 'normal',
+  },
 });

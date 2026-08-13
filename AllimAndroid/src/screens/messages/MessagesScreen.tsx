@@ -11,7 +11,7 @@ import {
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {useNavigation} from '@react-navigation/native';
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
-import Icon from '@expo/vector-icons/Ionicons';
+import Icon from '../../components/AppIcon';
 import {format} from 'date-fns';
 
 import GradientBackground from '../../components/GradientBackground';
