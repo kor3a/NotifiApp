@@ -16,7 +16,6 @@ import {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import Icon from '../../components/AppIcon';
 import LinearGradient from 'react-native-linear-gradient';
 
-import IconDebugProbe from '../../components/IconDebugProbe';
 import GradientBackground from '../../components/GradientBackground';
 import ProfileAvatar from '../../components/ProfileAvatar';
 import AddStoreSheet from './AddStoreSheet';
@@ -210,9 +209,6 @@ export default function StoresScreen() {
             />
           </TouchableOpacity>
         </View>
-
-        {/* TEMPORARY icon diagnostic — remove with IconDebugProbe.tsx. */}
-        <IconDebugProbe />
 
         {/* Content */}
         {loading ? (
