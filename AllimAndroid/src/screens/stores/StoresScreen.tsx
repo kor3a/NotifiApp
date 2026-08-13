@@ -13,12 +13,14 @@ import {
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {useNavigation} from '@react-navigation/native';
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
+import {Swipeable} from 'react-native-gesture-handler';
 import Icon from '../../components/AppIcon';
 import LinearGradient from 'react-native-linear-gradient';
 
 import GradientBackground from '../../components/GradientBackground';
 import ProfileAvatar from '../../components/ProfileAvatar';
 import AddStoreSheet from './AddStoreSheet';
+import ShareStoreSheet from './ShareStoreSheet';
 import {
   Colors,
   Spacing,
@@ -43,9 +45,12 @@ export default function StoresScreen() {
   const [stores, setStores] = useState<UserStoreItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddSheet, setShowAddSheet] = useState(false);
+  const [storeToShare, setStoreToShare] = useState<UserStoreItem | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
 
   const fabScale = useRef(new Animated.Value(1)).current;
+  // Only one row stays open at a time, the way a list row behaves on iOS.
+  const openRow = useRef<Swipeable | null>(null);
 
   useEffect(() => {
     if (!firebaseUser || !currentUser) {return;}
@@ -74,22 +79,28 @@ export default function StoresScreen() {
     );
   }
 
+  // A store the user was given (view or edit) is only removed from their own
+  // account; deleting the reminders too is the owner's action alone.
+  function isRecipientStore(item: UserStoreItem): boolean {
+    return item.permission !== 'owner';
+  }
+
   async function handleDeleteStore(item: UserStoreItem) {
     if (!firebaseUser || !currentUser) {return;}
-    const isShared = item.isShared;
+    const isRecipient = isRecipientStore(item);
     Alert.alert(
-      isShared ? `Remove ${item.store.name}?` : `Delete ${item.store.name}?`,
-      isShared
+      isRecipient ? `Remove ${item.store.name}?` : `Delete ${item.store.name}?`,
+      isRecipient
         ? 'This will remove the store from your account only.'
         : 'All reminders will also be deleted.',
       [
         {text: 'Cancel', style: 'cancel'},
         {
-          text: isShared ? 'Remove' : 'Delete',
+          text: isRecipient ? 'Remove' : 'Delete',
           style: 'destructive',
           onPress: async () => {
             try {
-              if (isShared) {
+              if (isRecipient) {
                 await storeService.removeSharedStore(item.id);
               } else {
                 await storeService.deleteStore(
@@ -107,58 +118,112 @@ export default function StoresScreen() {
     );
   }
 
+  // Swipe-left actions, mirroring the iOS store list: Share (owners and editors
+  // only — a view-only recipient has nothing to pass on) then Delete/Remove.
+  function renderRightActions(item: UserStoreItem, row: Swipeable | null) {
+    const isRecipient = isRecipientStore(item);
+    const canShare = item.permission !== 'view';
+
+    function run(action: () => void) {
+      row?.close();
+      action();
+    }
+
+    return (
+      <View style={styles.swipeActions}>
+        {canShare && (
+          <TouchableOpacity
+            style={[styles.swipeAction, {backgroundColor: Colors.blue}]}
+            onPress={() => run(() => setStoreToShare(item))}
+            activeOpacity={0.8}>
+            <Icon name="share-outline" size={22} color="#fff" />
+            <Text style={styles.swipeActionText}>Share</Text>
+          </TouchableOpacity>
+        )}
+        <TouchableOpacity
+          style={[styles.swipeAction, {backgroundColor: Colors.red}]}
+          onPress={() => run(() => handleDeleteStore(item))}
+          activeOpacity={0.8}>
+          <Icon
+            name={isRecipient ? 'close-circle-outline' : 'trash-outline'}
+            size={22}
+            color="#fff"
+          />
+          <Text style={styles.swipeActionText}>
+            {isRecipient ? 'Remove' : 'Delete'}
+          </Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
   function renderStoreItem({item}: {item: UserStoreItem}) {
     const reminderCount = item.store.reminderCount ?? 0;
+    let row: Swipeable | null = null;
     return (
-      <TouchableOpacity
-        style={[styles.storeCard, cardStyle(scheme)]}
-        onPress={() =>
-          navigation.navigate('Reminders', {
-            userStoreId: item.id,
-            // Reminders for a store shared with this user live under the
-            // owner's user_store, not this user's own doc.
-            reminderStoreId: reminderStoreIdFor(item),
-            storeName: item.store.name,
-            storeId: item.store.id,
-            permission: item.permission,
-            isSharedStore: item.isShared,
-            sharedWith: item.sharedWith,
-            sharedFromName: item.sharedFromName,
-          })
-        }
-        onLongPress={() => handleDeleteStore(item)}
-        activeOpacity={0.75}>
-        <View style={styles.storeRow}>
-          {/* Store icon */}
-          <LinearGradient
-            colors={[Colors.blue + '33', Colors.purple + '33']}
-            style={styles.storeIconBg}>
-            <Icon name="cart" size={22} color={Colors.blue} />
-          </LinearGradient>
+      <Swipeable
+        ref={ref => {
+          row = ref;
+        }}
+        renderRightActions={() => renderRightActions(item, row)}
+        overshootRight={false}
+        rightThreshold={40}
+        onSwipeableWillOpen={() => {
+          if (openRow.current && openRow.current !== row) {
+            openRow.current.close();
+          }
+          openRow.current = row;
+        }}>
+        <TouchableOpacity
+          style={[styles.storeCard, cardStyle(scheme)]}
+          onPress={() =>
+            navigation.navigate('Reminders', {
+              userStoreId: item.id,
+              // Reminders for a store shared with this user live under the
+              // owner's user_store, not this user's own doc.
+              reminderStoreId: reminderStoreIdFor(item),
+              storeName: item.store.name,
+              storeId: item.store.id,
+              permission: item.permission,
+              isSharedStore: item.isShared,
+              sharedWith: item.sharedWith,
+              sharedFromName: item.sharedFromName,
+            })
+          }
+          onLongPress={() => handleDeleteStore(item)}
+          activeOpacity={0.75}>
+          <View style={styles.storeRow}>
+            {/* Store icon */}
+            <LinearGradient
+              colors={[Colors.blue + '33', Colors.purple + '33']}
+              style={styles.storeIconBg}>
+              <Icon name="cart" size={22} color={Colors.blue} />
+            </LinearGradient>
 
-          <View style={styles.storeInfo}>
-            <Text style={[styles.storeName, {color: textPrimary(scheme)}]}>
-              {item.store.name}
-            </Text>
-            <Text style={[styles.storeSubtitle, {color: textSecondary(scheme)}]}>
-              {reminderCount === 0
-                ? 'No reminders'
-                : `${reminderCount} reminder${reminderCount !== 1 ? 's' : ''}`}
-              {item.isShared ? ' · Shared' : ''}
-            </Text>
-          </View>
+            <View style={styles.storeInfo}>
+              <Text style={[styles.storeName, {color: textPrimary(scheme)}]}>
+                {item.store.name}
+              </Text>
+              <Text style={[styles.storeSubtitle, {color: textSecondary(scheme)}]}>
+                {reminderCount === 0
+                  ? 'No reminders'
+                  : `${reminderCount} reminder${reminderCount !== 1 ? 's' : ''}`}
+                {item.isShared ? ' · Shared' : ''}
+              </Text>
+            </View>
 
-          <View style={styles.storeRight}>
-            {item.permission === 'view' && (
-              <Icon name="eye-outline" size={16} color={textSecondary(scheme)} style={{marginRight: 4}} />
-            )}
-            {item.permission === 'edit' && (
-              <Icon name="pencil-outline" size={16} color={Colors.blue} style={{marginRight: 4}} />
-            )}
-            <Icon name="chevron-forward" size={18} color={textSecondary(scheme)} />
+            <View style={styles.storeRight}>
+              {item.permission === 'view' && (
+                <Icon name="eye-outline" size={16} color={textSecondary(scheme)} style={{marginRight: 4}} />
+              )}
+              {item.permission === 'edit' && (
+                <Icon name="pencil-outline" size={16} color={Colors.blue} style={{marginRight: 4}} />
+              )}
+              <Icon name="chevron-forward" size={18} color={textSecondary(scheme)} />
+            </View>
           </View>
-        </View>
-      </TouchableOpacity>
+        </TouchableOpacity>
+      </Swipeable>
     );
   }
 
@@ -277,6 +342,13 @@ export default function StoresScreen() {
         onSelectStore={handleSelectStore}
         existingStores={stores}
       />
+
+      {/* Share Store Sheet */}
+      <ShareStoreSheet
+        visible={!!storeToShare}
+        item={storeToShare}
+        onClose={() => setStoreToShare(null)}
+      />
     </View>
   );
 }
@@ -332,6 +404,26 @@ const styles = StyleSheet.create({
   storeRight: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  // The actions sit behind the card, so their vertical margins have to match
+  // the card's (cardStyle's marginVertical plus storeCard's marginBottom).
+  swipeActions: {
+    flexDirection: 'row',
+    marginTop: 4,
+    marginBottom: 8,
+  },
+  swipeAction: {
+    width: 76,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    borderRadius: Radius.lg,
+    marginLeft: Spacing.sm,
+  },
+  swipeActionText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
   },
   emptyContainer: {
     flex: 1,

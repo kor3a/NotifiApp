@@ -26,7 +26,7 @@ import {
 } from '../../theme/AppTheme';
 import {useSession} from '../../context/SessionContext';
 import {messageService} from '../../services/messageService';
-import {Conversation} from '../../models';
+import {Conversation, timestampMillis} from '../../models';
 import {MessagesStackParamList} from '../../navigation/AppNavigator';
 
 type Nav = NativeStackNavigationProp<MessagesStackParamList, 'MessagesList'>;
@@ -65,8 +65,9 @@ export default function MessagesScreen() {
   function renderConvo({item}: {item: Conversation}) {
     const other = getOtherUser(item);
     const unread = (item.unreadCount?.[currentUser?.userId ?? ''] ?? 0) as number;
-    const timeStr = item.lastMessageAt?.toDate
-      ? format(item.lastMessageAt.toDate(), 'MMM d')
+    const lastMessageMillis = timestampMillis(item.lastMessageAt);
+    const timeStr = lastMessageMillis
+      ? format(new Date(lastMessageMillis), 'MMM d')
       : '';
 
     return (
@@ -94,7 +95,8 @@ export default function MessagesScreen() {
             <Text
               style={[styles.lastMsg, {color: textSecondary(scheme)}]}
               numberOfLines={1}>
-              {item.lastMessage || 'No messages yet'}
+              {/* iOS writes the preview as lastMessageContent. */}
+              {item.lastMessage || item.lastMessageContent || 'No messages yet'}
             </Text>
             {unread > 0 && (
               <View style={styles.badge}>

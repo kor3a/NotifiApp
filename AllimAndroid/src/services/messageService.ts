@@ -1,5 +1,15 @@
 import firestore from '@react-native-firebase/firestore';
-import {Conversation, Message} from '../models';
+import {Conversation, LinkedStore, Message, timestampMillis} from '../models';
+
+// Timestamps are written as epoch seconds rather than a server timestamp: it is
+// the format the iOS app writes and the only one it parses, so a message sent
+// from Android is invisible there otherwise. Documents written by older Android
+// builds still hold Firestore Timestamps, so ordering is done in JS via
+// timestampMillis() instead of orderBy() — Firestore sorts by type first, which
+// would otherwise split a thread into two blocks.
+function nowSeconds(): number {
+  return Date.now() / 1000;
+}
 
 export const messageService = {
   // Subscribe to conversations for a user
@@ -10,11 +20,13 @@ export const messageService = {
     return firestore()
       .collection('conversations')
       .where('participantIds', 'array-contains', uid)
-      .orderBy('lastMessageAt', 'desc')
       .onSnapshot(snap => {
-        const convos = snap.docs.map(
-          d => ({id: d.id, ...d.data()} as Conversation),
-        );
+        const convos = snap.docs
+          .map(d => ({id: d.id, ...d.data()} as Conversation))
+          .sort(
+            (a, b) =>
+              timestampMillis(b.lastMessageAt) - timestampMillis(a.lastMessageAt),
+          );
         callback(convos);
       });
   },
@@ -27,9 +39,12 @@ export const messageService = {
     return firestore()
       .collection('messages')
       .where('conversationId', '==', conversationId)
-      .orderBy('createdAt', 'asc')
       .onSnapshot(snap => {
-        const msgs = snap.docs.map(d => ({id: d.id, ...d.data()} as Message));
+        const msgs = snap.docs
+          .map(d => ({id: d.id, ...d.data()} as Message))
+          .sort(
+            (a, b) => timestampMillis(a.createdAt) - timestampMillis(b.createdAt),
+          );
         callback(msgs);
       });
   },
@@ -40,29 +55,41 @@ export const messageService = {
     senderId: string,
     senderName: string,
     content: string,
-    linkedReminderId?: string,
-    linkedStoreName?: string,
-  ): Promise<void> {
+    options?: {
+      linkedReminderId?: string;
+      linkedStoreName?: string;
+      linkedStore?: LinkedStore;
+    },
+  ): Promise<string> {
     const batch = firestore().batch();
 
     // Add message
     const msgRef = firestore().collection('messages').doc();
-    batch.set(msgRef, {
+    const data: {[key: string]: any} = {
       conversationId,
       senderId,
       senderName,
       content,
-      linkedReminderId: linkedReminderId ?? null,
-      linkedStoreName: linkedStoreName ?? null,
-      createdAt: firestore.FieldValue.serverTimestamp(),
-    });
+      linkedReminderId: options?.linkedReminderId ?? null,
+      linkedStoreName: options?.linkedStoreName ?? null,
+      createdAt: nowSeconds(),
+      isRead: false,
+    };
+    if (options?.linkedStore) {
+      // Undefined values are rejected by Firestore, so only keep what is set.
+      data.linkedStore = Object.fromEntries(
+        Object.entries(options.linkedStore).filter(([, v]) => v !== undefined),
+      );
+    }
+    batch.set(msgRef, data);
 
-    // Update conversation last message + unread count
+    // Update conversation last message + unread count. `lastMessage` is what
+    // this app's list reads; `lastMessageContent` is the field iOS reads.
     const convoRef = firestore().collection('conversations').doc(conversationId);
     const convoSnap = await convoRef.get();
     if (convoSnap.exists) {
-      const data = convoSnap.data()!;
-      const participants: string[] = data.participantIds ?? [];
+      const convoData = convoSnap.data()!;
+      const participants: string[] = convoData.participantIds ?? [];
       const unreadUpdate: {[key: string]: any} = {};
       participants
         .filter(id => id !== senderId)
@@ -71,12 +98,15 @@ export const messageService = {
         });
       batch.update(convoRef, {
         lastMessage: content,
-        lastMessageAt: firestore.FieldValue.serverTimestamp(),
+        lastMessageContent: content,
+        lastMessageSenderId: senderId,
+        lastMessageAt: nowSeconds(),
         ...unreadUpdate,
       });
     }
 
     await batch.commit();
+    return msgRef.id;
   },
 
   // Create conversation between two users
@@ -101,18 +131,20 @@ export const messageService = {
     }
 
     // Create new
-    const ref = await firestore().collection('conversations').add({
-      participantIds: [uid1, uid2],
-      participantNames: {[uid1]: name1, [uid2]: name2},
-      participantPhotos: {
-        [uid1]: photo1 ?? '',
-        [uid2]: photo2 ?? '',
-      },
-      lastMessage: '',
-      lastMessageAt: firestore.FieldValue.serverTimestamp(),
-      unreadCount: {[uid1]: 0, [uid2]: 0},
-      createdAt: firestore.FieldValue.serverTimestamp(),
-    });
+    const ref = await firestore()
+      .collection('conversations')
+      .add({
+        participantIds: [uid1, uid2],
+        participantNames: {[uid1]: name1, [uid2]: name2},
+        participantPhotos: {
+          [uid1]: photo1 ?? '',
+          [uid2]: photo2 ?? '',
+        },
+        lastMessage: '',
+        lastMessageAt: nowSeconds(),
+        unreadCount: {[uid1]: 0, [uid2]: 0},
+        createdAt: nowSeconds(),
+      });
     return ref.id;
   },
 
