@@ -136,11 +136,10 @@ export const reminderService = {
 
     const ref = await firestore().collection('reminders').add(reminderData);
 
-    // Update store reminder count
-    await firestore()
-      .collection('stores')
-      .doc(storeId)
-      .update({reminderCount: existing.docs.length + 1});
+    // No count is written back to `stores`: that catalog document is global
+    // (every user with this store shares it) and the Firestore rules allow
+    // only the app owner to write it. The store list derives its count live
+    // from this collection instead — see storeService.subscribeToUserStores.
 
     return {
       id: ref.id,
@@ -180,7 +179,7 @@ export const reminderService = {
   },
 
   // Delete reminder
-  async deleteReminder(id: string, storeId: string): Promise<void> {
+  async deleteReminder(id: string): Promise<void> {
     // Delete any attached photos from Storage first so they don't become orphaned.
     const snap = await firestore().collection('reminders').doc(id).get();
     const photoURLs = (snap.data()?.photoURLs ?? []) as string[];
@@ -193,16 +192,8 @@ export const reminderService = {
     );
 
     await firestore().collection('reminders').doc(id).delete();
-
-    // Decrement store reminder count
-    const remaining = await firestore()
-      .collection('reminders')
-      .where('storeId', '==', storeId)
-      .get();
-    await firestore()
-      .collection('stores')
-      .doc(storeId)
-      .update({reminderCount: remaining.docs.length});
+    // The store list's count updates itself from its reminders listener; the
+    // global `stores` doc is owner-only and is deliberately left alone.
   },
 
   // Batch-categorize all uncategorized reminders in a store using keyword matching.

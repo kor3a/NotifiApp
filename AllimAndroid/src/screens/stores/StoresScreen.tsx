@@ -30,7 +30,7 @@ import {
 } from '../../theme/AppTheme';
 import {useSession} from '../../context/SessionContext';
 import {storeService} from '../../services/storeService';
-import {UserStoreItem} from '../../models';
+import {UserStoreItem, reminderStoreIdFor} from '../../models';
 import {StoresStackParamList} from '../../navigation/AppNavigator';
 
 type Nav = NativeStackNavigationProp<StoresStackParamList, 'StoresList'>;
@@ -115,9 +115,15 @@ export default function StoresScreen() {
         onPress={() =>
           navigation.navigate('Reminders', {
             userStoreId: item.id,
+            // Reminders for a store shared with this user live under the
+            // owner's user_store, not this user's own doc.
+            reminderStoreId: reminderStoreIdFor(item),
             storeName: item.store.name,
             storeId: item.store.id,
             permission: item.permission,
+            isSharedStore: item.isShared,
+            sharedWith: item.sharedWith,
+            sharedFromName: item.sharedFromName,
           })
         }
         onLongPress={() => handleDeleteStore(item)}
