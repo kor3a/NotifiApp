@@ -18,6 +18,9 @@ import {format, isToday, isYesterday} from 'date-fns';
 
 import GradientBackground from '../../components/GradientBackground';
 import ProfileAvatar from '../../components/ProfileAvatar';
+import PrimaryButton from '../../components/PrimaryButton';
+import NewMessageSheet from './NewMessageSheet';
+import NewGroupSheet from './NewGroupSheet';
 import {
   Colors,
   Spacing,
@@ -29,6 +32,7 @@ import {
 import {useSession} from '../../context/SessionContext';
 import {messageService} from '../../services/messageService';
 import {
+  Contact,
   Conversation,
   conversationDisplayName,
   isGroupConversation,
@@ -65,6 +69,8 @@ export default function MessagesScreen() {
 
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showNewMessage, setShowNewMessage] = useState(false);
+  const [showNewGroup, setShowNewGroup] = useState(false);
   // Avatars for participants whose conversation carries no participantPhotos:
   // that is every conversation started on iOS, which reads avatars off the user
   // document instead of copying them onto the conversation.
@@ -121,6 +127,29 @@ export default function MessagesScreen() {
       otherUserId: otherParticipantId(convo, currentUser?.userId ?? '') ?? '',
       otherUserName: conversationDisplayName(convo, currentUser?.userId ?? ''),
       isGroup,
+    });
+  }
+
+  // Both pickers hand back a conversation that already exists in Firestore, so
+  // the sheet closes and the thread opens straight away — the list catches up
+  // on its own when the snapshot arrives.
+  function openNewConversation(conversationId: string, contact: Contact) {
+    setShowNewMessage(false);
+    navigation.navigate('Conversation', {
+      conversationId,
+      otherUserId: contact.id,
+      otherUserName: contact.name,
+      isGroup: false,
+    });
+  }
+
+  function openNewGroup(conversationId: string, groupName: string) {
+    setShowNewGroup(false);
+    navigation.navigate('Conversation', {
+      conversationId,
+      otherUserId: '',
+      otherUserName: groupName,
+      isGroup: true,
     });
   }
 
@@ -343,6 +372,24 @@ export default function MessagesScreen() {
           <Text style={[styles.headerTitle, {color: textPrimary(scheme)}]}>
             Messages
           </Text>
+          {/* The iOS toolbar's two actions: person.3 starts a group, and
+              square.and.pencil starts a 1:1 message. */}
+          <View style={styles.headerActions}>
+            <TouchableOpacity
+              style={[styles.headerBtn, {backgroundColor: Colors.blue + '1F'}]}
+              onPress={() => setShowNewGroup(true)}
+              hitSlop={6}
+              activeOpacity={0.75}>
+              <Icon name="people" size={20} color={Colors.blue} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.headerBtn, {backgroundColor: Colors.blue + '1F'}]}
+              onPress={() => setShowNewMessage(true)}
+              hitSlop={6}
+              activeOpacity={0.75}>
+              <Icon name="create-outline" size={20} color={Colors.blue} />
+            </TouchableOpacity>
+          </View>
         </View>
 
         {loading ? (
@@ -353,8 +400,15 @@ export default function MessagesScreen() {
           <View style={styles.center}>
             <Icon name="chatbubbles-outline" size={60} color={textSecondary(scheme)} />
             <Text style={[styles.emptyText, {color: textSecondary(scheme)}]}>
-              No conversations yet.{'\n'}Add a friend and start chatting!
+              No conversations yet.{'\n'}Start one to share stores and reminders.
             </Text>
+            {/* iOS puts the same "New Message" call to action in its empty
+                state, so the tab is never a dead end. */}
+            <PrimaryButton
+              title="New Message"
+              onPress={() => setShowNewMessage(true)}
+              style={styles.emptyBtn}
+            />
           </View>
         ) : (
           <FlatList
@@ -365,18 +419,43 @@ export default function MessagesScreen() {
           />
         )}
       </SafeAreaView>
+
+      <NewMessageSheet
+        visible={showNewMessage}
+        onClose={() => setShowNewMessage(false)}
+        onConversationReady={openNewConversation}
+      />
+      <NewGroupSheet
+        visible={showNewGroup}
+        onClose={() => setShowNewGroup(false)}
+        onGroupCreated={openNewGroup}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   header: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
   },
   headerTitle: {
     fontSize: 28,
     fontWeight: '700',
+    flex: 1,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+  },
+  headerBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   center: {
     flex: 1,
@@ -389,6 +468,10 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: Spacing.md,
     lineHeight: 22,
+  },
+  emptyBtn: {
+    marginTop: Spacing.lg,
+    width: 220,
   },
   list: {
     paddingHorizontal: Spacing.md,

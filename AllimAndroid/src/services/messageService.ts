@@ -1,7 +1,13 @@
 import firestore, {
   FirebaseFirestoreTypes,
 } from '@react-native-firebase/firestore';
-import {Conversation, LinkedStore, Message, timestampMillis} from '../models';
+import {
+  Contact,
+  Conversation,
+  LinkedStore,
+  Message,
+  timestampMillis,
+} from '../models';
 
 // Timestamps are written as epoch seconds rather than a server timestamp: it is
 // the format the iOS app writes and the only one it parses, so a message sent
@@ -47,6 +53,25 @@ async function resolveParticipantEmails(userIds: string[]): Promise<string[]> {
     });
   }
   return [...emails];
+}
+
+// A `users` document as the pickers need it. Returns null for a document that
+// is missing the fields a contact is made of.
+function contactFrom(
+  doc: FirebaseFirestoreTypes.DocumentSnapshot,
+): Contact | null {
+  const data = doc.data();
+  if (!data?.name || !data?.email) {
+    return null;
+  }
+  return {
+    // Legacy Android documents are keyed by the Firebase Auth uid rather than
+    // the username, so the userId field wins over the document id.
+    id: (data.userId as string) ?? doc.id,
+    name: data.name as string,
+    email: data.email as string,
+    profilePictureURL: data.profilePictureURL as string | undefined,
+  };
 }
 
 export const messageService = {
@@ -164,7 +189,13 @@ export const messageService = {
 
     for (const doc of existing.docs) {
       const data = doc.data();
-      if (data.participantIds?.includes(uid2)) {
+      // Only a 1:1 thread counts as an existing conversation — a group both
+      // people happen to be in also contains uid2, and reusing it would drop a
+      // private message into the group.
+      if (data.isGroup === true || data.participantIds?.length !== 2) {
+        continue;
+      }
+      if (data.participantIds.includes(uid2)) {
         return doc.id;
       }
     }
@@ -278,6 +309,164 @@ export const messageService = {
       }
     }
     return photos;
+  },
+
+  // Find someone to message. A query containing "@" is treated as an email and
+  // anything else as a username, the same split the iOS search makes.
+  async searchContact(query: string): Promise<Contact | null> {
+    const cleaned = query.trim().toLowerCase();
+    if (!cleaned) {
+      return null;
+    }
+    return cleaned.includes('@')
+      ? this.searchUserByEmail(cleaned)
+      : this.searchUserByUsername(cleaned);
+  },
+
+  async searchUserByUsername(username: string): Promise<Contact | null> {
+    const normalized = username.trim().toLowerCase();
+    if (!normalized) {
+      return null;
+    }
+    // The canonical document is keyed by the username, as iOS writes it.
+    const doc = await firestore().collection('users').doc(normalized).get();
+    if (doc.exists) {
+      return contactFrom(doc);
+    }
+    // Older Android accounts key their document by the Firebase Auth uid and
+    // only carry the username in the userId field, so they need a query.
+    const snap = await firestore()
+      .collection('users')
+      .where('userId', '==', normalized)
+      .limit(1)
+      .get();
+    return snap.empty ? null : contactFrom(snap.docs[0]);
+  },
+
+  async searchUserByEmail(email: string): Promise<Contact | null> {
+    const normalized = email.trim().toLowerCase();
+    if (!normalized) {
+      return null;
+    }
+    const snap = await firestore()
+      .collection('users')
+      .where('email', '==', normalized)
+      .get();
+    if (snap.empty) {
+      return null;
+    }
+    // Someone who signed up on Android and later used iOS can own both a
+    // uid-keyed and a username-keyed document; the username-keyed one is the
+    // one the rest of the app messages.
+    const canonical =
+      snap.docs.find(doc => doc.id === doc.data().userId) ?? snap.docs[0];
+    return contactFrom(canonical);
+  },
+
+  // People the user has conversations with, most recently active first — the
+  // quick-pick list above the search field on both pickers.
+  async getRecentContacts(uid: string, limit = 20): Promise<Contact[]> {
+    const snap = await firestore()
+      .collection('conversations')
+      .where('participantIds', 'array-contains', uid)
+      .get();
+
+    // Sorted in JS for the same reason the conversation list is: lastMessageAt
+    // is a number on some documents and a Timestamp on older ones.
+    const recent = snap.docs
+      .map(d => d.data())
+      .sort(
+        (a, b) =>
+          timestampMillis(b.lastMessageAt) - timestampMillis(a.lastMessageAt),
+      )
+      .slice(0, limit);
+
+    const ids: string[] = [];
+    const fallbackNames = new Map<string, string>();
+    for (const data of recent) {
+      const participantIds: string[] = data.participantIds ?? [];
+      for (const id of participantIds) {
+        if (id === uid || ids.includes(id)) {
+          continue;
+        }
+        ids.push(id);
+        fallbackNames.set(id, data.participantNames?.[id] ?? 'Unknown');
+      }
+    }
+    if (ids.length === 0) {
+      return [];
+    }
+
+    const byId = new Map<string, Contact>();
+    for (let i = 0; i < ids.length; i += 10) {
+      const chunk = ids.slice(i, i + 10);
+      const users = await firestore()
+        .collection('users')
+        .where('userId', 'in', chunk)
+        .get();
+      users.docs.forEach(doc => {
+        const contact = contactFrom(doc);
+        if (contact) {
+          byId.set(contact.id, contact);
+        }
+      });
+    }
+
+    // Keep the recency order, and keep a contact whose user document has since
+    // gone missing — the conversation still names them.
+    return ids.map(
+      id =>
+        byId.get(id) ?? {
+          id,
+          name: fallbackNames.get(id) ?? 'Unknown',
+          email: '',
+        },
+    );
+  },
+
+  // Create a group conversation, mirroring iOS's createGroupConversation.
+  // Returns the new conversation's id.
+  async createGroupConversation(params: {
+    groupName: string;
+    creatorId: string;
+    creatorName: string;
+    members: Contact[];
+  }): Promise<string> {
+    const {groupName, creatorId, creatorName, members} = params;
+
+    // The creator counts as a member, and may also be in the picked list.
+    const participantIds = [
+      ...new Set([creatorId, ...members.map(m => m.id)]),
+    ];
+    const participantNames: {[uid: string]: string} = {[creatorId]: creatorName};
+    const unreadCount: {[uid: string]: number} = {};
+    members.forEach(member => {
+      participantNames[member.id] = member.name;
+    });
+    participantIds.forEach(id => {
+      unreadCount[id] = 0;
+    });
+
+    const now = nowSeconds();
+    const ref = await firestore()
+      .collection('conversations')
+      .add({
+        participantIds,
+        participantEmails: await resolveParticipantEmails(participantIds),
+        participantNames,
+        // No participantPhotos: a group row shows a group avatar, and member
+        // pictures are read from their user documents where iOS reads them.
+        lastMessage: '',
+        lastMessageContent: '',
+        lastMessageAt: now,
+        lastMessageSenderId: '',
+        unreadCount,
+        createdAt: now,
+        isGroup: true,
+        groupName: groupName.trim(),
+        groupCreatorId: creatorId,
+      });
+    return ref.id;
   },
 
   // Mark messages as read: clear this user's unread count and flip the incoming

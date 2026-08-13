@@ -238,6 +238,15 @@ export function memberNamesSubtitle(
     .join(', ');
 }
 
+// Someone who can be messaged. Built from a `users` document, and the shape the
+// new-message and new-group pickers work in — the iOS Contact model.
+export interface Contact {
+  id: string; // userId (username)
+  name: string;
+  email: string;
+  profilePictureURL?: string;
+}
+
 // ─── Friendship ───────────────────────────────────────────────────────────────
 
 export interface Friendship {
