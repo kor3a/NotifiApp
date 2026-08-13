@@ -1,4 +1,4 @@
-import {StyleSheet, ColorSchemeName} from 'react-native';
+import {Platform, StyleSheet, ColorSchemeName} from 'react-native';
 
 // ─── Palette ──────────────────────────────────────────────────────────────────
 export const Colors = {
@@ -95,12 +95,22 @@ export function cardStyle(scheme: ColorSchemeName) {
     borderRadius: Radius.lg,
     borderWidth: 1.5,
     borderColor: cardBorder(scheme),
-    shadowColor: Colors.black,
-    shadowOffset: {width: 0, height: 4},
-    shadowOpacity: scheme === 'dark' ? 0.3 : 0.1,
-    shadowRadius: 8,
-    elevation: 4,
     marginVertical: 4,
+    // iOS renders the soft drop shadow from the shadow* props. Android ignores
+    // them and only understands `elevation`, whose shadow is drawn from the
+    // view outline on the assumption the fill is opaque. Our cards are
+    // translucent white, so the shadow bleeds out around the rounded corners
+    // and reads as a washed-out sheet sitting behind every row instead of a
+    // shadow. Drop elevation there and let the border carry the separation.
+    ...Platform.select({
+      ios: {
+        shadowColor: Colors.black,
+        shadowOffset: {width: 0, height: 4},
+        shadowOpacity: scheme === 'dark' ? 0.3 : 0.1,
+        shadowRadius: 8,
+      },
+      default: {},
+    }),
   };
 }
 
