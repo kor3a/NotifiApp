@@ -95,8 +95,10 @@ export default function MessagesScreen() {
             <Text
               style={[styles.lastMsg, {color: textSecondary(scheme)}]}
               numberOfLines={1}>
-              {/* iOS writes the preview as lastMessageContent. */}
-              {item.lastMessage || item.lastMessageContent || 'No messages yet'}
+              {/* lastMessageContent is the field both platforms keep current —
+                  iOS never writes lastMessage, so preferring that one left the
+                  preview stuck on the last message this app sent. */}
+              {item.lastMessageContent || item.lastMessage || 'No messages yet'}
             </Text>
             {unread > 0 && (
               <View style={styles.badge}>
