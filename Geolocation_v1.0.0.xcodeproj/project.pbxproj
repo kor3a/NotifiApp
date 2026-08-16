@@ -65,6 +65,9 @@
 		01B408352F3BECF900EA1F25 /* ShareReminderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01B408342F3BECF900EA1F25 /* ShareReminderView.swift */; };
 		01B78C382EBD414A00201B88 /* UserStoreItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01B78C372EBD414A00201B88 /* UserStoreItem.swift */; };
 		01B78C3A2EBD415F00201B88 /* ReminderViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01B78C392EBD415F00201B88 /* ReminderViewModel.swift */; };
+		01BC6BF9303265DE0018331E /* ReminderToggleService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01BC6BF6303265DE0018331E /* ReminderToggleService.swift */; };
+		01BC6BFA303265DE0018331E /* WatchSyncModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01BC6BF8303265DE0018331E /* WatchSyncModels.swift */; };
+		01BC6BFB303265DE0018331E /* WatchConnectivityManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01BC6BF7303265DE0018331E /* WatchConnectivityManager.swift */; };
 		01BF38AB301C3DE700F49DBC /* BackgroundPickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01BF38AA301C3DE700F49DBC /* BackgroundPickerView.swift */; };
 		01D2D8732EC2901F009C371F /* ImagePicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01D2D8722EC2901F009C371F /* ImagePicker.swift */; };
 		01D86E952F6AD65B0007802A /* TutorialManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01D86E942F6AD65B0007802A /* TutorialManager.swift */; };
@@ -101,6 +104,7 @@
 		82D715C62C8D6B230000D1E3 /* MapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82D715C52C8D6B230000D1E3 /* MapView.swift */; };
 		82EC11832C64755300A6CD8C /* LocationDetailsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82EC11822C64755300A6CD8C /* LocationDetailsView.swift */; };
 		A1B2C3D400000000000000F2 /* FirebaseFunctions in Frameworks */ = {isa = PBXBuildFile; productRef = A1B2C3D400000000000000F1 /* FirebaseFunctions */; };
+		AA100000000000000000000B /* AllimWatch Watch App.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = AA1000000000000000000001 /* AllimWatch Watch App.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		AA1234560001AABB00CC0004 /* OpenAIService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0001 /* OpenAIService.swift */; };
 		AA1234560001AABB00CC0005 /* SmartRecipeViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0002 /* SmartRecipeViewModel.swift */; };
 		AA1234560001AABB00CC0006 /* SmartRecipeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0003 /* SmartRecipeView.swift */; };
@@ -138,7 +142,6 @@
 		D0A1000000000000000000F4 /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = D0A1000000000000000000F2 /* GoogleSignIn */; };
 		DF66A9982E24C86100C15DA9 /* User_Store.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF66A9972E24C86100C15DA9 /* User_Store.swift */; };
 		FF0200000001AABB00CC0001 /* SpecialElite-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FF0100000001AABB00CC0001 /* SpecialElite-Regular.ttf */; };
-		AA100000000000000000000B /* AllimWatch Watch App.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = AA1000000000000000000001 /* AllimWatch Watch App.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -163,13 +166,6 @@
 			remoteGlobalIDString = 01A339832FE191EB00207C36;
 			remoteInfo = NearBuyIntents;
 		};
-		CC0800000000000000000001 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = 8278FDEC2C5DD1C80017EB72 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = CC0500000000000000000001;
-			remoteInfo = NotifiWidget;
-		};
 		AA100000000000000000000C /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 8278FDEC2C5DD1C80017EB72 /* Project object */;
@@ -177,9 +173,27 @@
 			remoteGlobalIDString = AA1000000000000000000006;
 			remoteInfo = "AllimWatch Watch App";
 		};
+		CC0800000000000000000001 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 8278FDEC2C5DD1C80017EB72 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = CC0500000000000000000001;
+			remoteInfo = NotifiWidget;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
+		AA100000000000000000000A /* Embed Watch Content */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";
+			dstSubfolderSpec = 16;
+			files = (
+				AA100000000000000000000B /* AllimWatch Watch App.app in Embed Watch Content */,
+			);
+			name = "Embed Watch Content";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		CC0300000000000000000004 /* Embed App Extensions */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
@@ -191,17 +205,6 @@
 				CC0200000000000000000005 /* NotifiWidget.appex in Embed App Extensions */,
 			);
 			name = "Embed App Extensions";
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		AA100000000000000000000A /* Embed Watch Content */ = {
-			isa = PBXCopyFilesBuildPhase;
-			buildActionMask = 2147483647;
-			dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";
-			dstSubfolderSpec = 16;
-			files = (
-				AA100000000000000000000B /* AllimWatch Watch App.app in Embed Watch Content */,
-			);
-			name = "Embed Watch Content";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXCopyFilesBuildPhase section */
@@ -264,6 +267,9 @@
 		01B408342F3BECF900EA1F25 /* ShareReminderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareReminderView.swift; sourceTree = "<group>"; };
 		01B78C372EBD414A00201B88 /* UserStoreItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserStoreItem.swift; sourceTree = "<group>"; };
 		01B78C392EBD415F00201B88 /* ReminderViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderViewModel.swift; sourceTree = "<group>"; };
+		01BC6BF6303265DE0018331E /* ReminderToggleService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderToggleService.swift; sourceTree = "<group>"; };
+		01BC6BF7303265DE0018331E /* WatchConnectivityManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchConnectivityManager.swift; sourceTree = "<group>"; };
+		01BC6BF8303265DE0018331E /* WatchSyncModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchSyncModels.swift; sourceTree = "<group>"; };
 		01BF38AA301C3DE700F49DBC /* BackgroundPickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundPickerView.swift; sourceTree = "<group>"; };
 		01D2D8722EC2901F009C371F /* ImagePicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImagePicker.swift; sourceTree = "<group>"; };
 		01D86E942F6AD65B0007802A /* TutorialManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TutorialManager.swift; sourceTree = "<group>"; };
@@ -297,6 +303,7 @@
 		82D289B62C61D631009F357F /* ProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileView.swift; sourceTree = "<group>"; };
 		82D715C52C8D6B230000D1E3 /* MapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapView.swift; sourceTree = "<group>"; };
 		82EC11822C64755300A6CD8C /* LocationDetailsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationDetailsView.swift; sourceTree = "<group>"; };
+		AA1000000000000000000001 /* AllimWatch Watch App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "AllimWatch Watch App.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		AA1234560001AABB00CC0001 /* OpenAIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenAIService.swift; sourceTree = "<group>"; };
 		AA1234560001AABB00CC0002 /* SmartRecipeViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SmartRecipeViewModel.swift; sourceTree = "<group>"; };
 		AA1234560001AABB00CC0003 /* SmartRecipeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SmartRecipeView.swift; sourceTree = "<group>"; };
@@ -336,7 +343,6 @@
 		DF66A9972E24C86100C15DA9 /* User_Store.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = User_Store.swift; sourceTree = "<group>"; };
 		DF66A9992E24C86100C15DA9 /* Geolocation_v1.0.0.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Geolocation_v1.0.0.entitlements; sourceTree = "<group>"; };
 		FF0100000001AABB00CC0001 /* SpecialElite-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "SpecialElite-Regular.ttf"; sourceTree = "<group>"; };
-		AA1000000000000000000001 /* AllimWatch Watch App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "AllimWatch Watch App.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -406,14 +412,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		CC0300000000000000000002 /* Frameworks */ = {
+		AA1000000000000000000004 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		AA1000000000000000000004 /* Frameworks */ = {
+		CC0300000000000000000002 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -434,6 +440,9 @@
 		01FB27582EC2A7490038E406 /* Services */ = {
 			isa = PBXGroup;
 			children = (
+				01BC6BF6303265DE0018331E /* ReminderToggleService.swift */,
+				01BC6BF7303265DE0018331E /* WatchConnectivityManager.swift */,
+				01BC6BF8303265DE0018331E /* WatchSyncModels.swift */,
 				011574872F69DC3900963138 /* FCMTokenManager.swift */,
 				0138D8742F68BB95007CC1E4 /* SubscriptionManager.swift */,
 				010405BB2F575A6F0057862B /* OnMyWayNotificationService.swift */,
@@ -769,25 +778,6 @@
 			productReference = 8278FDF42C5DD1C90017EB72 /* Allim.app */;
 			productType = "com.apple.product-type.application";
 		};
-		CC0500000000000000000001 /* NotifiWidget */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = CC0600000000000000000001 /* Build configuration list for PBXNativeTarget "NotifiWidget" */;
-			buildPhases = (
-				CC0300000000000000000001 /* Sources */,
-				CC0300000000000000000002 /* Frameworks */,
-				CC0300000000000000000003 /* Resources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-			);
-			name = NotifiWidget;
-			packageProductDependencies = (
-			);
-			productName = NotifiWidget;
-			productReference = CC0100000000000000000005 /* NotifiWidget.appex */;
-			productType = "com.apple.product-type.app-extension";
-		};
 		AA1000000000000000000006 /* AllimWatch Watch App */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = AA1000000000000000000009 /* Build configuration list for PBXNativeTarget "AllimWatch Watch App" */;
@@ -809,6 +799,25 @@
 			productName = "AllimWatch Watch App";
 			productReference = AA1000000000000000000001 /* AllimWatch Watch App.app */;
 			productType = "com.apple.product-type.application";
+		};
+		CC0500000000000000000001 /* NotifiWidget */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = CC0600000000000000000001 /* Build configuration list for PBXNativeTarget "NotifiWidget" */;
+			buildPhases = (
+				CC0300000000000000000001 /* Sources */,
+				CC0300000000000000000002 /* Frameworks */,
+				CC0300000000000000000003 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = NotifiWidget;
+			packageProductDependencies = (
+			);
+			productName = NotifiWidget;
+			productReference = CC0100000000000000000005 /* NotifiWidget.appex */;
+			productType = "com.apple.product-type.app-extension";
 		};
 /* End PBXNativeTarget section */
 
@@ -833,11 +842,11 @@
 					8278FDF32C5DD1C80017EB72 = {
 						CreatedOnToolsVersion = 15.4;
 					};
-					CC0500000000000000000001 = {
-						CreatedOnToolsVersion = 15.4;
-					};
 					AA1000000000000000000006 = {
 						CreatedOnToolsVersion = 26.3;
+					};
+					CC0500000000000000000001 = {
+						CreatedOnToolsVersion = 15.4;
 					};
 				};
 			};
@@ -906,14 +915,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		CC0300000000000000000003 /* Resources */ = {
+		AA1000000000000000000005 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		AA1000000000000000000005 /* Resources */ = {
+		CC0300000000000000000003 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -1016,6 +1025,9 @@
 				0141FCC02F718817009C626B /* SubscriptionManagementView.swift in Sources */,
 				01B4082F2F3BECE600EA1F25 /* ConversationView.swift in Sources */,
 				017BD2572F76D3BD00E5842A /* RecipeViewModel.swift in Sources */,
+				01BC6BF9303265DE0018331E /* ReminderToggleService.swift in Sources */,
+				01BC6BFA303265DE0018331E /* WatchSyncModels.swift in Sources */,
+				01BC6BFB303265DE0018331E /* WatchConnectivityManager.swift in Sources */,
 				82D289B32C61D403009F357F /* EncodableExtension.swift in Sources */,
 				8278FDF82C5DD1C90017EB72 /* Geolocation_v1_0_0App.swift in Sources */,
 				82D289B02C61D30C009F357F /* User.swift in Sources */,
@@ -1057,6 +1069,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		AA1000000000000000000003 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		CC0300000000000000000001 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -1064,13 +1083,6 @@
 				CC0200000000000000000001 /* NotifiWidgetBundle.swift in Sources */,
 				CC0200000000000000000002 /* NotifiWidget.swift in Sources */,
 				CC0200000000000000000003 /* NotifiWidgetViews.swift in Sources */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		AA1000000000000000000003 /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1092,15 +1104,15 @@
 			target = 01A339832FE191EB00207C36 /* NearBuyIntents */;
 			targetProxy = 01A3398B2FE191EB00207C36 /* PBXContainerItemProxy */;
 		};
-		CC0800000000000000000002 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = CC0500000000000000000001 /* NotifiWidget */;
-			targetProxy = CC0800000000000000000001 /* PBXContainerItemProxy */;
-		};
 		AA100000000000000000000D /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = AA1000000000000000000006 /* AllimWatch Watch App */;
 			targetProxy = AA100000000000000000000C /* PBXContainerItemProxy */;
+		};
+		CC0800000000000000000002 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = CC0500000000000000000001 /* NotifiWidget */;
+			targetProxy = CC0800000000000000000001 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -1462,6 +1474,69 @@
 			};
 			name = Release;
 		};
+		AA1000000000000000000007 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = XT28W79782;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Allim;
+				INFOPLIST_KEY_WKApplication = YES;
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.kor3a.nearbuy;
+				INFOPLIST_KEY_WKRunsIndependentlyOfCompanionApp = NO;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.3.13;
+				PRODUCT_BUNDLE_IDENTIFIER = com.kor3a.nearbuy.watchkitapp;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "watchos watchsimulator";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 10.0;
+			};
+			name = Debug;
+		};
+		AA1000000000000000000008 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = XT28W79782;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Allim;
+				INFOPLIST_KEY_WKApplication = YES;
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.kor3a.nearbuy;
+				INFOPLIST_KEY_WKRunsIndependentlyOfCompanionApp = NO;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.3.13;
+				PRODUCT_BUNDLE_IDENTIFIER = com.kor3a.nearbuy.watchkitapp;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "watchos watchsimulator";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 10.0;
+			};
+			name = Release;
+		};
 		CC0700000000000000000001 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -1508,69 +1583,6 @@
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = Release;
-		};
-		AA1000000000000000000007 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = XT28W79782;
-				ENABLE_PREVIEWS = YES;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = Allim;
-				INFOPLIST_KEY_WKApplication = YES;
-				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.kor3a.nearbuy;
-				INFOPLIST_KEY_WKRunsIndependentlyOfCompanionApp = NO;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-				);
-				MARKETING_VERSION = 1.3.13;
-				PRODUCT_BUNDLE_IDENTIFIER = com.kor3a.nearbuy.watchkitapp;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = watchos;
-				SKIP_INSTALL = YES;
-				SUPPORTED_PLATFORMS = "watchos watchsimulator";
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = 4;
-				WATCHOS_DEPLOYMENT_TARGET = 10.0;
-			};
-			name = Debug;
-		};
-		AA1000000000000000000008 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_IDENTITY = "Apple Development";
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = XT28W79782;
-				ENABLE_PREVIEWS = YES;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = Allim;
-				INFOPLIST_KEY_WKApplication = YES;
-				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.kor3a.nearbuy;
-				INFOPLIST_KEY_WKRunsIndependentlyOfCompanionApp = NO;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-				);
-				MARKETING_VERSION = 1.3.13;
-				PRODUCT_BUNDLE_IDENTIFIER = com.kor3a.nearbuy.watchkitapp;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = watchos;
-				SKIP_INSTALL = YES;
-				SUPPORTED_PLATFORMS = "watchos watchsimulator";
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = 4;
-				WATCHOS_DEPLOYMENT_TARGET = 10.0;
 			};
 			name = Release;
 		};
@@ -1622,20 +1634,20 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		CC0600000000000000000001 /* Build configuration list for PBXNativeTarget "NotifiWidget" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				CC0700000000000000000001 /* Debug */,
-				CC0700000000000000000002 /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
 		AA1000000000000000000009 /* Build configuration list for PBXNativeTarget "AllimWatch Watch App" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				AA1000000000000000000007 /* Debug */,
 				AA1000000000000000000008 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		CC0600000000000000000001 /* Build configuration list for PBXNativeTarget "NotifiWidget" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				CC0700000000000000000001 /* Debug */,
+				CC0700000000000000000002 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
