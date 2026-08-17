@@ -77,7 +77,7 @@ The target is already in `project.pbxproj` — no need to add it through Xcode's
 template. It is a modern single-target watch app (no separate WatchKit extension):
 
 - Product: `AllimWatch Watch App.app`, bundle ID `com.kor3a.nearbuy.watchkitapp`
-- `SDKROOT = watchos`, `TARGETED_DEVICE_FAMILY = 4`, `WATCHOS_DEPLOYMENT_TARGET = 10.0`
+- `SDKROOT = watchos`, `TARGETED_DEVICE_FAMILY = 4`, `WATCHOS_DEPLOYMENT_TARGET = 9.0`
 - `INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.kor3a.nearbuy` ties it to the phone app
 - Sources come from a `PBXFileSystemSynchronizedRootGroup`, so adding a `.swift`
   file to the folder is enough — no project edit needed
