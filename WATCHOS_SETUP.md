@@ -84,15 +84,34 @@ template. It is a modern single-target watch app (no separate WatchKit extension
 - Embedded into `Allim` by an **Embed Watch Content** copy phase
   (`$(CONTENTS_FOLDER_PATH)/Watch`), with a target dependency so it builds first
 
+### App icon
+
+The watch app has its **own** icon in
+`AllimWatch Watch App/Assets.xcassets/AppIcon.appiconset` — it does not inherit
+the iPhone app's. The iOS app uses Icon Composer files (`Allim.icon`,
+`NotifiApp.icon`, with `ASSETCATALOG_COMPILER_APPICON_NAME = NotifiApp`), which
+watchOS does not read; the watch target uses a plain asset catalog with
+`ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon`.
+
+A watch app that compiles without an icon **installs nowhere** — the Watch app on
+the iPhone reports only "the app could not be installed at this time," with the
+real reason visible in `installd` logs. So if you replace the art, check that
+`AppIcon.appiconset/Contents.json` actually names the file:
+
+```json
+{ "filename": "allimIcon.png", "idiom": "universal", "platform": "watchos", "size": "1024x1024" }
+```
+
+Dropping a PNG into the folder without that `filename` key leaves the icon slot
+empty, which builds cleanly and then fails to install. The image must be
+1024×1024 with **no alpha channel**.
+
 ### One-time steps in Xcode
 
-1. **App icon** — `AllimWatch Watch App/Assets.xcassets/AppIcon.appiconset` is an
-   empty placeholder. Drop a 1024×1024 PNG in before submitting; the App Store
-   rejects a watch app with no icon.
-2. **Signing** — the watch app needs its own App ID
+1. **Signing** — the watch app needs its own App ID
    (`com.kor3a.nearbuy.watchkitapp`) in the developer portal. Automatic signing
    creates it on first build; confirm under Signing & Capabilities.
-3. **Scheme** — Xcode generates a scheme for the new target the first time the
+2. **Scheme** — Xcode generates a scheme for the new target the first time the
    project is opened. Run that scheme on a paired watch simulator to test.
 
 The watch target links no Swift packages: it needs no Firebase, no ads SDK, and
