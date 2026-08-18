@@ -141,7 +141,7 @@ client that is already in `google-services.json`.
 
 | Symptom | Cause |
 |---|---|
-| Picker opens, closes immediately, `DEVELOPER_ERROR` / code `10` | The signing SHA-1 for *this specific build* is not registered, or `google-services.json` was not re-downloaded after adding it. |
+| Picker opens, closes immediately, and the app reports *"Google Sign-In isn't set up for this build"* (`DEVELOPER_ERROR` / code `10`; the console log names the fix) | The signing SHA-1 for *this specific build* is not registered, or `google-services.json` was not re-downloaded after adding it. |
 | `Google Sign-In is not configured correctly` | `extra.googleWebClientId` is missing — check `app.config.js` and rebuild. |
 | Works in the EAS dev build, fails after Play release | Play's app-signing SHA-1 was never added (see the table above). |
 | `Google Play services is required to sign in` | Emulator image has no Play Services — use a *"Google Play"* system image, not a plain AOSP one. |
