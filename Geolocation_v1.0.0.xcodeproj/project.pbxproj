@@ -107,6 +107,7 @@
 		AA1234560001AABB00CC0020 /* FriendRequestService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0010 /* FriendRequestService.swift */; };
 		AA1234560001AABB00CC0021 /* FriendsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0011 /* FriendsService.swift */; };
 		AA1234560001AABB00CC0023 /* LocationMonitoringManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0013 /* LocationMonitoringManager.swift */; };
+		AA1234560001AABB00CC00F2 /* NavigationLauncher.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC00F1 /* NavigationLauncher.swift */; };
 		AA1234560001AABB00CC0024 /* LocationSearchManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0014 /* LocationSearchManager.swift */; };
 		AA1234560001AABB00CC0025 /* MessagingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0015 /* MessagingService.swift */; };
 		AA1234560001AABB00CC0026 /* NotificationLogStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0016 /* NotificationLogStore.swift */; };
@@ -284,6 +285,7 @@
 		AA1234560001AABB00CC0010 /* FriendRequestService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FriendRequestService.swift; sourceTree = "<group>"; };
 		AA1234560001AABB00CC0011 /* FriendsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FriendsService.swift; sourceTree = "<group>"; };
 		AA1234560001AABB00CC0013 /* LocationMonitoringManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationMonitoringManager.swift; sourceTree = "<group>"; };
+		AA1234560001AABB00CC00F1 /* NavigationLauncher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NavigationLauncher.swift; sourceTree = "<group>"; };
 		AA1234560001AABB00CC0014 /* LocationSearchManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationSearchManager.swift; sourceTree = "<group>"; };
 		AA1234560001AABB00CC0015 /* MessagingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessagingService.swift; sourceTree = "<group>"; };
 		AA1234560001AABB00CC0016 /* NotificationLogStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationLogStore.swift; sourceTree = "<group>"; };
@@ -413,6 +415,7 @@
 				AA1234560001AABB00CC0010 /* FriendRequestService.swift */,
 				AA1234560001AABB00CC0011 /* FriendsService.swift */,
 				AA1234560001AABB00CC0013 /* LocationMonitoringManager.swift */,
+				AA1234560001AABB00CC00F1 /* NavigationLauncher.swift */,
 				AA1234560001AABB00CC0014 /* LocationSearchManager.swift */,
 				AA1234560001AABB00CC0015 /* MessagingService.swift */,
 				AA1234560001AABB00CC0016 /* NotificationLogStore.swift */,
@@ -977,6 +980,7 @@
 				AA1234560001AABB00CC0020 /* FriendRequestService.swift in Sources */,
 				AA1234560001AABB00CC0021 /* FriendsService.swift in Sources */,
 				AA1234560001AABB00CC0023 /* LocationMonitoringManager.swift in Sources */,
+				AA1234560001AABB00CC00F2 /* NavigationLauncher.swift in Sources */,
 				AA1234560001AABB00CC0024 /* LocationSearchManager.swift in Sources */,
 				AA1234560001AABB00CC0025 /* MessagingService.swift in Sources */,
 				0183E1F92F743AFE00AB9429 /* AccountSecurityView.swift in Sources */,

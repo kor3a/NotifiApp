@@ -52,6 +52,15 @@
 	     through the `logoBrandSearch` Cloud Function, which holds the secret. -->
 	<key>LOGO_DEV_TOKEN</key>
 	<string>$(LOGO_DEV_TOKEN)</string>
+	<!-- Queried by NavigationLauncher to see which map apps are installed before
+	     handing off directions from the "Go" notification action. canOpenURL always
+	     answers false for a scheme that isn't listed here. -->
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>maps</string>
+		<string>comgooglemaps</string>
+		<string>waze</string>
+	</array>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>

@@ -735,7 +735,10 @@ class LocationMonitoringManager: NSObject, ObservableObject {
 
     // MARK: - Proximity Handling
 
-    private func handleStoreProximity(normalizedStoreName: String) {
+    /// - Parameter coordinate: center of the geofence that fired — the store branch
+    ///   the user actually pulled up to. It rides along on the notification so the
+    ///   "Go" button routes to this location rather than re-searching the name.
+    private func handleStoreProximity(normalizedStoreName: String, coordinate: CLLocationCoordinate2D?) {
         // Every list the user keeps under this store name — an owned one, plus any
         // shared with them — counts toward what's waiting for them at this location.
         let matchingStores = userStores.filter {
@@ -809,7 +812,8 @@ class LocationMonitoringManager: NSObject, ObservableObject {
 
             self.notificationManager.scheduleStoreProximityNotification(
                 storeName: displayStore.storeName,
-                reminderCount: reminderCount
+                reminderCount: reminderCount,
+                coordinate: coordinate
             )
 
             #if DEBUG
@@ -872,7 +876,10 @@ extension LocationMonitoringManager: CLLocationManagerDelegate {
             print("📍 LocationMonitoring: Entered geofence for '\(normalizedStoreName)'")
             #endif
 
-            self.handleStoreProximity(normalizedStoreName: normalizedStoreName)
+            self.handleStoreProximity(
+                normalizedStoreName: normalizedStoreName,
+                coordinate: (region as? CLCircularRegion)?.center
+            )
         }
     }
 

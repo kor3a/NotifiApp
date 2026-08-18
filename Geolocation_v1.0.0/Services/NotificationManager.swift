@@ -38,6 +38,9 @@ class NotificationManager: NSObject, ObservableObject {
     private let notificationCenter = UNUserNotificationCenter.current()
     private let logStore = NotificationLogStore.shared
 
+    /// Action identifier for the "Go" button on store proximity notifications.
+    static let goActionIdentifier = "GO_TO_STORE"
+
     private override init() {
         super.init()
         notificationCenter.delegate = self
@@ -105,10 +108,20 @@ class NotificationManager: NSObject, ObservableObject {
     // MARK: - Category Registration
 
     private func registerNotificationCategories() {
+        // "Go" replaces the plain OK/dismiss button iOS shows on a notification
+        // that carries no actions — on the CarPlay screen as well as on the phone.
+        // `.foreground` is required: the hand-off to Maps opens a URL, and iOS only
+        // lets an app do that once it's running in the foreground.
+        let goAction = UNNotificationAction(
+            identifier: Self.goActionIdentifier,
+            title: "Go",
+            options: [.foreground]
+        )
+
         // Create a category for store proximity notifications with CarPlay support
         let storeProximityCategory = UNNotificationCategory(
             identifier: "STORE_PROXIMITY",
-            actions: [],
+            actions: [goAction],
             intentIdentifiers: [],
             options: [.customDismissAction, .allowInCarPlay, .allowAnnouncement]
         )
@@ -334,7 +347,10 @@ class NotificationManager: NSObject, ObservableObject {
 
     // MARK: - Notification Scheduling
 
-    func scheduleStoreProximityNotification(storeName: String, reminderCount: Int, mode: InterruptionMode? = nil, delay: TimeInterval = 1) {
+    /// - Parameter coordinate: the store location that triggered the geofence. It
+    ///   rides along in `userInfo` so the "Go" button can start a route straight to
+    ///   this branch instead of re-searching the name.
+    func scheduleStoreProximityNotification(storeName: String, reminderCount: Int, coordinate: CLLocationCoordinate2D? = nil, mode: InterruptionMode? = nil, delay: TimeInterval = 1) {
         #if DEBUG
         print("🔔 NotificationManager: Attempting to schedule notification for \(storeName)")
         #endif
@@ -381,7 +397,13 @@ class NotificationManager: NSObject, ObservableObject {
             #endif
             content.relevanceScore = 1.0
             content.categoryIdentifier = "STORE_PROXIMITY"
-            content.userInfo = ["storeName": storeName]
+
+            var userInfo: [String: Any] = ["storeName": storeName]
+            if let coordinate, CLLocationCoordinate2DIsValid(coordinate) {
+                userInfo["storeLatitude"] = coordinate.latitude
+                userInfo["storeLongitude"] = coordinate.longitude
+            }
+            content.userInfo = userInfo
 
             let identifier = "store_proximity_\(storeName)_\(Date().timeIntervalSince1970)"
             let trigger = UNTimeIntervalNotificationTrigger(timeInterval: max(1, delay), repeats: false)
@@ -600,6 +622,32 @@ class NotificationManager: NSObject, ObservableObject {
     }
 }
 
+// MARK: - Navigation Payload
+
+extension NotificationManager {
+    /// Pulls the store and its coordinate back out of a notification payload.
+    /// Numbers survive as `Double` through a local notification but arrive as
+    /// strings in an FCM payload, so both are accepted.
+    static func navigationDestination(from userInfo: [AnyHashable: Any]) -> NavigationDestination {
+        let trimmedName = (userInfo["storeName"] as? String)?
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return NavigationDestination(
+            name: trimmedName.isEmpty ? "Store" : trimmedName,
+            latitude: double(from: userInfo["storeLatitude"]),
+            longitude: double(from: userInfo["storeLongitude"])
+        )
+    }
+
+    private static func double(from value: Any?) -> Double? {
+        switch value {
+        case let number as Double: return number
+        case let number as NSNumber: return number.doubleValue
+        case let string as String:  return Double(string)
+        default:                    return nil
+        }
+    }
+}
+
 // MARK: - UNUserNotificationCenterDelegate
 
 extension NotificationManager: UNUserNotificationCenterDelegate {
@@ -629,8 +677,25 @@ extension NotificationManager: UNUserNotificationCenterDelegate {
         let userInfo = response.notification.request.content.userInfo
 
         #if DEBUG
-        print("User tapped notification: \(response.notification.request.identifier), category: \(categoryIdentifier)")
+        print("User tapped notification: \(response.notification.request.identifier), category: \(categoryIdentifier), action: \(response.actionIdentifier)")
         #endif
+
+        // "Go" hands the store off to the user's map app. The action is
+        // `.foreground`, so the app is already on its way up; NavigationLauncher
+        // waits for it to become active before opening the URL.
+        if response.actionIdentifier == Self.goActionIdentifier {
+            let destination = Self.navigationDestination(from: userInfo)
+            DispatchQueue.main.async {
+                NavigationLauncher.shared.startDirections(to: destination)
+                // Queue the store list too, so switching back to Allim at the
+                // store lands on the reminders instead of the last screen.
+                if let storeName = userInfo["storeName"] as? String {
+                    self.pendingNavigation = .store(name: storeName)
+                }
+            }
+            completionHandler()
+            return
+        }
 
         DispatchQueue.main.async {
             // Remote FCM notifications arrive without a categoryIdentifier but
