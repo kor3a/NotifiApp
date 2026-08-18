@@ -15,6 +15,7 @@ struct ProfileView: View {
     @ObservedObject private var sessionManager = UserSessionManager.shared
     @ObservedObject private var subscriptionManager = SubscriptionManager.shared
     @ObservedObject private var navigationLauncher = NavigationLauncher.shared
+    @ObservedObject private var notificationManager = NotificationManager.shared
     @State private var showImagePicker = false
     @State private var selectedImage: UIImage?
     @State private var showDeleteAccountAlert = false
@@ -133,18 +134,22 @@ struct ProfileView: View {
             }
 
             // MARK: - Directions
-            Section {
-                Picker(selection: $navigationLauncher.preferredApp) {
-                    ForEach(navigationLauncher.availableApps) { app in
-                        Text(app.displayName).tag(app)
+            // Only worth showing while the notification actually carries a Go
+            // button — otherwise it's a preference with nothing to act on.
+            if notificationManager.goActionMode != .off {
+                Section {
+                    Picker(selection: $navigationLauncher.preferredApp) {
+                        ForEach(navigationLauncher.availableApps) { app in
+                            Text(app.displayName).tag(app)
+                        }
+                    } label: {
+                        Label("Directions App", systemImage: "car.fill")
                     }
-                } label: {
-                    Label("Directions App", systemImage: "car.fill")
+                } header: {
+                    Text("Directions")
+                } footer: {
+                    Text("Tapping Go on a nearby-store notification — including on your CarPlay screen — starts driving directions to that store in this app. Only apps installed on this iPhone are listed.")
                 }
-            } header: {
-                Text("Directions")
-            } footer: {
-                Text("Tapping Go on a nearby-store notification — including on your CarPlay screen — starts driving directions to that store in this app. Only apps installed on this iPhone are listed.")
             }
 
             // MARK: - Navigation Rows

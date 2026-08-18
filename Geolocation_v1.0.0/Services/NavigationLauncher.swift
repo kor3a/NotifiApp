@@ -88,8 +88,13 @@ final class NavigationLauncher: ObservableObject {
     /// A destination that arrived while the app was still coming to the foreground.
     /// Opening a URL only works from an active app, and a notification action is
     /// delivered before the launch finishes, so the hand-off waits here.
-    private var pendingDestination: NavigationDestination?
+    private var pendingDestination: (destination: NavigationDestination, queuedAt: Date)?
     private var activationObserver: NSObjectProtocol?
+
+    /// How long a deferred hand-off stays valid. Long enough to cover unlocking
+    /// the phone at the wheel, short enough that opening Allim an hour later
+    /// doesn't suddenly throw the user into turn-by-turn directions.
+    private static let pendingDestinationLifetime: TimeInterval = 120
 
     private init() {
         let stored = UserDefaults.standard.string(forKey: Self.preferenceKey)
@@ -119,19 +124,30 @@ final class NavigationLauncher: ObservableObject {
 
     // MARK: - Launching
 
-    /// Opens driving directions to `destination` in the resolved map app. Safe to
-    /// call from a notification response handler — if the app isn't active yet the
-    /// hand-off is retried as soon as it is.
-    func startDirections(to destination: NavigationDestination) {
+    /// Opens driving directions to `destination` in the resolved map app.
+    ///
+    /// - Parameter allowDeferral: when the app isn't active yet, wait for it to
+    ///   become active rather than opening now. Right for a `.foreground`
+    ///   notification action, which is bringing the app up anyway; wrong for a
+    ///   background one, where nothing is going to activate and the attempt has
+    ///   to be made immediately even though iOS may refuse it.
+    func startDirections(to destination: NavigationDestination, allowDeferral: Bool = true) {
         guard UIApplication.shared.applicationState == .active else {
-            queue(destination)
+            if allowDeferral {
+                queue(destination)
+            } else {
+                #if DEBUG
+                print("🧭 NavigationLauncher: attempting hand-off from the background")
+                #endif
+                open(destination, in: resolvedApp)
+            }
             return
         }
         open(destination, in: resolvedApp)
     }
 
     private func queue(_ destination: NavigationDestination) {
-        pendingDestination = destination
+        pendingDestination = (destination, Date())
 
         guard activationObserver == nil else { return }
         activationObserver = NotificationCenter.default.addObserver(
@@ -145,7 +161,14 @@ final class NavigationLauncher: ObservableObject {
                 NotificationCenter.default.removeObserver(activationObserver)
                 self.activationObserver = nil
             }
-            self.open(pending, in: self.resolvedApp)
+
+            guard Date().timeIntervalSince(pending.queuedAt) <= Self.pendingDestinationLifetime else {
+                #if DEBUG
+                print("🧭 NavigationLauncher: discarding stale hand-off to '\(pending.destination.name)'")
+                #endif
+                return
+            }
+            self.open(pending.destination, in: self.resolvedApp)
         }
     }
 

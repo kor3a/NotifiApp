@@ -353,6 +353,24 @@ private struct NotificationDebugTab: View {
             Section("Status") {
                 HStack { Text("Notifications"); Spacer(); Text(manager.isAuthorized ? "✅" : "❌") }
                 HStack { Text("CarPlay"); Spacer(); Text(manager.isCarPlayConnected ? "🚗 Connected" : "📱 Disconnected") }
+                HStack { Text("CarPlay Setting"); Spacer(); Text(carPlaySettingLabel) }
+            }
+
+            // The proximity banner reaches CarPlay as a communication
+            // notification, which CarPlay renders itself — a custom action on the
+            // category can stop it displaying there. Switch modes and re-fire to
+            // see which ones survive on the head unit.
+            Section {
+                Picker("Go Button", selection: $manager.goActionMode) {
+                    ForEach(NotificationManager.GoActionMode.allCases) { mode in
+                        Text(mode.displayName).tag(mode)
+                    }
+                }
+                .pickerStyle(.inline)
+            } header: {
+                Text("CarPlay Go Button")
+            } footer: {
+                Text("Re-registers the notification category immediately. Fire a test notification after each change and watch whether the banner still appears on the CarPlay screen.")
             }
 
             Section("Test Notification") {
@@ -383,6 +401,14 @@ private struct NotificationDebugTab: View {
         }
         .navigationTitle("🔧 Notification Debug")
         .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private var carPlaySettingLabel: String {
+        switch manager._carPlaySetting {
+        case .enabled:      return "✅ On"
+        case .disabled:     return "❌ Off in Settings"
+        case .notSupported: return "⚠️ notSupported"
+        }
     }
 
     private func fire(_ mode: NotificationManager.InterruptionMode) {

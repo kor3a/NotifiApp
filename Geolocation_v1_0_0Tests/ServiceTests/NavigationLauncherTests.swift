@@ -5,6 +5,7 @@
 
 import XCTest
 import CoreLocation
+import UserNotifications
 @testable import Allim
 
 final class NavigationLauncherTests: XCTestCase {
@@ -95,5 +96,19 @@ final class NavigationLauncherTests: XCTestCase {
     func testNavigationDestination_fallsBackWhenStoreNameIsBlank() {
         let destination = NotificationManager.navigationDestination(from: ["storeName": "   "])
         XCTAssertEqual(destination.name, "Store")
+    }
+
+    // MARK: - Go Action Mode
+
+    func testGoActionMode_offRegistersNoAction() {
+        XCTAssertNil(NotificationManager.GoActionMode.off.actionOptions)
+    }
+
+    func testGoActionMode_backgroundRegistersAnActionThatDoesNotLaunchTheApp() {
+        XCTAssertEqual(NotificationManager.GoActionMode.background.actionOptions, UNNotificationActionOptions([]))
+    }
+
+    func testGoActionMode_foregroundLaunchesTheApp() {
+        XCTAssertEqual(NotificationManager.GoActionMode.foreground.actionOptions, UNNotificationActionOptions.foreground)
     }
 }

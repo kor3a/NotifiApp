@@ -41,6 +41,65 @@ class NotificationManager: NSObject, ObservableObject {
     /// Action identifier for the "Go" button on store proximity notifications.
     static let goActionIdentifier = "GO_TO_STORE"
 
+    /// How — or whether — the "Go" button is attached to store proximity
+    /// notifications.
+    ///
+    /// Allim has no CarPlay entitlement. Proximity alerts only reach the CarPlay
+    /// screen because they're sent as communication notifications, which CarPlay
+    /// renders through its own messaging UI rather than from this app's category.
+    /// Whether that UI will also render a custom action — and whether a
+    /// `.foreground` one, which needs app UI CarPlay can't show for an
+    /// unentitled app, suppresses the banner outright — can only be answered on a
+    /// real head unit. Hence a switch, defaulting to the configuration that is
+    /// known to display.
+    enum GoActionMode: String, CaseIterable, Identifiable {
+        /// No action: the banner falls back to the system's OK button. Known to
+        /// display on CarPlay.
+        case off
+        /// A "Go" button that runs without bringing Allim to the front. CarPlay
+        /// has app UI to fall back on, but iOS may refuse the hand-off to Maps
+        /// from a background app.
+        case background
+        /// A "Go" button that launches Allim, which then opens Maps. Reliable on
+        /// the phone; on CarPlay it needs the iPhone unlocked.
+        case foreground
+
+        var id: String { rawValue }
+
+        var displayName: String {
+            switch self {
+            case .off:        return "Off (OK button)"
+            case .background: return "Go — background"
+            case .foreground: return "Go — foreground"
+            }
+        }
+
+        /// `nil` means no action is registered at all.
+        var actionOptions: UNNotificationActionOptions? {
+            switch self {
+            case .off:        return nil
+            case .background: return []
+            case .foreground: return [.foreground]
+            }
+        }
+    }
+
+    private static let goActionModeKey = "storeProximityGoActionMode"
+
+    /// Changing this re-registers the categories immediately, so a test
+    /// notification fired right after picks up the new configuration.
+    @Published var goActionMode: GoActionMode = NotificationManager.storedGoActionMode {
+        didSet {
+            UserDefaults.standard.set(goActionMode.rawValue, forKey: Self.goActionModeKey)
+            registerNotificationCategories()
+        }
+    }
+
+    private static var storedGoActionMode: GoActionMode {
+        let stored = UserDefaults.standard.string(forKey: goActionModeKey)
+        return stored.flatMap(GoActionMode.init(rawValue:)) ?? .off
+    }
+
     private override init() {
         super.init()
         notificationCenter.delegate = self
@@ -108,20 +167,22 @@ class NotificationManager: NSObject, ObservableObject {
     // MARK: - Category Registration
 
     private func registerNotificationCategories() {
-        // "Go" replaces the plain OK/dismiss button iOS shows on a notification
-        // that carries no actions — on the CarPlay screen as well as on the phone.
-        // `.foreground` is required: the hand-off to Maps opens a URL, and iOS only
-        // lets an app do that once it's running in the foreground.
-        let goAction = UNNotificationAction(
-            identifier: Self.goActionIdentifier,
-            title: "Go",
-            options: [.foreground]
-        )
+        // "Go" replaces the plain OK button iOS shows on a notification that
+        // carries no actions. See `GoActionMode` for why this is a switch rather
+        // than always on.
+        let storeProximityActions: [UNNotificationAction]
+        if let options = goActionMode.actionOptions {
+            storeProximityActions = [
+                UNNotificationAction(identifier: Self.goActionIdentifier, title: "Go", options: options)
+            ]
+        } else {
+            storeProximityActions = []
+        }
 
         // Create a category for store proximity notifications with CarPlay support
         let storeProximityCategory = UNNotificationCategory(
             identifier: "STORE_PROXIMITY",
-            actions: [goAction],
+            actions: storeProximityActions,
             intentIdentifiers: [],
             options: [.customDismissAction, .allowInCarPlay, .allowAnnouncement]
         )
@@ -171,7 +232,7 @@ class NotificationManager: NSObject, ObservableObject {
 
         notificationCenter.setNotificationCategories([storeProximityCategory, friendRequestCategory, newMessageCategory, sharedReminderCategory, onMyWayCategory])
         #if DEBUG
-        print("✅ Registered notification categories with CarPlay and announcement support")
+        print("✅ Registered notification categories with CarPlay and announcement support (Go action: \(goActionMode.rawValue))")
         #endif
     }
 
@@ -680,13 +741,15 @@ extension NotificationManager: UNUserNotificationCenterDelegate {
         print("User tapped notification: \(response.notification.request.identifier), category: \(categoryIdentifier), action: \(response.actionIdentifier)")
         #endif
 
-        // "Go" hands the store off to the user's map app. The action is
-        // `.foreground`, so the app is already on its way up; NavigationLauncher
-        // waits for it to become active before opening the URL.
+        // "Go" hands the store off to the user's map app. In `.foreground` mode the
+        // app is already on its way up, so the launcher waits for it to become
+        // active before opening the URL; in `.background` mode it never will, so
+        // the hand-off has to be attempted right away.
         if response.actionIdentifier == Self.goActionIdentifier {
             let destination = Self.navigationDestination(from: userInfo)
+            let allowDeferral = goActionMode == .foreground
             DispatchQueue.main.async {
-                NavigationLauncher.shared.startDirections(to: destination)
+                NavigationLauncher.shared.startDirections(to: destination, allowDeferral: allowDeferral)
                 // Queue the store list too, so switching back to Allim at the
                 // store lands on the reminders instead of the last screen.
                 if let storeName = userInfo["storeName"] as? String {
