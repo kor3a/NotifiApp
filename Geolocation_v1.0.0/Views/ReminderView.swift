@@ -56,6 +56,10 @@ struct ReminderView: View {
     @State private var reminderForCategory: Reminder?
     @State private var customCategoryText = ""
     @State private var collapsedCategories: Set<String> = []
+    /// Set once a backlog categorization pass has been requested for this
+    /// appearance, so routine list changes don't keep re-requesting one. Cleared
+    /// when Smart Category becomes available again (subscription or toggle).
+    @State private var hasRequestedCategoryBackfill = false
     @State private var autosaveWorkItem: DispatchWorkItem?
     @State private var lastSubmittedAt: Date?
     @State private var showRemoveAllFavoritesConfirmation = false
@@ -92,6 +96,25 @@ struct ReminderView: View {
     /// Smart Category is active only when the user is subscribed AND has the toggle enabled.
     private var effectiveSmartCategoryEnabled: Bool {
         isSubscribed && smartCategoryEnabled
+    }
+
+    /// Categorize items that are still uncategorized — typically a list built up
+    /// while the user had no subscription, since Smart Category only runs on new
+    /// items for subscribers.
+    ///
+    /// Called when the list first loads and whenever access turns on. The
+    /// ViewModel skips items it has already sent to the AI and coalesces
+    /// overlapping passes, so calling this more than once costs nothing.
+    private func runCategoryBackfillIfNeeded() {
+        guard effectiveSmartCategoryEnabled,
+              // A viewer can't write to someone else's list.
+              userStoreItem.permission != .view,
+              // Wait for the first snapshot; an empty list has nothing to do.
+              !viewModel.reminders.isEmpty,
+              !hasRequestedCategoryBackfill else { return }
+
+        hasRequestedCategoryBackfill = true
+        viewModel.categorizeUncategorizedReminders()
     }
 
     /// Recipient names this (owner's) store is shared with, used to flag newly
@@ -194,6 +217,13 @@ struct ReminderView: View {
 
     private var smartCategoryKey: String {
         "smartCategoryEnabled_\(userStoreItem.id)"
+    }
+
+    private var smartCategorySubtitle: String {
+        guard isSubscribed else { return "Available for subscribers" }
+        return viewModel.isCategorizingBacklog
+            ? "Categorizing your list…"
+            : "AI auto-categorizes new items"
     }
 
     /// Whether the auto-delete swipe rail is mounted. Rows only report checkbox
@@ -450,14 +480,36 @@ struct ReminderView: View {
             viewModel.fetchReminders(for: userStoreItem.reminderStoreId, sharedFromName: userStoreItem.sharedFromName)
             viewModel.fetchFavoriteTags(for: userStoreItem.reminderStoreId)
             smartCategoryEnabled = UserDefaults.standard.object(forKey: smartCategoryKey) as? Bool ?? true
+            // Reminders usually arrive after this (the fetch above is a live
+            // listener), in which case the reminders.count change below is what
+            // actually starts the pass.
+            runCategoryBackfillIfNeeded()
+        }
+        .onChange(of: viewModel.reminders.count) { _, _ in
+            runCategoryBackfillIfNeeded()
+        }
+        .onChange(of: viewModel.isCategorizingBacklog) { wasRunning, isRunning in
+            // A pass that failed (offline, AI error) puts its items back in the
+            // queue. Re-arm so the next list change or visit retries them; items
+            // that succeeded are categorized now and won't be sent again.
+            if wasRunning && !isRunning {
+                hasRequestedCategoryBackfill = false
+            }
+        }
+        .onChange(of: isSubscribed) { _, subscribed in
+            // Access just turned on (purchase, restore, or status refresh) —
+            // categorize whatever the user built up without a subscription.
+            if subscribed {
+                hasRequestedCategoryBackfill = false
+                runCategoryBackfillIfNeeded()
+            }
         }
         .onChange(of: smartCategoryEnabled) { oldValue, newValue in
             UserDefaults.standard.set(newValue, forKey: smartCategoryKey)
-            #if DEBUG
-            if !oldValue && newValue && isSubscribed {
-                viewModel.categorizeUncategorizedReminders()
+            if !oldValue && newValue {
+                hasRequestedCategoryBackfill = false
+                runCategoryBackfillIfNeeded()
             }
-            #endif
         }
         .onChange(of: autoDeleteEnabled) { oldValue, newValue in
             if newValue && !oldValue {
@@ -1476,7 +1528,7 @@ struct ReminderView: View {
                                 .font(.subheadline)
                                 .fontWeight(.medium)
                                 .foregroundStyle(isSubscribed ? Color.primary : Color.secondary)
-                            Text(isSubscribed ? "AI auto-categorizes new items" : "Available for subscribers")
+                            Text(smartCategorySubtitle)
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }

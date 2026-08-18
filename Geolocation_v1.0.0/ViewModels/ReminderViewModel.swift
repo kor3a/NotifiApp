@@ -299,55 +299,125 @@ class ReminderViewModel: ObservableObject {
         displayedReminders.contains { $0.category != nil && $0.category?.isEmpty == false }
     }
 
+    // MARK: - AI Categorization
+
+    /// Max item titles sent to the model in one categorization request. The reply
+    /// is a JSON map bounded by `maxTokens`, so a whole backlog in a single call
+    /// risks a truncated (and therefore discarded) response.
+    private static let categorizationBatchSize = 20
+
+    /// Reminder IDs already handed to the AI in this session. Items the model
+    /// genuinely can't place come back "Uncategorized" and keep a nil category,
+    /// so without this they'd be re-sent on every snapshot for as long as the
+    /// view is open. Also keeps the bulk pass from duplicating work the
+    /// single-item path is already doing for a just-added reminder.
+    private var aiCategorizationAttemptedIds: Set<String> = []
+
+    /// True while a bulk categorization pass is in flight, so overlapping
+    /// triggers (snapshots landing, subscription activating, view re-appearing)
+    /// coalesce into one pass.
+    @Published private(set) var isCategorizingBacklog = false
+
     /// Categorize a single reminder using AI and update Firestore
     func categorizeReminder(_ reminder: Reminder) {
+        aiCategorizationAttemptedIds.insert(reminder.id)
         Task {
             do {
                 let mapping = try await OpenAIService.shared.categorizeItems([reminder.title])
                 let category = mapping[reminder.title] ?? "Uncategorized"
                 await MainActor.run {
-                    self.updateReminderCategory(reminder, newCategory: category == "Uncategorized" ? nil : category)
+                    self.updateReminderCategory(
+                        reminder,
+                        newCategory: category == "Uncategorized" ? nil : category,
+                        tracksChange: false
+                    )
                 }
             } catch {
                 #if DEBUG
                 print("ReminderViewModel: AI categorization failed for '\(reminder.title)': \(error.localizedDescription)")
                 #endif
                 // Leave category as nil — user can set it manually
+                await MainActor.run {
+                    self.aiCategorizationAttemptedIds.remove(reminder.id)
+                }
             }
         }
     }
 
-    /// Categorize all uncategorized reminders in the current store
+    /// Categorize every uncategorized reminder in the current store that hasn't
+    /// already been sent to the AI.
+    ///
+    /// Backfills lists built up while Smart Category was unavailable — items
+    /// added without a subscription stay uncategorized, and this fills them in
+    /// once the user has access. Safe to call repeatedly: in-flight passes and
+    /// already-attempted items are skipped, so nothing is billed twice.
     func categorizeUncategorizedReminders() {
-        let uncategorized = reminders.filter { $0.category == nil || $0.category?.isEmpty == true }
+        guard !isCategorizingBacklog else { return }
+
+        let uncategorized = reminders.filter { reminder in
+            (reminder.category?.isEmpty ?? true)
+                && reminder.id != autosavedReminderId
+                && !stagedForDeletion.contains(reminder.id)
+                && !aiCategorizationAttemptedIds.contains(reminder.id)
+                && !reminder.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }
         guard !uncategorized.isEmpty else { return }
 
-        let titles = uncategorized.map { $0.title }
-        Task {
+        aiCategorizationAttemptedIds.formUnion(uncategorized.map { $0.id })
+        isCategorizingBacklog = true
+
+        #if DEBUG
+        print("ReminderViewModel: Backfilling categories for \(uncategorized.count) reminders")
+        #endif
+
+        Task { [weak self] in
+            guard let self = self else { return }
+            await self.categorizeInBatches(uncategorized)
+            await MainActor.run { self.isCategorizingBacklog = false }
+        }
+    }
+
+    /// Categorize reminders in chunks, writing each chunk's results as they land
+    /// so a long list fills in progressively instead of all at the very end.
+    private func categorizeInBatches(_ targets: [Reminder]) async {
+        for start in stride(from: 0, to: targets.count, by: Self.categorizationBatchSize) {
+            let chunk = Array(targets[start..<min(start + Self.categorizationBatchSize, targets.count)])
             do {
-                let mapping = try await OpenAIService.shared.categorizeItems(titles)
+                let mapping = try await OpenAIService.shared.categorizeItems(chunk.map { $0.title })
                 await MainActor.run {
-                    for reminder in uncategorized {
-                        if let category = mapping[reminder.title], category != "Uncategorized" {
-                            self.updateReminderCategory(reminder, newCategory: category)
-                        }
+                    for reminder in chunk {
+                        guard let category = mapping[reminder.title],
+                              category != "Uncategorized",
+                              !category.isEmpty else { continue }
+                        // Not a user edit, so it must not count toward the
+                        // "someone changed the list" shared-store notification.
+                        self.updateReminderCategory(reminder, newCategory: category, tracksChange: false)
                     }
                 }
             } catch {
                 #if DEBUG
                 print("ReminderViewModel: Bulk AI categorization failed: \(error.localizedDescription)")
                 #endif
+                // Let this chunk be retried the next time a pass is triggered.
+                await MainActor.run {
+                    self.aiCategorizationAttemptedIds.subtract(chunk.map { $0.id })
+                }
             }
         }
     }
 
     /// Update a reminder's category — syncs across all linked shared reminders
-    func updateReminderCategory(_ reminder: Reminder, newCategory: String?) {
+    /// - Parameter tracksChange: whether this counts as a user edit for the
+    ///   shared-store change notification. AI categorization passes `false`;
+    ///   backfilling a long list is not something to notify the other members about.
+    func updateReminderCategory(_ reminder: Reminder, newCategory: String?, tracksChange: Bool = true) {
         #if DEBUG
         print("ReminderViewModel: Updating category for '\(reminder.title)' to '\(newCategory ?? "nil")'")
         #endif
 
-        pendingOtherChanges += 1
+        if tracksChange {
+            pendingOtherChanges += 1
+        }
         let fieldValue: Any = newCategory ?? FieldValue.delete()
 
         if let sharedReminderId = reminder.sharedReminderId {
@@ -1476,6 +1546,8 @@ class ReminderViewModel: ObservableObject {
     /// Used by autosave finalization so categorization still runs even if the user navigates away.
     private func categorizeReminderDirectly(reminderId: String, title: String) {
         let db = self.db
+        // Claim the reminder so a backlog pass doesn't categorize it a second time.
+        aiCategorizationAttemptedIds.insert(reminderId)
         Task {
             do {
                 let mapping = try await OpenAIService.shared.categorizeItems([title])
