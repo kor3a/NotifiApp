@@ -105,9 +105,25 @@ keystore, and they are all different:
 
 | Build | Signed with | Where to get the SHA-1 |
 |---|---|---|
-| `npm run build:dev` / `build:preview` (EAS) | EAS-managed keystore | `cd AllimAndroid && eas credentials -p android` → *Keystore: Manage everything* |
+| `npm run build:dev` (EAS) and `npm run android` (local) | `android/app/debug.keystore`, shipped inside Expo's prebuild template | Fixed and public — `5E:8F:16:06:2E:A3:CD:2C:4A:0D:54:78:76:BA:A6:F3:8C:AB:F6:25` |
+| `npm run build:preview` (EAS) | EAS-managed keystore | `cd AllimAndroid && eas credentials -p android` → pick `preview` or `production` → *Keystore: Manage everything* |
 | `npm run build:prod` → Play Store | **Google Play's** app-signing key | Play Console → your app → **Test and release → Setup → App integrity** → *App signing key certificate* |
-| `npm run android` (local `expo run:android`) | Local debug keystore | `keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey -storepass android -keypass android` |
+
+> The debug row is the one that trips people up. `eas.json` sets
+> `gradleCommand: ':app:assembleDebug'` for the `development` profile, and EAS
+> only injects its managed keystore into the **release** signing config — so a
+> dev build is signed by the template's `debug.keystore`, not by the keystore
+> `eas credentials` shows you. Local `expo run:android` builds land on that same
+> file (prebuild writes it into the generated `android/`), so one fingerprint
+> covers both. Verify it yourself with:
+>
+> ```sh
+> keytool -list -v -keystore android/app/debug.keystore \
+>   -alias androiddebugkey -storepass android
+> ```
+>
+> That keystore is in every Expo/React Native project, so treat anything signed
+> with it as untrusted — fine for development, never for a release build.
 
 > The Play Store one is easy to miss. Play re-signs your upload with its own key,
 > so a build that worked from EAS will fail once it ships unless Play's app
