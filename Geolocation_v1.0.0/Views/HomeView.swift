@@ -296,8 +296,9 @@ struct HomeView: View {
                 // Per-app CarPlay toggle exists but is explicitly turned off
                 showCarPlayAlert = true
             }
-            // .notSupported means CarPlay notifications aren't available — usually the `.carPlay`
-            // option wasn't captured at first grant (delete + reinstall) or the entitlement isn't live.
+            // .notSupported just means iOS shows no per-app CarPlay toggle for this build.
+            // It is not a fault to nag the user about: the proximity banner reaches CarPlay as a
+            // communication notification, which is a separate path from this setting.
         }
 
         // Request location permission and start monitoring

@@ -191,13 +191,19 @@ class NotificationManager: NSObject, ObservableObject {
         await notificationCenter.notificationSettings().authorizationStatus
     }
 
+    /// Mirrors `UNNotificationSettings.carPlaySetting`, which reports only on the
+    /// per-app CarPlay toggle in Settings > Notifications.
+    ///
+    /// This is NOT the whole story for whether a banner reaches the CarPlay
+    /// screen, so don't read a diagnosis into it. Allim's proximity and message
+    /// banners get there by being communication notifications — an
+    /// INSendMessageIntent donated against the NearBuyIntents SiriKit extension —
+    /// and that path has been observed working while this setting reads
+    /// `.notSupported`. Treat the value as one input, not a verdict.
     enum CarPlayNotificationStatus {
-        case enabled    // Explicit per-app CarPlay toggle exists and is ON
+        case enabled    // Per-app CarPlay toggle exists and is ON
         case disabled   // Per-app CarPlay toggle exists but is OFF
-        case notSupported  // CarPlay notifications are NOT available for the app. Usually means the
-                           // `.carPlay` authorization option wasn't captured at first grant (iOS
-                           // freezes options at the initial grant — delete + reinstall to re-capture),
-                           // or the CarPlay entitlement isn't live in the build. NOT a normal/healthy state.
+        case notSupported  // iOS exposes no per-app CarPlay toggle for this build
     }
 
     @Published private(set) var _carPlaySetting: CarPlayNotificationStatus = .notSupported
@@ -227,11 +233,11 @@ class NotificationManager: NSObject, ObservableObject {
             let carPlayStatus: String
             switch settings.carPlaySetting {
             case .enabled:
-                carPlayStatus = "✅ ENABLED (per-app toggle is on)"
+                carPlayStatus = "enabled (per-app toggle is on)"
             case .disabled:
-                carPlayStatus = "❌ DISABLED — Go to Settings > Notifications > [App] > CarPlay and turn it on"
+                carPlayStatus = "disabled (per-app toggle is off — Settings > Notifications > Allim > CarPlay)"
             case .notSupported:
-                carPlayStatus = "❌ notSupported — CarPlay notifications NOT available. The `.carPlay` option likely wasn't captured at first grant (delete + reinstall to re-capture) or the CarPlay entitlement isn't live."
+                carPlayStatus = "notSupported (no per-app CarPlay toggle for this build — does NOT by itself mean banners can't reach CarPlay; the communication-notification path is separate)"
             @unknown default:
                 carPlayStatus = "❓ UNKNOWN (rawValue=\(settings.carPlaySetting.rawValue))"
             }
