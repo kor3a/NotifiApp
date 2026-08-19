@@ -138,15 +138,38 @@ keystore, and they are all different:
    above. (Adding the SHA-256 as well is harmless and is needed if you ever
    enable App Links or Play Integrity.)
 3. Click **Download google-services.json** and replace
-   `AllimAndroid/google-services.json` with it. The new file will contain an
-   extra `oauth_client` with `"client_type": 1` — that is the confirmation the
-   fingerprint registered.
-4. Rebuild the app. This is a **native** change, so a JS reload is not enough:
+   `AllimAndroid/google-services.json` with it. The new file will contain one
+   extra `oauth_client` with `"client_type": 1` **per fingerprint you added** —
+   that is the confirmation they registered. Each carries the fingerprint it
+   belongs to, so the file also tells you *which* ones took:
+
+   ```json
+   {
+     "client_id": "…apps.googleusercontent.com",
+     "client_type": 1,
+     "android_info": {
+       "package_name": "com.allimandroid",
+       "certificate_hash": "5e8f16062ea3cd2c4a0d547876baa6f38cabf625"
+     }
+   }
+   ```
+
+   `certificate_hash` is the SHA-1 lowercased with the colons stripped. If a
+   fingerprint you added has no matching entry, Firebase saved it without
+   creating the OAuth client behind it — check
+   [Google Cloud → APIs & Services → Credentials](https://console.cloud.google.com/apis/credentials)
+   for an **Android** OAuth client on `com.allimandroid`, and add one there if
+   it is missing. That client, not this file, is what Google checks at sign-in.
+4. Rebuild the app so the repo copy and the binary agree:
    ```sh
    cd AllimAndroid
    npm install                       # picks up @react-native-google-signin
    npm run build:dev                 # or: npm run prebuild:clean && npm run android
    ```
+   Registering a fingerprint takes effect server-side, so sign-in can start
+   working on the build already installed — give it a few minutes and force-stop
+   the app first. The rebuild is what keeps the two in sync, not what unblocks
+   you.
 
 Nothing else changes: the OAuth consent screen is already configured
 project-wide from the iOS setup, and the web client ID the Android code sends
