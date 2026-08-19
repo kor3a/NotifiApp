@@ -832,8 +832,7 @@ class ReminderViewModel: ObservableObject {
         pendingOtherChanges += 1
 
         // ReminderToggleService owns the field bookkeeping and the fan-out to
-        // linked copies of a shared reminder, so a check-off from the Apple Watch
-        // lands in Firestore exactly the way this one does.
+        // linked copies of a shared reminder.
         let fields = ReminderToggleService.toggleFields(
             newIsDone: !reminder.isDone,
             wasOutOfStock: reminder.isOutOfStock == true
