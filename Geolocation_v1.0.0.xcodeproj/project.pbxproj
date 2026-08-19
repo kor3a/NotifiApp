@@ -65,6 +65,9 @@
 		01B408352F3BECF900EA1F25 /* ShareReminderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01B408342F3BECF900EA1F25 /* ShareReminderView.swift */; };
 		01B78C382EBD414A00201B88 /* UserStoreItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01B78C372EBD414A00201B88 /* UserStoreItem.swift */; };
 		01B78C3A2EBD415F00201B88 /* ReminderViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01B78C392EBD415F00201B88 /* ReminderViewModel.swift */; };
+		01BC6BF9303265DE0018331E /* ReminderToggleService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01BC6BF6303265DE0018331E /* ReminderToggleService.swift */; };
+		01BC6BFA303265DE0018331E /* WatchSyncModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01BC6BF8303265DE0018331E /* WatchSyncModels.swift */; };
+		01BC6BFB303265DE0018331E /* WatchConnectivityManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01BC6BF7303265DE0018331E /* WatchConnectivityManager.swift */; };
 		01BF38AB301C3DE700F49DBC /* BackgroundPickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01BF38AA301C3DE700F49DBC /* BackgroundPickerView.swift */; };
 		01D2D8732EC2901F009C371F /* ImagePicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01D2D8722EC2901F009C371F /* ImagePicker.swift */; };
 		01D86E952F6AD65B0007802A /* TutorialManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01D86E942F6AD65B0007802A /* TutorialManager.swift */; };
@@ -172,6 +175,16 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
+		AA100000000000000000000A /* Embed Watch Content */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";
+			dstSubfolderSpec = 16;
+			files = (
+			);
+			name = "Embed Watch Content";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		CC0300000000000000000004 /* Embed App Extensions */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
@@ -245,6 +258,9 @@
 		01B408342F3BECF900EA1F25 /* ShareReminderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareReminderView.swift; sourceTree = "<group>"; };
 		01B78C372EBD414A00201B88 /* UserStoreItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserStoreItem.swift; sourceTree = "<group>"; };
 		01B78C392EBD415F00201B88 /* ReminderViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderViewModel.swift; sourceTree = "<group>"; };
+		01BC6BF6303265DE0018331E /* ReminderToggleService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderToggleService.swift; sourceTree = "<group>"; };
+		01BC6BF7303265DE0018331E /* WatchConnectivityManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchConnectivityManager.swift; sourceTree = "<group>"; };
+		01BC6BF8303265DE0018331E /* WatchSyncModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchSyncModels.swift; sourceTree = "<group>"; };
 		01BF38AA301C3DE700F49DBC /* BackgroundPickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundPickerView.swift; sourceTree = "<group>"; };
 		01D2D8722EC2901F009C371F /* ImagePicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImagePicker.swift; sourceTree = "<group>"; };
 		01D86E942F6AD65B0007802A /* TutorialManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TutorialManager.swift; sourceTree = "<group>"; };
@@ -343,6 +359,7 @@
 		0176B3092F3CE658003B9C75 /* Geolocation_v1_0_0Tests */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Geolocation_v1_0_0Tests; sourceTree = "<group>"; };
 		01A339872FE191EB00207C36 /* NearBuyIntents */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (01A3399D2FE19DF200207C36 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = NearBuyIntents; sourceTree = "<group>"; };
 		01B408202F3BEBF400EA1F25 /* Geolocation_v1.0.0 */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Geolocation_v1.0.0; sourceTree = "<group>"; };
+		AA1000000000000000000002 /* AllimWatch Watch App */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = "AllimWatch Watch App"; sourceTree = "<group>"; };
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -406,6 +423,9 @@
 		01FB27582EC2A7490038E406 /* Services */ = {
 			isa = PBXGroup;
 			children = (
+				01BC6BF6303265DE0018331E /* ReminderToggleService.swift */,
+				01BC6BF7303265DE0018331E /* WatchConnectivityManager.swift */,
+				01BC6BF8303265DE0018331E /* WatchSyncModels.swift */,
 				011574872F69DC3900963138 /* FCMTokenManager.swift */,
 				0138D8742F68BB95007CC1E4 /* SubscriptionManager.swift */,
 				010405BB2F575A6F0057862B /* OnMyWayNotificationService.swift */,
@@ -440,6 +460,7 @@
 				0176B3092F3CE658003B9C75 /* Geolocation_v1_0_0Tests */,
 				013324362FDCAE0D0074A818 /* NotifiNotificationService */,
 				01A339872FE191EB00207C36 /* NearBuyIntents */,
+				AA1000000000000000000002 /* AllimWatch Watch App */,
 				8278FDF52C5DD1C90017EB72 /* Products */,
 				01B408202F3BEBF400EA1F25 /* Geolocation_v1.0.0 */,
 				01B408212F3BEC7F00EA1F25 /* Secrets.xcconfig */,
@@ -712,6 +733,7 @@
 				8278FDF12C5DD1C80017EB72 /* Frameworks */,
 				8278FDF22C5DD1C80017EB72 /* Resources */,
 				CC0300000000000000000004 /* Embed App Extensions */,
+				AA100000000000000000000A /* Embed Watch Content */,
 			);
 			buildRules = (
 			);
@@ -951,6 +973,9 @@
 				0141FCC02F718817009C626B /* SubscriptionManagementView.swift in Sources */,
 				01B4082F2F3BECE600EA1F25 /* ConversationView.swift in Sources */,
 				017BD2572F76D3BD00E5842A /* RecipeViewModel.swift in Sources */,
+				01BC6BF9303265DE0018331E /* ReminderToggleService.swift in Sources */,
+				01BC6BFA303265DE0018331E /* WatchSyncModels.swift in Sources */,
+				01BC6BFB303265DE0018331E /* WatchConnectivityManager.swift in Sources */,
 				82D289B32C61D403009F357F /* EncodableExtension.swift in Sources */,
 				8278FDF82C5DD1C90017EB72 /* Geolocation_v1_0_0App.swift in Sources */,
 				82D289B02C61D30C009F357F /* User.swift in Sources */,

@@ -830,81 +830,21 @@ class ReminderViewModel: ObservableObject {
         #endif
 
         pendingOtherChanges += 1
-        let newIsDone = !reminder.isDone
-        var updateFields: [String: Any] = ["isDone": newIsDone]
 
-        // Record who checked the item off and when — this attribution is copied
-        // into reminder_history if the checked item is later deleted. Cleared
-        // when the item is unchecked so a stale check-off never lingers.
-        if newIsDone {
-            updateFields["checkedOffAt"] = Date().timeIntervalSince1970
-            if let name = UserSessionManager.shared.currentUser?.name, !name.isEmpty {
-                updateFields["checkedOffBy"] = name
-            }
-            if let userId = UserSessionManager.shared.currentUser?.userId, !userId.isEmpty {
-                updateFields["checkedOffById"] = userId
-            }
-        } else {
-            updateFields["checkedOffAt"] = FieldValue.delete()
-            updateFields["checkedOffBy"] = FieldValue.delete()
-            updateFields["checkedOffById"] = FieldValue.delete()
-        }
+        // ReminderToggleService owns the field bookkeeping and the fan-out to
+        // linked copies of a shared reminder, so a check-off from the Apple Watch
+        // lands in Firestore exactly the way this one does.
+        let fields = ReminderToggleService.toggleFields(
+            newIsDone: !reminder.isDone,
+            wasOutOfStock: reminder.isOutOfStock == true
+        )
 
-        // Clear out-of-stock when marking as done via normal tap
-        if newIsDone && reminder.isOutOfStock == true {
-            updateFields["isOutOfStock"] = false
-        }
-
-        // If this reminder has a sharedReminderId, sync toggle across all linked reminders
-        if let sharedReminderId = reminder.sharedReminderId {
-            #if DEBUG
-            print("ReminderViewModel: Syncing toggle across shared reminders with sharedReminderId: \(sharedReminderId)")
-            #endif
-
-            db.collection("reminders")
-                .whereField("sharedReminderId", isEqualTo: sharedReminderId)
-                .getDocuments { [weak self] snapshot, error in
-                    guard let self = self else { return }
-
-                    if let error = error {
-                        #if DEBUG
-                        print("ReminderViewModel: Error finding linked reminders: \(error.localizedDescription)")
-                        #endif
-                        // Fall back to updating just this reminder
-                        self.updateSingleReminderFields(reminder.id, fields: updateFields)
-                        return
-                    }
-
-                    guard let documents = snapshot?.documents, !documents.isEmpty else {
-                        // No linked reminders found, update just this one
-                        self.updateSingleReminderFields(reminder.id, fields: updateFields)
-                        return
-                    }
-
-                    // Batch update all linked reminders
-                    let batch = self.db.batch()
-                    for doc in documents {
-                        batch.updateData(updateFields, forDocument: doc.reference)
-                    }
-
-                    batch.commit { error in
-                        DispatchQueue.main.async {
-                            if let error = error {
-                                #if DEBUG
-                                print("ReminderViewModel: Error syncing toggle: \(error.localizedDescription)")
-                                #endif
-                            } else {
-                                #if DEBUG
-                                print("ReminderViewModel: Synced toggle across \(documents.count) linked reminders")
-                                #endif
-                            }
-                        }
-                    }
-                }
-        } else {
-            // No sharing, just update this reminder
-            updateSingleReminderFields(reminder.id, fields: updateFields)
-        }
+        ReminderToggleService.apply(
+            fields: fields,
+            reminderId: reminder.id,
+            sharedReminderId: reminder.sharedReminderId,
+            db: db
+        )
     }
 
     /// Toggle reminder out-of-stock status - syncs across all linked shared reminders
@@ -1141,22 +1081,6 @@ class ReminderViewModel: ObservableObject {
                 } else {
                     #if DEBUG
                     print("ReminderViewModel: Reminder toggled successfully")
-                    #endif
-                }
-            }
-        }
-    }
-
-    private func updateSingleReminderFields(_ reminderId: String, fields: [String: Any]) {
-        db.collection("reminders").document(reminderId).updateData(fields) { error in
-            DispatchQueue.main.async {
-                if let error = error {
-                    #if DEBUG
-                    print("ReminderViewModel: Error updating reminder fields: \(error.localizedDescription)")
-                    #endif
-                } else {
-                    #if DEBUG
-                    print("ReminderViewModel: Reminder fields updated successfully")
                     #endif
                 }
             }
