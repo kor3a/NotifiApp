@@ -121,6 +121,51 @@ function isCancellation(err: unknown): boolean {
   );
 }
 
+/**
+ * `GoogleSignInStatusCodes.DEVELOPER_ERROR`. The library has no `statusCodes`
+ * entry for it — the native module passes Google's raw integer through as a
+ * string — so it has to be matched by value.
+ */
+const DEVELOPER_ERROR_CODE = '10';
+
+/**
+ * Turn the picker's opaque native failures into something the reader can act
+ * on, or return null to let the original error through.
+ *
+ * DEVELOPER_ERROR is worth spelling out: Google rejects the request before the
+ * account picker returns anything, and the message it ships is the bare string
+ * "DEVELOPER_ERROR". It means Google does not recognise this build — package
+ * name + signing-certificate SHA-1 — not that anything went wrong at runtime,
+ * so it happens on every attempt until the fingerprint is registered.
+ */
+function explainSignInError(err: unknown): Error | null {
+  if (!isErrorWithCode(err)) {
+    return null;
+  }
+  if (err.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
+    return new Error(
+      'Google Play services is required to sign in with Google. Please install or update it and try again.',
+    );
+  }
+  if (err.code === DEVELOPER_ERROR_CODE) {
+    // The alert reaches whoever is running the build, so name the fix.
+    console.error(
+      '[googleAuthService] DEVELOPER_ERROR: Google does not recognise this ' +
+        'build. Register the SHA-1 of the keystore that signed it against ' +
+        'package com.allimandroid in the Firebase console, re-download ' +
+        'google-services.json (it should then contain an oauth_client with ' +
+        '"client_type": 1), and rebuild — see SOCIAL_LOGIN_SETUP.md section 5. ' +
+        `Web client ID in use: ${WEB_CLIENT_ID}`,
+    );
+    return new Error(
+      "Google Sign-In isn't set up for this build: its signing certificate " +
+        'is not registered with Google (DEVELOPER_ERROR). See ' +
+        'SOCIAL_LOGIN_SETUP.md section 5.',
+    );
+  }
+  return null;
+}
+
 export const googleAuthService = {
   async signIn(): Promise<GoogleSignInOutcome> {
     let google: GoogleCredential | null;
@@ -130,15 +175,7 @@ export const googleAuthService = {
       if (isCancellation(err)) {
         return {status: 'cancelled'};
       }
-      if (
-        isErrorWithCode(err) &&
-        err.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE
-      ) {
-        throw new Error(
-          'Google Play services is required to sign in with Google. Please install or update it and try again.',
-        );
-      }
-      throw err;
+      throw explainSignInError(err) ?? err;
     }
 
     if (!google) {
@@ -223,7 +260,7 @@ export const googleAuthService = {
       if (isCancellation(err)) {
         return false;
       }
-      throw err;
+      throw explainSignInError(err) ?? err;
     }
     if (!google) {
       return false;
