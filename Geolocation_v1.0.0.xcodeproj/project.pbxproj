@@ -825,10 +825,10 @@
 			projectRoot = "";
 			targets = (
 				8278FDF32C5DD1C80017EB72 /* Allim */,
+				01A339832FE191EB00207C36 /* NearBuyIntents */,
 				CC0500000000000000000001 /* NotifiWidget */,
 				0176B3072F3CE658003B9C75 /* Geolocation_v1_0_0Tests */,
 				013324342FDCAE0D0074A818 /* NotifiNotificationService */,
-				01A339832FE191EB00207C36 /* NearBuyIntents */,
 			);
 		};
 /* End PBXProject section */
