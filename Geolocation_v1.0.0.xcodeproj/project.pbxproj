@@ -175,16 +175,6 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
-		AA100000000000000000000A /* Embed Watch Content */ = {
-			isa = PBXCopyFilesBuildPhase;
-			buildActionMask = 2147483647;
-			dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";
-			dstSubfolderSpec = 16;
-			files = (
-			);
-			name = "Embed Watch Content";
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 		CC0300000000000000000004 /* Embed App Extensions */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
@@ -359,7 +349,6 @@
 		0176B3092F3CE658003B9C75 /* Geolocation_v1_0_0Tests */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Geolocation_v1_0_0Tests; sourceTree = "<group>"; };
 		01A339872FE191EB00207C36 /* NearBuyIntents */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (01A3399D2FE19DF200207C36 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = NearBuyIntents; sourceTree = "<group>"; };
 		01B408202F3BEBF400EA1F25 /* Geolocation_v1.0.0 */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Geolocation_v1.0.0; sourceTree = "<group>"; };
-		AA1000000000000000000002 /* AllimWatch Watch App */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = "AllimWatch Watch App"; sourceTree = "<group>"; };
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -460,7 +449,6 @@
 				0176B3092F3CE658003B9C75 /* Geolocation_v1_0_0Tests */,
 				013324362FDCAE0D0074A818 /* NotifiNotificationService */,
 				01A339872FE191EB00207C36 /* NearBuyIntents */,
-				AA1000000000000000000002 /* AllimWatch Watch App */,
 				8278FDF52C5DD1C90017EB72 /* Products */,
 				01B408202F3BEBF400EA1F25 /* Geolocation_v1.0.0 */,
 				01B408212F3BEC7F00EA1F25 /* Secrets.xcconfig */,
@@ -733,7 +721,6 @@
 				8278FDF12C5DD1C80017EB72 /* Frameworks */,
 				8278FDF22C5DD1C80017EB72 /* Resources */,
 				CC0300000000000000000004 /* Embed App Extensions */,
-				AA100000000000000000000A /* Embed Watch Content */,
 			);
 			buildRules = (
 			);
