@@ -104,7 +104,6 @@
 		82D715C62C8D6B230000D1E3 /* MapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82D715C52C8D6B230000D1E3 /* MapView.swift */; };
 		82EC11832C64755300A6CD8C /* LocationDetailsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82EC11822C64755300A6CD8C /* LocationDetailsView.swift */; };
 		A1B2C3D400000000000000F2 /* FirebaseFunctions in Frameworks */ = {isa = PBXBuildFile; productRef = A1B2C3D400000000000000F1 /* FirebaseFunctions */; };
-		AA100000000000000000000B /* AllimWatch Watch App.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = AA1000000000000000000001 /* AllimWatch Watch App.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		AA1234560001AABB00CC0004 /* OpenAIService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0001 /* OpenAIService.swift */; };
 		AA1234560001AABB00CC0005 /* SmartRecipeViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0002 /* SmartRecipeViewModel.swift */; };
 		AA1234560001AABB00CC0006 /* SmartRecipeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0003 /* SmartRecipeView.swift */; };
@@ -166,13 +165,6 @@
 			remoteGlobalIDString = 01A339832FE191EB00207C36;
 			remoteInfo = NearBuyIntents;
 		};
-		AA100000000000000000000C /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = 8278FDEC2C5DD1C80017EB72 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = AA1000000000000000000006;
-			remoteInfo = "AllimWatch Watch App";
-		};
 		CC0800000000000000000001 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 8278FDEC2C5DD1C80017EB72 /* Project object */;
@@ -189,7 +181,6 @@
 			dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";
 			dstSubfolderSpec = 16;
 			files = (
-				AA100000000000000000000B /* AllimWatch Watch App.app in Embed Watch Content */,
 			);
 			name = "Embed Watch Content";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -303,7 +294,6 @@
 		82D289B62C61D631009F357F /* ProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileView.swift; sourceTree = "<group>"; };
 		82D715C52C8D6B230000D1E3 /* MapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapView.swift; sourceTree = "<group>"; };
 		82EC11822C64755300A6CD8C /* LocationDetailsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationDetailsView.swift; sourceTree = "<group>"; };
-		AA1000000000000000000001 /* AllimWatch Watch App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "AllimWatch Watch App.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		AA1234560001AABB00CC0001 /* OpenAIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenAIService.swift; sourceTree = "<group>"; };
 		AA1234560001AABB00CC0002 /* SmartRecipeViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SmartRecipeViewModel.swift; sourceTree = "<group>"; };
 		AA1234560001AABB00CC0003 /* SmartRecipeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SmartRecipeView.swift; sourceTree = "<group>"; };
@@ -412,13 +402,6 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		AA1000000000000000000004 /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 		CC0300000000000000000002 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -493,7 +476,6 @@
 				CC0100000000000000000005 /* NotifiWidget.appex */,
 				013324352FDCAE0D0074A818 /* NotifiNotificationService.appex */,
 				01A339842FE191EB00207C36 /* NearBuyIntents.appex */,
-				AA1000000000000000000001 /* AllimWatch Watch App.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -759,7 +741,6 @@
 				CC0800000000000000000002 /* PBXTargetDependency */,
 				0133243B2FDCAE0D0074A818 /* PBXTargetDependency */,
 				01A3398C2FE191EB00207C36 /* PBXTargetDependency */,
-				AA100000000000000000000D /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				011CF6042ED638ED009A31A6 /* Theme */,
@@ -776,28 +757,6 @@
 			);
 			productName = Geolocation_v1.0.0;
 			productReference = 8278FDF42C5DD1C90017EB72 /* Allim.app */;
-			productType = "com.apple.product-type.application";
-		};
-		AA1000000000000000000006 /* AllimWatch Watch App */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = AA1000000000000000000009 /* Build configuration list for PBXNativeTarget "AllimWatch Watch App" */;
-			buildPhases = (
-				AA1000000000000000000003 /* Sources */,
-				AA1000000000000000000004 /* Frameworks */,
-				AA1000000000000000000005 /* Resources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-			);
-			fileSystemSynchronizedGroups = (
-				AA1000000000000000000002 /* AllimWatch Watch App */,
-			);
-			name = "AllimWatch Watch App";
-			packageProductDependencies = (
-			);
-			productName = "AllimWatch Watch App";
-			productReference = AA1000000000000000000001 /* AllimWatch Watch App.app */;
 			productType = "com.apple.product-type.application";
 		};
 		CC0500000000000000000001 /* NotifiWidget */ = {
@@ -842,9 +801,6 @@
 					8278FDF32C5DD1C80017EB72 = {
 						CreatedOnToolsVersion = 15.4;
 					};
-					AA1000000000000000000006 = {
-						CreatedOnToolsVersion = 26.3;
-					};
 					CC0500000000000000000001 = {
 						CreatedOnToolsVersion = 15.4;
 					};
@@ -873,7 +829,6 @@
 				0176B3072F3CE658003B9C75 /* Geolocation_v1_0_0Tests */,
 				013324342FDCAE0D0074A818 /* NotifiNotificationService */,
 				01A339832FE191EB00207C36 /* NearBuyIntents */,
-				AA1000000000000000000006 /* AllimWatch Watch App */,
 			);
 		};
 /* End PBXProject section */
@@ -912,13 +867,6 @@
 				FF0200000001AABB00CC0001 /* SpecialElite-Regular.ttf in Resources */,
 				01A339A52FE1A86E00207C36 /* AppIntentVocabulary.plist in Resources */,
 				011574932F69FD9700963138 /* GoogleService-Info.plist in Resources */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		AA1000000000000000000005 /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1069,13 +1017,6 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		AA1000000000000000000003 /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 		CC0300000000000000000001 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -1103,11 +1044,6 @@
 			isa = PBXTargetDependency;
 			target = 01A339832FE191EB00207C36 /* NearBuyIntents */;
 			targetProxy = 01A3398B2FE191EB00207C36 /* PBXContainerItemProxy */;
-		};
-		AA100000000000000000000D /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = AA1000000000000000000006 /* AllimWatch Watch App */;
-			targetProxy = AA100000000000000000000C /* PBXContainerItemProxy */;
 		};
 		CC0800000000000000000002 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
@@ -1474,69 +1410,6 @@
 			};
 			name = Release;
 		};
-		AA1000000000000000000007 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = XT28W79782;
-				ENABLE_PREVIEWS = YES;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = Allim;
-				INFOPLIST_KEY_WKApplication = YES;
-				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.kor3a.nearbuy;
-				INFOPLIST_KEY_WKRunsIndependentlyOfCompanionApp = NO;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-				);
-				MARKETING_VERSION = 1.3.13;
-				PRODUCT_BUNDLE_IDENTIFIER = com.kor3a.nearbuy.watchkitapp;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = watchos;
-				SKIP_INSTALL = YES;
-				SUPPORTED_PLATFORMS = "watchos watchsimulator";
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = 4;
-				WATCHOS_DEPLOYMENT_TARGET = 9.0;
-			};
-			name = Debug;
-		};
-		AA1000000000000000000008 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_IDENTITY = "Apple Development";
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = XT28W79782;
-				ENABLE_PREVIEWS = YES;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = Allim;
-				INFOPLIST_KEY_WKApplication = YES;
-				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.kor3a.nearbuy;
-				INFOPLIST_KEY_WKRunsIndependentlyOfCompanionApp = NO;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-				);
-				MARKETING_VERSION = 1.3.13;
-				PRODUCT_BUNDLE_IDENTIFIER = com.kor3a.nearbuy.watchkitapp;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = watchos;
-				SKIP_INSTALL = YES;
-				SUPPORTED_PLATFORMS = "watchos watchsimulator";
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = 4;
-				WATCHOS_DEPLOYMENT_TARGET = 9.0;
-			};
-			name = Release;
-		};
 		CC0700000000000000000001 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -1630,15 +1503,6 @@
 			buildConfigurations = (
 				8278FE032C5DD1CB0017EB72 /* Debug */,
 				8278FE042C5DD1CB0017EB72 /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
-		AA1000000000000000000009 /* Build configuration list for PBXNativeTarget "AllimWatch Watch App" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				AA1000000000000000000007 /* Debug */,
-				AA1000000000000000000008 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
