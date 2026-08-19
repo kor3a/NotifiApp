@@ -208,9 +208,8 @@ class StoresViewModel: ObservableObject {
                     return order1 < order2
                 }
 
-                // Push the updated store list to the home screen widget and Apple Watch
+                // Push the updated store list to the home screen widget
                 WidgetDataStore.shared.updateWidgetData(from: self.userStoreItems)
-                WatchConnectivityManager.shared.updateStores(from: self.userStoreItems)
 
                 // Refresh stale sharedFromName values by looking up current names
                 self.refreshSharedFromNames(for: self.userStoreItems)
@@ -309,9 +308,8 @@ class StoresViewModel: ObservableObject {
         if updated {
             // Trigger UI update by reassigning (in case SwiftUI doesn't detect the change)
             objectWillChange.send()
-            // Push updated reminder counts to the home screen widget and Apple Watch
+            // Push updated reminder counts to the home screen widget
             WidgetDataStore.shared.updateWidgetData(from: userStoreItems)
-            WatchConnectivityManager.shared.updateStores(from: userStoreItems)
         }
     }
 
@@ -708,9 +706,8 @@ class StoresViewModel: ObservableObject {
 
         // Remove from local array immediately for smooth UI
         userStoreItems.removeAll { $0.id == userStoreItem.id }
-        // Reflect removal in the home screen widget and Apple Watch immediately
+        // Reflect removal in the home screen widget immediately
         WidgetDataStore.shared.updateWidgetData(from: userStoreItems)
-        WatchConnectivityManager.shared.updateStores(from: userStoreItems)
 
         // Use the permission information already available in userStoreItem
         // instead of fetching the document again (which could fail and leave orphaned reminders)
@@ -1472,7 +1469,6 @@ class StoresViewModel: ObservableObject {
         isManuallyReordering = true
         userStoreItems = newOrder
         WidgetDataStore.shared.updateWidgetData(from: userStoreItems)
-        WatchConnectivityManager.shared.updateStores(from: userStoreItems)
 
         let batch = db.batch()
         for (index, item) in newOrder.enumerated() {
@@ -1507,7 +1503,6 @@ class StoresViewModel: ObservableObject {
         userStoreItems = updatedItems
         // Reflect reordering in the home screen widget
         WidgetDataStore.shared.updateWidgetData(from: userStoreItems)
-        WatchConnectivityManager.shared.updateStores(from: userStoreItems)
 
         // Update sortOrder for all items in Firestore
         let batch = db.batch()

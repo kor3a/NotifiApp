@@ -261,7 +261,7 @@ class NotificationManager: NSObject, ObservableObject {
         trigger: UNTimeIntervalNotificationTrigger,
         senderDisplayName: String,
         conversationIdentifier: String,
-        onScheduled: (() -> Void)? = nil
+        onScheduled: ((Bool) -> Void)? = nil
     ) {
         let sender = INPerson(
             personHandle: INPersonHandle(value: conversationIdentifier, type: .unknown),
@@ -316,25 +316,36 @@ class NotificationManager: NSObject, ObservableObject {
                 if let addError {
                     print("   ❌ Error scheduling notification: \(addError)")
                 } else {
-                    let isCommunication: String
-                    if #available(iOS 15.0, *) {
-                        // Communication notifications carry filterCriteria after updating(from:)
-                        isCommunication = updateOK ? "✅ communication" : "❌ NOT communication (fell back)"
-                    } else {
-                        isCommunication = updateOK ? "communication" : "NOT communication"
-                    }
+                    // Communication notifications carry filterCriteria after updating(from:)
+                    let isCommunication = updateOK ? "✅ communication" : "❌ NOT communication (fell back)"
                     print("   ✅ Scheduled \(isCommunication) notification — id=\(identifier)")
                     print("      sender=\(senderDisplayName) conversationID=\(conversationIdentifier)")
-                    onScheduled?()
                 }
                 #endif
+                // Outside the DEBUG guard on purpose: callers hold a background
+                // task assertion open until this fires, and the notification log
+                // is written from here. Both were dead in Release builds while
+                // this call sat inside `#if DEBUG`.
+                onScheduled?(addError == nil)
             }
         }
     }
 
     // MARK: - Notification Scheduling
 
-    func scheduleStoreProximityNotification(storeName: String, reminderCount: Int, mode: InterruptionMode? = nil, delay: TimeInterval = 1) {
+    /// - Parameter onScheduled: Runs once the request has been handed to the
+    ///   system, or as soon as it's clear it never will be. A geofence wake
+    ///   holds its background task assertion open until this fires — everything
+    ///   that makes the banner CarPlay-eligible (the INSendMessageIntent
+    ///   donation, `updating(from:)`, the `add`) happens asynchronously after
+    ///   this method has already returned.
+    func scheduleStoreProximityNotification(
+        storeName: String,
+        reminderCount: Int,
+        mode: InterruptionMode? = nil,
+        delay: TimeInterval = 1,
+        onScheduled: ((Bool) -> Void)? = nil
+    ) {
         #if DEBUG
         print("🔔 NotificationManager: Attempting to schedule notification for \(storeName)")
         #endif
@@ -351,6 +362,7 @@ class NotificationManager: NSObject, ObservableObject {
                 #if DEBUG
                 print("   ❌ Notifications not authorized!")
                 #endif
+                onScheduled?(false)
                 return
             }
 
@@ -392,8 +404,11 @@ class NotificationManager: NSObject, ObservableObject {
                 trigger: trigger,
                 senderDisplayName: "Allim",
                 conversationIdentifier: "store-proximity-\(storeName)",
-                onScheduled: {
-                    self.logStore.addEntry(storeName: storeName, reminderCount: reminderCount)
+                onScheduled: { scheduled in
+                    if scheduled {
+                        self.logStore.addEntry(storeName: storeName, reminderCount: reminderCount)
+                    }
+                    onScheduled?(scheduled)
                 }
             )
         }

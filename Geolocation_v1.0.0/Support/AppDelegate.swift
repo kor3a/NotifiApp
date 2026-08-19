@@ -45,11 +45,6 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         // in didRegisterForRemoteNotificationsWithDeviceToken below.
         application.registerForRemoteNotifications()
 
-        // Activate the Apple Watch link here rather than in the SwiftUI scene:
-        // a message from the watch can background-launch this app, and it only
-        // reaches us if the WCSession delegate is already set when it arrives.
-        WatchConnectivityManager.shared.activate()
-
         return true
     }
 
