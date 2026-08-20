@@ -123,16 +123,17 @@ class NotificationManager: NSObject, ObservableObject {
 
         // Create a category for new message notifications.
         //
-        // NOTE: message notifications are CarPlay-eligible only because both
-        // delivery paths present them as communication notifications, which
-        // surface sender/group name on the CarPlay screen — never the message
-        // body (Apple forbids showing message contents in CarPlay):
-        //  - local path: scheduleAsCommunicationNotification (below)
-        //  - remote path: the NotifiNotificationService extension rewrites the
-        //    push via INSendMessageIntent (requires aps.mutable-content, set in
-        //    functions/index.js)
-        // If either path stops producing communication notifications, remove
-        // `.allowInCarPlay` here again.
+        // NOTE: both delivery paths present messages as communication
+        // notifications — scheduleNewMessageNotification locally, and the
+        // NotifiNotificationService extension for pushes (via INSendMessageIntent,
+        // needing aps.mutable-content, set in functions/index.js).
+        //
+        // `.allowInCarPlay` is kept here, but it does not currently win: a
+        // communication notification is routed by CarPlay's messaging rules, which
+        // need the carplay-communication entitlement this app no longer holds, so
+        // these banners do not reach the CarPlay screen. Dropping the intent would
+        // put them back on CarPlay at the cost of the sender-led presentation on the
+        // phone — an open trade, not a settled one.
         let newMessageCategory = UNNotificationCategory(
             identifier: "NEW_MESSAGE",
             actions: [],
@@ -191,13 +192,19 @@ class NotificationManager: NSObject, ObservableObject {
         await notificationCenter.notificationSettings().authorizationStatus
     }
 
+    /// Mirrors `UNNotificationSettings.carPlaySetting`, which reports only on the
+    /// per-app CarPlay toggle in Settings > Notifications.
+    ///
+    /// This is NOT the whole story for whether a banner reaches the CarPlay
+    /// screen, so don't read a diagnosis into it. Allim's proximity and message
+    /// banners get there by being communication notifications — an
+    /// INSendMessageIntent donated against the NearBuyIntents SiriKit extension —
+    /// and that path has been observed working while this setting reads
+    /// `.notSupported`. Treat the value as one input, not a verdict.
     enum CarPlayNotificationStatus {
-        case enabled    // Explicit per-app CarPlay toggle exists and is ON
+        case enabled    // Per-app CarPlay toggle exists and is ON
         case disabled   // Per-app CarPlay toggle exists but is OFF
-        case notSupported  // CarPlay notifications are NOT available for the app. Usually means the
-                           // `.carPlay` authorization option wasn't captured at first grant (iOS
-                           // freezes options at the initial grant — delete + reinstall to re-capture),
-                           // or the CarPlay entitlement isn't live in the build. NOT a normal/healthy state.
+        case notSupported  // iOS exposes no per-app CarPlay toggle for this build
     }
 
     @Published private(set) var _carPlaySetting: CarPlayNotificationStatus = .notSupported
@@ -227,11 +234,11 @@ class NotificationManager: NSObject, ObservableObject {
             let carPlayStatus: String
             switch settings.carPlaySetting {
             case .enabled:
-                carPlayStatus = "✅ ENABLED (per-app toggle is on)"
+                carPlayStatus = "enabled (per-app toggle is on)"
             case .disabled:
-                carPlayStatus = "❌ DISABLED — Go to Settings > Notifications > [App] > CarPlay and turn it on"
+                carPlayStatus = "disabled (per-app toggle is off — Settings > Notifications > Allim > CarPlay)"
             case .notSupported:
-                carPlayStatus = "❌ notSupported — CarPlay notifications NOT available. The `.carPlay` option likely wasn't captured at first grant (delete + reinstall to re-capture) or the CarPlay entitlement isn't live."
+                carPlayStatus = "notSupported (no per-app CarPlay toggle for this build — does NOT by itself mean banners can't reach CarPlay; the communication-notification path is separate)"
             @unknown default:
                 carPlayStatus = "❓ UNKNOWN (rawValue=\(settings.carPlaySetting.rawValue))"
             }
@@ -249,12 +256,22 @@ class NotificationManager: NSObject, ObservableObject {
         }
     }
 
-    // MARK: - CarPlay-Compatible Scheduling
+    // MARK: - Communication Notifications
 
     /// Wraps a notification in an INSendMessageIntent so iOS treats it as a communication
-    /// notification. This is required for reliable CarPlay banner display on apps without
-    /// a CarPlay entitlement — generic local notifications are not guaranteed to appear
-    /// on the CarPlay screen, but communication notifications are.
+    /// notification: the sender's name and avatar lead the banner instead of the app icon.
+    ///
+    /// WARNING — this is the opposite of CarPlay-friendly, despite what this helper used to
+    /// claim. A communication notification is reclassified by iOS as a message, so the
+    /// CarPlay screen applies its messaging rules and drops it unless the app holds
+    /// `com.apple.developer.carplay-communication` (removed in 1d992eb for App Review 2.1(a)).
+    /// It also overwrites `content.title` with `senderDisplayName`, and the title is the only
+    /// text CarPlay renders — it never shows the body.
+    ///
+    /// A plain notification whose category carries `.allowInCarPlay` DOES reach the CarPlay
+    /// screen. That is how the store proximity banner is scheduled; see
+    /// `scheduleStoreProximityNotification`. Use this helper only where the sender-led
+    /// presentation on the phone is worth losing the CarPlay banner for.
     private func scheduleAsCommunicationNotification(
         content: UNMutableNotificationContent,
         identifier: String,
@@ -367,13 +384,13 @@ class NotificationManager: NSObject, ObservableObject {
             }
 
             let content = UNMutableNotificationContent()
-            content.title = "📍 You're near \(storeName)"
 
-            // The banner is delivered as a communication notification, so iOS
-            // replaces the title with the sender name ("Allim") — the store name
-            // has to live in the body or the user never sees which store it is.
+            // CarPlay renders the title and the app name, never the body — so the
+            // store name has to be in the title or the driver sees nothing useful.
+            // The body still carries it too, for the phone.
             let trimmedName = storeName.trimmingCharacters(in: .whitespacesAndNewlines)
             let place = trimmedName.isEmpty ? "this store" : trimmedName
+            content.title = "📍 You're near \(place)"
 
             if reminderCount == 1 {
                 content.body = "You have 1 reminder waiting for you at \(place)."
@@ -398,19 +415,35 @@ class NotificationManager: NSObject, ObservableObject {
             let identifier = "store_proximity_\(storeName)_\(Date().timeIntervalSince1970)"
             let trigger = UNTimeIntervalNotificationTrigger(timeInterval: max(1, delay), repeats: false)
 
-            self.scheduleAsCommunicationNotification(
-                content: content,
-                identifier: identifier,
-                trigger: trigger,
-                senderDisplayName: "Allim",
-                conversationIdentifier: "store-proximity-\(storeName)",
-                onScheduled: { scheduled in
-                    if scheduled {
-                        self.logStore.addEntry(storeName: storeName, reminderCount: reminderCount)
-                    }
-                    onScheduled?(scheduled)
+            // Scheduled plainly, NOT through scheduleAsCommunicationNotification.
+            //
+            // The proximity banner reaches the CarPlay screen because STORE_PROXIMITY
+            // carries `.allowInCarPlay`. Wrapping it in an INSendMessageIntent takes
+            // that route away: iOS reclassifies it as a message, and CarPlay then
+            // applies its messaging rules, which need the carplay-communication
+            // entitlement this app no longer holds. The intent also overwrites the
+            // title with the sender name, so the one field CarPlay does render
+            // stopped naming the store.
+            //
+            // Verified against two banners for the same store: a plain one showed
+            // "📍 You're near Starbucks Coffee C… / Allim" on the CarPlay screen,
+            // while the communication version showed "Allim" on the phone and never
+            // reached CarPlay at all.
+            let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
+            self.notificationCenter.add(request) { addError in
+                let scheduled = addError == nil
+                #if DEBUG
+                if let addError {
+                    print("   ❌ Error scheduling proximity notification: \(addError)")
+                } else {
+                    print("   ✅ Scheduled CarPlay-eligible proximity notification — id=\(identifier)")
                 }
-            )
+                #endif
+                if scheduled {
+                    self.logStore.addEntry(storeName: storeName, reminderCount: reminderCount)
+                }
+                onScheduled?(scheduled)
+            }
         }
     }
 
