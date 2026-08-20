@@ -356,12 +356,23 @@ private struct NotificationDebugTab: View {
                 HStack { Text("CarPlay"); Spacer(); Text(manager.isCarPlayConnected ? "🚗 Connected" : "📱 Disconnected") }
             }
 
-            Section("Test Notification") {
+            Section {
                 TextField("Store Name", text: $storeName)
                 Stepper("Reminders: \(reminderCount)", value: $reminderCount, in: 1...10)
                 Button("Test: Passive") { fire(.passive) }
                 Button("Test: Time Sensitive") { fire(.timeSensitive) }
                 Button("Test: Critical") { fire(.critical) }
+            } header: {
+                Text("Test Notification")
+            } footer: {
+                // The CarPlay screen only ever shows a notification the app was NOT
+                // frontmost for. Firing this and watching the banner land on top of
+                // this very screen tests the foreground path and says nothing about
+                // CarPlay — a trap worth spelling out where it gets tapped, rather
+                // than in a comment nobody reads while sitting in a car.
+                Text("Fires after \(Int(testFireDelay))s. Leave the app before it lands — "
+                     + "background it or lock the phone. A banner shown while Allim is "
+                     + "open is the in-app presentation and never reaches CarPlay.")
             }
 
             Section("Debug Actions") {
@@ -386,14 +397,17 @@ private struct NotificationDebugTab: View {
         .navigationBarTitleDisplayMode(.inline)
     }
 
+    /// Long enough to background the app (or lock with the side button) before the
+    /// notification lands. Five seconds meant a fumbled swipe left you testing the
+    /// foreground path by accident.
+    private let testFireDelay: TimeInterval = 12
+
     private func fire(_ mode: NotificationManager.InterruptionMode) {
-        // 5s delay gives you time to background the app (or lock with ⌘L) so the
-        // system presents the banner on the CarPlay display, not just in-app.
         manager.scheduleStoreProximityNotification(
             storeName: storeName,
             reminderCount: reminderCount,
             mode: mode,
-            delay: 5
+            delay: testFireDelay
         )
     }
 }
