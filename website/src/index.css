@@ -1,14 +1,14 @@
 @import "tailwindcss";
 
 @theme {
-  /* Palette derived from the Allim app icon: deep indigo ground, cyan accent. */
+  /* Deep indigo ground from the Allim app icon, with a warm amber accent. */
   --color-allim-dark: #0D0A1A;
   --color-allim-surface: #13102A;
   --color-allim-card: #191436;
   --color-allim-line: #272049;
   --color-allim-line-strong: #372E63;
   --color-allim-accent: #f19953;
-  --color-allim-accent-dim: #00A9B1;
+  --color-allim-accent-dim: #C2762F;
   --color-allim-indigo: #302567;
   --color-allim-muted: #c2c5bb;
   --color-allim-faint: #6E678C;
