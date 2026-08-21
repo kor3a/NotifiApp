@@ -353,15 +353,11 @@ export default function UseCases() {
         <FadeIn>
           <div className="grid gap-6 md:grid-cols-12 md:gap-12">
             <div className="md:col-span-6">
-              <p className="mb-4 text-[13px] font-medium uppercase tracking-[0.14em] text-allim-accent">
+              <h2 className="text-2xl font-semibold uppercase tracking-[0.08em] text-allim-accent sm:text-3xl">
                 In practice
-              </p>
-              <h2 className="text-4xl font-bold leading-[1.1] tracking-tight text-white sm:text-5xl">
-                One family,
-                <br className="hidden sm:block" /> one trip to Walmart.
               </h2>
             </div>
-            <div className="md:col-span-5 md:col-start-8 md:pt-14">
+            <div className="md:col-span-5 md:col-start-8">
               <p className="text-lg leading-relaxed text-allim-muted">
                 This is the scenario Allim was built around: four people, one
                 store, and nobody making a second trip for the milk.

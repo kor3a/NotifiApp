@@ -100,9 +100,9 @@ export default function Features() {
               {/* Persistent frame — intro and rail hold still while
                   the copy on the right swaps out. */}
               <div className="lg:col-span-4">
-                <p className="mb-4 text-[13px] font-medium uppercase tracking-[0.14em] text-allim-accent">
+                <h2 className="mb-4 text-2xl font-semibold uppercase tracking-[0.08em] text-allim-accent sm:text-3xl">
                   What it does
-                </p>
+                </h2>
                 <p className="max-w-xs text-[15px] leading-relaxed text-allim-muted">
                   A grocery list for every store you shop at, a nudge the
                   moment you're near one, and a shared list the rest of the

@@ -40,14 +40,9 @@ export default function HowItWorks() {
     >
       <div className="mx-auto max-w-6xl px-6">
         <FadeIn>
-          <div>
-            <p className="mb-4 text-[13px] font-medium uppercase tracking-[0.14em] text-allim-accent">
-              How it works
-            </p>
-            <h2 className="text-4xl font-bold tracking-tight text-white sm:text-5xl">
-              Set it up once.
-            </h2>
-          </div>
+          <h2 className="text-2xl font-semibold uppercase tracking-[0.08em] text-allim-accent sm:text-3xl">
+            How it works
+          </h2>
         </FadeIn>
 
         {/* Timeline rail */}

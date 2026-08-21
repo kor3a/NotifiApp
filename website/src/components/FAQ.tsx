@@ -1,5 +1,4 @@
 import FadeIn from "./FadeIn";
-import { SUPPORT_EMAIL } from "../constants/links";
 
 const faqs = [
   {
@@ -34,22 +33,9 @@ export default function FAQ() {
       <div className="mx-auto max-w-6xl px-6">
         <div className="grid gap-12 lg:grid-cols-12 lg:gap-16">
           <FadeIn className="lg:col-span-4">
-            <p className="mb-4 text-[13px] font-medium uppercase tracking-[0.14em] text-allim-accent">
-              Questions
-            </p>
-            <h2 className="text-4xl font-bold leading-[1.1] tracking-tight text-white sm:text-5xl">
-              Before you download.
+            <h2 className="text-2xl font-semibold uppercase tracking-[0.08em] text-allim-accent sm:text-3xl">
+              FAQs
             </h2>
-            <p className="mt-6 max-w-xs text-[15px] leading-relaxed text-allim-muted">
-              Anything not covered here, email{" "}
-              <a
-                href={`mailto:${SUPPORT_EMAIL}`}
-                className="text-allim-accent underline underline-offset-4 hover:text-white"
-              >
-                {SUPPORT_EMAIL}
-              </a>{" "}
-              — replies usually land within a couple of days.
-            </p>
           </FadeIn>
 
           <div className="lg:col-span-7 lg:col-start-6">
