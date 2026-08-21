@@ -36,6 +36,61 @@ const features = [
   },
 ];
 
+/* A fixed map-grid backdrop: fine blocks, a couple of heavier "roads",
+   and three pins. It sits inside the sticky panel so it holds still while
+   the feature copy swaps, and is masked so it fades out at the top and
+   bottom instead of meeting the neighbouring sections as a hard edge.
+   Road coordinates run well past any realistic viewport so they never
+   truncate mid-air on a wide or tall screen. */
+function FeatureBackdrop() {
+  return (
+    <div
+      className="feature-backdrop pointer-events-none absolute inset-0 overflow-hidden"
+      aria-hidden="true"
+    >
+      <svg className="h-full w-full">
+        <defs>
+          <pattern
+            id="allim-map-grid"
+            width="56"
+            height="56"
+            patternUnits="userSpaceOnUse"
+          >
+            <path
+              d="M56 0H0V56"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1"
+            />
+          </pattern>
+        </defs>
+
+        <rect
+          width="100%"
+          height="100%"
+          fill="url(#allim-map-grid)"
+          className="text-allim-line"
+        />
+
+        {/* Heavier roads cutting across the grid */}
+        <g className="text-allim-line-strong" stroke="currentColor" fill="none">
+          <path d="M0 224H4000" strokeWidth="6" />
+          <path d="M392 0V2400" strokeWidth="6" />
+          <path d="M0 616H4000" strokeWidth="3" />
+          <path d="M1064 0V2400" strokeWidth="3" />
+        </g>
+
+        {/* Store pins */}
+        <g className="text-allim-accent" fill="currentColor">
+          <circle cx="392" cy="224" r="7" />
+          <circle cx="1064" cy="616" r="5" opacity="0.55" />
+          <circle cx="1064" cy="224" r="4" opacity="0.35" />
+        </g>
+      </svg>
+    </div>
+  );
+}
+
 export default function Features() {
   const [active, setActive] = useState(0);
   const [pinned, setPinned] = useState(false);
@@ -94,26 +149,14 @@ export default function Features() {
           ))}
         </div>
 
-        <div className="lg:sticky lg:top-0 lg:flex lg:h-screen lg:items-center">
-          <div className="mx-auto w-full max-w-6xl px-6 py-24 lg:py-0">
+        <div className="relative lg:sticky lg:top-0 lg:flex lg:h-screen lg:items-center">
+          <FeatureBackdrop />
+          <div className="relative mx-auto w-full max-w-6xl px-6 py-24 lg:py-0">
+            <h2 className="sr-only">Features</h2>
             <div className="grid gap-12 lg:grid-cols-12 lg:gap-16">
-              {/* Persistent frame — heading and rail hold still while
-                  the copy on the right swaps out. */}
+              {/* Persistent rail — holds still while the copy swaps out. */}
               <div className="lg:col-span-4">
-                <p className="mb-4 text-[13px] font-medium uppercase tracking-[0.14em] text-allim-accent">
-                  What it does
-                </p>
-                <h2 className="text-4xl font-bold leading-[1.1] tracking-tight text-white">
-                  Four things,
-                  <br /> done properly.
-                </h2>
-                <p className="mt-6 max-w-xs text-[15px] leading-relaxed text-allim-muted">
-                  Allim isn't trying to be your whole life. It keeps a grocery
-                  list per store, tells you when you're near one, and lets the
-                  rest of the household add to it.
-                </p>
-
-                <ul className="mt-10 hidden space-y-1 lg:block">
+                <ul className="hidden space-y-1 lg:block">
                   {features.map((feature, index) => {
                     const isActive = index === active;
                     return (
@@ -165,7 +208,7 @@ export default function Features() {
                     >
                       <div className="flex items-center gap-4">
                         <feature.icon
-                          size={22}
+                          size={26}
                           strokeWidth={1.75}
                           className="text-allim-accent"
                         />
@@ -173,13 +216,13 @@ export default function Features() {
                           {feature.n}
                         </span>
                       </div>
-                      <h3 className="mt-6 text-3xl font-bold leading-tight tracking-tight text-white sm:text-4xl">
+                      <h3 className="mt-6 text-4xl font-bold leading-[1.1] tracking-tight text-white sm:text-5xl">
                         {feature.title}
                       </h3>
-                      <p className="mt-3 text-xl text-allim-accent">
+                      <p className="mt-4 text-2xl text-allim-accent">
                         {feature.kicker}
                       </p>
-                      <p className="mt-6 max-w-lg text-lg leading-relaxed text-allim-muted">
+                      <p className="mt-7 max-w-xl text-xl leading-relaxed text-allim-muted">
                         {feature.description}
                       </p>
                     </div>
