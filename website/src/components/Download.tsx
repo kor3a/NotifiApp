@@ -25,7 +25,7 @@ export default function Download() {
               <br /> smarter today.
             </h2>
             <p className="mt-6 max-w-lg text-lg leading-relaxed text-allim-muted">
-              Stores, lists, location alerts, and sharing cost nothing. Premium
+              Grocery lists, stores, location alerts, and sharing cost nothing. Premium
               is $0.99/month if you want the AI tools and an ad-free app.
             </p>
           </FadeIn>

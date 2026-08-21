@@ -320,7 +320,7 @@ const stages = [
     n: "01",
     label: "The shared list",
     title: "Everyone adds during the week",
-    desc: "Mom, Dad, and Sister drop things into one shared Walmart list as they run out — milk, bread, paper towels.",
+    desc: "Mom, Dad, and Sister add groceries to one shared Walmart list as they run out — milk, bread, paper towels.",
     screen: <WalmartListScreen />,
   },
   {
@@ -334,7 +334,7 @@ const stages = [
     n: "03",
     label: "The heads-up",
     title: "The family gets seven minutes",
-    desc: "Everyone on the list is notified that John is going and roughly when he'll arrive — time enough to add one more thing.",
+    desc: "Everyone on the grocery list is notified that John is going and roughly when he'll arrive — time enough to add one more thing.",
     screen: <OnMyWayNotificationScreen />,
     phoneFrameProps: {
       screenBackgroundStyle: { background: "#1E1B4B" },

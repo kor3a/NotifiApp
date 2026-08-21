@@ -30,12 +30,12 @@ const rows: Row[] = [
     id: "sharing",
     label: "Sharing",
     title: "Shop together, even apart",
-    lead: "Hand a store list to anyone — partner, roommates, family. Everyone sees the same list, and you decide who can change it.",
+    lead: "Hand a grocery list to anyone — partner, roommates, family. Everyone sees the same list, and you decide who can change it.",
     points: [
       {
         icon: Pencil,
         title: "Can edit",
-        desc: "Add items, check things off, and every change syncs both ways.",
+        desc: "Add groceries, check things off, and every change syncs both ways.",
       },
       {
         icon: Eye,
@@ -54,12 +54,12 @@ const rows: Row[] = [
     id: "recipe",
     label: "Smart Recipe",
     title: "From “what's for dinner” to a full list",
-    lead: "Ask for any recipe and Allim writes out the steps, then drops every ingredient onto the right store list in one tap.",
+    lead: "Ask for any recipe and Allim writes out the steps, then drops every ingredient onto the grocery list for the store you buy it at.",
     points: [
       {
         icon: Sparkles,
         title: "Any meal, any occasion",
-        desc: "Ask in plain language and get something you can actually cook.",
+        desc: "Ask in plain language and get a meal you can actually shop for.",
       },
       {
         icon: Replace,
@@ -69,7 +69,7 @@ const rows: Row[] = [
       {
         icon: ListPlus,
         title: "One tap to the list",
-        desc: "Every ingredient lands in the store you'd buy it from.",
+        desc: "Every ingredient lands on the grocery list for the store you'd buy it from.",
       },
     ],
     screen: <SmartRecipeScreen />,
@@ -77,8 +77,8 @@ const rows: Row[] = [
   {
     id: "category",
     label: "Smart Category",
-    title: "The list sorts itself",
-    lead: "Items get grouped into aisle categories the moment they're added — whether you typed them or imported them from a recipe.",
+    title: "Your grocery list sorts itself",
+    lead: "Groceries get grouped into aisle categories the moment they're added — whether you typed them in or pulled them from a recipe.",
     points: [
       {
         icon: Tag,
@@ -110,7 +110,7 @@ export default function CloserLook() {
               A closer look
             </p>
             <h2 className="max-w-2xl text-4xl font-bold leading-[1.1] tracking-tight text-white sm:text-5xl">
-              The three parts people keep the app for.
+              The three parts people keep Allim for.
             </h2>
           </div>
         </FadeIn>

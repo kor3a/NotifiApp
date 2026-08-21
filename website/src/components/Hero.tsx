@@ -13,14 +13,14 @@ export default function Hero() {
           <div className="inline-flex items-center gap-2 mb-8">
             <MapPin size={15} className="text-allim-accent" />
             <span className="text-[13px] font-medium uppercase tracking-[0.14em] text-allim-accent">
-              Proximity reminders for real errands
+              Grocery lists that know where you are
             </span>
           </div>
 
           {/* Headline */}
           <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold text-white leading-tight tracking-tight">
             Never forget your{" "}
-            <span className="text-allim-accent">lists</span> again
+            <span className="text-allim-accent">groceries</span> again
           </h1>
 
           {/* Subheadline */}
@@ -28,10 +28,10 @@ export default function Hero() {
             className="mt-6 text-lg sm:text-xl text-white/95 max-w-xl mx-auto lg:mx-0 leading-relaxed"
             style={{ textShadow: "0 1px 3px rgba(0,0,0,0.55), 0 0 18px rgba(0,0,0,0.35)" }}
           >
-            Your Geolist uses smart proximity reminders to alert you the moment
-            you're near your favorite stores, so you never miss a shopping
-            trip. Collaborate with family and friends, and let smart AI organize
-            your lists.
+            Keep a grocery list for every store you shop at. Allim pings you
+            the moment you're near one, so the milk gets bought on the way home
+            instead of on a second trip. Share the list with your family and
+            let AI sort it by aisle.
           </p>
 
           {/* CTA Buttons */}

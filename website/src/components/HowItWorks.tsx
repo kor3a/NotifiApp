@@ -7,14 +7,14 @@ const steps = [
     icon: Store,
     title: "Add your stores",
     description:
-      "Search for the grocery stores near you and pin the ones you use. Allim looks within a 5 km radius.",
+      "Search the grocery stores near you and pin the ones you actually shop at. Allim looks within a 5 km radius.",
   },
   {
     step: "02",
     icon: ListChecks,
-    title: "Fill the lists",
+    title: "Fill your grocery lists",
     description:
-      "Add what you need at each store. Smart Category groups everything by aisle as you type.",
+      "Add the groceries you need at each store. Smart Category groups them by aisle as you type.",
   },
   {
     step: "03",
@@ -28,7 +28,7 @@ const steps = [
     icon: Bell,
     title: "Get the nudge",
     description:
-      "You're near a store with items waiting. Tap the notification and the list is right there.",
+      "You're near a store with groceries waiting. Tap the notification and the list is right there.",
   },
 ];
 

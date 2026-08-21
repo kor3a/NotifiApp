@@ -4,7 +4,7 @@ import { SUPPORT_EMAIL } from "../constants/links";
 const faqs = [
   {
     q: "What does “Allim” mean?",
-    a: "It's the Korean word for “alarm.” The whole app is one idea: an alarm that goes off because of where you are, not what time it is.",
+    a: "It's the Korean word for “alarm.” The whole app is one idea: a grocery alarm that goes off because of where you are, not what time it is.",
   },
   {
     q: "Does it drain my battery?",
@@ -16,11 +16,11 @@ const faqs = [
   },
   {
     q: "What's free and what's paid?",
-    a: "Stores, lists, location alerts, and sharing are free. Premium is $0.99/month and adds Smart Recipe, Smart Category, and removes ads.",
+    a: "Grocery lists, stores, location alerts, and sharing are free. Premium is $0.99/month and adds Smart Recipe, Smart Category, and removes ads.",
   },
   {
     q: "Do the people I share with need Premium?",
-    a: "No. Sharing works on the free tier for everyone on the list, in both “can edit” and “view only” modes.",
+    a: "No. Sharing works on the free tier for everyone on the grocery list, in both “can edit” and “view only” modes.",
   },
   {
     q: "My alerts aren't firing. What now?",
