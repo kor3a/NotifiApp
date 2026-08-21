@@ -1,12 +1,17 @@
 @import "tailwindcss";
 
 @theme {
-  --color-allim-blue: #4A90D9;
-  --color-allim-purple: #8B5CF6;
-  --color-allim-indigo: #6366F1;
-  --color-allim-dark: #0F0D1A;
-  --color-allim-card: #1A1730;
-  --color-allim-muted: #A8A3B5;
+  /* Deep indigo ground from the Allim app icon, with a warm amber accent. */
+  --color-allim-dark: #0D0A1A;
+  --color-allim-surface: #13102A;
+  --color-allim-card: #191436;
+  --color-allim-line: #272049;
+  --color-allim-line-strong: #372E63;
+  --color-allim-accent: #f19953;
+  --color-allim-accent-dim: #C2762F;
+  --color-allim-indigo: #302567;
+  --color-allim-muted: #c2c5bb;
+  --color-allim-faint: #6E678C;
   --font-display: "SF Pro Display", system-ui, -apple-system, sans-serif;
   --font-body: "SF Pro Text", system-ui, -apple-system, sans-serif;
 }
@@ -250,6 +255,39 @@ html {
     stroke-dashoffset: 0;
   }
 
+}
+
+/* --- Features scroll stage -------------------------------------------
+   The stage is tall enough for one viewport-height "step" per feature.
+   A sticky panel stays pinned inside it while the step sentinels scroll
+   past, so the frame holds still and only the feature text cross-fades.
+   Below the lg breakpoint the stage collapses and every feature is laid
+   out in normal flow. ------------------------------------------------ */
+.feature-stage {
+  --step-height: 88vh;
+}
+
+@media (min-width: 1024px) {
+  /* Half a viewport of tail so the last step gets the same pinned dwell as
+     the others — the sentinels only tile the first (count * step) of this. */
+  .feature-stage {
+    height: calc(var(--step-count, 4) * var(--step-height) + 50vh);
+  }
+}
+
+.feature-step {
+  height: var(--step-height);
+}
+
+.feature-panel-item {
+  transition: opacity 450ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 450ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .feature-panel-item {
+    transition: none;
+  }
 }
 
 body {

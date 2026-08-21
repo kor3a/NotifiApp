@@ -1,126 +1,193 @@
+import { useEffect, useRef, useState } from "react";
 import { MapPin, Users, Tag, ChefHat } from "lucide-react";
-import PhoneFrame from "./PhoneFrame";
-import NotificationScreen from "./screens/NotificationScreen";
-import SmartRecipeScreen from "./screens/SmartRecipeScreen";
-import ReminderScreen from "./screens/ReminderScreen";
-import { ShareScreen } from "./Collaboration";
-import { useInView } from "../hooks/useInView";
-import FadeIn from "./FadeIn";
 
 const features = [
   {
+    n: "01",
     icon: MapPin,
-    title: "Location-Based Alerts",
+    title: "Location-based alerts",
+    kicker: "You're near Whole Foods.",
     description:
-      "Get notified automatically when you're near one of your saved stores. Allim uses geofencing to remind you about your shopping list — so you never drive past the store again.",
-    gradient: "from-blue-500 to-cyan-400",
+      "Save the grocery stores you actually shop at. Allim watches for them in the background and pings you when you're close enough to stop in — no app to open, nothing to remember.",
   },
   {
+    n: "02",
     icon: ChefHat,
     title: "Smart Recipe",
+    kicker: "Dinner, minus the planning.",
     description:
-      "Ask Allim's AI for any recipe and get step-by-step instructions. Add all the ingredients to your store list with a single tap — no manual typing needed.",
-    gradient: "from-violet-500 to-purple-400",
+      "Ask for a recipe, get the steps, and push every ingredient onto the grocery list for the store you'd buy it at. One tap, no retyping.",
   },
   {
+    n: "03",
     icon: Users,
-    title: "Family & Friends Collaboration",
+    title: "Shared lists",
+    kicker: "One list, whole household.",
     description:
-      "Share your store lists with family and friends. Collaborate in real-time — they can add items, check things off, and even get notified when someone is heading to the store.",
-    gradient: "from-pink-500 to-rose-400",
+      "Give a grocery list to your partner, roommate, or family. Edits sync live, and you decide who can change things and who can only look.",
   },
   {
+    n: "04",
     icon: Tag,
     title: "Smart Category",
+    kicker: "Produce with produce.",
     description:
-      "Let Allim automatically organize every item into smart aisle categories. Your lists stay tidy and your shopping trips move faster.",
-    gradient: "from-amber-500 to-orange-400",
+      "Groceries sort themselves into aisle groups as they're added, so the list is already in walking order by the time you're pushing a cart.",
   },
 ];
 
-type Feature = (typeof features)[number];
-
-const featureScreens = [
-  <NotificationScreen key="location-alerts" />,
-  <SmartRecipeScreen key="smart-recipe" />,
-  <ShareScreen key="collaboration" />,
-  <ReminderScreen key="smart-category" />,
-];
-
-function FeatureCard({ feature, index }: { feature: Feature; index: number }) {
-  const { ref, inView } = useInView<HTMLDivElement>();
-  return (
-    <div
-      ref={ref}
-      style={{ transitionDelay: `${index * 120}ms` }}
-      className={`fade-in-up ${inView ? "is-visible" : ""}`}
-    >
-      <div className="group relative h-full rounded-3xl bg-white/[0.03] border border-white/[0.06] p-8 hover:bg-white/[0.06] transition-all duration-300">
-        <div
-          className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${feature.gradient} flex items-center justify-center mb-6 shadow-lg`}
-        >
-          <feature.icon size={24} className="text-white" />
-        </div>
-        <h3 className="text-xl font-semibold text-white mb-3">{feature.title}</h3>
-        <p className="text-allim-muted leading-relaxed text-sm">
-          {feature.description}
-        </p>
-      </div>
-    </div>
-  );
-}
-
 export default function Features() {
+  const [active, setActive] = useState(0);
+  const [pinned, setPinned] = useState(false);
+  const stepRefs = useRef<(HTMLDivElement | null)[]>([]);
+
+  // The pinned panel only exists at lg and up. Track that so the
+  // cross-fade's aria-hidden matches what is actually on screen.
+  useEffect(() => {
+    const query = window.matchMedia("(min-width: 1024px)");
+    const sync = () => setPinned(query.matches);
+    sync();
+    query.addEventListener("change", sync);
+    return () => query.removeEventListener("change", sync);
+  }, []);
+
+  // A step sentinel is "active" while it straddles the middle of the
+  // viewport, which is exactly where the pinned panel sits.
+  useEffect(() => {
+    if (!pinned) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue;
+          const index = stepRefs.current.indexOf(entry.target as HTMLDivElement);
+          if (index !== -1) setActive(index);
+        }
+      },
+      { rootMargin: "-50% 0px -50% 0px", threshold: 0 },
+    );
+
+    for (const step of stepRefs.current) {
+      if (step) observer.observe(step);
+    }
+    return () => observer.disconnect();
+  }, [pinned]);
+
   return (
-    <section id="features" className="relative bg-allim-dark py-32">
-      <div className="absolute inset-0 bg-gradient-to-b from-allim-dark via-allim-dark/95 to-allim-dark" />
-      <div className="relative z-10 max-w-7xl mx-auto px-6">
-        <FadeIn className="text-center mb-20">
-          <span className="inline-block px-4 py-1.5 rounded-full bg-allim-blue/10 border border-allim-blue/20 text-allim-blue text-sm font-medium mb-4">
-            Features
-          </span>
-          <h2 className="text-4xl sm:text-5xl font-bold text-white tracking-tight">
-            Shopping made{" "}
-            <span className="bg-gradient-to-r from-allim-blue to-allim-purple bg-clip-text text-transparent">
-              effortless
-            </span>
-          </h2>
-          <p className="mt-4 text-lg text-allim-muted max-w-2xl mx-auto">
-            Allim combines location awareness with smart collaboration to
-            transform how you manage your shopping.
-          </p>
-        </FadeIn>
-
-        <div className="grid lg:grid-cols-[1fr_auto] gap-12 items-center">
-          {/* Feature cards */}
-          <div className="grid sm:grid-cols-2 gap-6">
-            {features.map((feature, index) => (
-              <FeatureCard key={feature.title} feature={feature} index={index} />
-            ))}
-          </div>
-
-          {/* Phone carousel */}
-          <FadeIn delay={300} className="hidden lg:flex justify-center">
-            <PhoneFrame
-              screenBackgroundStyle={{
-                background:
-                  "linear-gradient(to bottom, rgb(242,245,250), rgb(224,235,245))",
+    <section id="features" className="bg-allim-dark">
+      {/* Scroll stage: sticky panel + one sentinel per feature */}
+      <div
+        className="feature-stage relative"
+        style={{ "--step-count": features.length } as React.CSSProperties}
+      >
+        {/* Sentinels drive the active index. Desktop only; they carry no
+            content, so hiding them below lg simply parks active at 0. */}
+        <div className="absolute inset-0 hidden lg:block" aria-hidden="true">
+          {features.map((feature, index) => (
+            <div
+              key={feature.n}
+              ref={(el) => {
+                stepRefs.current[index] = el;
               }}
-            >
-              <div className="flex-1 overflow-hidden">
-                <div className="features-phone-carousel-track flex h-full">
-                  {featureScreens.map((screen, index) => (
-                    <div
-                      key={index}
-                      className="h-full min-w-full flex flex-col overflow-hidden"
-                    >
-                      {screen}
-                    </div>
-                  ))}
-                </div>
+              className="feature-step"
+            />
+          ))}
+        </div>
+
+        <div className="lg:sticky lg:top-0 lg:flex lg:h-screen lg:items-center">
+          <div className="mx-auto w-full max-w-6xl px-6 py-24 lg:py-0">
+            <div className="grid gap-12 lg:grid-cols-12 lg:gap-16">
+              {/* Persistent frame — heading and rail hold still while
+                  the copy on the right swaps out. */}
+              <div className="lg:col-span-4">
+                <p className="mb-4 text-[13px] font-medium uppercase tracking-[0.14em] text-allim-accent">
+                  What it does
+                </p>
+                <h2 className="text-4xl font-bold leading-[1.1] tracking-tight text-white">
+                  Four things,
+                  <br /> done properly.
+                </h2>
+                <p className="mt-6 max-w-xs text-[15px] leading-relaxed text-allim-muted">
+                  Allim isn't trying to be your whole life. It keeps a grocery
+                  list per store, tells you when you're near one, and lets the
+                  rest of the household add to it.
+                </p>
+
+                <ul className="mt-10 hidden space-y-1 lg:block">
+                  {features.map((feature, index) => {
+                    const isActive = index === active;
+                    return (
+                      <li key={feature.n}>
+                        <div
+                          className={`flex items-center gap-4 border-l-2 py-3 pl-5 transition-colors duration-300 ${
+                            isActive
+                              ? "border-allim-accent"
+                              : "border-allim-line"
+                          }`}
+                        >
+                          <span
+                            className={`font-display text-sm tabular-nums transition-colors duration-300 ${
+                              isActive ? "text-allim-accent" : "text-allim-faint"
+                            }`}
+                          >
+                            {feature.n}
+                          </span>
+                          <span
+                            className={`text-[15px] transition-colors duration-300 ${
+                              isActive
+                                ? "font-medium text-white"
+                                : "text-allim-faint"
+                            }`}
+                          >
+                            {feature.title}
+                          </span>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
               </div>
-            </PhoneFrame>
-          </FadeIn>
+
+              {/* Cross-fading copy. All four stay in the DOM — they stack
+                  into one grid cell at lg and flow normally below it. */}
+              <div className="grid gap-16 lg:col-span-7 lg:col-start-6 lg:gap-0">
+                {features.map((feature, index) => {
+                  const isActive = index === active;
+                  return (
+                    <div
+                      key={feature.n}
+                      aria-hidden={pinned && !isActive}
+                      className={`feature-panel-item lg:col-start-1 lg:row-start-1 ${
+                        isActive
+                          ? "lg:translate-y-0 lg:opacity-100"
+                          : "lg:pointer-events-none lg:translate-y-3 lg:opacity-0"
+                      }`}
+                    >
+                      <div className="flex items-center gap-4">
+                        <feature.icon
+                          size={22}
+                          strokeWidth={1.75}
+                          className="text-allim-accent"
+                        />
+                        <span className="font-display text-sm tabular-nums text-allim-faint lg:hidden">
+                          {feature.n}
+                        </span>
+                      </div>
+                      <h3 className="mt-6 text-3xl font-bold leading-tight tracking-tight text-white sm:text-4xl">
+                        {feature.title}
+                      </h3>
+                      <p className="mt-3 text-xl text-allim-accent">
+                        {feature.kicker}
+                      </p>
+                      <p className="mt-6 max-w-lg text-lg leading-relaxed text-allim-muted">
+                        {feature.description}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </section>

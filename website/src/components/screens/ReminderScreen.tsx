@@ -29,7 +29,7 @@ export default function ReminderScreen() {
       className="flex-1 flex flex-col overflow-hidden"
       style={{
         background:
-          "linear-gradient(to bottom, rgb(242,245,250), rgb(224,235,245))",
+          "rgb(240,243,248)",
       }}
     >
       {/* Nav bar */}

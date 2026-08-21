@@ -144,7 +144,7 @@ export default function HeroBackground() {
           className="mx-0 scale-[0.98] lg:scale-[1.05] origin-bottom-right"
           screenBackgroundStyle={{
             background:
-              "linear-gradient(to bottom, rgb(242,245,250), rgb(224,235,245))",
+              "rgb(240,243,248)",
           }}
         >
           <HeroPhoneScreen />

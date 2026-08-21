@@ -16,7 +16,7 @@ export default function NotificationScreen({
       className="flex-1 flex flex-col overflow-hidden relative"
       style={{
         background:
-          "linear-gradient(to bottom, rgb(242,245,250), rgb(224,235,245))",
+          "rgb(240,243,248)",
       }}
     >
       {/* Blurred store list behind notification */}
