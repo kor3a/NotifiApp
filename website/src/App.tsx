@@ -3,9 +3,8 @@ import Hero from "./components/Hero";
 import Features from "./components/Features";
 import HowItWorks from "./components/HowItWorks";
 import UseCases from "./components/UseCases";
-import Collaboration from "./components/Collaboration";
-import SmartTools from "./components/SmartTools";
-import Testimonials from "./components/Testimonials";
+import CloserLook from "./components/CloserLook";
+import FAQ from "./components/FAQ";
 import Download from "./components/Download";
 import Footer from "./components/Footer";
 import SupportPage from "./components/SupportPage";
@@ -22,9 +21,8 @@ export default function App() {
       <Features />
       <HowItWorks />
       <UseCases />
-      <Collaboration />
-      <SmartTools />
-      <Testimonials />
+      <CloserLook />
+      <FAQ />
       <Download />
       <Footer />
     </div>

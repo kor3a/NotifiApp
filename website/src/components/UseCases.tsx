@@ -1,4 +1,4 @@
-import { ListPlus, ChevronRight, Bell, Car } from "lucide-react";
+import { ListPlus, ChevronRight, Car } from "lucide-react";
 import PhoneFrame from "./PhoneFrame";
 import FadeIn from "./FadeIn";
 
@@ -41,7 +41,7 @@ function WalmartListScreen() {
       className="flex-1 flex flex-col overflow-hidden"
       style={{
         background:
-          "linear-gradient(to bottom, rgb(242,245,250), rgb(224,235,245))",
+          "rgb(240,243,248)",
       }}
     >
       {/* Nav bar */}
@@ -128,7 +128,7 @@ function SwipeStoreScreen() {
       className="flex-1 flex flex-col overflow-hidden relative"
       style={{
         background:
-          "linear-gradient(to bottom, rgb(242,245,250), rgb(224,235,245))",
+          "rgb(240,243,248)",
       }}
     >
       {/* Header */}
@@ -146,7 +146,7 @@ function SwipeStoreScreen() {
           <div
             className="absolute inset-0 rounded-2xl flex items-center pl-4 pr-3 gap-2"
             style={{
-              background: "linear-gradient(90deg, #10B981, #059669)",
+              background: "#059669",
               boxShadow: "inset 0 1px 2px rgba(255,255,255,0.2)",
             }}
           >
@@ -232,7 +232,7 @@ function OnMyWayNotificationScreen() {
       className="flex-1 flex flex-col overflow-hidden relative"
       style={{
         background:
-          "linear-gradient(135deg, #1e3a8a 0%, #312e81 50%, #1e1b4b 100%)",
+          "#1E1B4B",
       }}
     >
       {/* Lock-screen time */}
@@ -315,165 +315,96 @@ function OnMyWayNotificationScreen() {
 /* ------------------------------------------------------------------ */
 /* Section                                                            */
 /* ------------------------------------------------------------------ */
-const flowSteps = [
+const stages = [
   {
     n: "01",
-    title: "Family adds to a shared list",
-    desc: "Mom, Dad, and the kids drop everything they need at Walmart into one shared list throughout the week — milk, bread, paper towels, you name it.",
-    accent: "from-amber-400 to-orange-400",
+    label: "The shared list",
+    title: "Everyone adds during the week",
+    desc: "Mom, Dad, and Sister drop things into one shared Walmart list as they run out — milk, bread, paper towels.",
+    screen: <WalmartListScreen />,
   },
   {
     n: "02",
-    title: "Someone heads out",
-    desc: "John is driving past Walmart on his way home. He opens Allim and swipes the Walmart store row to the right.",
-    accent: "from-emerald-400 to-teal-400",
+    label: "The swipe",
+    title: "John is driving past anyway",
+    desc: "He opens Allim and swipes the Walmart row to the right. That's the whole interaction.",
+    screen: <SwipeStoreScreen />,
   },
   {
     n: "03",
-    title: "Family gets a heads-up",
-    desc: "Everyone sharing the list instantly gets a notification: \"John is going to Walmart and is going to take approximately 7 minutes.\" Time to add those last-minute items.",
-    accent: "from-blue-400 to-indigo-400",
+    label: "The heads-up",
+    title: "The family gets seven minutes",
+    desc: "Everyone on the list is notified that John is going and roughly when he'll arrive — time enough to add one more thing.",
+    screen: <OnMyWayNotificationScreen />,
+    phoneFrameProps: {
+      screenBackgroundStyle: { background: "#1E1B4B" },
+      statusBarTone: "light" as const,
+    },
   },
 ];
 
 export default function UseCases() {
   return (
     <section
-      id="use-cases"
-      className="relative bg-allim-dark py-32 overflow-hidden"
+      id="story"
+      className="border-y border-allim-line bg-allim-surface py-24 md:py-28"
     >
-      {/* Background glows */}
-      <div className="absolute top-1/4 -left-32 w-[500px] h-[500px] bg-emerald-500/5 rounded-full blur-[60px]" />
-      <div className="absolute bottom-1/4 -right-32 w-[500px] h-[500px] bg-amber-500/5 rounded-full blur-[60px]" />
-
-      <div className="relative z-10 max-w-7xl mx-auto px-6">
-        {/* Heading */}
-        <FadeIn className="text-center mb-16">
-          <span className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm font-medium mb-4">
-            <Car size={14} />
-            Real-World Scenario
-          </span>
-          <h2 className="text-4xl sm:text-5xl font-bold text-white tracking-tight">
-            When Allim{" "}
-            <span className="bg-gradient-to-r from-emerald-400 to-amber-400 bg-clip-text text-transparent">
-              comes in handy
-            </span>
-          </h2>
-          <p className="mt-4 text-lg text-allim-muted max-w-2xl mx-auto">
-            Picture a busy family who all shop at the same store. Here's how
-            Allim turns a quick run to Walmart into a coordinated team effort.
-          </p>
+      <div className="mx-auto max-w-6xl px-6">
+        <FadeIn>
+          <div className="grid gap-6 md:grid-cols-12 md:gap-12">
+            <div className="md:col-span-6">
+              <p className="mb-4 text-[13px] font-medium uppercase tracking-[0.14em] text-allim-accent">
+                In practice
+              </p>
+              <h2 className="text-4xl font-bold leading-[1.1] tracking-tight text-white sm:text-5xl">
+                One family,
+                <br className="hidden sm:block" /> one trip to Walmart.
+              </h2>
+            </div>
+            <div className="md:col-span-5 md:col-start-8 md:pt-14">
+              <p className="text-lg leading-relaxed text-allim-muted">
+                This is the scenario Allim was built around: four people, one
+                store, and nobody making a second trip for the milk.
+              </p>
+            </div>
+          </div>
         </FadeIn>
 
-        {/* Three phones telling the story */}
-        <div className="grid md:grid-cols-3 gap-10 md:gap-6 mb-20 items-end">
-          {[
-            {
-              label: "1. Shared Walmart list",
-              sub: "Mom, Dad & Sister keep adding items",
-              screen: <WalmartListScreen />,
-              phoneFrameProps: {
-                screenBackgroundStyle: {
-                  background:
-                    "linear-gradient(to bottom, rgb(242,245,250), rgb(224,235,245))",
-                },
-              },
-              chip: "from-amber-500/20 to-orange-500/20",
-              chipText: "text-amber-300",
-              delay: 0,
-            },
-            {
-              label: "2. John swipes right",
-              sub: "On his way — notify the family",
-              screen: <SwipeStoreScreen />,
-              phoneFrameProps: {
-                screenBackgroundStyle: {
-                  background:
-                    "linear-gradient(to bottom, rgb(242,245,250), rgb(224,235,245))",
-                },
-              },
-              chip: "from-emerald-500/20 to-teal-500/20",
-              chipText: "text-emerald-300",
-              delay: 150,
-            },
-            {
-              label: "3. Family gets notified",
-              sub: '"John is going to Walmart…"',
-              screen: <OnMyWayNotificationScreen />,
-              phoneFrameProps: {
-                screenBackgroundStyle: {
-                  background:
-                    "linear-gradient(135deg, #1e3a8a 0%, #312e81 50%, #1e1b4b 100%)",
-                },
-                statusBarTone: "light" as const,
-              },
-              chip: "from-blue-500/20 to-indigo-500/20",
-              chipText: "text-blue-300",
-              delay: 300,
-            },
-          ].map((stage) => (
-            <FadeIn
-              key={stage.label}
-              delay={stage.delay}
-              className="flex flex-col items-center"
-            >
-              <span
-                className={`inline-block px-3 py-1 rounded-full bg-gradient-to-r ${stage.chip} ${stage.chipText} text-xs font-medium mb-4 border border-white/5`}
-              >
-                {stage.label}
-              </span>
-              <PhoneFrame {...stage.phoneFrameProps}>{stage.screen}</PhoneFrame>
-              <p className="mt-4 text-sm text-allim-muted text-center max-w-[240px]">
-                {stage.sub}
-              </p>
+        {/* Three beats of the story */}
+        <div className="mt-16 grid gap-14 md:grid-cols-3 md:gap-8">
+          {stages.map((stage, index) => (
+            <FadeIn key={stage.n} delay={index * 150} className="h-full">
+              <div className="flex h-full flex-col">
+                <div className="flex items-baseline gap-4 border-t border-allim-line-strong pt-5">
+                  <span className="font-display text-sm tabular-nums text-allim-accent">
+                    {stage.n}
+                  </span>
+                  <span className="text-[13px] font-medium uppercase tracking-[0.14em] text-allim-muted">
+                    {stage.label}
+                  </span>
+                </div>
+                <h3 className="mt-4 text-xl font-semibold leading-snug text-white">
+                  {stage.title}
+                </h3>
+                <p className="mt-3 text-[15px] leading-relaxed text-allim-muted">
+                  {stage.desc}
+                </p>
+                <div className="mt-auto flex justify-center pt-10">
+                  <PhoneFrame {...(stage.phoneFrameProps ?? {})}>
+                    {stage.screen}
+                  </PhoneFrame>
+                </div>
+              </div>
             </FadeIn>
           ))}
         </div>
 
-        {/* Flow diagram */}
+        {/* Payoff line */}
         <FadeIn delay={200}>
-          <div className="relative rounded-3xl bg-white/[0.03] border border-white/[0.06] p-8 md:p-10">
-            <div className="grid md:grid-cols-3 gap-8 md:gap-4">
-              {flowSteps.map((step, i) => (
-                <div key={step.n} className="relative">
-                  {/* Connector arrow */}
-                  {i < flowSteps.length - 1 && (
-                    <div className="hidden md:flex absolute top-7 -right-2 z-10 text-white/20">
-                      <ChevronRight size={28} />
-                    </div>
-                  )}
-
-                  <div className="flex items-start gap-4">
-                    <div
-                      className={`shrink-0 w-12 h-12 rounded-2xl bg-gradient-to-br ${step.accent} flex items-center justify-center text-white font-bold text-sm shadow-lg`}
-                    >
-                      {step.n}
-                    </div>
-                    <div>
-                      <h4 className="text-white font-semibold mb-1.5">
-                        {step.title}
-                      </h4>
-                      <p className="text-sm text-allim-muted leading-relaxed">
-                        {step.desc}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Result footer */}
-            <div className="mt-8 pt-6 border-t border-white/5 flex flex-col sm:flex-row items-center gap-4 justify-center text-center">
-              <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-violet-500 flex items-center justify-center">
-                  <Bell size={16} className="text-white" />
-                </div>
-                <span className="text-white text-sm font-medium">
-                  Result: nobody forgets the milk, and one trip covers everyone.
-                </span>
-              </div>
-            </div>
-          </div>
+          <p className="mt-16 border-t border-allim-line pt-8 text-lg text-allim-muted">
+            <span className="font-medium text-white">The result:</span> nobody
+            forgets the milk, and one trip covers everyone.
+          </p>
         </FadeIn>
       </div>
     </section>

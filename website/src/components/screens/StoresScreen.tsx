@@ -2,32 +2,28 @@ const stores = [
   {
     name: "Whole Foods",
     letter: "W",
-    gradientFrom: "#34D399",
-    gradientTo: "#059669",
+    tint: "#059669",
     reminders: 5,
     shared: true,
   },
   {
     name: "Target",
     letter: "T",
-    gradientFrom: "#F87171",
-    gradientTo: "#DC2626",
+    tint: "#DC2626",
     reminders: 3,
     shared: false,
   },
   {
     name: "Costco",
     letter: "C",
-    gradientFrom: "#60A5FA",
-    gradientTo: "#2563EB",
+    tint: "#2563EB",
     reminders: 8,
     shared: true,
   },
   {
     name: "Trader Joe's",
     letter: "T",
-    gradientFrom: "#FBBF24",
-    gradientTo: "#D97706",
+    tint: "#D97706",
     reminders: 0,
     shared: false,
   },
@@ -79,7 +75,7 @@ export default function StoresScreen() {
       className="flex-1 flex flex-col relative overflow-hidden"
       style={{
         background:
-          "linear-gradient(to bottom, rgb(242,245,250), rgb(224,235,245))",
+          "rgb(240,243,248)",
       }}
     >
       {/* Navigation title */}
@@ -119,7 +115,7 @@ export default function StoresScreen() {
             <div
               className="w-[42px] h-[42px] rounded-full flex items-center justify-center shrink-0"
               style={{
-                background: `linear-gradient(135deg, ${store.gradientFrom}, ${store.gradientTo})`,
+                background: store.tint,
                 border: "1px solid rgba(255,255,255,0.3)",
               }}
             >

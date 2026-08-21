@@ -6,7 +6,7 @@ export default function Navbar() {
   const [open, setOpen] = useState(false);
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 bg-allim-dark/80 backdrop-blur-xl border-b border-white/5">
+    <nav className="fixed top-0 left-0 right-0 z-50 bg-allim-dark/85 backdrop-blur-xl border-b border-allim-line">
       <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
         <a href="#" className="flex items-center gap-2">
           <img
@@ -33,22 +33,22 @@ export default function Navbar() {
             How It Works
           </a>
           <a
-            href="#use-cases"
+            href="#story"
             className="text-sm text-allim-muted hover:text-white transition-colors"
           >
-            Use Cases
+            In Practice
           </a>
           <a
-            href="#smart"
+            href="#capabilities"
             className="text-sm text-allim-muted hover:text-white transition-colors"
           >
-            Smart Tools
+            Closer Look
           </a>
           <a
             href={APP_STORE_URL}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center px-5 py-2 rounded-full bg-gradient-to-r from-allim-blue to-allim-purple text-white text-sm font-medium hover:opacity-90 transition-opacity"
+            className="inline-flex items-center px-5 py-2 rounded-lg bg-allim-accent text-allim-dark text-sm font-semibold hover:bg-white transition-colors"
           >
             Download
           </a>
@@ -64,7 +64,7 @@ export default function Navbar() {
       </div>
 
       {open && (
-        <div className="md:hidden bg-allim-dark/95 backdrop-blur-xl border-t border-white/5 px-6 py-4 flex flex-col gap-4">
+        <div className="md:hidden bg-allim-dark/95 backdrop-blur-xl border-t border-allim-line px-6 py-4 flex flex-col gap-4">
           <a
             href="#features"
             onClick={() => setOpen(false)}
@@ -80,25 +80,25 @@ export default function Navbar() {
             How It Works
           </a>
           <a
-            href="#use-cases"
+            href="#story"
             onClick={() => setOpen(false)}
             className="text-allim-muted hover:text-white transition-colors"
           >
-            Use Cases
+            In Practice
           </a>
           <a
-            href="#smart"
+            href="#capabilities"
             onClick={() => setOpen(false)}
             className="text-allim-muted hover:text-white transition-colors"
           >
-            Smart Tools
+            Closer Look
           </a>
           <a
             href={APP_STORE_URL}
             target="_blank"
             rel="noopener noreferrer"
             onClick={() => setOpen(false)}
-            className="inline-flex items-center justify-center px-5 py-2.5 rounded-full bg-gradient-to-r from-allim-blue to-allim-purple text-white font-medium"
+            className="inline-flex items-center justify-center px-5 py-2.5 rounded-lg bg-allim-accent text-allim-dark font-semibold"
           >
             Download
           </a>

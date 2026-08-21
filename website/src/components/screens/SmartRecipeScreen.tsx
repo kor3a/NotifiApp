@@ -4,7 +4,7 @@ export default function SmartRecipeScreen() {
       className="flex-1 flex flex-col overflow-hidden"
       style={{
         background:
-          "linear-gradient(to bottom, rgb(242,245,250), rgb(224,235,245))",
+          "rgb(240,243,248)",
       }}
     >
       {/* Nav bar */}
@@ -32,7 +32,7 @@ export default function SmartRecipeScreen() {
           <div
             className="w-[48px] h-[48px] rounded-full flex items-center justify-center mb-1.5"
             style={{
-              background: "linear-gradient(135deg, #3B82F6, #8B5CF6)",
+              background: "#4F46E5",
             }}
           >
             <span className="text-[22px]">🍳</span>

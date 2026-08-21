@@ -1,126 +1,87 @@
 import { MapPin, Users, Tag, ChefHat } from "lucide-react";
-import PhoneFrame from "./PhoneFrame";
-import NotificationScreen from "./screens/NotificationScreen";
-import SmartRecipeScreen from "./screens/SmartRecipeScreen";
-import ReminderScreen from "./screens/ReminderScreen";
-import { ShareScreen } from "./Collaboration";
-import { useInView } from "../hooks/useInView";
 import FadeIn from "./FadeIn";
 
 const features = [
   {
+    n: "01",
     icon: MapPin,
-    title: "Location-Based Alerts",
+    title: "Location-based alerts",
     description:
-      "Get notified automatically when you're near one of your saved stores. Allim uses geofencing to remind you about your shopping list — so you never drive past the store again.",
-    gradient: "from-blue-500 to-cyan-400",
+      "Save the stores you actually shop at. Allim watches for them in the background and pings you when you're close enough to stop in.",
   },
   {
+    n: "02",
     icon: ChefHat,
     title: "Smart Recipe",
     description:
-      "Ask Allim's AI for any recipe and get step-by-step instructions. Add all the ingredients to your store list with a single tap — no manual typing needed.",
-    gradient: "from-violet-500 to-purple-400",
+      "Ask for a recipe, get the steps, and push every ingredient onto the right store list in one tap. No retyping.",
   },
   {
+    n: "03",
     icon: Users,
-    title: "Family & Friends Collaboration",
+    title: "Shared lists",
     description:
-      "Share your store lists with family and friends. Collaborate in real-time — they can add items, check things off, and even get notified when someone is heading to the store.",
-    gradient: "from-pink-500 to-rose-400",
+      "Give a list to your partner, roommate, or family. Edits sync live, and you decide who can change things and who can only look.",
   },
   {
+    n: "04",
     icon: Tag,
     title: "Smart Category",
     description:
-      "Let Allim automatically organize every item into smart aisle categories. Your lists stay tidy and your shopping trips move faster.",
-    gradient: "from-amber-500 to-orange-400",
+      "Items sort themselves into aisle groups as they're added, so the list is already in walking order when you get there.",
   },
 ];
 
-type Feature = (typeof features)[number];
-
-const featureScreens = [
-  <NotificationScreen key="location-alerts" />,
-  <SmartRecipeScreen key="smart-recipe" />,
-  <ShareScreen key="collaboration" />,
-  <ReminderScreen key="smart-category" />,
-];
-
-function FeatureCard({ feature, index }: { feature: Feature; index: number }) {
-  const { ref, inView } = useInView<HTMLDivElement>();
-  return (
-    <div
-      ref={ref}
-      style={{ transitionDelay: `${index * 120}ms` }}
-      className={`fade-in-up ${inView ? "is-visible" : ""}`}
-    >
-      <div className="group relative h-full rounded-3xl bg-white/[0.03] border border-white/[0.06] p-8 hover:bg-white/[0.06] transition-all duration-300">
-        <div
-          className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${feature.gradient} flex items-center justify-center mb-6 shadow-lg`}
-        >
-          <feature.icon size={24} className="text-white" />
-        </div>
-        <h3 className="text-xl font-semibold text-white mb-3">{feature.title}</h3>
-        <p className="text-allim-muted leading-relaxed text-sm">
-          {feature.description}
-        </p>
-      </div>
-    </div>
-  );
-}
-
 export default function Features() {
   return (
-    <section id="features" className="relative bg-allim-dark py-32">
-      <div className="absolute inset-0 bg-gradient-to-b from-allim-dark via-allim-dark/95 to-allim-dark" />
-      <div className="relative z-10 max-w-7xl mx-auto px-6">
-        <FadeIn className="text-center mb-20">
-          <span className="inline-block px-4 py-1.5 rounded-full bg-allim-blue/10 border border-allim-blue/20 text-allim-blue text-sm font-medium mb-4">
-            Features
-          </span>
-          <h2 className="text-4xl sm:text-5xl font-bold text-white tracking-tight">
-            Shopping made{" "}
-            <span className="bg-gradient-to-r from-allim-blue to-allim-purple bg-clip-text text-transparent">
-              effortless
-            </span>
-          </h2>
-          <p className="mt-4 text-lg text-allim-muted max-w-2xl mx-auto">
-            Allim combines location awareness with smart collaboration to
-            transform how you manage your shopping.
-          </p>
+    <section id="features" className="bg-allim-dark py-24 md:py-28">
+      <div className="mx-auto max-w-6xl px-6">
+        {/* Asymmetric header: title left, context right */}
+        <FadeIn>
+          <div className="grid gap-6 border-b border-allim-line pb-12 md:grid-cols-12 md:gap-12">
+            <div className="md:col-span-6">
+              <p className="mb-4 text-[13px] font-medium uppercase tracking-[0.14em] text-allim-accent">
+                What it does
+              </p>
+              <h2 className="text-4xl font-bold leading-[1.1] tracking-tight text-white sm:text-5xl">
+                Four things, done
+                <br className="hidden sm:block" /> properly.
+              </h2>
+            </div>
+            <div className="md:col-span-5 md:col-start-8 md:pt-14">
+              <p className="text-lg leading-relaxed text-allim-muted">
+                Allim isn't trying to be your whole life. It keeps a list per
+                store, tells you when you're near one, and lets other people
+                add to it.
+              </p>
+            </div>
+          </div>
         </FadeIn>
 
-        <div className="grid lg:grid-cols-[1fr_auto] gap-12 items-center">
-          {/* Feature cards */}
-          <div className="grid sm:grid-cols-2 gap-6">
-            {features.map((feature, index) => (
-              <FeatureCard key={feature.title} feature={feature} index={index} />
-            ))}
-          </div>
-
-          {/* Phone carousel */}
-          <FadeIn delay={300} className="hidden lg:flex justify-center">
-            <PhoneFrame
-              screenBackgroundStyle={{
-                background:
-                  "linear-gradient(to bottom, rgb(242,245,250), rgb(224,235,245))",
-              }}
-            >
-              <div className="flex-1 overflow-hidden">
-                <div className="features-phone-carousel-track flex h-full">
-                  {featureScreens.map((screen, index) => (
-                    <div
-                      key={index}
-                      className="h-full min-w-full flex flex-col overflow-hidden"
-                    >
-                      {screen}
-                    </div>
-                  ))}
+        {/* Hairline module grid — no floating cards */}
+        <div className="mt-px grid gap-px border-b border-allim-line bg-allim-line sm:grid-cols-2">
+          {features.map((feature, index) => (
+            <FadeIn key={feature.title} delay={index * 90}>
+              <div className="group h-full bg-allim-dark p-8 transition-colors duration-300 hover:bg-allim-surface md:p-10">
+                <div className="mb-6 flex items-baseline gap-4">
+                  <span className="font-display text-sm tabular-nums text-allim-faint">
+                    {feature.n}
+                  </span>
+                  <feature.icon
+                    size={20}
+                    strokeWidth={1.75}
+                    className="self-center text-allim-accent"
+                  />
                 </div>
+                <h3 className="mb-3 text-xl font-semibold text-white">
+                  {feature.title}
+                </h3>
+                <p className="max-w-md text-[15px] leading-relaxed text-allim-muted">
+                  {feature.description}
+                </p>
               </div>
-            </PhoneFrame>
-          </FadeIn>
+            </FadeIn>
+          ))}
         </div>
       </div>
     </section>

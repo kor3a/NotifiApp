@@ -10,20 +10,17 @@ export default function Hero() {
       <div className="relative z-10 mx-auto w-full max-w-7xl px-6 py-24">
         <div className="max-w-2xl text-center lg:max-w-xl lg:text-left">
           {/* Badge */}
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/5 border border-white/10 mb-8">
-            <MapPin size={14} className="text-allim-blue" />
-            <span className="text-sm text-allim-muted">
-              Proximity reminders, reimagined
+          <div className="inline-flex items-center gap-2 mb-8">
+            <MapPin size={15} className="text-allim-accent" />
+            <span className="text-[13px] font-medium uppercase tracking-[0.14em] text-allim-accent">
+              Proximity reminders for real errands
             </span>
           </div>
 
           {/* Headline */}
           <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold text-white leading-tight tracking-tight">
             Never forget your{" "}
-            <span className="bg-gradient-to-r from-allim-blue to-allim-purple bg-clip-text text-transparent">
-              lists
-            </span>{" "}
-            again
+            <span className="text-allim-accent">lists</span> again
           </h1>
 
           {/* Subheadline */}
@@ -43,7 +40,7 @@ export default function Hero() {
               href={APP_STORE_URL}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 px-8 py-4 rounded-2xl bg-gradient-to-r from-allim-blue to-allim-purple text-white font-semibold text-lg hover:opacity-90 transition-opacity shadow-lg shadow-allim-purple/25"
+              className="inline-flex items-center gap-2 px-8 py-4 rounded-xl bg-allim-accent text-allim-dark font-semibold text-lg hover:bg-white transition-colors"
             >
               <svg
                 className="w-6 h-6"
@@ -56,7 +53,7 @@ export default function Hero() {
             </a>
             <a
               href="#features"
-              className="inline-flex items-center gap-2 px-8 py-4 rounded-2xl border border-white/10 text-white font-semibold text-lg hover:bg-white/5 transition-colors"
+              className="inline-flex items-center gap-2 px-8 py-4 rounded-xl border border-white/30 bg-black/20 text-white font-semibold text-lg backdrop-blur-sm hover:bg-black/40 transition-colors"
             >
               <ShoppingCart size={20} />
               See Features

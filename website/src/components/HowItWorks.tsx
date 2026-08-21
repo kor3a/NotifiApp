@@ -5,78 +5,91 @@ const steps = [
   {
     step: "01",
     icon: Store,
-    title: "Add Your Stores",
+    title: "Add your stores",
     description:
-      "Search for your favorite grocery stores nearby and add them to your list. Allim uses Maps to find stores within a 5 km radius.",
+      "Search for the grocery stores near you and pin the ones you use. Allim looks within a 5 km radius.",
   },
   {
     step: "02",
     icon: ListChecks,
-    title: "Create Your List",
+    title: "Fill the lists",
     description:
-      "Add items you need to buy at each store. Smart Category will auto-organize them by aisle so your trip is efficient.",
+      "Add what you need at each store. Smart Category groups everything by aisle as you type.",
   },
   {
     step: "03",
     icon: MapPin,
-    title: "Go About Your Day",
+    title: "Get on with your day",
     description:
-      "Allim monitors your location in the background. When you're near a store with pending items, it knows.",
+      "Allim watches your location in the background. Nothing to open, nothing to remember.",
   },
   {
     step: "04",
     icon: Bell,
-    title: "Get Reminded",
+    title: "Get the nudge",
     description:
-      "Receive a timely notification when you're close to the store. Tap to see your list and start shopping.",
+      "You're near a store with items waiting. Tap the notification and the list is right there.",
   },
 ];
 
 export default function HowItWorks() {
   return (
-    <section id="how-it-works" className="relative bg-allim-dark py-32">
-      <div className="max-w-7xl mx-auto px-6">
-        <FadeIn className="text-center mb-20">
-          <span className="inline-block px-4 py-1.5 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-sm font-medium mb-4">
-            How It Works
-          </span>
-          <h2 className="text-4xl sm:text-5xl font-bold text-white tracking-tight">
-            Four simple{" "}
-            <span className="bg-gradient-to-r from-cyan-400 to-allim-blue bg-clip-text text-transparent">
-              steps
-            </span>
-          </h2>
-          <p className="mt-4 text-lg text-allim-muted max-w-2xl mx-auto">
-            Getting started with Allim takes less than a minute. Here's how it
-            works.
-          </p>
+    <section
+      id="how-it-works"
+      className="border-y border-allim-line bg-allim-surface py-24 md:py-28"
+    >
+      <div className="mx-auto max-w-6xl px-6">
+        <FadeIn>
+          <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+            <div>
+              <p className="mb-4 text-[13px] font-medium uppercase tracking-[0.14em] text-allim-accent">
+                How it works
+              </p>
+              <h2 className="text-4xl font-bold tracking-tight text-white sm:text-5xl">
+                Set it up once.
+              </h2>
+            </div>
+            <p className="max-w-sm text-[15px] leading-relaxed text-allim-muted md:text-right">
+              Roughly a minute of setup, then it runs quietly until it's
+              actually useful.
+            </p>
+          </div>
         </FadeIn>
 
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {steps.map((item, index) => (
-            <FadeIn key={item.step} delay={index * 120}>
-              <div className="relative group h-full">
-                {/* Connector line */}
-                {index < steps.length - 1 && (
-                  <div className="hidden lg:block absolute top-10 left-[calc(50%+40px)] w-[calc(100%-40px)] h-px bg-gradient-to-r from-white/10 to-transparent" />
-                )}
-                <div className="relative rounded-3xl bg-white/[0.03] border border-white/[0.06] p-8 text-center hover:bg-white/[0.06] transition-all duration-300 h-full">
-                  <div className="relative mx-auto w-20 h-20 rounded-2xl bg-gradient-to-br from-allim-blue/20 to-allim-purple/20 flex items-center justify-center mb-6 group-hover:scale-105 transition-transform">
-                    <item.icon size={32} className="text-allim-blue" />
-                    <span className="absolute -top-2 -right-2 w-7 h-7 rounded-full bg-gradient-to-br from-allim-blue to-allim-purple text-white text-xs font-bold flex items-center justify-center">
+        {/* Timeline rail */}
+        <div className="mt-16">
+          <ol className="grid gap-12 sm:grid-cols-2 lg:grid-cols-4 lg:gap-8">
+            {steps.map((item, index) => (
+              <FadeIn key={item.step} delay={index * 110}>
+                <li className="relative list-none">
+                  <div className="mb-7 flex h-[52px] items-center">
+                    <span className="flex h-[52px] w-[52px] shrink-0 items-center justify-center border border-allim-line-strong bg-allim-dark">
+                      <item.icon
+                        size={20}
+                        strokeWidth={1.75}
+                        className="text-allim-accent"
+                      />
+                    </span>
+                    <span className="ml-4 font-display text-sm tabular-nums tracking-[0.1em] text-allim-faint">
                       {item.step}
                     </span>
+                    {index < steps.length - 1 && (
+                      <span
+                        className="ml-4 -mr-8 hidden h-px flex-1 bg-allim-line-strong lg:block"
+                        aria-hidden="true"
+                      />
+                    )}
                   </div>
-                  <h3 className="text-lg font-semibold text-white mb-2">
+                  <h3 className="mb-2 text-lg font-semibold text-white">
                     {item.title}
                   </h3>
-                  <p className="text-sm text-allim-muted leading-relaxed">
+                  <p className="max-w-xs text-[15px] leading-relaxed text-allim-muted">
                     {item.description}
                   </p>
-                </div>
-              </div>
-            </FadeIn>
-          ))}
+                </li>
+              </FadeIn>
+            ))}
+          </ol>
         </div>
       </div>
     </section>

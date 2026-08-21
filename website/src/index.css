@@ -1,12 +1,17 @@
 @import "tailwindcss";
 
 @theme {
-  --color-allim-blue: #4A90D9;
-  --color-allim-purple: #8B5CF6;
-  --color-allim-indigo: #6366F1;
-  --color-allim-dark: #0F0D1A;
-  --color-allim-card: #1A1730;
-  --color-allim-muted: #A8A3B5;
+  /* Palette derived from the Allim app icon: deep indigo ground, cyan accent. */
+  --color-allim-dark: #0D0A1A;
+  --color-allim-surface: #13102A;
+  --color-allim-card: #191436;
+  --color-allim-line: #272049;
+  --color-allim-line-strong: #372E63;
+  --color-allim-accent: #00D5DE;
+  --color-allim-accent-dim: #00A9B1;
+  --color-allim-indigo: #302567;
+  --color-allim-muted: #9A94B4;
+  --color-allim-faint: #6E678C;
   --font-display: "SF Pro Display", system-ui, -apple-system, sans-serif;
   --font-body: "SF Pro Text", system-ui, -apple-system, sans-serif;
 }
