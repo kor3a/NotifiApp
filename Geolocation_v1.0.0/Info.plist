@@ -63,7 +63,7 @@
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>Allim turns what you say into text so it can understand voice commands like &quot;add milk&quot; or &quot;check off bread&quot;. You always confirm before anything changes.</string>
 	<key>NSSiriUsageDescription</key>
-	<string>NearBuy uses Siri to let you send and receive messages about your shopping reminders hands-free while driving.</string>
+	<string>Allim uses Siri to let you send and receive messages about your shopping reminders hands-free while driving. Allim has no calling features; Siri is used for messaging only.</string>
 	<key>NSUserActivityTypes</key>
 	<array>
 		<string>INSendMessageIntent</string>
