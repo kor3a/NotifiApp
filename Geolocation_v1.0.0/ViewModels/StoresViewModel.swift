@@ -19,6 +19,12 @@ class StoresViewModel: ObservableObject {
     // Store the listener registration so we can remove it later
     private var storesListener: ListenerRegistration?
 
+    // The userId `storesListener` was registered for, or nil whenever there is no
+    // listener worth reusing. Repeat fetches for the same user reuse the live
+    // listener; a different user, a torn-down listener, or one that errored all
+    // leave this nil (or mismatched) so the next fetch rebuilds.
+    private var listeningForUserId: String?
+
     // Reminder count listeners for real-time updates (keyed by reminderStoreId)
     private var reminderCountListeners: [String: ListenerRegistration] = [:]
 
@@ -54,6 +60,7 @@ class StoresViewModel: ObservableObject {
     private func loadTutorialMockData() {
         storesListener?.remove()
         storesListener = nil
+        listeningForUserId = nil
         removeAllReminderCountListeners()
         removeAllSharedStatusListeners()
         removeAllSourceStoreListeners()
@@ -64,6 +71,7 @@ class StoresViewModel: ObservableObject {
     private func clearTutorialMockData() {
         storesListener?.remove()
         storesListener = nil
+        listeningForUserId = nil
         removeAllReminderCountListeners()
         removeAllSharedStatusListeners()
         removeAllSourceStoreListeners()
@@ -86,6 +94,23 @@ class StoresViewModel: ObservableObject {
             return
         }
 
+        // HomeView, StoresView and MapView each call in from onAppear, so a cold
+        // launch asks two or three times over. The snapshot listener is already
+        // live and delivering realtime updates by then — rebuilding it re-reads
+        // user_stores, re-registers a reminder-count listener per store and
+        // re-runs the whole geofence allocation, only to land on the data we
+        // already have. Reuse it instead.
+        //
+        // Anything that should rebuild still does: a different signed-in user
+        // fails the id check, and the tutorial transitions and a listener error
+        // all clear `listeningForUserId` first.
+        if storesListener != nil, listeningForUserId == userId {
+            #if DEBUG
+            print("StoresViewModel: Already listening for \(userId) — reusing live listener")
+            #endif
+            return
+        }
+
         isLoading = true
         #if DEBUG
         print("StoresViewModel: Fetching stores for userId: \(userId)")
@@ -101,6 +126,7 @@ class StoresViewModel: ObservableObject {
         removeAllSourceStoreListeners()
 
         // Add new snapshot listener and store the registration
+        listeningForUserId = userId
         storesListener = db.collection("user_stores")
             .whereField("userId", isEqualTo: userId)
             .addSnapshotListener { [weak self] snapshot, error in
@@ -113,6 +139,10 @@ class StoresViewModel: ObservableObject {
                     print("StoresViewModel: Error fetching user stores: \(error.localizedDescription)")
                     #endif
                     self.errorMessage = "Error fetching stores: \(error.localizedDescription)"
+                    // Release the reuse claim. A signed-out session loses read
+                    // permission and errors here; without this the next fetch
+                    // would reuse a dead listener and never recover.
+                    self.listeningForUserId = nil
                     return
                 }
 
@@ -208,9 +238,8 @@ class StoresViewModel: ObservableObject {
                     return order1 < order2
                 }
 
-                // Push the updated store list to the home screen widget and Apple Watch
+                // Push the updated store list to the home screen widget
                 WidgetDataStore.shared.updateWidgetData(from: self.userStoreItems)
-                WatchConnectivityManager.shared.updateStores(from: self.userStoreItems)
 
                 // Refresh stale sharedFromName values by looking up current names
                 self.refreshSharedFromNames(for: self.userStoreItems)
@@ -309,9 +338,8 @@ class StoresViewModel: ObservableObject {
         if updated {
             // Trigger UI update by reassigning (in case SwiftUI doesn't detect the change)
             objectWillChange.send()
-            // Push updated reminder counts to the home screen widget and Apple Watch
+            // Push updated reminder counts to the home screen widget
             WidgetDataStore.shared.updateWidgetData(from: userStoreItems)
-            WatchConnectivityManager.shared.updateStores(from: userStoreItems)
         }
     }
 
@@ -708,9 +736,8 @@ class StoresViewModel: ObservableObject {
 
         // Remove from local array immediately for smooth UI
         userStoreItems.removeAll { $0.id == userStoreItem.id }
-        // Reflect removal in the home screen widget and Apple Watch immediately
+        // Reflect removal in the home screen widget immediately
         WidgetDataStore.shared.updateWidgetData(from: userStoreItems)
-        WatchConnectivityManager.shared.updateStores(from: userStoreItems)
 
         // Use the permission information already available in userStoreItem
         // instead of fetching the document again (which could fail and leave orphaned reminders)
@@ -1472,7 +1499,6 @@ class StoresViewModel: ObservableObject {
         isManuallyReordering = true
         userStoreItems = newOrder
         WidgetDataStore.shared.updateWidgetData(from: userStoreItems)
-        WatchConnectivityManager.shared.updateStores(from: userStoreItems)
 
         let batch = db.batch()
         for (index, item) in newOrder.enumerated() {
@@ -1507,7 +1533,6 @@ class StoresViewModel: ObservableObject {
         userStoreItems = updatedItems
         // Reflect reordering in the home screen widget
         WidgetDataStore.shared.updateWidgetData(from: userStoreItems)
-        WatchConnectivityManager.shared.updateStores(from: userStoreItems)
 
         // Update sortOrder for all items in Firestore
         let batch = db.batch()

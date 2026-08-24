@@ -776,31 +776,46 @@ class LocationMonitoringManager: NSObject, ObservableObject {
         }
         proximityChecksInFlight.insert(normalizedStoreName)
 
-        // Keep the app alive long enough to finish the count and schedule. Without
+        // Keep the app alive long enough to finish the count AND schedule. Without
         // this, a geofence wake can be suspended mid-fetch and deliver nothing.
+        //
+        // The assertion has to outlive `scheduleStoreProximityNotification`, not
+        // just the fetch. That call returns immediately and does its real work in
+        // nested callbacks — a settings read, then an INSendMessageIntent donation
+        // (a cross-process round trip to the Intents daemon), and only then the
+        // `add`. Releasing the assertion when the fetch completion returned let the
+        // wake be suspended mid-donation: the donation failed, the code fell back to
+        // plain content, and the banner went out as an ordinary notification instead
+        // of a communication notification. It still landed on the phone, but plain
+        // notifications aren't CarPlay-eligible, so it stopped appearing on the
+        // CarPlay screen.
         var backgroundTask: UIBackgroundTaskIdentifier = .invalid
-        backgroundTask = UIApplication.shared.beginBackgroundTask(withName: "StoreProximityCount") {
-            if backgroundTask != .invalid {
-                UIApplication.shared.endBackgroundTask(backgroundTask)
-                backgroundTask = .invalid
-            }
-        }
-
-        fetchLiveReminderCount(for: reminderStoreIds) { [weak self] reminderCount in
-            defer {
+        let endBackgroundTask = {
+            // The scheduling completion arrives on a UserNotifications queue; keep
+            // every read and write of the identifier on main.
+            DispatchQueue.main.async {
                 if backgroundTask != .invalid {
                     UIApplication.shared.endBackgroundTask(backgroundTask)
                     backgroundTask = .invalid
                 }
             }
+        }
+        backgroundTask = UIApplication.shared.beginBackgroundTask(withName: "StoreProximityNotify") {
+            endBackgroundTask()
+        }
 
-            guard let self = self else { return }
+        fetchLiveReminderCount(for: reminderStoreIds) { [weak self] reminderCount in
+            guard let self = self else {
+                endBackgroundTask()
+                return
+            }
             self.proximityChecksInFlight.remove(normalizedStoreName)
 
             guard reminderCount > 0 else {
                 #if DEBUG
                 print("❌ LocationMonitoring: No incomplete reminders for '\(displayStore.storeName)' - skipping")
                 #endif
+                endBackgroundTask()
                 return
             }
 
@@ -810,11 +825,16 @@ class LocationMonitoringManager: NSObject, ObservableObject {
             self.notificationManager.scheduleStoreProximityNotification(
                 storeName: displayStore.storeName,
                 reminderCount: reminderCount
-            )
-
-            #if DEBUG
-            print("✅ LocationMonitoring: Notification sent for '\(displayStore.storeName)' (\(reminderCount) reminders)")
-            #endif
+            ) { scheduled in
+                #if DEBUG
+                if scheduled {
+                    print("✅ LocationMonitoring: Notification sent for '\(displayStore.storeName)' (\(reminderCount) reminders)")
+                } else {
+                    print("❌ LocationMonitoring: Notification NOT scheduled for '\(displayStore.storeName)'")
+                }
+                #endif
+                endBackgroundTask()
+            }
         }
     }
 
