@@ -195,12 +195,17 @@ class NotificationManager: NSObject, ObservableObject {
     /// Mirrors `UNNotificationSettings.carPlaySetting`, which reports only on the
     /// per-app CarPlay toggle in Settings > Notifications.
     ///
-    /// This is NOT the whole story for whether a banner reaches the CarPlay
-    /// screen, so don't read a diagnosis into it. Allim's proximity and message
-    /// banners get there by being communication notifications — an
-    /// INSendMessageIntent donated against the NearBuyIntents SiriKit extension —
-    /// and that path has been observed working while this setting reads
-    /// `.notSupported`. Treat the value as one input, not a verdict.
+    /// This value is the gate. `notSupported` means iOS is not offering this build
+    /// a CarPlay notification setting at all, and no banner reaches the CarPlay
+    /// screen — not a plain one with `.allowInCarPlay`, not a communication one.
+    /// Both were tested and neither is sufficient on its own.
+    ///
+    /// What flips it is `com.apple.developer.carplay-communication` on the app
+    /// target. Note the option set is frozen at first grant: adding the
+    /// entitlement to an existing install changes nothing until the app is
+    /// deleted and permission granted again. That inheritance masked its removal
+    /// in 1d992eb for two months — the banners kept working on a grant captured
+    /// while the entitlement was still present.
     enum CarPlayNotificationStatus {
         case enabled    // Per-app CarPlay toggle exists and is ON
         case disabled   // Per-app CarPlay toggle exists but is OFF
@@ -261,17 +266,17 @@ class NotificationManager: NSObject, ObservableObject {
     /// Wraps a notification in an INSendMessageIntent so iOS treats it as a communication
     /// notification: the sender's name and avatar lead the banner instead of the app icon.
     ///
-    /// WARNING — this is the opposite of CarPlay-friendly, despite what this helper used to
-    /// claim. A communication notification is reclassified by iOS as a message, so the
-    /// CarPlay screen applies its messaging rules and drops it unless the app holds
-    /// `com.apple.developer.carplay-communication` (removed in 1d992eb for App Review 2.1(a)).
-    /// It also overwrites `content.title` with `senderDisplayName`, and the title is the only
-    /// text CarPlay renders — it never shows the body.
+    /// This does NOT decide whether a banner reaches the CarPlay screen, in either
+    /// direction — earlier revisions of this comment claimed it both ways and both
+    /// were wrong. What gates CarPlay is the carplay-communication entitlement; see
+    /// `CarPlayNotificationStatus`. Communication and plain notifications were each
+    /// tested with the entitlement absent and neither displayed.
     ///
-    /// A plain notification whose category carries `.allowInCarPlay` DOES reach the CarPlay
-    /// screen. That is how the store proximity banner is scheduled; see
-    /// `scheduleStoreProximityNotification`. Use this helper only where the sender-led
-    /// presentation on the phone is worth losing the CarPlay banner for.
+    /// What this does change is the phone: the sender's name leads the banner, and
+    /// `content.title` is replaced by `senderDisplayName`. Store proximity alerts are
+    /// scheduled plainly so their title keeps naming the store — CarPlay renders the
+    /// title and never the body. Messages use this helper, where sender-led
+    /// presentation is the point.
     private func scheduleAsCommunicationNotification(
         content: UNMutableNotificationContent,
         identifier: String,
