@@ -106,11 +106,8 @@ export default function CloserLook() {
       <div className="mx-auto max-w-6xl px-6">
         <FadeIn>
           <div className="border-b border-allim-line pb-12">
-            <p className="mb-4 text-[13px] font-medium uppercase tracking-[0.14em] text-allim-accent">
+            <h2 className="text-2xl font-semibold uppercase tracking-[0.08em] text-allim-accent sm:text-3xl">
               A closer look
-            </p>
-            <h2 className="max-w-2xl text-4xl font-bold leading-[1.1] tracking-tight text-white sm:text-5xl">
-              The three parts people keep Allim for.
             </h2>
           </div>
         </FadeIn>

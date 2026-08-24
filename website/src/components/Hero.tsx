@@ -8,7 +8,7 @@ export default function Hero() {
       <HeroBackground />
 
       <div className="relative z-10 mx-auto w-full max-w-7xl px-6 py-24">
-        <div className="max-w-2xl text-center lg:max-w-xl lg:text-left">
+        <div className="max-w-2xl text-center lg:max-w-2xl lg:text-left">
           {/* Badge */}
           <div className="inline-flex items-center gap-2 mb-8">
             <MapPin size={15} className="text-allim-accent" />
@@ -18,9 +18,11 @@ export default function Hero() {
           </div>
 
           {/* Headline */}
-          <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold text-white leading-tight tracking-tight">
-            Never forget your{" "}
-            <span className="text-allim-accent">groceries</span> again
+          <h1 className="text-[clamp(1.75rem,8.6vw,3rem)] sm:text-6xl xl:text-[4.25rem] font-bold text-white leading-tight tracking-tight">
+            <span className="block">Never forget your</span>
+            <span className="block">
+              <span className="text-allim-accent">groceries</span> again
+            </span>
           </h1>
 
           {/* Subheadline */}
