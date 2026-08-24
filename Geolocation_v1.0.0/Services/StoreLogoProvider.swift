@@ -52,6 +52,11 @@ class StoreLogoProvider: ObservableObject {
     private static let urlCacheKey = "StoreLogoProvider.cachedURLs"
     /// Domains discovered via Logo.dev name search, persisted so each store is only searched once.
     private static let searchCacheKey = "StoreLogoProvider.searchedDomains"
+    /// Bumped whenever the resolution rules change in a way that can invalidate already
+    /// cached images (e.g. logos that were downloaded from a wrong guessed domain).
+    /// On a mismatch the disk cache is purged once so every logo re-resolves.
+    private static let cacheVersion = 2
+    private static let cacheVersionKey = "StoreLogoProvider.cacheVersion"
     private let imageCache = NSCache<NSString, UIImage>()
     private let cacheDirectory: URL = {
         let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
@@ -99,6 +104,7 @@ class StoreLogoProvider: ObservableObject {
         if let cachedWebsites = UserDefaults.standard.dictionary(forKey: Self.websiteCacheKey) as? [String: String] {
             storeWebsites = cachedWebsites
         }
+        purgeDiskCacheIfResolutionRulesChanged()
         fetchStoreLogos()
         fetchStoreWebsites()
     }
@@ -130,17 +136,13 @@ class StoreLogoProvider: ObservableObject {
             return storeLogos[key]
         }
 
-        // 2. Logo.dev auto-logo — domain map + suffix-stripping heuristics
-        if let url = clearbitLogoURL(for: normalizedId) {
+        // 2. Logo.dev auto-logo — curated domain map, then a Brand Search result,
+        //    then (only as a last resort) a speculative "{name}.com" guess.
+        if let url = logoDevURL(for: normalizedId) {
             #if DEBUG
             print("StoreLogoProvider: Using Logo.dev fallback for '\(normalizedId)': \(url)")
             #endif
             return url
-        }
-
-        // 3. Domain previously discovered via Logo.dev Brand Search API
-        if let domain = searchedDomains[normalizedId], let token = Self.logoDevToken {
-            return "https://img.logo.dev/\(domain)?token=\(token)"
         }
 
         #if DEBUG
@@ -163,31 +165,55 @@ class StoreLogoProvider: ObservableObject {
     func websiteURL(for storeName: String) -> String? {
         let normalizedId = Store.normalizedId(from: storeName)
 
-        // 1. Firestore override — exact match
-        if let url = storeWebsites[normalizedId] {
+        // 1. Firestore override
+        if let url = websiteOverride(for: normalizedId) {
             return url
         }
 
-        // 2. Firestore override — canonical match (handles symbols/punctuation)
-        if !storeWebsites.isEmpty {
-            let canonicalId = canonicalLogoKey(normalizedId)
-            var bestMatch: (key: String, url: String)?
-            for (key, url) in storeWebsites where canonicalLogoKey(key) == canonicalId {
-                if bestMatch == nil || key.count > bestMatch!.key.count {
-                    bestMatch = (key, url)
-                }
-            }
-            if let match = bestMatch {
-                return match.url
-            }
-        }
-
-        // 3. Built-in domain map
+        // 2. Built-in domain map / Brand Search result
         if let domain = resolvedDomain(for: normalizedId) {
             return "https://\(domain)"
         }
 
         return nil
+    }
+
+    /// Firestore `store_websites` override for a store — exact match first, then a
+    /// canonical match so punctuation/symbol variants still resolve.
+    private func websiteOverride(for normalizedId: String) -> String? {
+        if let url = storeWebsites[normalizedId] {
+            return url
+        }
+        guard !storeWebsites.isEmpty else { return nil }
+
+        let canonicalId = canonicalLogoKey(normalizedId)
+        var bestMatch: (key: String, url: String)?
+        for (key, url) in storeWebsites where canonicalLogoKey(key) == canonicalId {
+            if bestMatch == nil || key.count > bestMatch!.key.count {
+                bestMatch = (key, url)
+            }
+        }
+        return bestMatch?.url
+    }
+
+    /// The host of a `store_websites` override, usable directly as a Logo.dev domain
+    /// ("https://www.cityofrc.us/library" -> "cityofrc.us"). This is what makes a wrong
+    /// logo fixable from Firestore alone: adding the store's real website also corrects
+    /// the logo, with no app update.
+    private func overrideDomain(for normalizedId: String) -> String? {
+        guard let urlString = websiteOverride(for: normalizedId) else { return nil }
+
+        var host = urlString.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+        if let schemeRange = host.range(of: "://") {
+            host = String(host[schemeRange.upperBound...])
+        }
+        if let cut = host.firstIndex(where: { $0 == "/" || $0 == "?" || $0 == "#" }) {
+            host = String(host[..<cut])
+        }
+        if host.hasPrefix("www.") {
+            host = String(host.dropFirst(4))
+        }
+        return host.isEmpty ? nil : host
     }
 
     /// Fetch store website overrides from Firestore.
@@ -223,8 +249,12 @@ class StoreLogoProvider: ObservableObject {
             }
 
             DispatchQueue.main.async {
+                // Overrides feed logo resolution too, so drop any logo cached under a
+                // domain that just changed — otherwise the stale disk copy wins forever.
+                self.discardImagesForChangedWebsites(from: self.storeWebsites, to: websites)
                 self.storeWebsites = websites
                 self.hasFetchedWebsites = true
+                self.invalidateResolutionCaches()
                 UserDefaults.standard.set(websites, forKey: Self.websiteCacheKey)
                 #if DEBUG
                 print("StoreLogoProvider: Loaded \(websites.count) store websites from Firestore")
@@ -250,10 +280,17 @@ class StoreLogoProvider: ObservableObject {
                 return
             }
             DispatchQueue.main.async {
-                self?.storeWebsites[normalizedId] = urlString
-                if let updated = self?.storeWebsites {
-                    UserDefaults.standard.set(updated, forKey: Self.websiteCacheKey)
+                guard let self = self else {
+                    completion?(.success(()))
+                    return
                 }
+                if self.storeWebsites[normalizedId] != urlString {
+                    self.removeCachedImage(for: normalizedId)
+                }
+                self.storeWebsites[normalizedId] = urlString
+                self.invalidateResolutionCaches()
+                UserDefaults.standard.set(self.storeWebsites, forKey: Self.websiteCacheKey)
+                self.objectWillChange.send()
                 completion?(.success(()))
             }
         }
@@ -265,11 +302,29 @@ class StoreLogoProvider: ObservableObject {
         fetchStoreWebsites()
     }
 
-    /// Resolves a store's canonical web domain from the built-in domain map
-    /// (exact match, canonical match for punctuation/symbol variants like "85°C",
-    /// leading "the-" strip, and longest-prefix match) plus any domain previously
-    /// discovered via the Logo.dev Brand Search API.
+    /// Resolves a store's canonical web domain from a *trusted* source, in order: the
+    /// Firestore `store_websites` override, the built-in domain map, then any domain
+    /// discovered via the Logo.dev Brand Search API. Never guesses — callers that want a
+    /// speculative "{name}.com" guess must ask for it via `guessedDomain(for:)`.
     private func resolvedDomain(for normalizedId: String) -> String? {
+        // 1. Firestore override — lets a wrong domain be corrected without an app update
+        if let domain = overrideDomain(for: normalizedId) {
+            return domain
+        }
+
+        // 2. Built-in domain map
+        if let domain = mappedDomain(for: normalizedId) {
+            return domain
+        }
+
+        // 3. Domain discovered earlier via Logo.dev Brand Search
+        return searchedDomains[normalizedId]
+    }
+
+    /// Resolves a store's domain using ONLY the built-in domain map (exact match,
+    /// canonical match for punctuation/symbol variants like "85°C", leading "the-"
+    /// strip, longest-prefix match, and business-suffix stripping).
+    private func mappedDomain(for normalizedId: String) -> String? {
         // 1. Explicit map entry (fast path)
         if let domain = Self.storeDomains[normalizedId] {
             return domain
@@ -322,9 +377,14 @@ class StoreLogoProvider: ObservableObject {
             return match.domain
         }
 
-        // 6. Domain discovered earlier via Logo.dev Brand Search
-        if let domain = searchedDomains[normalizedId] {
-            return domain
+        // 6. Suffix-stripping — drop a common business-type word and ONLY re-check the
+        //    map. Never blindly guess "{stripped}.com": that produces wrong logos
+        //    (e.g. "zion-market" -> "zion.com" is wrong — Zion != Zion Market).
+        for suffix in Self.businessSuffixes where normalizedId.hasSuffix(suffix) {
+            let stripped = String(normalizedId.dropLast(suffix.count))
+            if !stripped.isEmpty, let domain = Self.storeDomains[stripped] {
+                return domain
+            }
         }
 
         return nil
@@ -519,6 +579,36 @@ class StoreLogoProvider: ObservableObject {
             print("StoreLogoProvider: Cached logo to disk for '\(id)'")
             #endif
         }.resume()
+    }
+
+    /// Drops cached logo images for stores whose website override was added or changed,
+    /// so the logo is re-fetched from the corrected domain on the next render.
+    private func discardImagesForChangedWebsites(from old: [String: String], to new: [String: String]) {
+        for (id, url) in new where old[id] != url {
+            removeCachedImage(for: id)
+        }
+    }
+
+    /// Clears the on-disk logo cache once after the resolution rules change, so images
+    /// downloaded under the old rules (notably logos fetched from a guessed domain that
+    /// Logo.dev answered with a generic monogram) don't stick around forever — a disk
+    /// hit short-circuits every re-resolution attempt.
+    private func purgeDiskCacheIfResolutionRulesChanged() {
+        let stored = UserDefaults.standard.integer(forKey: Self.cacheVersionKey)
+        guard stored < Self.cacheVersion else { return }
+
+        let directory = cacheDirectory
+        Self.ioQueue.async {
+            if let files = try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil) {
+                for file in files { try? FileManager.default.removeItem(at: file) }
+            }
+        }
+        imageCache.removeAllObjects()
+        UserDefaults.standard.set(Self.cacheVersion, forKey: Self.cacheVersionKey)
+
+        #if DEBUG
+        print("StoreLogoProvider: Purged logo disk cache (rules v\(stored) -> v\(Self.cacheVersion))")
+        #endif
     }
 
     /// Removes the cached image for a store from both disk and memory.
@@ -731,18 +821,63 @@ class StoreLogoProvider: ObservableObject {
         return token
     }()
 
-    /// Returns a Logo.dev image URL for a store using (in order):
-    ///   1. Explicit domain map entry
-    ///   2. "the-" prefix strip + re-check map
-    ///   3. Prefix scan against the domain map (e.g. "walmart-supercenter" → walmart.com)
-    ///   4. Suffix-stripping + domain map re-check (e.g. "chase-bank" → "chase" → in map)
-    ///   5. Concatenated name guess (e.g. "zion-market" → zionmarket.com)
-    ///   6. Single-word fallback (e.g. "starbucks" → starbucks.com)
+    /// Common business-type words stripped from a normalized ID before re-checking the
+    /// domain map (e.g. "chase-bank" -> "chase", which IS in the map).
+    private static let businessSuffixes = [
+        "-bank", "-banks", "-credit-union", "-financial", "-insurance", "-fcu",
+        "-market", "-markets", "-supermarket", "-grocery", "-foods", "-food",
+        "-pharmacy", "-drug", "-health",
+        "-cafe", "-coffee", "-bakery", "-restaurant", "-grill", "-kitchen",
+        "-bar", "-bistro", "-diner",
+        "-store", "-stores", "-shop", "-shops", "-outlet", "-outlets",
+        "-center", "-centre", "-depot", "-warehouse", "-wholesale", "-supply",
+        "-express", "-plus", "-pro", "-co", "-inc",
+    ]
+
+    /// Phrases that mark a place as a civic / public institution rather than a brand.
+    /// These places almost never own "{concatenated-name}.com" — a library branch lives
+    /// on its city's domain (e.g. "Rancho Cucamonga Public Library" -> cityofrc.us) —
+    /// so guessing a domain for them reliably produces the WRONG logo. Names containing
+    /// any of these skip the guess entirely and go straight to Logo.dev Brand Search.
+    private static let civicNamePhrases = [
+        "public-library", "-library", "library-", "-libraries",
+        "city-of", "city-hall", "town-hall", "village-of", "township",
+        "-municipal", "municipal-", "-county", "county-",
+        "post-office", "-dmv", "dmv-", "motor-vehicles",
+        "police-station", "police-department", "sheriff",
+        "fire-station", "fire-department",
+        "community-center", "recreation-center", "senior-center", "civic-center",
+        "school-district", "-elementary", "elementary-", "middle-school", "high-school",
+        "-university", "university-", "-college", "college-",
+        "-hospital", "hospital-", "medical-center", "health-center",
+        "courthouse", "-courthouse", "public-works", "water-district",
+        "national-park", "state-park", "-parks-and-recreation",
+    ]
+
+    /// Builds a Logo.dev image URL.
     ///
-    /// If none of these produce a URL the caller should fall through to `triggerNameSearch`
-    /// which uses the Logo.dev Brand Search API (via the `logoBrandSearch` Cloud
-    /// Function, which holds the secret key server-side) as the true catch-all.
-    private func clearbitLogoURL(for normalizedId: String) -> String? {
+    /// `speculative` marks domains that were GUESSED rather than looked up. Logo.dev
+    /// answers an unknown domain with a generated monogram and HTTP 200, which would
+    /// make a wrong guess look like a successful download: it gets cached to disk and
+    /// the Brand Search self-correction in `downloadAndCacheLogo` never fires. Asking
+    /// for `fallback=404` instead makes a bad guess fail loudly so it self-corrects.
+    private static func logoDevImageURL(domain: String, token: String, speculative: Bool = false) -> String {
+        let base = "https://img.logo.dev/\(domain)?token=\(token)"
+        return speculative ? base + "&fallback=404" : base
+    }
+
+    /// Returns a Logo.dev image URL for a store using (in order):
+    ///   1. A trusted domain — the built-in map (exact / "the-" strip / prefix /
+    ///      suffix-strip) or a domain already confirmed by Logo.dev Brand Search.
+    ///   2. A speculative concatenated-name guess (e.g. "zion-market" -> zionmarket.com),
+    ///      requested with `fallback=404` so a wrong guess fails instead of caching a
+    ///      monogram, which lets `downloadAndCacheLogo` fall back to Brand Search.
+    ///
+    /// Returns nil for civic/institutional names, where a guess is worse than nothing —
+    /// the caller then goes straight to `triggerNameSearch`, which uses the Logo.dev
+    /// Brand Search API (via the `logoBrandSearch` Cloud Function, which holds the
+    /// secret key server-side) as the true catch-all.
+    private func logoDevURL(for normalizedId: String) -> String? {
         guard let token = Self.logoDevToken else {
             #if DEBUG
             print("StoreLogoProvider: Logo.dev token not configured — add LOGO_DEV_TOKEN to Secrets.xcconfig")
@@ -750,74 +885,40 @@ class StoreLogoProvider: ObservableObject {
             return nil
         }
 
-        func logoURL(domain: String) -> String {
-            "https://img.logo.dev/\(domain)?token=\(token)"
+        // 1. Trusted domain: curated map, then a previously confirmed Brand Search hit.
+        if let domain = resolvedDomain(for: normalizedId) {
+            return Self.logoDevImageURL(domain: domain, token: token)
         }
 
-        // 1. Explicit domain map
-        if let domain = Self.storeDomains[normalizedId] {
-            return logoURL(domain: domain)
+        // 2. Speculative guess — self-corrects when wrong (see `logoDevImageURL`).
+        if let guess = Self.guessedDomain(for: normalizedId) {
+            return Self.logoDevImageURL(domain: guess, token: token, speculative: true)
         }
 
-        // 2. Strip leading "the-" then re-check map
-        //    "the-home-depot" → "home-depot" which is in the map
-        let withoutThe = normalizedId.hasPrefix("the-") ? String(normalizedId.dropFirst(4)) : normalizedId
-        if withoutThe != normalizedId {
-            if let domain = Self.storeDomains[withoutThe] {
-                return logoURL(domain: domain)
-            }
+        return nil
+    }
+
+    /// Guesses a domain from the store name itself: "zion-market" -> zionmarket.com,
+    /// "starbucks" -> starbucks.com. Only ever a guess — most businesses use their full
+    /// name as their domain, but civic institutions do not, so those return nil and are
+    /// left to Logo.dev Brand Search.
+    private static func guessedDomain(for normalizedId: String) -> String? {
+        guard !normalizedId.isEmpty else { return nil }
+
+        let padded = "-\(normalizedId)-"
+        if civicNamePhrases.contains(where: { padded.contains($0) }) {
+            return nil
         }
 
-        // 3. Prefix scan — "walmart-supercenter" matches "walmart" → walmart.com
-        //    Also run against the "the-" stripped version
-        let candidates = withoutThe != normalizedId ? [normalizedId, withoutThe] : [normalizedId]
-        for candidate in candidates {
-            var bestPrefixMatch: (key: String, domain: String)?
-            for (key, domain) in Self.storeDomains where candidate.hasPrefix(key) {
-                if bestPrefixMatch == nil || key.count > bestPrefixMatch!.key.count {
-                    bestPrefixMatch = (key, domain)
-                }
-            }
-            if let match = bestPrefixMatch {
-                return logoURL(domain: match.domain)
-            }
-        }
-
-        // 4. Suffix-stripping — strip common business-type words and ONLY match against
-        //    the domain map. Never blindly guess "{stripped}.com" since that produces wrong
-        //    logos (e.g. "zion-market" → "zion.com" is wrong — Zion ≠ Zion Market).
-        let businessSuffixes = [
-            "-bank", "-banks", "-credit-union", "-financial", "-insurance", "-fcu",
-            "-market", "-markets", "-supermarket", "-grocery", "-foods", "-food",
-            "-pharmacy", "-drug", "-health",
-            "-cafe", "-coffee", "-bakery", "-restaurant", "-grill", "-kitchen",
-            "-bar", "-bistro", "-diner",
-            "-store", "-stores", "-shop", "-shops", "-outlet", "-outlets",
-            "-center", "-centre", "-depot", "-warehouse", "-wholesale", "-supply",
-            "-express", "-plus", "-pro", "-co", "-inc",
-        ]
-        for suffix in businessSuffixes {
-            if normalizedId.hasSuffix(suffix) {
-                let stripped = String(normalizedId.dropLast(suffix.count))
-                if !stripped.isEmpty, let domain = Self.storeDomains[stripped] {
-                    return logoURL(domain: domain)
-                }
-            }
-        }
-
-        // 5. Concatenated name guess — join all parts into one word + ".com"
-        //    "zion-market" → "zionmarket.com", "dollar-general" → "dollargeneral.com"
-        //    This works for most businesses that use their full name as their domain.
-        //    If the guess is wrong, downloadAndCacheLogo will detect the failure and
-        //    automatically fall back to triggerNameSearch.
+        // Concatenated name guess — join all parts into one word + ".com"
         let parts = normalizedId.split(separator: "-")
         if parts.count >= 2 && parts.count <= 4 {
-            return logoURL(domain: parts.joined() + ".com")
+            return parts.joined() + ".com"
         }
 
-        // 6. Single-word fallback — "starbucks" → starbucks.com
-        if !normalizedId.contains("-") && !normalizedId.isEmpty {
-            return logoURL(domain: "\(normalizedId).com")
+        // Single-word fallback — "starbucks" -> starbucks.com
+        if parts.count == 1 {
+            return "\(parts[0]).com"
         }
 
         return nil
@@ -848,7 +949,7 @@ class StoreLogoProvider: ObservableObject {
                 return
             }
 
-            let logoURL = "https://img.logo.dev/\(domain)?token=\(token)"
+            let logoURL = Self.logoDevImageURL(domain: domain, token: token)
             #if DEBUG
             print("StoreLogoProvider: Brand search found '\(domain)' for '\(storeName)'")
             #endif
@@ -857,6 +958,9 @@ class StoreLogoProvider: ObservableObject {
                 self.searchedDomains[normalizedId] = domain
                 self.invalidateResolutionCaches()
                 UserDefaults.standard.set(self.searchedDomains, forKey: Self.searchCacheKey)
+                // Drop anything cached from an earlier (guessed, possibly wrong) domain
+                // so the confirmed logo replaces it instead of losing to the disk hit.
+                self.removeCachedImage(for: normalizedId)
                 self.downloadAndCacheLogo(id: normalizedId, urlString: logoURL)
                 self.objectWillChange.send()
             }
