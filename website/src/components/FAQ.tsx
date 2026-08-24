@@ -3,7 +3,7 @@ import FadeIn from "./FadeIn";
 const faqs = [
   {
     q: "What does “Allim” mean?",
-    a: "알림 means “to inform” in Korean.",
+    a: "Allim means “to inform” in Korean.",
   },
   {
     q: "Why does it need “Always” location access?",
