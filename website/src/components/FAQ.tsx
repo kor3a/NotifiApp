@@ -3,7 +3,7 @@ import FadeIn from "./FadeIn";
 const faqs = [
   {
     q: "What does “Allim” mean?",
-    a: "It's the Korean word for “alarm.” The whole app is one idea: a grocery alarm that goes off because of where you are, not what time it is.",
+    a: "People assume it means “alarm.” It's closer to a notice — letting someone know. 알림 comes from 알리다 (to inform), which comes from 알다 (to know). That's the app in one word: it knows you're out of eggs, it knows you're passing the store, and it tells you.",
   },
   {
     q: "Does it drain my battery?",
