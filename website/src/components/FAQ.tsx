@@ -3,11 +3,7 @@ import FadeIn from "./FadeIn";
 const faqs = [
   {
     q: "What does “Allim” mean?",
-    a: "People assume it means “alarm.” It's closer to a notice — letting someone know. 알림 comes from 알리다 (to inform), which comes from 알다 (to know). That's the app in one word: it knows you're out of eggs, it knows you're passing the store, and it tells you.",
-  },
-  {
-    q: "Does it drain my battery?",
-    a: "Allim uses iOS geofencing rather than continuously polling your GPS. The system wakes the app when you cross into a saved store's radius and it sleeps the rest of the time.",
+    a: "알림 means “to inform” in Korean.",
   },
   {
     q: "Why does it need “Always” location access?",

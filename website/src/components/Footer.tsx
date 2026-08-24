@@ -43,8 +43,8 @@ export default function Footer() {
               <span className="text-lg font-semibold text-white">Allim</span>
             </div>
             <p className="mt-4 max-w-xs text-[15px] leading-relaxed text-allim-muted">
-              From 알림, Korean for “a notice — letting someone know.” A grocery
-              list that knows when you're near the store.
+              From 알림, Korean for “to inform.” A grocery list that knows when
+              you're near the store.
             </p>
           </div>
 

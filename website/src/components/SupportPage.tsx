@@ -15,7 +15,7 @@ export default function SupportPage() {
         </p>
 
         <p className="text-allim-muted mb-8">
-          Allim (from 알림, Korean for &ldquo;a notice&rdquo;) helps you save
+          Allim (from 알림, Korean for &ldquo;to inform&rdquo;) helps you save
           stores, create reminders, and receive alerts when you&apos;re nearby
           so you never forget what to do or buy.
         </p>
