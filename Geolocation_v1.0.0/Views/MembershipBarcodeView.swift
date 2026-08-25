@@ -14,8 +14,8 @@ import UIKit
 /// membership / loyalty barcode saved for that store.
 ///
 /// The card is either a photo of the physical card or a barcode the app renders
-/// from a membership number the user typed in. Both live on-device only
-/// (see `MembershipCardStore`).
+/// from a membership number the user typed in. Both live on-device only, and
+/// survive the app being deleted and reinstalled (see `MembershipCardStore`).
 struct MembershipBarcodeTopSheet: View {
     let storeName: String
     /// Dismisses the sheet. Owned by the presenting view so it can animate the
@@ -448,7 +448,7 @@ struct MembershipCardEditorView: View {
                 }
 
                 Section {
-                    Text("Saved on this device only — it isn't shared with anyone this store is shared with.")
+                    Text("Saved on this device only — it isn't shared with anyone this store is shared with, and it stays put if you reinstall the app.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }

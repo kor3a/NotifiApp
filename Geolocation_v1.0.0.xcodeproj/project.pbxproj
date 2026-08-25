@@ -130,6 +130,7 @@
 		BC0200000001AABB00CC0002 /* BarcodeGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC0100000001AABB00CC0002 /* BarcodeGenerator.swift */; };
 		BC0200000001AABB00CC0003 /* MembershipBarcodeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC0100000001AABB00CC0003 /* MembershipBarcodeView.swift */; };
 		BC0200000001AABB00CC0004 /* RetailBarcode.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC0100000001AABB00CC0004 /* RetailBarcode.swift */; };
+		BC0200000001AABB00CC0005 /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC0100000001AABB00CC0005 /* KeychainStore.swift */; };
 		C10000000001AABB00CC0041 /* SharedReminderNotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C10000000001AABB00CC0040 /* SharedReminderNotificationService.swift */; };
 		CC0200000000000000000001 /* NotifiWidgetBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC0100000000000000000001 /* NotifiWidgetBundle.swift */; };
 		CC0200000000000000000002 /* NotifiWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC0100000000000000000002 /* NotifiWidget.swift */; };
@@ -309,6 +310,7 @@
 		BC0100000001AABB00CC0002 /* BarcodeGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BarcodeGenerator.swift; sourceTree = "<group>"; };
 		BC0100000001AABB00CC0003 /* MembershipBarcodeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MembershipBarcodeView.swift; sourceTree = "<group>"; };
 		BC0100000001AABB00CC0004 /* RetailBarcode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RetailBarcode.swift; sourceTree = "<group>"; };
+		BC0100000001AABB00CC0005 /* KeychainStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainStore.swift; sourceTree = "<group>"; };
 		C10000000001AABB00CC0040 /* SharedReminderNotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedReminderNotificationService.swift; sourceTree = "<group>"; };
 		CC0100000000000000000001 /* NotifiWidgetBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotifiWidgetBundle.swift; sourceTree = "<group>"; };
 		CC0100000000000000000002 /* NotifiWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotifiWidget.swift; sourceTree = "<group>"; };
@@ -430,6 +432,7 @@
 				AA1234560001AABB00CC0511 /* ProfileImageCache.swift */,
 				BC0100000001AABB00CC0002 /* BarcodeGenerator.swift */,
 				BC0100000001AABB00CC0004 /* RetailBarcode.swift */,
+				BC0100000001AABB00CC0005 /* KeychainStore.swift */,
 				AA1234560001AABB00CC0019 /* UserSessionManager.swift */,
 				D0A1000000000000000000A1 /* AuthenticationManager.swift */,
 				CC0100000000000000000004 /* WidgetDataStore.swift */,
@@ -923,6 +926,7 @@
 				BC0200000001AABB00CC0001 /* MembershipCard.swift in Sources */,
 				BC0200000001AABB00CC0002 /* BarcodeGenerator.swift in Sources */,
 				BC0200000001AABB00CC0004 /* RetailBarcode.swift in Sources */,
+				BC0200000001AABB00CC0005 /* KeychainStore.swift in Sources */,
 				BC0200000001AABB00CC0003 /* MembershipBarcodeView.swift in Sources */,
 				82D289B72C61D631009F357F /* ProfileView.swift in Sources */,
 				01AA00022F900000AB942902 /* ProfileSetupView.swift in Sources */,

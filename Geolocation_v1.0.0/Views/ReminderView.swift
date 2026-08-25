@@ -496,6 +496,10 @@ struct ReminderView: View {
             viewModel.fetchReminders(for: userStoreItem.reminderStoreId, sharedFromName: userStoreItem.sharedFromName)
             viewModel.fetchFavoriteTags(for: userStoreItem.reminderStoreId)
             smartCategoryEnabled = UserDefaults.standard.object(forKey: smartCategoryKey) as? Bool ?? true
+            // No-op unless the app launched before the device was first
+            // unlocked, when the membership cards kept in the keychain
+            // couldn't be read yet.
+            membershipCardStore.reloadIfBackupWasUnavailable()
             // Reminders usually arrive after this (the fetch above is a live
             // listener), in which case the reminders.count change below is what
             // actually starts the pass.
