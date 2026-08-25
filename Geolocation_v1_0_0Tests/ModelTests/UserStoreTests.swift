@@ -15,7 +15,8 @@ final class UserStoreTests: XCTestCase {
         storeName: String = "Whole Foods Market",
         permission: String = "owner",
         sourceUserStoreId: String? = nil,
-        sharedStoreGroupId: String? = nil
+        sharedStoreGroupId: String? = nil,
+        mergedFromOwnStore: Bool? = nil
     ) throws -> UserStore {
         var json: [String: Any] = [
             "userId": "user-1",
@@ -31,11 +32,50 @@ final class UserStoreTests: XCTestCase {
         if let sharedStoreGroupId = sharedStoreGroupId {
             json["sharedStoreGroupId"] = sharedStoreGroupId
         }
+        if let mergedFromOwnStore = mergedFromOwnStore {
+            json["mergedFromOwnStore"] = mergedFromOwnStore
+        }
 
         let data = try JSONSerialization.data(withJSONObject: json)
         var userStore = try JSONDecoder().decode(UserStore.self, from: data)
         userStore.id = id
         return userStore
+    }
+
+    // MARK: - mergedFromOwnStore
+
+    /// Every store written before the merge produced a live link lacks the field.
+    func testMergedFromOwnStore_absentDecodesAsFalse() throws {
+        let userStore = try makeUserStore(id: "user-store-legacy", permission: "owner")
+        XCTAssertFalse(userStore.mergedFromOwnStore)
+    }
+
+    /// A store the user owned and then merged into someone else's list is an `.edit`
+    /// participant on that list: its reminders come from the source store, so both users
+    /// read and write the same documents.
+    func testMergedFromOwnStore_readsTheSharedList() throws {
+        let userStore = try makeUserStore(
+            id: "my-target-store",
+            storeName: "Target",
+            permission: "edit",
+            sourceUserStoreId: "leahs-target-store",
+            mergedFromOwnStore: true
+        )
+        XCTAssertTrue(userStore.mergedFromOwnStore)
+        XCTAssertEqual(userStore.reminderStoreId, "leahs-target-store")
+        XCTAssertTrue(userStore.permission.canEdit)
+    }
+
+    func testMergedFromOwnStore_survivesEncodeRoundTrip() throws {
+        let userStore = try makeUserStore(
+            id: "my-target-store",
+            permission: "edit",
+            sourceUserStoreId: "owner-store",
+            mergedFromOwnStore: true
+        )
+        let data = try JSONEncoder().encode(userStore)
+        let decoded = try JSONDecoder().decode(UserStore.self, from: data)
+        XCTAssertTrue(decoded.mergedFromOwnStore)
     }
 
     // MARK: - reminderStoreId

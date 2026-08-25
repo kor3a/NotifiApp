@@ -753,6 +753,11 @@ struct StoresView: View {
 
     private var deleteAlertTitle: String {
         guard let store = storeToDelete else { return "Delete Store?" }
+        // A store the user owned before merging it into someone else's list is theirs
+        // again afterwards, so this is leaving a share — not removing a store.
+        if store.mergedFromOwnStore {
+            return "Stop sharing \(store.store.name)?"
+        }
         if store.sharedFromName != nil {
             return "Remove \(store.store.name)?"
         }
@@ -760,11 +765,15 @@ struct StoresView: View {
     }
 
     private var deleteAlertActionLabel: String {
-        storeToDelete?.sharedFromName != nil ? "Remove" : "Delete"
+        guard let store = storeToDelete else { return "Delete" }
+        if store.mergedFromOwnStore { return "Stop Sharing" }
+        return store.sharedFromName != nil ? "Remove" : "Delete"
     }
 
     private func deleteAlertMessage(for store: UserStoreItem) -> String {
-        if let ownerName = store.sharedFromName {
+        if store.mergedFromOwnStore, let ownerName = store.sharedFromName {
+            return "\(store.store.name) goes back to being your own store and keeps the items in it now. \(ownerName) will be notified, and the items you added will be removed from their list."
+        } else if let ownerName = store.sharedFromName {
             return "This will only remove \(store.store.name) from your account. \(ownerName) will be notified that you removed the shared store."
         } else if let sharedWith = store.sharedWith, !sharedWith.isEmpty {
             let names = sharedWith.joined(separator: ", ")

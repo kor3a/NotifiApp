@@ -193,6 +193,7 @@ class StoresViewModel: ObservableObject {
                     let sharedFromId = data["sharedFrom"] as? String // userId of sharer
                     let sharedWith = data["sharedWith"] as? [String]
                     let notificationsEnabled = data["notificationsEnabled"] as? Bool ?? true
+                    let mergedFromOwnStore = data["mergedFromOwnStore"] as? Bool ?? false
 
                     // Determine which ID to use for fetching reminders.
                     // Owners always use their own user_store ID even if sourceUserStoreId is set
@@ -218,7 +219,8 @@ class StoresViewModel: ObservableObject {
                         sharedFromName: sharedFromName,
                         sharedFromId: sharedFromId,
                         sharedWith: sharedWith,
-                        notificationsEnabled: notificationsEnabled
+                        notificationsEnabled: notificationsEnabled,
+                        mergedFromOwnStore: mergedFromOwnStore
                     )
                     tempUserStoreItems.append(userStoreItem)
                 }
@@ -325,7 +327,8 @@ class StoresViewModel: ObservableObject {
                     sharedFromName: item.sharedFromName,
                     sharedFromId: item.sharedFromId,
                     sharedWith: item.sharedWith,
-                    notificationsEnabled: item.notificationsEnabled
+                    notificationsEnabled: item.notificationsEnabled,
+                    mergedFromOwnStore: item.mergedFromOwnStore
                 )
                 userStoreItems[index] = updatedItem
                 updated = true
@@ -524,9 +527,18 @@ class StoresViewModel: ObservableObject {
     /// Watch the source (owner's) user_store document for each merged store B participates in.
     /// When the owner deletes their store, B's app detects it locally and runs cleanup using
     /// B's own credentials — no cross-user Firestore write permissions required.
+    ///
+    /// Two shapes qualify:
+    ///   • Legacy merged stores — `permission == .owner` with a `sourceUserStoreId`. B kept
+    ///     their own reminders, so cleanup only severs the link.
+    ///   • Merged-into-a-shared-list stores — `mergedFromOwnStore`, where the reminders
+    ///     live on the owner's store, so cleanup has to hand the list back. The owner's app
+    ///     does the same hand-back; both write the same deterministic document IDs, so
+    ///     whichever runs (or both) the result is identical.
     private func setupSourceStoreListeners(for items: [UserStoreItem]) {
-        // Only merged stores have sourceUserStoreId set with permission == .owner
-        let mergedItems = items.filter { $0.permission == .owner && $0.sourceUserStoreId != nil }
+        let mergedItems = items.filter {
+            $0.sourceUserStoreId != nil && ($0.permission == .owner || $0.mergedFromOwnStore)
+        }
         let activeSourceIds = Set(mergedItems.compactMap { $0.sourceUserStoreId })
 
         // Remove listeners for source stores no longer in the list
@@ -543,6 +555,7 @@ class StoresViewModel: ObservableObject {
             let mergedUserStoreId = item.id
             let ownerUserId = item.sharedFromId ?? ""
             let ownerName = item.sharedFromName ?? ""
+            let needsHandBack = item.mergedFromOwnStore
 
             let listener = db.collection("user_stores").document(sourceUserStoreId)
                 .addSnapshotListener { [weak self] snapshot, error in
@@ -553,11 +566,23 @@ class StoresViewModel: ObservableObject {
                     // Owner deleted their store — clean up our merged store using our own credentials.
                     self.sourceStoreListeners[sourceUserStoreId]?.remove()
                     self.sourceStoreListeners.removeValue(forKey: sourceUserStoreId)
-                    self.clearMergedStoreSharing(
-                        mergedUserStoreId: mergedUserStoreId,
-                        ownerUserId: ownerUserId,
-                        ownerName: ownerName
-                    )
+
+                    if needsHandBack {
+                        // Our reminders live on the store that just disappeared: copy the
+                        // list back into our own store before it is deleted with it.
+                        self.restoreMergedStoreToOwnStore(
+                            userStoreId: mergedUserStoreId,
+                            sourceUserStoreId: sourceUserStoreId,
+                            departingOwnerName: ownerName,
+                            completion: {}
+                        )
+                    } else {
+                        self.clearMergedStoreSharing(
+                            mergedUserStoreId: mergedUserStoreId,
+                            ownerUserId: ownerUserId,
+                            ownerName: ownerName
+                        )
+                    }
                 }
             sourceStoreListeners[sourceUserStoreId] = listener
         }
@@ -790,58 +815,104 @@ class StoresViewModel: ObservableObject {
             }
         }
 
-        // Delete all reminders for this user_store
+        // The store's own reminders are deleted LAST. Recipients who folded their own
+        // store into this one have the list handed back to them first, and that can only
+        // happen while these documents still exist.
         db.collection("reminders")
             .whereField("userStoreId", isEqualTo: ownerUserStoreId)
-            .getDocuments { snapshot, error in
+            .getDocuments { [weak self] snapshot, error in
                 if let error = error {
                     #if DEBUG
                     print("StoresViewModel: Error fetching reminders: \(error.localizedDescription)")
                     #endif
-                    return
                 }
 
-                guard let documents = snapshot?.documents, !documents.isEmpty else {
-                    return
-                }
+                let documents = snapshot?.documents ?? []
 
-                // Clean up all attached photos from Storage before deleting the
-                // reminder docs, otherwise the files are left orphaned.
-                var photoURLs = Set<String>()
-                for doc in documents {
-                    if let urls = doc.data()["photoURLs"] as? [String] {
-                        photoURLs.formUnion(urls)
+                // `preservePhotos` is set when a recipient was handed a copy of this list:
+                // their copies reference the same Storage files, so deleting the files
+                // would leave them with broken images.
+                let deleteOwnReminders: (Bool) -> Void = { preservePhotos in
+                    guard !documents.isEmpty else { return }
+
+                    // Clean up all attached photos from Storage before deleting the
+                    // reminder docs, otherwise the files are left orphaned.
+                    if !preservePhotos {
+                        var photoURLs = Set<String>()
+                        for doc in documents {
+                            if let urls = doc.data()["photoURLs"] as? [String] {
+                                photoURLs.formUnion(urls)
+                            }
+                        }
+                        for url in photoURLs {
+                            Storage.storage().reference(forURL: url).delete { error in
+                                #if DEBUG
+                                if let error = error {
+                                    print("StoresViewModel: Failed to delete photo from storage: \(error.localizedDescription)")
+                                }
+                                #endif
+                            }
+                        }
                     }
-                }
-                for url in photoURLs {
-                    Storage.storage().reference(forURL: url).delete { error in
+
+                    let batch = db.batch()
+                    for doc in documents {
+                        batch.deleteDocument(doc.reference)
+                    }
+
+                    batch.commit { error in
                         #if DEBUG
                         if let error = error {
-                            print("StoresViewModel: Failed to delete photo from storage: \(error.localizedDescription)")
+                            print("StoresViewModel: Error deleting reminders: \(error.localizedDescription)")
+                        } else {
+                            print("StoresViewModel: Deleted \(documents.count) reminders")
                         }
                         #endif
                     }
                 }
 
-                let batch = db.batch()
-                for doc in documents {
-                    batch.deleteDocument(doc.reference)
+                guard let self = self else {
+                    deleteOwnReminders(false)
+                    return
                 }
 
-                batch.commit { error in
-                    #if DEBUG
-                    if let error = error {
-                        print("StoresViewModel: Error deleting reminders: \(error.localizedDescription)")
-                    } else {
-                        print("StoresViewModel: Deleted \(documents.count) reminders")
-                    }
-                    #endif
-                }
+                self.cleanupRecipientUserStores(
+                    ownerUserStoreId: ownerUserStoreId,
+                    storeName: userStoreItem.store.name,
+                    currentUserId: currentUser?.userId,
+                    currentUserName: currentUser?.name,
+                    ownerReminderDocs: documents,
+                    completion: deleteOwnReminders
+                )
             }
+    }
 
-        // Find and clean up recipient user_stores, then notify them.
-        // Firestore rules allow the original sharer to delete recipient user_stores
-        // (via the sharedFrom userId check in rules).
+    /// Clean up every `user_store` that pointed at a store its owner just deleted, then
+    /// notify the people behind them.
+    ///
+    /// Recipients fall into three groups:
+    ///   • Handed back — they owned this store before merging it into the deleted one, so
+    ///     they keep it: the list is copied into their store and ownership restored.
+    ///   • Regular `edit`/`view` recipients — their copy only ever mirrored the owner's
+    ///     store, so it is deleted.
+    ///   • Legacy merged stores (no permission field) — the recipient's own store, which
+    ///     is only unlinked, never deleted.
+    ///
+    /// `completion` is handed `true` when a hand-back happened, meaning the owner's photo
+    /// files are now referenced by someone else's list and must not be deleted.
+    ///
+    /// Firestore rules allow the original sharer to update or delete recipient
+    /// user_stores (via the sharedFromEmail / sharedFrom userId checks in rules).
+    private func cleanupRecipientUserStores(
+        ownerUserStoreId: String,
+        storeName: String,
+        currentUserId: String?,
+        currentUserName: String?,
+        ownerReminderDocs: [QueryDocumentSnapshot],
+        completion: @escaping (Bool) -> Void
+    ) {
+        let db = self.db
+
         db.collection("user_stores")
             .whereField("sourceUserStoreId", isEqualTo: ownerUserStoreId)
             .getDocuments { [weak self] snapshot, error in
@@ -849,27 +920,40 @@ class StoresViewModel: ObservableObject {
                     #if DEBUG
                     print("StoresViewModel: Error fetching recipient user_stores: \(error.localizedDescription)")
                     #endif
+                    completion(false)
                     return
                 }
 
                 let recipientDocs = snapshot?.documents ?? []
-                guard !recipientDocs.isEmpty else { return }
+                guard !recipientDocs.isEmpty else {
+                    completion(false)
+                    return
+                }
 
                 #if DEBUG
                 print("StoresViewModel: Cleaning up \(recipientDocs.count) recipient user_stores for deleted owner store")
                 #endif
 
-                // Separate merged stores (recipient keeps ownership of the store) from
-                // regular shared stores (recipient only has a dependent copy).
+                // Recipients who merged their OWN store into this one get it back rather
+                // than losing it — they owned that store before the merge.
+                let handBackDocs = recipientDocs.filter {
+                    ($0.data()["mergedFromOwnStore"] as? Bool) == true
+                }
+                let dependentDocs = recipientDocs.filter {
+                    ($0.data()["mergedFromOwnStore"] as? Bool) != true
+                }
+
+                // Separate legacy merged stores (recipient keeps ownership of the store)
+                // from regular shared stores (recipient only has a dependent copy).
                 // Only explicit "edit"/"view" recipients have a dependent copy that should be
                 // deleted. A missing permission means the recipient owns their own store (a
                 // merged store created via addStoreToUser, which never writes a permission
                 // field) — those must NOT be deleted, only unlinked.
-                let regularDocs = recipientDocs.filter {
+                let regularDocs = dependentDocs.filter {
                     let permission = $0.data()["permission"] as? String
                     return permission == "edit" || permission == "view"
                 }
-                let mergedDocs = recipientDocs.filter {
+                let mergedDocs = dependentDocs.filter {
                     let permission = $0.data()["permission"] as? String
                     return !(permission == "edit" || permission == "view")
                 }
@@ -891,10 +975,10 @@ class StoresViewModel: ObservableObject {
                     }
                 }
 
-                // For merged stores: clear sharing metadata and remove owner's reminders.
+                // For legacy merged stores: clear sharing metadata and remove owner's reminders.
                 // The recipient's store is their own — don't delete it, just unlink it.
-                let ownerUserId = currentUser?.userId ?? ""
-                let ownerName = currentUser?.name ?? ""
+                let ownerUserId = currentUserId ?? ""
+                let ownerName = currentUserName ?? ""
                 for doc in mergedDocs {
                     self?.clearMergedStoreSharing(
                         mergedUserStoreId: doc.documentID,
@@ -904,35 +988,99 @@ class StoresViewModel: ObservableObject {
                 }
 
                 // Notify each recipient that the owner deleted the shared store
-                guard let currentUser = currentUser else { return }
-                let regularIds = regularDocs.compactMap { $0.data()["userId"] as? String }
-                    .filter { $0 != currentUser.userId }
-                let mergedIds = mergedDocs.compactMap { $0.data()["userId"] as? String }
-                    .filter { $0 != currentUser.userId }
-                let allRecipientIds = regularIds + mergedIds
-                guard !allRecipientIds.isEmpty else { return }
+                let notifyRecipients = {
+                    guard let self = self,
+                          let currentUserId = currentUserId,
+                          let currentUserName = currentUserName else { return }
 
-                self?.fetchUsersNames(userIds: allRecipientIds) { nameMap in
-                    for recipientId in regularIds {
-                        let recipientName = nameMap[recipientId] ?? "Unknown"
-                        self?.sendStoreDeletionMessage(
-                            currentUserId: currentUser.userId,
-                            currentUserName: currentUser.name,
-                            recipientId: recipientId,
-                            recipientName: recipientName,
-                            message: "\(currentUser.name) deleted \(userStoreItem.store.name), which was shared with you. The store has been removed from your account."
+                    let recipientId: (QueryDocumentSnapshot) -> String? = { $0.data()["userId"] as? String }
+                    let regularIds = regularDocs.compactMap(recipientId).filter { $0 != currentUserId }
+                    let mergedIds = mergedDocs.compactMap(recipientId).filter { $0 != currentUserId }
+                    let handBackIds = handBackDocs.compactMap(recipientId).filter { $0 != currentUserId }
+                    let allRecipientIds = regularIds + mergedIds + handBackIds
+                    guard !allRecipientIds.isEmpty else { return }
+
+                    self.fetchUsersNames(userIds: allRecipientIds) { [weak self] nameMap in
+                        guard let self = self else { return }
+                        let notify: (String, String) -> Void = { userId, message in
+                            self.sendStoreDeletionMessage(
+                                currentUserId: currentUserId,
+                                currentUserName: currentUserName,
+                                recipientId: userId,
+                                recipientName: nameMap[userId] ?? "Unknown",
+                                message: message
+                            )
+                        }
+                        for id in regularIds {
+                            notify(id, "\(currentUserName) deleted \(storeName), which was shared with you. The store has been removed from your account.")
+                        }
+                        for id in mergedIds {
+                            notify(id, "\(currentUserName) deleted \(storeName). Their shared items have been removed from your list.")
+                        }
+                        for id in handBackIds {
+                            notify(id, "\(currentUserName) deleted the shared \(storeName). It is back in your list as your own store.")
+                        }
+                    }
+                }
+
+                guard !handBackDocs.isEmpty else {
+                    notifyRecipients()
+                    completion(false)
+                    return
+                }
+
+                // Copy the list into each hand-back recipient's own store and restore
+                // their ownership, before the owner's reminder documents are deleted.
+                let batch = db.batch()
+                for doc in handBackDocs {
+                    for reminder in ownerReminderDocs {
+                        let data = reminder.data()
+                        guard let title = data["title"] as? String else { continue }
+
+                        var newData: [String: Any] = [
+                            "userStoreId": doc.documentID,
+                            "title": title,
+                            "isDone": data["isDone"] as? Bool ?? false,
+                            "createdAt": data["createdAt"] as? TimeInterval ?? Date().timeIntervalSince1970,
+                            "isShared": false
+                        ]
+                        if let v = data["quantity"]  { newData["quantity"] = v }
+                        if let v = data["category"]  { newData["category"] = v }
+                        if let v = data["sortOrder"] { newData["sortOrder"] = v }
+                        if let v = data["photoURLs"] { newData["photoURLs"] = v }
+
+                        // Deterministic ID so this copy converges with the one the
+                        // recipient's own app may make (see `setupSourceStoreListeners`)
+                        // instead of duplicating every item.
+                        batch.setData(
+                            newData,
+                            forDocument: db.collection("reminders").document("\(doc.documentID)_\(reminder.documentID)")
                         )
                     }
-                    for recipientId in mergedIds {
-                        let recipientName = nameMap[recipientId] ?? "Unknown"
-                        self?.sendStoreDeletionMessage(
-                            currentUserId: currentUser.userId,
-                            currentUserName: currentUser.name,
-                            recipientId: recipientId,
-                            recipientName: recipientName,
-                            message: "\(currentUser.name) deleted \(userStoreItem.store.name). Their shared items have been removed from your list."
-                        )
+
+                    batch.updateData([
+                        "permission": "owner",
+                        "sourceUserStoreId":  FieldValue.delete(),
+                        "mergedFromOwnStore": FieldValue.delete(),
+                        "sharedFrom":         FieldValue.delete(),
+                        "sharedFromEmail":    FieldValue.delete(),
+                        "sharedFromName":     FieldValue.delete(),
+                        "sharedWith":         FieldValue.arrayRemove([ownerName])
+                    ], forDocument: doc.reference)
+                }
+
+                batch.commit { error in
+                    #if DEBUG
+                    if let error = error {
+                        print("StoresViewModel: Error handing merged stores back: \(error.localizedDescription)")
+                    } else {
+                        print("StoresViewModel: Handed \(handBackDocs.count) merged stores back to their owners")
                     }
+                    #endif
+                    notifyRecipients()
+                    // The handed-back copies reference the same photo files, so the
+                    // owner's Storage objects have to survive this deletion.
+                    completion(error == nil)
                 }
             }
     }
@@ -945,6 +1093,47 @@ class StoresViewModel: ObservableObject {
         // Capture current user info before the async delete
         let currentUser = sessionManager.currentUser
         let currentUserName = currentUser?.name
+
+        // Merged store, current shape: the user owned this store before merging it into
+        // someone else's shared list, so they are an `.edit` participant on that list and
+        // the items live on the other user's store. Deleting this user_store the regular
+        // way would leave them with nothing — hand the store back instead.
+        if userStoreItem.mergedFromOwnStore, let sourceUserStoreId = userStoreItem.sourceUserStoreId {
+            let ownerName = userStoreItem.sharedFromName ?? ""
+
+            restoreMergedStoreToOwnStore(
+                userStoreId: userStoreItem.id,
+                sourceUserStoreId: sourceUserStoreId,
+                departingOwnerName: ownerName
+            ) { [weak self] in
+                // Only now strip this user from the other side, so the copy above is
+                // taken from the list as it stood while they were still part of it.
+                guard let self = self, let currentUserName = currentUserName else { return }
+                self.updateOwnerRemindersAfterRecipientLeaves(
+                    ownerUserStoreId: sourceUserStoreId,
+                    recipientName: currentUserName
+                )
+                self.updateOwnerUserStoreAfterRecipientLeaves(
+                    ownerUserStoreId: sourceUserStoreId,
+                    recipientName: currentUserName
+                )
+            }
+
+            // Notify the user whose list this was merged into
+            if let currentUser = currentUser,
+               let ownerId = userStoreItem.sharedFromId,
+               !ownerId.isEmpty,
+               let ownerDisplayName = userStoreItem.sharedFromName {
+                sendStoreDeletionMessage(
+                    currentUserId: currentUser.userId,
+                    currentUserName: currentUser.name,
+                    recipientId: ownerId,
+                    recipientName: ownerDisplayName,
+                    message: "\(currentUser.name) disconnected from the shared \(userStoreItem.store.name). Their shared items have been removed from your list."
+                )
+            }
+            return
+        }
 
         // Merged-store case: the current user owns this store (permission == .owner) but it
         // was merged with a shared store from someone else. Don't delete their own store —
@@ -1179,6 +1368,118 @@ class StoresViewModel: ObservableObject {
                 }
             }
         }
+    }
+
+    /// Hand a merged store back to the user who owned it before the merge.
+    ///
+    /// Every path that ends a merged share funnels through here — the merged user leaving,
+    /// the sharer revoking their access (`ShareStoreView`), and the sharer deleting the
+    /// shared store. Copies are written under deterministic document IDs so that two of
+    /// those paths racing produces one list, not two.
+    ///
+    /// After `MessagingService.mergeStoreReminders` the two lists are one, and the
+    /// reminder documents hang off the other user's `user_store`. Leaving the share the
+    /// regular way (deleting this user's `user_store`) would therefore take the whole
+    /// list with it — including everything this user had before they ever merged. So
+    /// copy the shared list into their own store, drop the sharing metadata and restore
+    /// `owner` permission. Runs entirely under the leaving user's own credentials.
+    ///
+    /// The copy is deliberately the *whole* list: a merge folds both users' items into a
+    /// single set with no reliable way to tell them apart afterwards, which is the same
+    /// reason `clearMergedStoreSharing` never deletes anything either.
+    func restoreMergedStoreToOwnStore(
+        userStoreId: String,
+        sourceUserStoreId: String,
+        departingOwnerName: String,
+        completion: @escaping () -> Void
+    ) {
+        let db = self.db
+
+        let restoreOwnership = {
+            db.collection("user_stores").document(userStoreId).updateData([
+                "permission": "owner",
+                "sourceUserStoreId":  FieldValue.delete(),
+                "mergedFromOwnStore": FieldValue.delete(),
+                "sharedFrom":         FieldValue.delete(),
+                "sharedFromEmail":    FieldValue.delete(),
+                "sharedFromName":     FieldValue.delete(),
+                "sharedWith":         FieldValue.arrayRemove([departingOwnerName])
+            ]) { error in
+                #if DEBUG
+                if let error = error {
+                    print("StoresViewModel: Error restoring merged store \(userStoreId): \(error.localizedDescription)")
+                } else {
+                    print("StoresViewModel: Restored merged store \(userStoreId) to standalone ownership")
+                }
+                #endif
+                completion()
+            }
+        }
+
+        db.collection("reminders")
+            .whereField("userStoreId", isEqualTo: sourceUserStoreId)
+            .getDocuments { snapshot, error in
+                if let error = error {
+                    #if DEBUG
+                    print("StoresViewModel: Error fetching shared reminders to restore: \(error.localizedDescription)")
+                    #endif
+                    // Still hand the store back — an empty store beats a store that
+                    // points at a list this user no longer belongs to.
+                    restoreOwnership()
+                    return
+                }
+
+                let documents = snapshot?.documents ?? []
+                guard !documents.isEmpty else {
+                    restoreOwnership()
+                    return
+                }
+
+                let batch = db.batch()
+                var restored = 0
+
+                for doc in documents {
+                    let data = doc.data()
+                    guard let title = data["title"] as? String else { continue }
+
+                    var newData: [String: Any] = [
+                        "userStoreId": userStoreId,
+                        "title": title,
+                        "isDone": data["isDone"] as? Bool ?? false,
+                        "createdAt": data["createdAt"] as? TimeInterval ?? Date().timeIntervalSince1970,
+                        "isShared": false
+                    ]
+                    if let v = data["quantity"]  { newData["quantity"] = v }
+                    if let v = data["category"]  { newData["category"] = v }
+                    if let v = data["sortOrder"] { newData["sortOrder"] = v }
+                    if let v = data["photoURLs"] { newData["photoURLs"] = v }
+
+                    // Deterministic ID so this copy converges with the one the other
+                    // user's app may make when they delete the store, rather than
+                    // duplicating every item.
+                    batch.setData(
+                        newData,
+                        forDocument: db.collection("reminders").document("\(userStoreId)_\(doc.documentID)")
+                    )
+                    restored += 1
+                }
+
+                guard restored > 0 else {
+                    restoreOwnership()
+                    return
+                }
+
+                batch.commit { error in
+                    #if DEBUG
+                    if let error = error {
+                        print("StoresViewModel: Error restoring reminders for \(userStoreId): \(error.localizedDescription)")
+                    } else {
+                        print("StoresViewModel: Restored \(restored) reminders into \(userStoreId)")
+                    }
+                    #endif
+                    restoreOwnership()
+                }
+            }
     }
 
     /// Handles unlinking a merged store from its former co-owner.

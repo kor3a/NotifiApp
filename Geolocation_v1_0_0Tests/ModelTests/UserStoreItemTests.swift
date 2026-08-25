@@ -72,6 +72,45 @@ final class UserStoreItemTests: XCTestCase {
         XCTAssertEqual(item.reminderStoreId, "owner-store-5")
     }
 
+    // MARK: - Merged stores
+
+    /// A store the user owned and then merged into someone else's shared list becomes a
+    /// live `.edit` participant on that list, so its reminders come from the source store.
+    /// Before the merge produced a real link, this store stayed `.owner` and kept reading
+    /// its own reminders — which is why items either side added afterwards never crossed.
+    func testReminderStoreId_mergedFromOwnStore_readsTheSharedList() {
+        let item = UserStoreItem(
+            id: "my-target-store",
+            store: Store(name: "Target"),
+            permission: .edit,
+            sharedStoreGroupId: nil,
+            sourceUserStoreId: "leahs-target-store",
+            sharedFromName: "Leah",
+            sharedFromId: "user-leah-1",
+            sharedWith: ["Leah"],
+            notificationsEnabled: true,
+            mergedFromOwnStore: true
+        )
+        XCTAssertEqual(item.reminderStoreId, "leahs-target-store")
+        XCTAssertTrue(item.permission.canEdit)
+        XCTAssertEqual(item.permission.displayLabel, "Can Edit")
+    }
+
+    func testMergedFromOwnStore_defaultsToFalse() {
+        let item = UserStoreItem(
+            id: "user-store-9",
+            store: Store(name: "Target"),
+            permission: .owner,
+            sharedStoreGroupId: nil,
+            sourceUserStoreId: nil,
+            sharedFromName: nil,
+            sharedFromId: nil,
+            sharedWith: nil,
+            notificationsEnabled: true
+        )
+        XCTAssertFalse(item.mergedFromOwnStore)
+    }
+
     // MARK: - Identifiable / Hashable
 
     func testIdentifiable_usesUserStoreDocumentId() {

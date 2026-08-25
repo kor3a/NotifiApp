@@ -14,6 +14,9 @@ struct SharedUser: Identifiable {
     let userEmail: String
     let permission: StorePermission
     let sharedAt: TimeInterval?
+    /// True when this user owned the same store and merged it into ours. Their store is
+    /// theirs — revoking access has to hand it back, not delete it.
+    let mergedFromOwnStore: Bool
 }
 
 struct ShareStoreView: View {
@@ -235,7 +238,10 @@ struct ShareStoreView: View {
                         .font(.subheadline)
                         .fontWeight(.semibold)
 
-                    Text(userStoreItem.permission == .edit ? "Can Edit" : "View Only")
+                    // `.owner` — which is what a store carries after it was merged with
+                    // an incoming share — is an editing permission, so it must not fall
+                    // through to "View Only". See `StorePermission.canEdit`.
+                    Text(userStoreItem.permission.displayLabel)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -528,7 +534,8 @@ struct ShareStoreView: View {
 
     /// A small pill describing a permission level.
     private func permissionBadge(_ permission: StorePermission) -> some View {
-        let isEdit = permission == .edit
+        // `.owner` is an editing permission too — see `StorePermission.canEdit`.
+        let isEdit = permission.canEdit
         return Text(isEdit ? "Edit" : "View")
             .font(.caption2)
             .fontWeight(.semibold)
@@ -884,7 +891,8 @@ struct ShareStoreView: View {
                         userId: userId,
                         userEmail: userEmail,
                         permission: permission,
-                        sharedAt: sharedAt
+                        sharedAt: sharedAt,
+                        mergedFromOwnStore: data["mergedFromOwnStore"] as? Bool ?? false
                     )
                 }
                 .sorted { ($0.sharedAt ?? 0) > ($1.sharedAt ?? 0) }
@@ -901,6 +909,26 @@ struct ShareStoreView: View {
             // the sharing relationship and clean up reminder items on both sides.
             if sharedUser.permission == .owner {
                 unshareWithMergedUser(sharedUser: sharedUser, recipientName: recipientName)
+                return
+            }
+
+            // This recipient owned the same store and merged it into ours, so the items
+            // they brought with them live on OUR store now. Deleting their user_store
+            // would take the whole list — including everything they had before the
+            // merge — away from them. Hand the store back instead.
+            if sharedUser.mergedFromOwnStore,
+               let currentUserName = viewModel.sessionManager.currentUser?.name {
+                self.sharedUsers.removeAll { $0.id == sharedUser.id }
+                viewModel.restoreMergedStoreToOwnStore(
+                    userStoreId: sharedUser.id,
+                    sourceUserStoreId: userStoreItem.id,
+                    departingOwnerName: currentUserName
+                ) {
+                    // Only strip them from our side once they have their copy.
+                    self.updateRemindersAfterUnshare(recipientName: recipientName)
+                    self.updateOwnerUserStoreAfterUnshare(recipientName: recipientName)
+                }
+                self.sendUnshareMessage(to: sharedUser, recipientName: recipientName)
                 return
             }
 

@@ -790,7 +790,7 @@ struct StoreCard: View {
             }
             Button("Cancel", role: .cancel) { }
         } message: {
-            Text("You already have \(store.storeName) in your list. Accepting will merge the reminder lists — items from \(message.senderName) that you don't have yet will be added with a shared indicator.")
+            Text("You already have \(store.storeName) in your list. Accepting combines both lists into one shared list — everything either of you adds, checks off or removes from now on shows up for both of you.")
         }
     }
 

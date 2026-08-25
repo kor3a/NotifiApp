@@ -19,6 +19,11 @@ struct UserStoreItem: Identifiable, Hashable {
     let sharedFromId: String? // User ID of who shared this store (for looking up current name)
     var sharedWith: [String]? // Names of users this store is shared with (for owner)
     let notificationsEnabled: Bool // Whether notifications are enabled for this store
+    /// True when this store was originally the user's OWN store and later merged into
+    /// someone else's shared list (see `MessagingService.mergeStoreReminders`). The user
+    /// is a normal `.edit` participant from here on, but leaving the share must hand the
+    /// store back to them instead of deleting it — they owned it before the merge.
+    var mergedFromOwnStore: Bool = false
 
     /// Whether this store is being shared with other users or was shared to the current user
     var isShared: Bool {
