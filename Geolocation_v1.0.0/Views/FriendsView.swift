@@ -295,23 +295,6 @@ struct FriendsView: View {
                 Label("Remove", systemImage: "person.badge.minus")
             }
         }
-        .swipeActions(edge: .leading, allowsFullSwipe: false) {
-            if isFamilyMember {
-                Button {
-                    viewModel.removeFromFamily(friendship)
-                } label: {
-                    Label("Unfamily", systemImage: "house.slash.fill")
-                }
-                .tint(.purple)
-            } else {
-                Button {
-                    viewModel.addToFamily(friendship)
-                } label: {
-                    Label("Family", systemImage: "house.fill")
-                }
-                .tint(.purple)
-            }
-        }
         .contextMenu {
             Button {
                 startConversation(with: friendship)
@@ -539,8 +522,6 @@ struct FriendRow: View {
     var onAddToFamily: (() -> Void)?
     var onRemoveFromFamily: (() -> Void)?
 
-    @State private var showFamilyPopover = false
-
     private var friendName: String {
         friendship.friendName(currentUserId: currentUserId)
     }
@@ -565,42 +546,23 @@ struct FriendRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            // Avatar - tappable for family action
-            Button(action: { showFamilyPopover = true }) {
-                ZStack(alignment: .bottomTrailing) {
-                    ProfilePictureView(profilePictureURL: friendProfilePictureURL, size: 48) {
-                        Circle()
-                            .fill(
-                                LinearGradient(
-                                    colors: [avatarColor.opacity(0.7), avatarColor],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
-                            .frame(width: 48, height: 48)
-                            .overlay(
-                                Text(avatarInitial)
-                                    .font(.headline)
-                                    .foregroundColor(.white)
-                            )
-                    }
-                    .shadow(color: avatarColor.opacity(0.3), radius: 4, x: 0, y: 2)
-
-                    if isFamilyMember {
-                        Image(systemName: "house.fill")
-                            .font(.system(size: 9))
+            ProfilePictureView(profilePictureURL: friendProfilePictureURL, size: 48) {
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            colors: [avatarColor.opacity(0.7), avatarColor],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 48, height: 48)
+                    .overlay(
+                        Text(avatarInitial)
+                            .font(.headline)
                             .foregroundColor(.white)
-                            .padding(3.5)
-                            .background(Color.purple)
-                            .clipShape(Circle())
-                            .offset(x: 2, y: 2)
-                    }
-                }
+                    )
             }
-            .buttonStyle(.plain)
-            .popover(isPresented: $showFamilyPopover, attachmentAnchor: .rect(.bounds), arrowEdge: .bottom) {
-                familyPopover
-            }
+            .shadow(color: avatarColor.opacity(0.3), radius: 4, x: 0, y: 2)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(friendName)
@@ -616,77 +578,39 @@ struct FriendRow: View {
 
             Spacer(minLength: 8)
 
-            Button(action: onMessage) {
-                Image(systemName: "message.fill")
-                    .font(.caption)
-                    .foregroundColor(.white)
-                    .frame(width: 32, height: 32)
-                    .background(Color.appAccent)
-                    .clipShape(Circle())
+            HStack(spacing: 8) {
+                // Family toggle — filled while they're in Family, outlined otherwise.
+                Button {
+                    if isFamilyMember {
+                        onRemoveFromFamily?()
+                    } else {
+                        onAddToFamily?()
+                    }
+                } label: {
+                    Image(systemName: isFamilyMember ? "house.fill" : "house")
+                        .font(.caption)
+                        .foregroundColor(isFamilyMember ? .white : .purple)
+                        .frame(width: 32, height: 32)
+                        .background(isFamilyMember ? Color.purple : Color.purple.opacity(0.12))
+                        .clipShape(Circle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(isFamilyMember ? "Remove \(friendName) from Family" : "Add \(friendName) to Family")
+
+                Button(action: onMessage) {
+                    Image(systemName: "message.fill")
+                        .font(.caption)
+                        .foregroundColor(.white)
+                        .frame(width: 32, height: 32)
+                        .background(Color.appAccent)
+                        .clipShape(Circle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Message \(friendName)")
             }
-            .buttonStyle(.plain)
         }
         .padding(.vertical, 10)
         .padding(.horizontal, 12)
-    }
-
-    private var familyPopover: some View {
-        VStack(spacing: 12) {
-            // Action button
-            if isFamilyMember {
-                Button {
-                    onRemoveFromFamily?()
-                    showFamilyPopover = false
-                } label: {
-                    Label("Remove from Family", systemImage: "house.slash.fill")
-                        .font(.subheadline.weight(.medium))
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 44)
-                        .background(
-                            RoundedRectangle(cornerRadius: 10)
-                                .fill(Color.red)
-                        )
-                }
-                .buttonStyle(.plain)
-            } else {
-                Button {
-                    onAddToFamily?()
-                    showFamilyPopover = false
-                } label: {
-                    Label("Add to Family", systemImage: "house.fill")
-                        .font(.subheadline.weight(.medium))
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 44)
-                        .background(
-                            RoundedRectangle(cornerRadius: 10)
-                                .fill(
-                                    LinearGradient(
-                                        colors: [.blue, .purple],
-                                        startPoint: .leading,
-                                        endPoint: .trailing
-                                    )
-                                )
-                        )
-                }
-                .buttonStyle(.plain)
-            }
-
-            // Cancel
-            Button {
-                showFamilyPopover = false
-            } label: {
-                Text("Cancel")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.plain)
-        }
-        .padding(16)
-        .frame(minWidth: 220)
-        .presentationCompactAdaptation(.popover)
     }
 }
 
