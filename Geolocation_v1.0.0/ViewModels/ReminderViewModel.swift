@@ -134,6 +134,9 @@ class ReminderViewModel: ObservableObject {
                         let checkedOffAt = data["checkedOffAt"] as? TimeInterval
                         let checkedOffBy = data["checkedOffBy"] as? String
                         let checkedOffById = data["checkedOffById"] as? String
+                        let lastEditedAt = data["lastEditedAt"] as? TimeInterval
+                        let lastEditedBy = data["lastEditedBy"] as? String
+                        let lastEditedById = data["lastEditedById"] as? String
 
                         return Reminder(
                             id: doc.documentID,
@@ -154,7 +157,10 @@ class ReminderViewModel: ObservableObject {
                             category: category,
                             checkedOffAt: checkedOffAt,
                             checkedOffBy: checkedOffBy,
-                            checkedOffById: checkedOffById
+                            checkedOffById: checkedOffById,
+                            lastEditedAt: lastEditedAt,
+                            lastEditedBy: lastEditedBy,
+                            lastEditedById: lastEditedById
                         )
                     }
 
@@ -189,24 +195,33 @@ class ReminderViewModel: ObservableObject {
             }
     }
 
-    /// Resolves author display names for shared reminders that carry an author
-    /// id (`sharedFromId`) but no `sharedFrom` name, so their avatar shows the
-    /// real initial instead of a neutral icon. Names come from the user's
-    /// friends list — which is readable and kept current on name changes —
-    /// rather than reading other users' documents directly (blocked by rules).
+    /// Resolves display names for shared reminders that carry a participant id
+    /// (`sharedFromId` for the author, `lastEditedById` for whoever last edited
+    /// it) but no matching name, so their avatar shows the real initial instead
+    /// of a neutral icon. Names come from the user's friends list — which is
+    /// readable and kept current on name changes — rather than reading other
+    /// users' documents directly (blocked by rules).
     private func resolveMissingAuthorNames() {
         guard !isResolvingAuthorNames,
               let currentUserId = UserSessionManager.shared.currentUser?.userId else { return }
 
-        // Collect author ids that still need a name and we haven't tried yet.
-        let idsNeedingName = Set(reminders.compactMap { reminder -> String? in
-            guard reminder.isShared == true,
-                  let id = reminder.sharedFromId, !id.isEmpty,
-                  id != currentUserId else { return nil }
-            let hasName = !(reminder.sharedFrom?.isEmpty ?? true)
-            guard !hasName, authorNamesById[id] == nil,
-                  !attemptedAuthorIds.contains(id) else { return nil }
-            return id
+        // Collect participant ids that still need a name and we haven't tried
+        // yet. The avatar names the item's last editor when it has one and its
+        // author otherwise, so both need a name to render.
+        let idsNeedingName = Set(reminders.flatMap { reminder -> [String] in
+            guard reminder.isShared == true else { return [] }
+            let participants = [
+                (reminder.sharedFromId, reminder.sharedFrom),
+                (reminder.lastEditedById, reminder.lastEditedBy)
+            ]
+            return participants.compactMap { participant -> String? in
+                let (id, name) = participant
+                guard let id = id, !id.isEmpty, id != currentUserId else { return nil }
+                let hasName = !(name?.isEmpty ?? true)
+                guard !hasName, authorNamesById[id] == nil,
+                      !attemptedAuthorIds.contains(id) else { return nil }
+                return id
+            }
         })
         guard !idsNeedingName.isEmpty else { return }
 
@@ -419,6 +434,13 @@ class ReminderViewModel: ObservableObject {
             pendingOtherChanges += 1
         }
         let fieldValue: Any = newCategory ?? FieldValue.delete()
+        // A user re-categorizing an item is an edit, so it re-attributes the
+        // row's avatar to them. AI backfill (tracksChange: false) is not — it
+        // must leave the existing attribution alone.
+        var updateFields: [String: Any] = ["category": fieldValue]
+        if tracksChange {
+            updateFields = ReminderEditAttribution.stamped(updateFields)
+        }
 
         if let sharedReminderId = reminder.sharedReminderId {
             db.collection("reminders")
@@ -430,18 +452,18 @@ class ReminderViewModel: ObservableObject {
                         #if DEBUG
                         print("ReminderViewModel: Error finding linked reminders for category update: \(error.localizedDescription)")
                         #endif
-                        self.updateSingleReminderCategory(reminder.id, category: fieldValue)
+                        self.updateSingleReminderCategory(reminder.id, fields: updateFields)
                         return
                     }
 
                     guard let documents = snapshot?.documents, !documents.isEmpty else {
-                        self.updateSingleReminderCategory(reminder.id, category: fieldValue)
+                        self.updateSingleReminderCategory(reminder.id, fields: updateFields)
                         return
                     }
 
                     let batch = self.db.batch()
                     for doc in documents {
-                        batch.updateData(["category": fieldValue], forDocument: doc.reference)
+                        batch.updateData(updateFields, forDocument: doc.reference)
                     }
 
                     batch.commit { error in
@@ -459,14 +481,12 @@ class ReminderViewModel: ObservableObject {
                     }
                 }
         } else {
-            updateSingleReminderCategory(reminder.id, category: fieldValue)
+            updateSingleReminderCategory(reminder.id, fields: updateFields)
         }
     }
 
-    private func updateSingleReminderCategory(_ reminderId: String, category: Any) {
-        db.collection("reminders").document(reminderId).updateData([
-            "category": category
-        ]) { error in
+    private func updateSingleReminderCategory(_ reminderId: String, fields: [String: Any]) {
+        db.collection("reminders").document(reminderId).updateData(fields) { error in
             DispatchQueue.main.async {
                 if let error = error {
                     #if DEBUG
@@ -807,6 +827,12 @@ class ReminderViewModel: ObservableObject {
             updateData["sharedFromId"] = FieldValue.delete()
             updateData["sharedAt"] = FieldValue.delete()
             updateData["sharedReminderId"] = FieldValue.delete()
+            // Drop the edit attribution too, so if this item is ever shared
+            // again its avatar starts from its new author rather than whoever
+            // last edited it back when it was shared.
+            updateData["lastEditedAt"] = FieldValue.delete()
+            updateData["lastEditedBy"] = FieldValue.delete()
+            updateData["lastEditedById"] = FieldValue.delete()
         }
 
         db.collection("reminders").document(reminder.id).updateData(updateData) { error in
@@ -862,6 +888,10 @@ class ReminderViewModel: ObservableObject {
         if newOutOfStock {
             updateFields["isDone"] = false
         }
+
+        // Flagging an item unavailable changes the item itself, so the row's
+        // avatar follows the member who flagged it.
+        updateFields = ReminderEditAttribution.stamped(updateFields)
 
         if let sharedReminderId = reminder.sharedReminderId {
             #if DEBUG
@@ -936,6 +966,9 @@ class ReminderViewModel: ObservableObject {
         print("ReminderViewModel: Updating title for reminder '\(reminder.title)' to '\(trimmedTitle)'")
         #endif
 
+        // Re-attribute the row to whoever renamed it, on every linked copy.
+        let updateFields = ReminderEditAttribution.stamped(["title": trimmedTitle])
+
         if let sharedReminderId = reminder.sharedReminderId {
             db.collection("reminders")
                 .whereField("sharedReminderId", isEqualTo: sharedReminderId)
@@ -946,18 +979,18 @@ class ReminderViewModel: ObservableObject {
                         #if DEBUG
                         print("ReminderViewModel: Error finding linked reminders for title update: \(error.localizedDescription)")
                         #endif
-                        self.updateSingleReminderTitle(reminder.id, title: trimmedTitle)
+                        self.updateSingleReminderTitle(reminder.id, fields: updateFields)
                         return
                     }
 
                     guard let documents = snapshot?.documents, !documents.isEmpty else {
-                        self.updateSingleReminderTitle(reminder.id, title: trimmedTitle)
+                        self.updateSingleReminderTitle(reminder.id, fields: updateFields)
                         return
                     }
 
                     let batch = self.db.batch()
                     for doc in documents {
-                        batch.updateData(["title": trimmedTitle], forDocument: doc.reference)
+                        batch.updateData(updateFields, forDocument: doc.reference)
                     }
 
                     batch.commit { error in
@@ -975,7 +1008,7 @@ class ReminderViewModel: ObservableObject {
                     }
                 }
         } else {
-            updateSingleReminderTitle(reminder.id, title: trimmedTitle)
+            updateSingleReminderTitle(reminder.id, fields: updateFields)
         }
     }
 
@@ -988,6 +1021,8 @@ class ReminderViewModel: ObservableObject {
 
         pendingOtherChanges += 1
         let fieldValue: Any = newQuantity ?? FieldValue.delete()
+        // Changing how many to buy is an edit, so the row's avatar follows it.
+        let updateFields = ReminderEditAttribution.stamped(["quantity": fieldValue])
 
         if let sharedReminderId = reminder.sharedReminderId {
             db.collection("reminders")
@@ -999,18 +1034,18 @@ class ReminderViewModel: ObservableObject {
                         #if DEBUG
                         print("ReminderViewModel: Error finding linked reminders for quantity update: \(error.localizedDescription)")
                         #endif
-                        self.updateSingleReminderQuantity(reminder.id, quantity: fieldValue)
+                        self.updateSingleReminderQuantity(reminder.id, fields: updateFields)
                         return
                     }
 
                     guard let documents = snapshot?.documents, !documents.isEmpty else {
-                        self.updateSingleReminderQuantity(reminder.id, quantity: fieldValue)
+                        self.updateSingleReminderQuantity(reminder.id, fields: updateFields)
                         return
                     }
 
                     let batch = self.db.batch()
                     for doc in documents {
-                        batch.updateData(["quantity": fieldValue], forDocument: doc.reference)
+                        batch.updateData(updateFields, forDocument: doc.reference)
                     }
 
                     batch.commit { error in
@@ -1028,14 +1063,12 @@ class ReminderViewModel: ObservableObject {
                     }
                 }
         } else {
-            updateSingleReminderQuantity(reminder.id, quantity: fieldValue)
+            updateSingleReminderQuantity(reminder.id, fields: updateFields)
         }
     }
 
-    private func updateSingleReminderQuantity(_ reminderId: String, quantity: Any) {
-        db.collection("reminders").document(reminderId).updateData([
-            "quantity": quantity
-        ]) { error in
+    private func updateSingleReminderQuantity(_ reminderId: String, fields: [String: Any]) {
+        db.collection("reminders").document(reminderId).updateData(fields) { error in
             DispatchQueue.main.async {
                 if let error = error {
                     #if DEBUG
@@ -1050,10 +1083,8 @@ class ReminderViewModel: ObservableObject {
         }
     }
 
-    private func updateSingleReminderTitle(_ reminderId: String, title: String) {
-        db.collection("reminders").document(reminderId).updateData([
-            "title": title
-        ]) { error in
+    private func updateSingleReminderTitle(_ reminderId: String, fields: [String: Any]) {
+        db.collection("reminders").document(reminderId).updateData(fields) { error in
             DispatchQueue.main.async {
                 if let error = error {
                     #if DEBUG
@@ -1332,9 +1363,9 @@ class ReminderViewModel: ObservableObject {
         var currentURLs = reminder.photoURLs ?? []
         currentURLs.removeAll { $0 == photoURL }
 
-        db.collection("reminders").document(reminder.id).updateData([
-            "photoURLs": currentURLs
-        ]) { [weak self] error in
+        db.collection("reminders").document(reminder.id).updateData(
+            ReminderEditAttribution.stamped(["photoURLs": currentURLs])
+        ) { [weak self] error in
             if let error = error {
                 #if DEBUG
                 print("ReminderViewModel: Error updating photoURLs: \(error.localizedDescription)")
@@ -1554,9 +1585,11 @@ class ReminderViewModel: ObservableObject {
                 var currentURLs = reminder.photoURLs ?? []
                 currentURLs.append(downloadURL)
 
-                self?.db.collection("reminders").document(reminder.id).updateData([
-                    "photoURLs": currentURLs
-                ]) { error in
+                // Attaching a photo changes the item, so the row's avatar
+                // follows whoever added it.
+                self?.db.collection("reminders").document(reminder.id).updateData(
+                    ReminderEditAttribution.stamped(["photoURLs": currentURLs])
+                ) { error in
                     if let error = error {
                         #if DEBUG
                         print("ReminderViewModel: Error saving photo URL: \(error.localizedDescription)")

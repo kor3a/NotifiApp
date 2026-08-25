@@ -45,6 +45,14 @@ struct Reminder: Codable, Identifiable {
     var checkedOffBy: String? = nil
     var checkedOffById: String? = nil
 
+    // Last-edit tracking, stamped whenever a member changes the item's content
+    // (title, quantity, category, out-of-stock, photos) on a shared list. The
+    // row's avatar follows this stamp, so the initial names whoever touched the
+    // item last rather than whoever first created it. Nil until someone edits.
+    var lastEditedAt: TimeInterval? = nil
+    var lastEditedBy: String? = nil
+    var lastEditedById: String? = nil
+
     enum CodingKeys: String, CodingKey {
         case id
         case userStoreId
@@ -65,5 +73,8 @@ struct Reminder: Codable, Identifiable {
         case checkedOffAt
         case checkedOffBy
         case checkedOffById
+        case lastEditedAt
+        case lastEditedBy
+        case lastEditedById
     }
 }

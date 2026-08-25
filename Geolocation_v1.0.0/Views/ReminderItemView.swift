@@ -33,11 +33,11 @@ struct ReminderItemView: View {
     var onDragEnded: (() -> Void)?
     var autoDeleteEnabled: Bool = false
     /// Store-wide avatar color assignment, forwarded to the shared badge so the
-    /// author avatar's color is resolved against every member of the store.
+    /// avatar's color is resolved against every member of the store.
     var avatarColorMap: [String: Color] = [:]
     /// userId → display name for store members, forwarded to the shared badge so
-    /// an author's initial can be recovered from their id when the reminder has
-    /// no `sharedFrom` name.
+    /// a participant's initial can be recovered from their id when the reminder
+    /// carries no matching name.
     var memberNames: [String: String] = [:]
     @StateObject private var viewModel = ReminderItemViewModel()
     @State private var editText: String = ""
@@ -191,6 +191,8 @@ struct ReminderItemView: View {
                     SharedBadge(
                         sharedFrom: item.sharedFrom,
                         sharedFromId: item.sharedFromId,
+                        lastEditedBy: item.lastEditedBy,
+                        lastEditedById: item.lastEditedById,
                         sharedWith: item.sharedWith,
                         currentUserName: currentUserName,
                         currentUserId: currentUserId,
@@ -343,16 +345,21 @@ struct ReminderItemView: View {
 struct SharedBadge: View {
     let sharedFrom: String?
     let sharedFromId: String?
+    /// Name and id of the member who last edited this reminder's content, when
+    /// anyone has. The avatar names them instead of the author — see
+    /// `attributedParticipant`.
+    var lastEditedBy: String? = nil
+    var lastEditedById: String? = nil
     let sharedWith: [String]?
     let currentUserName: String?
     let currentUserId: String?
-    /// Store-wide deterministic color assignment keyed by author identity, so
-    /// members who share a first initial never share a color. Empty when no
+    /// Store-wide deterministic color assignment keyed by participant identity,
+    /// so members who share a first initial never share a color. Empty when no
     /// store-wide context is available (falls back to the standalone palette).
     var avatarColorMap: [String: Color] = [:]
-    /// userId → display name for the store's members, used to recover the
-    /// author's name (and therefore initial) when a reminder carries the
-    /// author's `sharedFromId` but no `sharedFrom` name.
+    /// userId → display name for the store's members, used to recover a
+    /// participant's name (and therefore initial) when a reminder carries their
+    /// id but no name.
     var memberNames: [String: String] = [:]
 
     // Check if current user is the one who shared/created this reminder
@@ -371,69 +378,65 @@ struct SharedBadge: View {
         return sharedFrom == currentUserName
     }
 
-    /// Whether the avatar's author resolves to the current user — the signal for
-    /// styling the badge as "yours." Strictly ID-based: an item is the viewer's
-    /// only on an exact `sharedFromId == currentUserId` match. Items that carry
-    /// no author id are NOT claimed (name is used only for truly legacy data
-    /// that never recorded ids). This deliberately avoids the earlier
-    /// "author-less ⇒ mine" default, which mis-marked another user's items as
-    /// the viewer's whenever their copies arrived without attribution (e.g. from
-    /// a stale cache or an unsynced field).
-    private var isAuthoredByCurrentUser: Bool {
-        if let sharedFromId = sharedFromId, !sharedFromId.isEmpty {
+    /// The person this avatar stands for — the last editor when there is one,
+    /// the author otherwise. See `SharedAvatarPalette.attributedParticipant`.
+    private var attributedParticipant: (id: String?, name: String?) {
+        SharedAvatarPalette.attributedParticipant(
+            sharedFrom: sharedFrom,
+            sharedFromId: sharedFromId,
+            lastEditedBy: lastEditedBy,
+            lastEditedById: lastEditedById,
+            memberNames: memberNames
+        )
+    }
+
+    /// Whether the avatar resolves to the current user — the signal for styling
+    /// the badge as "yours." Strictly ID-based: the row is the viewer's only on
+    /// an exact id match. Items that carry no id are NOT claimed (name is used
+    /// only for truly legacy data that never recorded ids). This deliberately
+    /// avoids the earlier "author-less ⇒ mine" default, which mis-marked another
+    /// user's items as the viewer's whenever their copies arrived without
+    /// attribution (e.g. from a stale cache or an unsynced field).
+    private var isAttributedToCurrentUser: Bool {
+        let participant = attributedParticipant
+        if let id = participant.id, !id.isEmpty {
             guard let currentUserId = currentUserId, !currentUserId.isEmpty else {
                 return false
             }
-            return sharedFromId == currentUserId
+            return id == currentUserId
         }
-        // Legacy item with no author id: fall back to a name match.
-        if let sharedFrom = sharedFrom, !sharedFrom.isEmpty,
+        // Legacy item with no recorded id: fall back to a name match.
+        if let name = participant.name, !name.isEmpty,
            let currentUserName = currentUserName, !currentUserName.isEmpty {
-            return sharedFrom.caseInsensitiveCompare(currentUserName) == .orderedSame
+            return name.caseInsensitiveCompare(currentUserName) == .orderedSame
         }
-        // No author recorded — unknown, so never claim it as the current user's.
+        // Nobody recorded — unknown, so never claim it as the current user's.
         return false
     }
 
-    /// Best-known display name for this reminder's author, independent of who is
-    /// viewing. Prefers the recorded `sharedFrom`; when that's missing but an
-    /// author id is present, recovers the name from the store member map. This
-    /// is what drives the avatar's initial, so it always reflects the *author*.
-    private var resolvedAuthorName: String? {
-        if let sharedFrom = sharedFrom, !sharedFrom.isEmpty {
-            return sharedFrom
-        }
-        if let id = sharedFromId, !id.isEmpty,
-           let name = memberNames[id], !name.isEmpty {
-            return name
-        }
-        return nil
-    }
-
-    /// The person who created/shared this reminder — its author. Everyone (the
-    /// sharer and every recipient) sees the same author initial for a given item.
+    /// The name whose initial the avatar draws.
     ///
-    /// For the current user's own items we prefer the live session name so a name
-    /// change reflects immediately; for others we use the resolved author name.
-    /// Critically, this never falls back to the current user's name for an item
-    /// that isn't theirs — an unknown author yields nil (a neutral avatar), not
-    /// the viewer's initial.
-    private var authorName: String? {
-        if isAuthoredByCurrentUser,
+    /// For the current user we prefer the live session name so a name change
+    /// reflects immediately; for others we use the resolved name. Critically,
+    /// this never falls back to the current user's name for a row that isn't
+    /// theirs — an unknown participant yields nil (a neutral avatar), not the
+    /// viewer's initial.
+    private var attributedName: String? {
+        if isAttributedToCurrentUser,
            let currentUserName = currentUserName, !currentUserName.isEmpty {
             return currentUserName
         }
-        return resolvedAuthorName
+        return attributedParticipant.name
     }
 
-    /// Stable color identity for this reminder's author (userId-based), so the
-    /// avatar color is distinct per account even when two members share a name.
-    /// Uses the resolved author name so the initial matches even when only the
-    /// author id was recorded on the reminder.
+    /// Stable color identity for the attributed participant (userId-based), so
+    /// the avatar color is distinct per account even when two members share a
+    /// name. Uses the resolved name so the initial matches even when only an id
+    /// was recorded on the reminder.
     private var avatarIdentity: (key: String, name: String)? {
-        SharedAvatarPalette.authorIdentity(
-            sharedFrom: isAuthoredByCurrentUser ? currentUserName : resolvedAuthorName,
-            sharedFromId: sharedFromId,
+        SharedAvatarPalette.participantIdentity(
+            name: isAttributedToCurrentUser ? currentUserName : attributedParticipant.name,
+            id: attributedParticipant.id,
             currentUserName: currentUserName,
             currentUserId: currentUserId
         )
@@ -445,16 +448,16 @@ struct SharedBadge: View {
                 InitialAvatar(
                     name: identity.name,
                     color: SharedAvatarPalette.color(forKey: identity.key, in: avatarColorMap),
-                    isCurrentUser: isAuthoredByCurrentUser
+                    isCurrentUser: isAttributedToCurrentUser
                 )
-            } else if let name = authorName,
+            } else if let name = attributedName,
                !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 InitialAvatar(
                     name: name,
-                    isCurrentUser: isAuthoredByCurrentUser
+                    isCurrentUser: isAttributedToCurrentUser
                 )
             } else {
-                // Shared but no known author — keep a visible indicator.
+                // Shared but nobody known — keep a visible indicator.
                 Image(systemName: "person.fill")
                     .font(.system(size: 11, weight: .bold))
                     .foregroundColor(.white)
@@ -466,7 +469,32 @@ struct SharedBadge: View {
         .help(tooltipText)
     }
 
+    /// Whether the last edit was made by the person viewing the row.
+    private var isEditedByCurrentUser: Bool {
+        guard let editorId = lastEditedById, !editorId.isEmpty,
+              let currentUserId = currentUserId, !currentUserId.isEmpty else {
+            return false
+        }
+        return editorId == currentUserId
+    }
+
     private var tooltipText: String {
+        // Once someone has edited the item the avatar shows them rather than the
+        // author, so the tooltip has to name them — otherwise the initial and
+        // the "Shared by …" text disagree.
+        guard let editor = SharedAvatarPalette.displayName(
+            id: lastEditedById,
+            name: lastEditedBy,
+            in: memberNames
+        ) else {
+            return sharingTooltip
+        }
+        let who = isEditedByCurrentUser ? "you" : editor
+        return "\(sharingTooltip) · Last edited by \(who)"
+    }
+
+    /// Who shared this reminder with whom, independent of who last edited it.
+    private var sharingTooltip: String {
         // If current user created/shared this reminder
         if isCurrentUserTheSharer {
             if let sharedWith = sharedWith, !sharedWith.isEmpty {
@@ -588,7 +616,7 @@ enum SharedAvatarPalette {
         colors[hashIndex(for: key(for: name))]
     }
 
-    /// Stable color identity for an author. Prefers the account's userId so two
+    /// Stable color identity for a participant. Prefers the account's userId so two
     /// *different* users who happen to share a display name still resolve to
     /// different identities (and, below, different colors). Falls back to the
     /// normalized name only for legacy data that never recorded an id.
@@ -597,27 +625,63 @@ enum SharedAvatarPalette {
         return "name:\(key(for: name))"
     }
 
-    /// Resolves the color identity for a reminder's author using the same
+    /// Best-known display name for a participant recorded as an (id, name) pair.
+    /// Prefers the name stamped on the reminder; when that's missing, recovers it
+    /// from the store member map so an id alone still yields an initial.
+    static func displayName(id: String?, name: String?, in memberNames: [String: String]) -> String? {
+        if let name = name, !name.isEmpty {
+            return name
+        }
+        if let id = id, !id.isEmpty,
+           let recovered = memberNames[id], !recovered.isEmpty {
+            return recovered
+        }
+        return nil
+    }
+
+    /// The participant a reminder's avatar stands for: whoever last edited the
+    /// item when someone has, and its author otherwise. So when user A edits an
+    /// item user B created, the row switches to A's initial — for everyone, since
+    /// the edit stamp is written to every linked copy of the shared reminder.
+    ///
+    /// Falls back to the author whenever the editor can't be named (a stamp that
+    /// arrived without a name and whose id isn't in the member map), so an edit
+    /// never blanks a row that could still show its author.
+    static func attributedParticipant(
+        sharedFrom: String?,
+        sharedFromId: String?,
+        lastEditedBy: String?,
+        lastEditedById: String?,
+        memberNames: [String: String] = [:]
+    ) -> (id: String?, name: String?) {
+        if let editorName = displayName(id: lastEditedById, name: lastEditedBy, in: memberNames) {
+            return (lastEditedById, editorName)
+        }
+        return (sharedFromId, displayName(id: sharedFromId, name: sharedFrom, in: memberNames))
+    }
+
+    /// Resolves the color identity for the participant a reminder's avatar names
+    /// — its last editor when it has one, its author otherwise — using the same
     /// attribution rules that draw the avatar, so the color computed when
     /// building the store-wide map matches the one looked up at render time.
     /// Returns the identity key plus the display name (used for the initial).
-    static func authorIdentity(
-        sharedFrom: String?,
-        sharedFromId: String?,
+    static func participantIdentity(
+        name participantName: String?,
+        id participantId: String?,
         currentUserName: String?,
         currentUserId: String?
     ) -> (key: String, name: String)? {
-        // Is the current user the author? Strictly ID-based when the author has
+        // Is the current user this participant? Strictly ID-based when they have
         // an id (so a same-named other account is not mistaken for the viewer,
         // and an unattributed copy is never claimed); name-based only for legacy
         // data without ids.
         let isMine: Bool = {
-            if let sid = sharedFromId, !sid.isEmpty {
+            if let pid = participantId, !pid.isEmpty {
                 guard let cid = currentUserId, !cid.isEmpty else { return false }
-                return sid == cid
+                return pid == cid
             }
-            if let sf = sharedFrom, !sf.isEmpty, let cn = currentUserName, !cn.isEmpty {
-                return sf.caseInsensitiveCompare(cn) == .orderedSame
+            if let pn = participantName, !pn.isEmpty, let cn = currentUserName, !cn.isEmpty {
+                return pn.caseInsensitiveCompare(cn) == .orderedSame
             }
             return false
         }()
@@ -626,11 +690,11 @@ enum SharedAvatarPalette {
             guard let name = currentUserName, !name.isEmpty else { return nil }
             return (identityKey(id: currentUserId, name: name), name)
         }
-        guard let name = sharedFrom, !name.isEmpty else { return nil }
-        return (identityKey(id: sharedFromId, name: name), name)
+        guard let name = participantName, !name.isEmpty else { return nil }
+        return (identityKey(id: participantId, name: name), name)
     }
 
-    /// Builds a store-wide color assignment keyed by author identity so that two
+    /// Builds a store-wide color assignment keyed by participant identity so two
     /// members sharing the same first initial get *visibly* different colors —
     /// not merely different palette entries, but different color families (so no
     /// red-vs-pink lookalikes). Each identity starts from its own deterministic
