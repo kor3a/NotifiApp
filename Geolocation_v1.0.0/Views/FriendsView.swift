@@ -148,16 +148,9 @@ struct FriendsView: View {
                     .listRowSeparator(.hidden)
             }
 
-            if !viewModel.isFilteringFriends {
-                if hasNoConnections {
-                    emptyState
-                        .padding(.top, 40)
-                        .listRowBackground(Color.clear)
-                        .listRowSeparator(.hidden)
-                }
-
-                inviteFriendsSection
-                    .listRowInsets(EdgeInsets(top: 16, leading: 16, bottom: 8, trailing: 16))
+            if hasNoConnections && !viewModel.isFilteringFriends {
+                emptyState
+                    .padding(.top, 40)
                     .listRowBackground(Color.clear)
                     .listRowSeparator(.hidden)
             }
@@ -362,50 +355,6 @@ struct FriendsView: View {
         .textCase(nil)
         .padding(.vertical, 4)
         .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 4, trailing: 16))
-    }
-
-    // MARK: - Invite Friends Section
-
-    private var inviteFriendsSection: some View {
-        Button(action: inviteFriends) {
-            HStack(spacing: 14) {
-                Circle()
-                    .fill(Color.appAccent.opacity(0.15))
-                    .frame(width: 44, height: 44)
-                    .overlay(
-                        Image(systemName: "envelope.open.fill")
-                            .font(.system(size: 18))
-                            .foregroundColor(.appAccent)
-                    )
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Invite Friends")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(.primary)
-
-                    Text("Copy Allim's App Store link to share with friends")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-
-                Spacer()
-
-                Image(systemName: "doc.on.doc")
-                    .font(.subheadline)
-                    .foregroundColor(.appAccent)
-            }
-            .padding(16)
-            .background(
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(.ultraThinMaterial)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 16)
-                            .stroke(Color.cardBorder(for: colorScheme), lineWidth: 1.5)
-                    )
-                    .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.3 : 0.08), radius: 8, x: 0, y: 4)
-            )
-        }
-        .buttonStyle(.plain)
     }
 
     // MARK: - Empty States
