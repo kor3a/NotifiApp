@@ -21,6 +21,11 @@ class FriendsViewModel: ObservableObject {
     @Published var successMessage: String?
     @Published var pendingRequestCount = 0
 
+    /// Text typed into the Friends tab search bar. It filters the `filtered*`
+    /// section lists only — `friends`, `familyMembers`, `pendingRequests` and
+    /// `sentRequests` stay complete for the other screens that read them.
+    @Published var searchText: String = ""
+
     /// Fresh profile picture URLs keyed by userId, fetched directly from the `users` collection.
     @Published var friendProfilePictures: [String: String] = [:]
 
@@ -154,11 +159,26 @@ class FriendsViewModel: ObservableObject {
             }
         }
 
-        // Sort by name
-        self.familyMembers = family.sorted { $0.friendName(currentUserId: currentUserId) < $1.friendName(currentUserId: currentUserId) }
-        self.friends = nonFamily.sorted { $0.friendName(currentUserId: currentUserId) < $1.friendName(currentUserId: currentUserId) }
+        // Friends and family read as an alphabetical list; requests stay
+        // newest-first so the most recent one is the first thing to answer.
+        self.familyMembers = sortedByFriendName(family, currentUserId: currentUserId)
+        self.friends = sortedByFriendName(nonFamily, currentUserId: currentUserId)
         self.pendingRequests = pending.sorted { $0.createdAt > $1.createdAt }
         self.sentRequests = sent.sorted { $0.createdAt > $1.createdAt }
+    }
+
+    /// Sort friendships alphabetically by the other user's display name, falling
+    /// back to their user ID so equal names keep a stable order between updates.
+    private func sortedByFriendName(_ friendships: [Friendship], currentUserId: String) -> [Friendship] {
+        friendships.sorted { lhs, rhs in
+            let lhsName = lhs.friendName(currentUserId: currentUserId)
+            let rhsName = rhs.friendName(currentUserId: currentUserId)
+            let comparison = lhsName.localizedCaseInsensitiveCompare(rhsName)
+            if comparison == .orderedSame {
+                return lhs.friendId(currentUserId: currentUserId) < rhs.friendId(currentUserId: currentUserId)
+            }
+            return comparison == .orderedAscending
+        }
     }
 
     func stopListening() {
@@ -202,6 +222,69 @@ class FriendsViewModel: ObservableObject {
                         }
                     }
                 }
+        }
+    }
+
+    // MARK: - Friend Search Filtering
+
+    private var trimmedSearchText: String {
+        searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// Whether the user is currently narrowing the list with the search bar.
+    var isFilteringFriends: Bool {
+        !trimmedSearchText.isEmpty
+    }
+
+    /// Received friend requests matching the search text.
+    var filteredPendingRequests: [Friendship] {
+        filterFriendships(pendingRequests) { [$0.requesterName, $0.requesterEmail, $0.requesterId] }
+    }
+
+    /// Sent friend requests matching the search text.
+    var filteredSentRequests: [Friendship] {
+        filterFriendships(sentRequests) { [$0.receiverName, $0.receiverEmail, $0.receiverId] }
+    }
+
+    /// Family members matching the search text.
+    var filteredFamilyMembers: [Friendship] {
+        filterFriendships(familyMembers, fields: friendSearchFields)
+    }
+
+    /// Non-family friends matching the search text.
+    var filteredFriends: [Friendship] {
+        filterFriendships(friends, fields: friendSearchFields)
+    }
+
+    /// True when a search is active but nothing in any section matches it.
+    var hasNoSearchResults: Bool {
+        isFilteringFriends
+            && filteredPendingRequests.isEmpty
+            && filteredSentRequests.isEmpty
+            && filteredFamilyMembers.isEmpty
+            && filteredFriends.isEmpty
+    }
+
+    private func friendSearchFields(_ friendship: Friendship) -> [String] {
+        let userId = currentUserId ?? ""
+        return [
+            friendship.friendName(currentUserId: userId),
+            friendship.friendEmail(currentUserId: userId),
+            friendship.friendId(currentUserId: userId)
+        ]
+    }
+
+    private func filterFriendships(
+        _ friendships: [Friendship],
+        fields: (Friendship) -> [String]
+    ) -> [Friendship] {
+        let query = trimmedSearchText
+        guard !query.isEmpty else { return friendships }
+
+        return friendships.filter { friendship in
+            fields(friendship).contains { field in
+                field.range(of: query, options: [.caseInsensitive, .diacriticInsensitive]) != nil
+            }
         }
     }
 
