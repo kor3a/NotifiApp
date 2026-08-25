@@ -1343,13 +1343,25 @@ class MessagingService: ObservableObject {
             }
     }
 
-    /// Bidirectional merge when the recipient already owns the same store.
+    /// Fold the recipient's own store into the sender's shared list when both users
+    /// already have the same store.
     ///
-    /// - Copies sender's unique reminders → recipient's store (isShared + sharedFrom = sender)
-    /// - Marks recipient's existing reminders as shared (isShared + sharedWith += sender)
-    /// - Copies recipient's unique reminders → sender's store (isShared + sharedFrom = recipient)
-    /// - Appends recipient's name to the sender's user_store.sharedWith so the shared icon
-    ///   appears in the sender's StoresView
+    /// This used to be a one-time copy: each side kept its own `user_store` with its own
+    /// reminder documents, so anything either user added *after* the merge never reached
+    /// the other and the two lists silently drifted apart. It now produces the same live
+    /// link a normal "Can Edit" share does — a single set of reminder documents, hanging
+    /// off the sender's store, that both users read and write:
+    ///
+    ///   • The recipient's reminders are re-pointed onto the sender's store, so nothing
+    ///     they had is lost and any attached photos travel with them.
+    ///   • Items both lists already had are de-duplicated: the recipient's copy is dropped
+    ///     after folding its photos into the sender's copy.
+    ///   • The sender's reminders are marked as shared with the recipient.
+    ///   • Anyone the recipient had already shared their store with is re-pointed at the
+    ///     sender's store, so their list doesn't go empty.
+    ///   • The recipient's `user_store` becomes a normal `.edit` participant on the
+    ///     sender's store, flagged `mergedFromOwnStore` so that leaving the share hands
+    ///     the store back to them instead of deleting it — they owned it before the merge.
     private func mergeStoreReminders(
         existingUserStoreId: String,   // recipient (B) user_store doc ID
         senderUserStoreId: String?,    // sender (A) user_store doc ID
@@ -1369,16 +1381,26 @@ class MessagingService: ObservableObject {
             return
         }
 
+        // Nothing to fold in if both sides already resolve to the same store.
+        guard senderUserStoreId != existingUserStoreId else {
+            #if DEBUG
+            print("🔀 mergeStoreReminders: Recipient store IS the sender store, skipping merge")
+            #endif
+            completion()
+            return
+        }
+
         #if DEBUG
-        print("🔀 mergeStoreReminders: Bidirectional merge — B=\(existingUserStoreId), A=\(senderUserStoreId)")
+        print("🔀 mergeStoreReminders: Linking B=\(existingUserStoreId) into A=\(senderUserStoreId)")
         #endif
 
         let remindersRef = db.collection("reminders")
 
-        // 1. Fetch recipient's (B) existing active reminders
+        // 1. The recipient's (B) reminders — ALL of them, not just the active ones. The
+        //    whole store is moving onto A, so checked-off items have to move too or they
+        //    would be stranded under a user_store nobody reads any more.
         remindersRef
             .whereField("userStoreId", isEqualTo: existingUserStoreId)
-            .whereField("isDone", isEqualTo: false)
             .getDocuments { [weak self] recipientSnapshot, recipientError in
                 guard let self = self else { completion(); return }
 
@@ -1391,11 +1413,8 @@ class MessagingService: ObservableObject {
                 }
 
                 let recipientDocs = recipientSnapshot?.documents ?? []
-                let titlesB: Set<String> = Set(recipientDocs.compactMap {
-                    ($0.data()["title"] as? String)?.lowercased().trimmingCharacters(in: .whitespaces)
-                })
 
-                // 2. Fetch sender's (A) existing active reminders
+                // 2. The sender's (A) active reminders — the list B is joining.
                 remindersRef
                     .whereField("userStoreId", isEqualTo: senderUserStoreId)
                     .whereField("isDone", isEqualTo: false)
@@ -1411,129 +1430,162 @@ class MessagingService: ObservableObject {
                         }
 
                         let senderDocs = senderSnapshot?.documents ?? []
-                        let titlesA: Set<String> = Set(senderDocs.compactMap {
-                            ($0.data()["title"] as? String)?.lowercased().trimmingCharacters(in: .whitespaces)
-                        })
 
-                        let batch = self.db.batch()
-                        var addedToB = 0
-                        var addedToA = 0
-
-                        // 3. Copy A's unique reminders → B's store
+                        // Title -> A's document, for de-duplication.
+                        var senderDocsByTitle: [String: DocumentReference] = [:]
                         for doc in senderDocs {
-                            let data = doc.data()
-                            guard let title = data["title"] as? String else { continue }
+                            guard let title = doc.data()["title"] as? String else { continue }
                             let key = title.lowercased().trimmingCharacters(in: .whitespaces)
-                            guard !titlesB.contains(key) else { continue }
-
-                            let newRef = remindersRef.document()
-                            var newData: [String: Any] = [
-                                "userStoreId": existingUserStoreId,
-                                "title": title,
-                                "isDone": false,
-                                "createdAt": Date().timeIntervalSince1970,
-                                "isShared": true,
-                                "sharedFrom": senderName,
-                                "sharedFromId": senderUserId,
-                                "sharedAt": Date().timeIntervalSince1970
-                            ]
-                            if let v = data["quantity"] { newData["quantity"] = v }
-                            if let v = data["category"] { newData["category"] = v }
-                            if let v = data["sortOrder"] { newData["sortOrder"] = v }
-                            if let v = data["photoURLs"] { newData["photoURLs"] = v }
-                            batch.setData(newData, forDocument: newRef)
-                            addedToB += 1
+                            guard !key.isEmpty, senderDocsByTitle[key] == nil else { continue }
+                            senderDocsByTitle[key] = doc.reference
                         }
 
-                        // 4. Mark B's existing reminders with the correct shared metadata:
-                        //    - Item exists in BOTH lists → sharedFrom = sender ("Shared by [owner]")
-                        //    - Item is unique to B → sharedWith += sender ("Shared with [owner]")
+                        let batch = self.db.batch()
+                        let now = Date().timeIntervalSince1970
+                        var movedToA = 0
+                        var deduped = 0
+                        // Photos rescued off de-duplicated copies, keyed by A's document ID.
+                        var salvagedPhotos: [String: [String]] = [:]
+
+                        // 3. Move B's reminders onto A's store, dropping duplicates.
                         for doc in recipientDocs {
                             let data = doc.data()
-                            guard let title = data["title"] as? String else { continue }
+                            let title = (data["title"] as? String) ?? ""
                             let key = title.lowercased().trimmingCharacters(in: .whitespaces)
 
-                            if titlesA.contains(key) {
-                                // Duplicate: the owner also has this item — attribute it to the owner
-                                batch.updateData([
-                                    "isShared": true,
-                                    "sharedFrom": senderName,
-                                    "sharedFromId": senderUserId
-                                ], forDocument: doc.reference)
+                            if let senderRef = senderDocsByTitle[key] {
+                                // A already has this item — keep A's copy as the single
+                                // one, but don't throw away photos B attached to theirs.
+                                if let photos = data["photoURLs"] as? [String], !photos.isEmpty {
+                                    salvagedPhotos[senderRef.documentID, default: []].append(contentsOf: photos)
+                                }
+                                batch.deleteDocument(doc.reference)
+                                deduped += 1
                             } else {
-                                // B's unique item being shared with A
+                                // Unique to B — it becomes part of the shared list.
                                 batch.updateData([
+                                    "userStoreId": senderUserStoreId,
                                     "isShared": true,
-                                    "sharedWith": FieldValue.arrayUnion([senderName])
+                                    "sharedFrom": recipientName,
+                                    "sharedFromId": recipientUserId,
+                                    "sharedAt": now
                                 ], forDocument: doc.reference)
+                                movedToA += 1
                             }
                         }
 
-                        // 5. Copy B's unique reminders → A's store
-                        for doc in recipientDocs {
-                            let data = doc.data()
-                            guard let title = data["title"] as? String else { continue }
-                            let key = title.lowercased().trimmingCharacters(in: .whitespaces)
-                            guard !titlesA.contains(key) else { continue }
-
-                            let newRef = remindersRef.document()
-                            var newData: [String: Any] = [
-                                "userStoreId": senderUserStoreId,
-                                "title": title,
-                                "isDone": false,
-                                "createdAt": Date().timeIntervalSince1970,
+                        // 4. A's own items are now shared with B.
+                        for doc in senderDocs {
+                            var updates: [String: Any] = [
                                 "isShared": true,
-                                "sharedFrom": recipientName,
-                                "sharedFromId": recipientUserId,
-                                "sharedAt": Date().timeIntervalSince1970
+                                "sharedWith": FieldValue.arrayUnion([recipientName])
                             ]
-                            if let v = data["quantity"] { newData["quantity"] = v }
-                            if let v = data["category"] { newData["category"] = v }
-                            if let v = data["sortOrder"] { newData["sortOrder"] = v }
-                            if let v = data["photoURLs"] { newData["photoURLs"] = v }
-                            batch.setData(newData, forDocument: newRef)
-                            addedToA += 1
+                            if let photos = salvagedPhotos[doc.documentID], !photos.isEmpty {
+                                updates["photoURLs"] = FieldValue.arrayUnion(photos)
+                            }
+                            batch.updateData(updates, forDocument: doc.reference)
                         }
 
-                        // 6. Update A's user_store so the shared indicator appears in A's StoresView.
-                        //    setupSharedStatusListeners will also keep this in sync going forward
-                        //    once B's doc has sourceUserStoreId set (step 7).
+                        // 5. Show the shared indicator on A's store in A's StoresView.
                         let senderStoreRef = self.db.collection("user_stores").document(senderUserStoreId)
                         batch.updateData(
                             ["sharedWith": FieldValue.arrayUnion([recipientName])],
                             forDocument: senderStoreRef
                         )
 
-                        // 7. Update B's existing user_store so the system can track the relationship.
-                        //    - sourceUserStoreId: lets fetchSharedUsers and setupSharedStatusListeners
-                        //      find B when querying against A's store ID. permission stays .owner so
-                        //      reminderStoreId ignores this field and B keeps seeing their own reminders.
-                        //    - userName: used by setupSharedStatusListeners to populate sharedWith on A.
-                        //    - sharedWith / sharedFromName: makes isShared=true for B's StoresView.
+                        // 6. B becomes a live "Can Edit" participant on A's store — the same
+                        //    shape `createSharedStoreWithEditPermission` produces for someone
+                        //    who didn't have the store yet. `reminderStoreId` now resolves to
+                        //    A's store for B, so both sides read and write the same reminders.
+                        //    `mergedFromOwnStore` records that B owned this store before the
+                        //    merge, so leaving the share gives it back instead of deleting it.
                         let recipientStoreRef = self.db.collection("user_stores").document(existingUserStoreId)
                         batch.updateData([
+                            "permission": "edit",
                             "sourceUserStoreId": senderUserStoreId,
+                            "mergedFromOwnStore": true,
                             "userName": recipientName,
                             "userEmail": recipientEmail,
                             "sharedWith": FieldValue.arrayUnion([senderName]),
                             "sharedFromName": senderName,
                             // Store sender's userId and email so Firestore rules allow A to
-                            // update or delete B's merged user_store (mirrors non-merged share flow)
+                            // update or delete B's user_store (mirrors non-merged share flow)
                             "sharedFrom": senderUserId,
                             "sharedFromEmail": senderEmail
                         ], forDocument: recipientStoreRef)
 
-                        batch.commit { error in
+                        batch.commit { [weak self] error in
                             #if DEBUG
                             if let error = error {
                                 print("🔀 mergeStoreReminders: ERROR - \(error)")
                             } else {
-                                print("🔀 mergeStoreReminders: SUCCESS — +\(addedToB) to B, +\(addedToA) to A, tracking linked")
+                                print("🔀 mergeStoreReminders: SUCCESS — \(movedToA) moved to A, \(deduped) de-duplicated, B linked as editor")
                             }
                             #endif
-                            completion()
+
+                            guard let self = self, error == nil else {
+                                completion()
+                                return
+                            }
+
+                            // 7. Hand B's own recipients over to A's store.
+                            self.repointDownstreamRecipients(
+                                from: existingUserStoreId,
+                                to: senderUserStoreId,
+                                completion: completion
+                            )
                         }
                     }
+            }
+    }
+
+    /// Re-point anyone the merging user had already shared their store with at the store
+    /// that now holds the reminders.
+    ///
+    /// Their `user_store` locates reminders through `sourceUserStoreId`. After a merge the
+    /// old store holds none, so without this they would be left staring at an empty list.
+    private func repointDownstreamRecipients(
+        from oldSourceUserStoreId: String,
+        to newSourceUserStoreId: String,
+        completion: @escaping () -> Void
+    ) {
+        db.collection("user_stores")
+            .whereField("sourceUserStoreId", isEqualTo: oldSourceUserStoreId)
+            .getDocuments { [weak self] snapshot, error in
+                guard let self = self else { completion(); return }
+
+                if let error = error {
+                    #if DEBUG
+                    print("🔀 repointDownstreamRecipients: Error fetching downstream recipients - \(error)")
+                    #endif
+                    completion()
+                    return
+                }
+
+                let documents = snapshot?.documents ?? []
+                guard !documents.isEmpty else {
+                    completion()
+                    return
+                }
+
+                let batch = self.db.batch()
+                for doc in documents {
+                    batch.updateData(
+                        ["sourceUserStoreId": newSourceUserStoreId],
+                        forDocument: doc.reference
+                    )
+                }
+
+                batch.commit { commitError in
+                    #if DEBUG
+                    if let commitError = commitError {
+                        print("🔀 repointDownstreamRecipients: ERROR - \(commitError)")
+                    } else {
+                        print("🔀 repointDownstreamRecipients: Re-pointed \(documents.count) downstream recipients")
+                    }
+                    #endif
+                    completion()
+                }
             }
     }
 

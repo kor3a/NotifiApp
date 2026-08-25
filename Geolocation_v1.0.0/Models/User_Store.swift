@@ -7,6 +7,23 @@ enum StorePermission: String, Codable {
     case view = "view"
 }
 
+extension StorePermission {
+    /// Whether this permission lets the user change the store's list.
+    ///
+    /// `.view` is the ONLY read-only level. `.owner` and `.edit` both allow adding,
+    /// checking off and deleting items — so a check written as `== .edit` silently
+    /// mislabels an owner as read-only, which is exactly how a merged store ended up
+    /// showing "View Only" in the shared-store sheet.
+    var canEdit: Bool {
+        self != .view
+    }
+
+    /// Human-readable access level, as shown in the shared-store sheet.
+    var displayLabel: String {
+        canEdit ? "Can Edit" : "View Only"
+    }
+}
+
 struct UserStore: Codable, Identifiable {
     var id: String? // Firestore document ID - will be set manually from doc.documentID
     let userId: String
@@ -22,6 +39,9 @@ struct UserStore: Codable, Identifiable {
     var sharedAt: TimeInterval? = nil // When it was shared
     var sharedWith: [String]? = nil // Names of users this store is shared with (for owner)
     var notificationsEnabled: Bool = true // Whether notifications are enabled for this store
+    /// True when this store was originally the user's OWN store and later merged into
+    /// someone else's shared list. See `UserStoreItem.mergedFromOwnStore`.
+    var mergedFromOwnStore: Bool = false
 
     /// Returns the ID to use for fetching this store's reminders, or nil if the
     /// document ID hasn't been set yet. Mirrors `UserStoreItem.reminderStoreId`:
@@ -51,6 +71,7 @@ struct UserStore: Codable, Identifiable {
         case sharedAt
         case sharedWith
         case notificationsEnabled
+        case mergedFromOwnStore
     }
 
     init(from decoder: Decoder) throws {
@@ -76,6 +97,9 @@ struct UserStore: Codable, Identifiable {
 
         // Handle notificationsEnabled with default value for backward compatibility
         notificationsEnabled = try container.decodeIfPresent(Bool.self, forKey: .notificationsEnabled) ?? true
+
+        // Absent on every store that predates the merge-to-live-share flow.
+        mergedFromOwnStore = try container.decodeIfPresent(Bool.self, forKey: .mergedFromOwnStore) ?? false
     }
 
     func encode(to encoder: Encoder) throws {
@@ -93,5 +117,6 @@ struct UserStore: Codable, Identifiable {
         try container.encodeIfPresent(sharedAt, forKey: .sharedAt)
         try container.encodeIfPresent(sharedWith, forKey: .sharedWith)
         try container.encode(notificationsEnabled, forKey: .notificationsEnabled)
+        try container.encode(mergedFromOwnStore, forKey: .mergedFromOwnStore)
     }
 }
