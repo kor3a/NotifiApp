@@ -454,6 +454,85 @@ final class BackgroundPreferences: ObservableObject {
         revision &+= 1
     }
 
+    // MARK: - Applying One Look Everywhere
+
+    /// Copies one surface's whole look — color and shade, or photo and fade —
+    /// onto every surface in `targets`.
+    ///
+    /// Most people want one background across all their store lists, and
+    /// setting that store by store is a lot of taps. The source surface is
+    /// skipped if it appears in `targets`, so callers can pass every store id
+    /// without filtering out the one they're editing.
+    ///
+    /// `includingPhoto` is false when the user isn't subscribed: a lapsed photo
+    /// already falls back to the color on screen, so the color is what they're
+    /// looking at and what should travel.
+    ///
+    /// Writes are batched behind a single publish — one redraw for the whole
+    /// sweep rather than one per store.
+    ///
+    /// Returns `false` if any target couldn't be written, so the caller can say
+    /// so instead of silently doing nothing.
+    @discardableResult
+    func applyBackground(from source: BackgroundSurface,
+                         to targets: [BackgroundSurface],
+                         includingPhoto: Bool = true) -> Bool {
+        let colorRaw = defaults.string(forKey: source.colorStorageKey)
+        let shade = shadeLevel(for: source)
+        let dim = dimLevel(for: source)
+        let photoData: Data? = {
+            guard includingPhoto, let url = imageURL(for: source) else { return nil }
+            return try? Data(contentsOf: url)
+        }()
+        let photo: UIImage? = photoData.flatMap { UIImage(data: $0) }
+
+        var succeeded = true
+
+        for target in targets where target.storageSuffix != source.storageSuffix {
+            // A photo and a color are mutually exclusive, so the target is
+            // cleared first and then given exactly one of them.
+            deleteImageFile(for: target)
+
+            if let photoData, let photo {
+                guard let url = imageURL(for: target), let directory = imageDirectory else {
+                    succeeded = false
+                    continue
+                }
+                do {
+                    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+                    try photoData.write(to: url, options: .atomic)
+                } catch {
+                    #if DEBUG
+                    print("BackgroundPreferences: Failed to copy background image — \(error.localizedDescription)")
+                    #endif
+                    succeeded = false
+                    continue
+                }
+                imageCache[target.storageSuffix] = photo
+                defaults.removeObject(forKey: target.colorStorageKey)
+                defaults.set(dim, forKey: target.dimStorageKey)
+            } else {
+                defaults.removeObject(forKey: target.dimStorageKey)
+                if let colorRaw {
+                    defaults.set(colorRaw, forKey: target.colorStorageKey)
+                } else {
+                    defaults.removeObject(forKey: target.colorStorageKey)
+                }
+            }
+
+            // An unset key already reads back as 0, so the default shade is
+            // stored by removing the key rather than writing a zero.
+            if shade == 0 {
+                defaults.removeObject(forKey: target.shadeStorageKey)
+            } else {
+                defaults.set(shade, forKey: target.shadeStorageKey)
+            }
+        }
+
+        revision &+= 1
+        return succeeded
+    }
+
     // MARK: - Reset
 
     /// Clears a single surface back to the app default.

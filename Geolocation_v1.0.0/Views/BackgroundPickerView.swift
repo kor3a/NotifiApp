@@ -14,6 +14,11 @@ struct BackgroundPickerView: View {
     /// What this background belongs to — a store or chat name. Falls back to
     /// the surface's generic name when the caller has nothing better.
     var title: String?
+    /// Every store the user has, so this background can be pushed out to all of
+    /// their reminder lists at once. Passing the store being edited is fine —
+    /// it's filtered out. Empty (a conversation, or a caller that doesn't know
+    /// the store list) hides the Apply to All Stores row.
+    var storeIds: [String] = []
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
@@ -23,6 +28,11 @@ struct BackgroundPickerView: View {
     @State private var photoItem: PhotosPickerItem?
     @State private var isLoadingPhoto = false
     @State private var photoError: String?
+    @State private var showingApplyAllConfirmation = false
+    @State private var applyAllError: String?
+    /// Flips the row to a checkmark for a moment after a sweep, so a tap that
+    /// changes nothing on this screen still visibly does something.
+    @State private var didApplyToAllStores = false
 
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 14), count: 4)
 
@@ -46,6 +56,14 @@ struct BackgroundPickerView: View {
         selection == .system && selectedPhoto == nil && shade == 0
     }
 
+    /// The reminder lists a sweep would write to — every store except the one
+    /// already being edited here.
+    private var applyAllTargets: [BackgroundSurface] {
+        storeIds
+            .map { BackgroundSurface.reminders(storeId: $0) }
+            .filter { $0.storageSuffix != surface.storageSuffix }
+    }
+
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -59,6 +77,10 @@ struct BackgroundPickerView: View {
                     // slider would have nothing to act on.
                     if selectedPhoto == nil {
                         shadeSection
+                    }
+
+                    if !applyAllTargets.isEmpty {
+                        applyAllSection
                     }
                 }
                 .padding(.vertical, 20)
@@ -447,6 +469,110 @@ struct BackgroundPickerView: View {
             }
         }
         .buttonStyle(.plain)
+    }
+
+    // MARK: - Apply to All Stores
+
+    /// One background across every store list is the common case, and setting
+    /// it store by store means reopening this screen once per store.
+    private var applyAllSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            sectionHeader("ALL STORES")
+
+            Button {
+                showingApplyAllConfirmation = true
+            } label: {
+                HStack(spacing: 14) {
+                    Image(systemName: didApplyToAllStores ? "checkmark.circle.fill" : "square.grid.2x2")
+                        .font(.system(size: 18))
+                        .foregroundStyle(didApplyToAllStores ? Color.green : Color.accentColor)
+                        .frame(width: 24)
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(didApplyToAllStores ? "Applied to All Stores" : "Apply to All Stores")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .foregroundStyle(.primary)
+                        Text(applyAllSubtitle)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Spacer()
+
+                    if !didApplyToAllStores {
+                        Image(systemName: "chevron.right")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .padding(14)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .background(RoundedRectangle(cornerRadius: 14).fill(.ultraThinMaterial))
+        }
+        .padding(.horizontal, 20)
+        // Carried on the row rather than the screen: the photo alert already
+        // sits on the NavigationStack, and stacked presentations there swallow
+        // one another.
+        .confirmationDialog(
+            "Apply to All Stores?",
+            isPresented: $showingApplyAllConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Apply") { applyToAllStores() }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Every store's reminder list will use this background. Any background you set on a store on its own will be replaced.")
+        }
+        .alert("Couldn't Apply Background", isPresented: Binding(
+            get: { applyAllError != nil },
+            set: { if !$0 { applyAllError = nil } }
+        )) {
+            Button("OK", role: .cancel) { applyAllError = nil }
+        } message: {
+            Text(applyAllError ?? "")
+        }
+        // The row confirms the look that was swept out, so a new pick makes it
+        // stale.
+        .onChange(of: selection) { _, _ in didApplyToAllStores = false }
+    }
+
+    private var applyAllSubtitle: String {
+        let count = applyAllTargets.count
+        guard count > 1 else { return "Give your store's reminder list this background." }
+        return "Give all \(count) of your store lists this background."
+    }
+
+    /// Copies what this screen currently shows onto every other store's list.
+    ///
+    /// Photos travel only for subscribers: without one, the photo has already
+    /// fallen back to the color in the preview above, so the color is what the
+    /// user is agreeing to send everywhere.
+    private func applyToAllStores() {
+        let targets = applyAllTargets
+        guard !targets.isEmpty else { return }
+
+        let applied = withAnimation(.easeInOut(duration: 0.25)) {
+            preferences.applyBackground(
+                from: surface,
+                to: targets,
+                includingPhoto: subscriptionManager.isSubscribed
+            )
+        }
+
+        guard applied else {
+            applyAllError = "Some of your store lists couldn't be updated. Please try again."
+            return
+        }
+
+        withAnimation(.easeInOut(duration: 0.2)) { didApplyToAllStores = true }
+        // Pinned to the main actor: the only thing it touches is view state.
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 2_000_000_000)
+            withAnimation(.easeInOut(duration: 0.2)) { didApplyToAllStores = false }
+        }
     }
 
     // MARK: - Selection
