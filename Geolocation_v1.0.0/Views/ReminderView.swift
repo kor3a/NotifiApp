@@ -259,7 +259,10 @@ struct ReminderView: View {
                 // list keeps its own look.
                 BackgroundPickerView(
                     surface: .reminders(storeId: userStoreItem.id),
-                    title: userStoreItem.store.name
+                    title: userStoreItem.store.name,
+                    // Lets the picker offer this look to every other store's
+                    // list; this store is filtered out on the other side.
+                    storeIds: [userStoreItem.id] + availableStores.map(\.id)
                 )
             }
             .sheet(item: $reminderForPhoto) { reminder in

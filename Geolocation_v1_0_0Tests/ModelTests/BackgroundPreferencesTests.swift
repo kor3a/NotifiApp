@@ -319,6 +319,124 @@ final class BackgroundPreferencesTests: XCTestCase {
         )
     }
 
+    // MARK: - Applying One Look Everywhere
+
+    func testApplyBackground_copiesColorAndShadeToEveryTarget() {
+        let source = BackgroundSurface.reminders(storeId: "store-1")
+        preferences.setBackgroundColor(.ocean, for: source)
+        preferences.setShadeLevel(0.4, for: source)
+        preferences.setBackgroundColor(.rose, for: .reminders(storeId: "store-2"))
+
+        XCTAssertTrue(preferences.applyBackground(from: source, to: [
+            .reminders(storeId: "store-1"),
+            .reminders(storeId: "store-2"),
+            .reminders(storeId: "store-3")
+        ]))
+
+        for id in ["store-1", "store-2", "store-3"] {
+            XCTAssertEqual(preferences.backgroundColor(for: .reminders(storeId: id)), .ocean)
+            XCTAssertEqual(preferences.shadeLevel(for: .reminders(storeId: id)), 0.4, accuracy: 0.0001)
+        }
+    }
+
+    /// The Stores screen can push its own look out to the reminder lists, and
+    /// must not disturb anything else.
+    func testApplyBackground_leavesUnlistedSurfacesAlone() {
+        preferences.setBackgroundColor(.sand, for: .stores)
+        preferences.setBackgroundColor(.plum, for: .conversation(id: "chat-1"))
+
+        preferences.applyBackground(from: .stores, to: [.reminders(storeId: "store-1")])
+
+        XCTAssertEqual(preferences.backgroundColor(for: .reminders(storeId: "store-1")), .sand)
+        XCTAssertEqual(preferences.backgroundColor(for: .conversation(id: "chat-1")), .plum)
+    }
+
+    /// Callers pass every store id, including the one being edited — the source
+    /// is skipped rather than rewritten.
+    func testApplyBackground_skipsTheSourceSurface() throws {
+        let source = BackgroundSurface.reminders(storeId: "store-1")
+        let data = try sampleImageData(width: 300, height: 300)
+        preferences.setBackgroundImage(from: data, for: source)
+        preferences.setDimLevel(0.5, for: source)
+
+        preferences.applyBackground(from: source, to: [source, .reminders(storeId: "store-2")])
+
+        XCTAssertTrue(preferences.hasBackgroundImage(for: source))
+        XCTAssertEqual(preferences.dimLevel(for: source), 0.5, accuracy: 0.0001)
+    }
+
+    func testApplyBackground_copiesPhotoAndFade() throws {
+        let source = BackgroundSurface.reminders(storeId: "store-1")
+        let data = try sampleImageData(width: 300, height: 300)
+        preferences.setBackgroundImage(from: data, for: source)
+        preferences.setDimLevel(0.55, for: source)
+
+        preferences.applyBackground(from: source, to: [.reminders(storeId: "store-2")])
+
+        let target = BackgroundSurface.reminders(storeId: "store-2")
+        XCTAssertTrue(preferences.hasBackgroundImage(for: target))
+        XCTAssertEqual(preferences.dimLevel(for: target), 0.55, accuracy: 0.0001)
+
+        // Written to disk, not just cached — the copy has to survive a relaunch.
+        let reloaded = BackgroundPreferences(defaults: defaults, imageDirectory: imageDirectory)
+        XCTAssertNotNil(reloaded.backgroundImage(for: target))
+    }
+
+    /// Without a subscription the source's photo has already fallen back to its
+    /// color on screen, so the photo stays put and the color is what travels.
+    func testApplyBackground_withoutPhoto_leavesTheSourcePhotoAndCopiesTheColor() throws {
+        let source = BackgroundSurface.reminders(storeId: "store-1")
+        let data = try sampleImageData(width: 300, height: 300)
+        preferences.setBackgroundImage(from: data, for: source)
+
+        let target = BackgroundSurface.reminders(storeId: "store-2")
+        preferences.setBackgroundColor(.rose, for: target)
+
+        preferences.applyBackground(from: source, to: [target], includingPhoto: false)
+
+        XCTAssertTrue(preferences.hasBackgroundImage(for: source))
+        XCTAssertFalse(preferences.hasBackgroundImage(for: target))
+        XCTAssertEqual(preferences.backgroundColor(for: target), .system)
+    }
+
+    /// A color replaces a photo the same way picking one by hand does.
+    func testApplyBackground_colorClearsATargetsPhoto() throws {
+        let data = try sampleImageData(width: 300, height: 300)
+        let target = BackgroundSurface.reminders(storeId: "store-2")
+        preferences.setBackgroundImage(from: data, for: target)
+        preferences.setBackgroundColor(.forest, for: .reminders(storeId: "store-1"))
+
+        preferences.applyBackground(from: .reminders(storeId: "store-1"), to: [target])
+
+        XCTAssertFalse(preferences.hasBackgroundImage(for: target))
+        XCTAssertEqual(preferences.backgroundColor(for: target), .forest)
+        XCTAssertEqual(preferences.dimLevel(for: target), BackgroundPreferences.defaultDimLevel)
+    }
+
+    /// Sweeping a default-looking screen resets the others rather than leaving
+    /// their old look in place.
+    func testApplyBackground_fromDefaultSurface_clearsTargets() {
+        let target = BackgroundSurface.reminders(storeId: "store-2")
+        preferences.setBackgroundColor(.rose, for: target)
+        preferences.setShadeLevel(0.7, for: target)
+
+        preferences.applyBackground(from: .reminders(storeId: "store-1"), to: [target])
+
+        XCTAssertEqual(preferences.backgroundColor(for: target), .system)
+        XCTAssertEqual(preferences.shadeLevel(for: target), 0)
+    }
+
+    func testApplyBackground_persistsAcrossInstances() {
+        preferences.setBackgroundColor(.lavender, for: .stores)
+        preferences.setShadeLevel(-0.3, for: .stores)
+
+        preferences.applyBackground(from: .stores, to: [.reminders(storeId: "store-1")])
+
+        let reloaded = BackgroundPreferences(defaults: defaults, imageDirectory: imageDirectory)
+        XCTAssertEqual(reloaded.backgroundColor(for: .reminders(storeId: "store-1")), .lavender)
+        XCTAssertEqual(reloaded.shadeLevel(for: .reminders(storeId: "store-1")), -0.3, accuracy: 0.0001)
+    }
+
     // MARK: - Reset
 
     func testReset_clearsOnlyTheGivenSurface() throws {

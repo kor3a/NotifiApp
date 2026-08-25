@@ -180,7 +180,10 @@ struct StoresView: View {
             SubscriptionPaywallView()
         }
         .sheet(isPresented: $showingBackgroundPicker) {
-            BackgroundPickerView(surface: .stores)
+            BackgroundPickerView(
+                surface: .stores,
+                storeIds: viewModel.userStoreItems.map(\.id)
+            )
         }
         .sheet(item: $selectedStoreToShare) { storeToShare in
             ShareStoreView(viewModel: viewModel, messagesViewModel: messagesViewModel, userStoreItem: storeToShare)
