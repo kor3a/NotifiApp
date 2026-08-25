@@ -1281,6 +1281,115 @@ exports.backfillMessagingIdentity = onCall(async (request) => {
 
 const LOGO_SEARCH_MAX_QUERY_CHARS = 200;
 
+// Words that carry no identity, so they must not earn a candidate any credit.
+const LOGO_SEARCH_STOPWORDS = new Set([
+    'the', 'a', 'an', 'of', 'and', 'at', 'in', 'on', 'for', 'to', 'by',
+]);
+
+// Store-format and legal-entity words. A candidate is allowed to be missing these
+// and still be the same business ("Walmart" is "Walmart Supercenter"). Words that
+// are part of a business's actual identity — "market", "bakery", "cafe" — are
+// deliberately absent: "Zion" is not "Zion Market".
+const LOGO_SEARCH_QUALIFIERS = new Set([
+    'supercenter', 'supercentre', 'superstore', 'supermarket', 'express',
+    'neighborhood', 'wholesale', 'warehouse', 'store', 'stores', 'shop',
+    'location', 'locations', 'inc', 'llc', 'ltd', 'limited', 'co', 'corp',
+    'corporation', 'company', 'group', 'holdings',
+]);
+
+/**
+ * Reduce a business name to comparable identity tokens.
+ * "Claro's Italian Markets" -> ["claros", "italian", "markets"]
+ * "85°C Bakery Cafe"        -> ["85c", "bakery", "cafe"]
+ *
+ * Apostrophes and symbols are removed rather than split on, so the possessive stays
+ * attached ("claros") — which is what keeps it distinct from the unrelated brand
+ * "Claro" — while spaces, hyphens and slashes separate words.
+ */
+function logoSearchTokens(value) {
+    return String(value || '')
+        .toLowerCase()
+        .replace(/&/g, ' and ')
+        .replace(/[\s\-_/]+/g, ' ')
+        .replace(/[^a-z0-9 ]+/g, '')
+        .trim()
+        .split(' ')
+        .filter((token) => token && !LOGO_SEARCH_STOPWORDS.has(token));
+}
+
+/**
+ * How well a Brand Search candidate's name matches the store we asked about, as a
+ * 0..1 score over exact token overlap (Jaccard).
+ *
+ * Exact tokens only, deliberately: fuzzy matching would treat "claro" and "claros"
+ * as the same word, which is precisely the confusion this is here to prevent.
+ */
+function logoNameScore(queryTokens, candidateTokens) {
+    if (!queryTokens.length || !candidateTokens.length) return 0;
+
+    const candidateSet = new Set(candidateTokens);
+    const querySet = new Set(queryTokens);
+    let shared = 0;
+    for (const token of querySet) {
+        if (candidateSet.has(token)) shared += 1;
+    }
+    if (!shared) return 0;
+
+    const unionSize = new Set([...querySet, ...candidateSet]).size;
+    return shared / unionSize;
+}
+
+/**
+ * Picks the best Brand Search result for a store name, or null when nothing is a
+ * convincing match.
+ *
+ * Logo.dev ranks by brand prominence, so the top hit for a small local business is
+ * routinely a big unrelated brand with a similar name — searching "Claro's Italian
+ * Markets" surfaces the telecom "Claro" first. A confidently wrong logo is worse
+ * than no logo, so a candidate is only accepted when its name accounts for every
+ * identity word in the store's name; the score is used to rank the ones that do.
+ */
+function pickLogoSearchMatch(results, query) {
+    if (!Array.isArray(results) || !results.length) return null;
+
+    const queryTokens = logoSearchTokens(query);
+    if (!queryTokens.length) return null;
+    const queryJoined = queryTokens.join('');
+
+    let best = null;
+
+    for (const candidate of results.slice(0, 10)) {
+        if (!candidate || typeof candidate.domain !== 'string' || !candidate.domain) {
+            continue;
+        }
+
+        const candidateTokens = logoSearchTokens(candidate.name);
+        const candidateSet = new Set(candidateTokens);
+
+        // Every identity word in the store's name must be accounted for, either by
+        // the candidate's name or by being a store-format word it can safely omit.
+        const unmatched = queryTokens.filter((token) => !candidateSet.has(token));
+        const shared = queryTokens.length - unmatched.length;
+        const accounted = unmatched.every((token) => LOGO_SEARCH_QUALIFIERS.has(token));
+        if (!shared || !accounted) continue;
+
+        let score = logoNameScore(queryTokens, candidateTokens);
+
+        // The domain's own label is corroborating evidence that this is the store's
+        // real site ("zionmarket.com" for "Zion Market"), used to rank candidates.
+        const label = candidate.domain.split('.')[0].replace(/[^a-z0-9]/gi, '').toLowerCase();
+        if (label && (label === queryJoined || queryTokens.includes(label))) {
+            score += 0.25;
+        }
+
+        if (!best || score > best.score) {
+            best = { candidate, score };
+        }
+    }
+
+    return best ? { ...best.candidate, score: best.score } : null;
+}
+
 exports.logoBrandSearch = onCall(
     { secrets: [LOGO_DEV_SECRET_KEY] },
     async (request) => {
@@ -1336,10 +1445,17 @@ exports.logoBrandSearch = onCall(
             throw new HttpsError('internal', 'Unexpected logo response.');
         }
 
-        const top = Array.isArray(results) ? results[0] : null;
-        const domain = top && typeof top.domain === 'string' ? top.domain : null;
-        const name = top && typeof top.name === 'string' ? top.name : null;
+        // Never hand back Logo.dev's top hit unchecked — see pickLogoSearchMatch.
+        const match = pickLogoSearchMatch(results, query);
+        if (!match) {
+            console.log(
+                `logoBrandSearch: no confident match for "${query}" ` +
+                `(${Array.isArray(results) ? results.length : 0} result(s) rejected)`
+            );
+            return { domain: null, name: null };
+        }
 
-        return { domain, name };
+        const name = typeof match.name === 'string' ? match.name : null;
+        return { domain: match.domain, name };
     }
 );

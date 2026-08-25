@@ -105,6 +105,15 @@ struct LocationDetailsView: View {
                 .padding(.top, 12)
                 .padding(.trailing, 14)
         }
+        // Learn this place's real website as soon as the sheet shows it, so the logo in
+        // the header resolves from a verified domain rather than a name-based guess.
+        .onAppear { recordSelectedPlaceWebsite() }
+        .onChange(of: mapSelection) { _, _ in recordSelectedPlaceWebsite() }
+    }
+
+    private func recordSelectedPlaceWebsite() {
+        guard let selection = mapSelection, let name = selection.name else { return }
+        logoProvider.recordPlaceWebsite(storeName: name, url: selection.url)
     }
 
     // MARK: - Header
@@ -246,10 +255,17 @@ struct LocationDetailsView: View {
                         return
                     }
 
+                    let storeName = selectedItem.name ?? "Unknown Store"
+
+                    // Record the website MapKit has for this exact place before resolving
+                    // the logo, so the logo comes from the store's verified domain rather
+                    // than one guessed from its name.
+                    logoProvider.recordPlaceWebsite(storeName: storeName, url: selectedItem.url)
+
                     // Create a Store object from the MKMapItem (name-based, no address/coords stored)
                     let store = Store(
-                        name: selectedItem.name ?? "Unknown Store",
-                        imageURL: logoProvider.logoURL(for: selectedItem.name ?? "")
+                        name: storeName,
+                        imageURL: logoProvider.logoURL(for: storeName)
                     )
 
                     // Add store to user's list

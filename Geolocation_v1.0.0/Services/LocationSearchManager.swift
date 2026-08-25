@@ -99,6 +99,12 @@ class LocationSearchManager: NSObject, ObservableObject {
                     continue
                 }
 
+                // Remember the store's real homepage from the place record. Without it the
+                // logo lookup has nothing but the name to go on and has to guess a domain,
+                // which is how a store like "Claro's Italian Markets" (claros.com) ends up
+                // showing another brand's logo.
+                StoreLogoProvider.shared.recordPlaceWebsite(storeName: name, url: mapItem.url)
+
                 let normalizedName = Store.normalizedId(from: name)
                 let distance = location.distance(from: CLLocation(
                     latitude: userLocation.latitude,

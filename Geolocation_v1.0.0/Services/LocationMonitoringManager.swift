@@ -401,6 +401,10 @@ class LocationMonitoringManager: NSObject, ObservableObject {
                 let normalizedResultName = Store.normalizedId(from: itemName)
                 guard Self.storeNamesMatch(normalizedSearchName, normalizedResultName) else { continue }
 
+                // The place record knows the store's real website — record it so its logo
+                // resolves from that domain instead of one guessed from the name.
+                StoreLogoProvider.shared.recordPlaceWebsite(storeName: storeName, url: mapItem.url)
+
                 // Only geofence stores within the search radius
                 let distance = userLocation.distance(from: itemLocation)
                 guard distance <= self.searchRadius else { continue }
