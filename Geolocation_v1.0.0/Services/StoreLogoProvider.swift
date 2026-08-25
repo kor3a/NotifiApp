@@ -55,7 +55,7 @@ class StoreLogoProvider: ObservableObject {
     /// Bumped whenever the resolution rules change in a way that can invalidate already
     /// cached images (e.g. logos that were downloaded from a wrong guessed domain).
     /// On a mismatch the disk cache is purged once so every logo re-resolves.
-    private static let cacheVersion = 2
+    private static let cacheVersion = 3
     private static let cacheVersionKey = "StoreLogoProvider.cacheVersion"
     private let imageCache = NSCache<NSString, UIImage>()
     private let cacheDirectory: URL = {
@@ -92,6 +92,11 @@ class StoreLogoProvider: ObservableObject {
     private var searchingStores: Set<String> = []
     /// normalizedId → domain discovered via Logo.dev Brand Search API (persisted to UserDefaults).
     private var searchedDomains: [String: String] = [:]
+    /// normalizedId → domain taken from the MapKit place record for the store the user
+    /// actually tapped (`MKMapItem.url`). This is the store's real homepage as Apple Maps
+    /// knows it — the same thing a web search would tell you — so it beats every guess.
+    private var mapKitDomains: [String: String] = [:]
+    private static let mapKitDomainCacheKey = "StoreLogoProvider.mapKitDomains"
 
     private init() {
         // Load cached URL mappings from UserDefaults for instant availability
@@ -103,6 +108,9 @@ class StoreLogoProvider: ObservableObject {
         }
         if let cachedWebsites = UserDefaults.standard.dictionary(forKey: Self.websiteCacheKey) as? [String: String] {
             storeWebsites = cachedWebsites
+        }
+        if let cachedMapKit = UserDefaults.standard.dictionary(forKey: Self.mapKitDomainCacheKey) as? [String: String] {
+            mapKitDomains = cachedMapKit
         }
         purgeDiskCacheIfResolutionRulesChanged()
         fetchStoreLogos()
@@ -216,6 +224,106 @@ class StoreLogoProvider: ObservableObject {
         return host.isEmpty ? nil : host
     }
 
+    // MARK: - MapKit-Sourced Websites
+
+    /// Domains that are never a store's own site, so they must not be used for its logo.
+    /// A MapKit place record sometimes points at an aggregator, a delivery partner or a
+    /// social page instead of the business homepage; using those yields the aggregator's
+    /// logo for every store that links to it.
+    private static let nonBrandDomains: Set<String> = [
+        "facebook.com", "m.facebook.com", "instagram.com", "twitter.com", "x.com",
+        "yelp.com", "tripadvisor.com", "foursquare.com", "linktr.ee", "linkedin.com",
+        "google.com", "goo.gl", "maps.google.com", "sites.google.com", "business.site",
+        "doordash.com", "ubereats.com", "grubhub.com", "postmates.com", "seamless.com",
+        "toasttab.com", "square.site", "clover.com", "chownow.com", "slicelife.com",
+        "opentable.com", "wixsite.com", "weebly.com", "squarespace.com", "godaddysites.com",
+        "shopify.com", "myshopify.com", "wordpress.com", "blogspot.com", "tumblr.com",
+        "apple.com", "yahoo.com", "bing.com", "mapquest.com", "yellowpages.com",
+    ]
+
+    /// Records the website MapKit reports for a place the user searched, tapped, or saved.
+    ///
+    /// This is the fix for logos resolved from a *guessed* domain: instead of inferring a
+    /// website from the store's name ("Claro's Italian Markets" -> clarositalianmarkets.com,
+    /// which does not exist), the place record MapKit already returned carries the store's
+    /// real homepage (claros.com) — the same address a web search would surface. Recording
+    /// it here makes every later `logoURL(for:)` / `websiteURL(for:)` call resolve against a
+    /// verified domain instead of a guess.
+    ///
+    /// Safe to call from any thread and as often as you like; it only does work when the
+    /// domain is new or has changed. On the main thread it applies immediately, so a
+    /// `logoURL(for:)` call on the very next line already sees the recorded domain.
+    func recordPlaceWebsite(storeName: String, url: URL?) {
+        guard let host = Self.brandHost(from: url) else { return }
+        let normalizedId = Store.normalizedId(from: storeName)
+        guard !normalizedId.isEmpty else { return }
+
+        if Thread.isMainThread {
+            applyPlaceWebsite(host: host, normalizedId: normalizedId, storeName: storeName)
+        } else {
+            DispatchQueue.main.async {
+                self.applyPlaceWebsite(host: host, normalizedId: normalizedId, storeName: storeName)
+            }
+        }
+    }
+
+    /// Main-thread half of `recordPlaceWebsite`.
+    private func applyPlaceWebsite(host: String, normalizedId: String, storeName: String) {
+        guard mapKitDomains[normalizedId] != host else { return }
+
+        // A changed domain means anything cached under the old one is wrong.
+        if mapKitDomains[normalizedId] != nil {
+            removeCachedImage(for: normalizedId)
+        } else if resolvedDomain(for: normalizedId) != host {
+            // First time we learn the real domain and it disagrees with whatever was
+            // guessed/searched before — drop the stale image so the right logo loads.
+            removeCachedImage(for: normalizedId)
+            searchedDomains.removeValue(forKey: normalizedId)
+            UserDefaults.standard.set(searchedDomains, forKey: Self.searchCacheKey)
+        }
+
+        mapKitDomains[normalizedId] = host
+        UserDefaults.standard.set(mapKitDomains, forKey: Self.mapKitDomainCacheKey)
+        invalidateResolutionCaches()
+        objectWillChange.send()
+
+        #if DEBUG
+        print("StoreLogoProvider: Recorded MapKit website '\(host)' for '\(storeName)'")
+        #endif
+    }
+
+    /// Normalizes a place-record URL down to the brand's bare host, or nil when the URL
+    /// is missing, malformed, or points at a domain that isn't the brand's own site.
+    private static func brandHost(from url: URL?) -> String? {
+        guard var host = url?.host?.lowercased() else { return nil }
+        if host.hasPrefix("www.") {
+            host = String(host.dropFirst(4))
+        }
+        guard host.contains("."), !host.hasSuffix(".") else { return nil }
+        guard !nonBrandDomains.contains(host) else { return nil }
+        // Subdomains of an aggregator ("mystore.myshopify.com") are just as wrong.
+        if nonBrandDomains.contains(where: { host.hasSuffix(".\($0)") }) { return nil }
+        return host
+    }
+
+    /// The MapKit-sourced domain for a store — exact match first, then a canonical match
+    /// so punctuation variants of the same name still resolve.
+    private func mapKitDomain(for normalizedId: String) -> String? {
+        if let domain = mapKitDomains[normalizedId] {
+            return domain
+        }
+        guard !mapKitDomains.isEmpty else { return nil }
+
+        let canonicalId = canonicalLogoKey(normalizedId)
+        var bestMatch: (key: String, domain: String)?
+        for (key, domain) in mapKitDomains where canonicalLogoKey(key) == canonicalId {
+            if bestMatch == nil || key.count > bestMatch!.key.count {
+                bestMatch = (key, domain)
+            }
+        }
+        return bestMatch?.domain
+    }
+
     /// Fetch store website overrides from Firestore.
     ///
     /// ## Firestore document structure
@@ -302,36 +410,52 @@ class StoreLogoProvider: ObservableObject {
         fetchStoreWebsites()
     }
 
-    /// Resolves a store's canonical web domain from a *trusted* source, in order: the
-    /// Firestore `store_websites` override, the built-in domain map, then any domain
-    /// discovered via the Logo.dev Brand Search API. Never guesses — callers that want a
-    /// speculative "{name}.com" guess must ask for it via `guessedDomain(for:)`.
+    /// Resolves a store's canonical web domain from a *trusted* source, never a guess —
+    /// callers that want a speculative "{name}.com" guess must ask for it via
+    /// `guessedDomain(for:)`.
+    ///
+    /// Order, most trustworthy first:
+    ///   1. Firestore `store_websites` override — hand-verified, fixable without a release.
+    ///   2. An exact hit in the built-in domain map — hand-verified at author time.
+    ///   3. The website MapKit reported for the place the user actually picked. This is
+    ///      the store's real homepage (the same one a web search returns), and it is
+    ///      specific to *this* business rather than to a name that merely looks similar.
+    ///   4. The built-in map's fuzzy matching ("the-" strip / longest prefix / suffix strip).
+    ///   5. A domain confirmed earlier by Logo.dev Brand Search.
     private func resolvedDomain(for normalizedId: String) -> String? {
         // 1. Firestore override — lets a wrong domain be corrected without an app update
         if let domain = overrideDomain(for: normalizedId) {
             return domain
         }
 
-        // 2. Built-in domain map
+        // 2. Exact built-in map entry
+        if let domain = mappedDomainExact(for: normalizedId) {
+            return domain
+        }
+
+        // 3. Website from the MapKit place record
+        if let domain = mapKitDomain(for: normalizedId) {
+            return domain
+        }
+
+        // 4. Built-in domain map, fuzzy matching
         if let domain = mappedDomain(for: normalizedId) {
             return domain
         }
 
-        // 3. Domain discovered earlier via Logo.dev Brand Search
+        // 5. Domain discovered earlier via Logo.dev Brand Search
         return searchedDomains[normalizedId]
     }
 
-    /// Resolves a store's domain using ONLY the built-in domain map (exact match,
-    /// canonical match for punctuation/symbol variants like "85°C", leading "the-"
-    /// strip, longest-prefix match, and business-suffix stripping).
-    private func mappedDomain(for normalizedId: String) -> String? {
-        // 1. Explicit map entry (fast path)
+    /// Built-in map lookup restricted to *exact* identity: a literal key match, or a
+    /// canonical match that only differs by punctuation/symbols ("85°c-bakery-cafe").
+    /// Deliberately excludes prefix and suffix-strip matching, which infers identity
+    /// rather than confirming it.
+    private func mappedDomainExact(for normalizedId: String) -> String? {
         if let domain = Self.storeDomains[normalizedId] {
             return domain
         }
 
-        // 2. Canonical exact match — handles symbols/punctuation the raw normalized ID
-        //    keeps (e.g. "85°c-bakery-cafe" canonicalizes to "85c-bakery-cafe").
         let canonicalId = canonicalLogoKey(normalizedId)
         var canonicalExact: (key: String, domain: String)?
         for (key, domain) in Self.storeDomains where canonicalLogoKey(key) == canonicalId {
@@ -339,9 +463,19 @@ class StoreLogoProvider: ObservableObject {
                 canonicalExact = (key, domain)
             }
         }
-        if let match = canonicalExact {
-            return match.domain
+        return canonicalExact?.domain
+    }
+
+    /// Resolves a store's domain using ONLY the built-in domain map (exact match,
+    /// canonical match for punctuation/symbol variants like "85°C", leading "the-"
+    /// strip, longest-prefix match, and business-suffix stripping).
+    private func mappedDomain(for normalizedId: String) -> String? {
+        // 1-2. Explicit entry, or a canonical match that only differs by punctuation
+        //      (e.g. "85°c-bakery-cafe" canonicalizes to "85c-bakery-cafe").
+        if let domain = mappedDomainExact(for: normalizedId) {
+            return domain
         }
+        let canonicalId = canonicalLogoKey(normalizedId)
 
         // 3. Strip a leading "the-" and re-check ("the-home-depot" -> "home-depot")
         let withoutThe = normalizedId.hasPrefix("the-") ? String(normalizedId.dropFirst(4)) : normalizedId
@@ -604,6 +738,15 @@ class StoreLogoProvider: ObservableObject {
             }
         }
         imageCache.removeAllObjects()
+
+        // Domains confirmed by an older, less strict Brand Search are suspect too — a
+        // near-miss brand ("Claro" for "Claro's Italian Markets") was cached as fact and
+        // would otherwise outlive the rule change. Drop them so they re-resolve.
+        if !searchedDomains.isEmpty {
+            searchedDomains.removeAll()
+            UserDefaults.standard.removeObject(forKey: Self.searchCacheKey)
+        }
+
         UserDefaults.standard.set(Self.cacheVersion, forKey: Self.cacheVersionKey)
 
         #if DEBUG
@@ -1181,6 +1324,10 @@ class StoreLogoProvider: ObservableObject {
         "patel-brothers": "patelbros.com",
         "india-bazaar": "indiabazaar.com",
         "fiesta-mart": "fiestamart.com",
+        // Names whose domain is a short form of the name, so neither the concatenated
+        // guess nor a Brand Search name match finds them.
+        "claros-italian-markets": "claros.com",
+        "claros-italian-market": "claros.com",
 
         // Discount / Off-Price
         "99-cents-only": "99only.com",

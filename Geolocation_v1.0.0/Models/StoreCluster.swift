@@ -185,6 +185,13 @@ class StoreClusterManager {
             // Convert to StoreLocation objects — no strict visible-region filter
             // so pins persist when zooming in/out.
             return response.mapItems.prefix(10).map { item in
+                // Capture the place record's website so logos resolve from the store's
+                // real domain instead of one guessed from its name.
+                StoreLogoProvider.shared.recordPlaceWebsite(
+                    storeName: item.name ?? userStoreItem.store.name,
+                    url: item.url
+                )
+
                 let coord = item.placemark.coordinate
                 let address = formatAddress(from: item.placemark)
                 let uniqueId = "\(userStoreItem.id)_\(coord.latitude)_\(coord.longitude)"
