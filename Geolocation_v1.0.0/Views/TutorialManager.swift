@@ -96,7 +96,7 @@ enum TutorialStep: Int, CaseIterable {
         case .friendsAddFriend:
             return "Tap the person+ button to find and add friends. Collaborate on shared shopping lists together."
         case .friendsFamily:
-            return "Tap a friend's profile picture to bring up the menu. From there you can add them to your Family group for priority sharing."
+            return "Tap the house icon on a friend's row to add them to your Family group for priority sharing. Tap it again to move them back to Friends."
         case .mapSearch:
             return "Use the search button to find stores near you on the map. Tap any pin to view or add reminders."
         case .complete:

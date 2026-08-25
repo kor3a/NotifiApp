@@ -164,31 +164,43 @@ extension View {
 
 // MARK: - Profile Picture View
 
-/// A reusable profile picture view that shows an AsyncImage from a URL
+/// A reusable profile picture view that shows a cached image from a URL
 /// or falls back to a custom view (typically a letter avatar).
+///
+/// Images come from `ProfileImageCache` rather than `AsyncImage` so an avatar
+/// seen once is drawn from disk on the next launch instead of being downloaded
+/// again, matching how store logos behave.
 struct ProfilePictureView<Fallback: View>: View {
     let profilePictureURL: String?
     let size: CGFloat
     @ViewBuilder let fallback: () -> Fallback
 
+    // An explicit init keeps the memberwise initializer from turning private
+    // along with the observed cache below.
+    @ObservedObject private var imageCache = ProfileImageCache.shared
+
+    init(
+        profilePictureURL: String?,
+        size: CGFloat,
+        @ViewBuilder fallback: @escaping () -> Fallback
+    ) {
+        self.profilePictureURL = profilePictureURL
+        self.size = size
+        self.fallback = fallback
+    }
+
     var body: some View {
-        if let urlString = profilePictureURL,
-           let url = URL(string: urlString) {
-            AsyncImage(url: url) { phase in
-                switch phase {
-                case .success(let image):
-                    image
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: size, height: size)
-                        .clipShape(Circle())
-                default:
-                    fallback()
-                }
+        Group {
+            if let image = imageCache.image(for: profilePictureURL) {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: size, height: size)
+                    .clipShape(Circle())
+            } else {
+                fallback()
             }
-            .frame(width: size, height: size)
-        } else {
-            fallback()
         }
+        .frame(width: size, height: size)
     }
 }

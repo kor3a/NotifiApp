@@ -113,6 +113,7 @@
 		AA1234560001AABB00CC0026 /* NotificationLogStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0016 /* NotificationLogStore.swift */; };
 		AA1234560001AABB00CC0027 /* NotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0017 /* NotificationManager.swift */; };
 		AA1234560001AABB00CC0028 /* StoreLogoProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0018 /* StoreLogoProvider.swift */; };
+		AA1234560001AABB00CC0512 /* ProfileImageCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0511 /* ProfileImageCache.swift */; };
 		AA1234560001AABB00CC0029 /* UserSessionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0019 /* UserSessionManager.swift */; };
 		AA1234560001AABB00CC0031 /* SubscriptionPaywallView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0030 /* SubscriptionPaywallView.swift */; };
 		AA1234560001AABB00CC0302 /* ReminderHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0301 /* ReminderHistory.swift */; };
@@ -291,6 +292,7 @@
 		AA1234560001AABB00CC0016 /* NotificationLogStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationLogStore.swift; sourceTree = "<group>"; };
 		AA1234560001AABB00CC0017 /* NotificationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationManager.swift; sourceTree = "<group>"; };
 		AA1234560001AABB00CC0018 /* StoreLogoProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoreLogoProvider.swift; sourceTree = "<group>"; };
+		AA1234560001AABB00CC0511 /* ProfileImageCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileImageCache.swift; sourceTree = "<group>"; };
 		AA1234560001AABB00CC0019 /* UserSessionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserSessionManager.swift; sourceTree = "<group>"; };
 		AA1234560001AABB00CC0030 /* SubscriptionPaywallView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionPaywallView.swift; sourceTree = "<group>"; };
 		AA1234560001AABB00CC0301 /* ReminderHistory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderHistory.swift; sourceTree = "<group>"; };
@@ -425,6 +427,7 @@
 				AA1234560001AABB00CC0001 /* OpenAIService.swift */,
 				AA1234560001AABB00CC0503 /* SpeechRecognitionManager.swift */,
 				AA1234560001AABB00CC0018 /* StoreLogoProvider.swift */,
+				AA1234560001AABB00CC0511 /* ProfileImageCache.swift */,
 				BC0100000001AABB00CC0002 /* BarcodeGenerator.swift */,
 				BC0100000001AABB00CC0004 /* RetailBarcode.swift */,
 				AA1234560001AABB00CC0019 /* UserSessionManager.swift */,
@@ -989,6 +992,7 @@
 				C10000000001AABB00CC0041 /* SharedReminderNotificationService.swift in Sources */,
 				0183E1FD2F743B0C00AB9429 /* ReportFeedbackView.swift in Sources */,
 				AA1234560001AABB00CC0028 /* StoreLogoProvider.swift in Sources */,
+				AA1234560001AABB00CC0512 /* ProfileImageCache.swift in Sources */,
 				AA1234560001AABB00CC0029 /* UserSessionManager.swift in Sources */,
 				D0A1000000000000000000A2 /* AuthenticationManager.swift in Sources */,
 				AA1234560001AABB00CC0031 /* SubscriptionPaywallView.swift in Sources */,

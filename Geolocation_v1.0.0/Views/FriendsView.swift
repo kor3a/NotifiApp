@@ -23,11 +23,6 @@ struct FriendsView: View {
     @State private var showInviteAlert = false
     @Environment(\.colorScheme) var colorScheme
 
-    private let gridColumns = [
-        GridItem(.flexible(), spacing: 12),
-        GridItem(.flexible(), spacing: 12)
-    ]
-
     var body: some View {
         ZStack {
             Color.backgroundGradient(for: colorScheme)
@@ -50,6 +45,7 @@ struct FriendsView: View {
             }
         }
         .navigationTitle("Friends")
+        .searchable(text: $viewModel.searchText, prompt: "Search friends")
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button(action: { showAddFriend = true }) {
@@ -131,246 +127,237 @@ struct FriendsView: View {
     // MARK: - Main Content
 
     private var mainContent: some View {
-        ScrollView {
-            VStack(spacing: 24) {
-                // Pending Friend Requests - Horizontal scroll
-                if !viewModel.pendingRequests.isEmpty {
-                    pendingRequestsSection
-                }
-
-                // Sent Requests - Horizontal chips
-                if !viewModel.sentRequests.isEmpty {
-                    sentRequestsSection
-                }
-
-                // Family Section - Above Friends
-                if !viewModel.familyMembers.isEmpty {
-                    familyGridSection
-                }
-
-                // Friends Grid
-                if !viewModel.friends.isEmpty {
-                    friendsGridSection
-                }
-
-                // Empty State
-                if viewModel.friends.isEmpty && viewModel.familyMembers.isEmpty && viewModel.pendingRequests.isEmpty && viewModel.sentRequests.isEmpty {
-                    emptyState
-                        .padding(.top, 60)
-                }
-
-                // Invite Friends card
-                inviteFriendsSection
+        List {
+            // Pending requests sit at the top — received first, then the ones
+            // we sent and are still waiting on.
+            if !viewModel.filteredPendingRequests.isEmpty || !viewModel.filteredSentRequests.isEmpty {
+                pendingSection
             }
-            .padding(.top, 8)
-            .padding(.bottom, 20)
+
+            if !viewModel.filteredFamilyMembers.isEmpty {
+                familySection
+            }
+
+            if !viewModel.filteredFriends.isEmpty {
+                friendsSection
+            }
+
+            if viewModel.hasNoSearchResults {
+                noSearchResultsState
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+            }
+
+            if hasNoConnections && !viewModel.isFilteringFriends {
+                emptyState
+                    .padding(.top, 40)
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+            }
         }
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
         .safeAreaInset(edge: .bottom) {
             Color.clear.frame(height: 50)
         }
     }
 
-    // MARK: - Pending Requests Section
+    /// True when the user has no friends, family or requests at all.
+    private var hasNoConnections: Bool {
+        viewModel.friends.isEmpty
+            && viewModel.familyMembers.isEmpty
+            && viewModel.pendingRequests.isEmpty
+            && viewModel.sentRequests.isEmpty
+    }
 
-    private var pendingRequestsSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text("Friend Requests")
-                    .font(.headline)
-                    .foregroundStyle(.primary)
+    private var currentUserId: String {
+        sessionManager.currentUser?.userId ?? ""
+    }
 
-                Text("\(viewModel.pendingRequests.count)")
+    // MARK: - Pending Section
+
+    private var pendingSection: some View {
+        Section {
+            ForEach(viewModel.filteredPendingRequests) { friendship in
+                PendingRequestRow(
+                    friendship: friendship,
+                    freshProfilePictureURL: viewModel.friendProfilePictures[friendship.requesterId],
+                    onAccept: { viewModel.acceptRequest(friendship) },
+                    onReject: { viewModel.rejectRequest(friendship) }
+                )
+                .modifier(FriendListRowStyle(
+                    colorScheme: colorScheme,
+                    borderStyle: AnyShapeStyle(Color.appWarning.opacity(0.3))
+                ))
+            }
+
+            ForEach(viewModel.filteredSentRequests) { friendship in
+                SentRequestRow(
+                    friendship: friendship,
+                    freshProfilePictureURL: viewModel.friendProfilePictures[friendship.receiverId],
+                    onCancel: {
+                        friendshipToCancel = friendship
+                        showingCancelAlert = true
+                    }
+                )
+                .modifier(FriendListRowStyle(colorScheme: colorScheme))
+                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                    Button(role: .destructive) {
+                        friendshipToCancel = friendship
+                        showingCancelAlert = true
+                    } label: {
+                        Label("Cancel", systemImage: "xmark")
+                    }
+                }
+            }
+        } header: {
+            sectionHeader(
+                title: "Pending",
+                systemImage: "clock.fill",
+                tint: .appWarning,
+                count: viewModel.filteredPendingRequests.count + viewModel.filteredSentRequests.count,
+                highlightCount: !viewModel.filteredPendingRequests.isEmpty
+            )
+        }
+    }
+
+    // MARK: - Family Section
+
+    private var familySection: some View {
+        Section {
+            ForEach(viewModel.filteredFamilyMembers) { friendship in
+                friendRow(for: friendship, isFamilyMember: true)
+            }
+        } header: {
+            sectionHeader(
+                title: "Family",
+                systemImage: "house.fill",
+                tint: .purple,
+                count: viewModel.filteredFamilyMembers.count
+            )
+        }
+    }
+
+    // MARK: - Friends Section
+
+    private var friendsSection: some View {
+        Section {
+            ForEach(Array(viewModel.filteredFriends.enumerated()), id: \.element.id) { index, friendship in
+                friendRow(for: friendship, isFamilyMember: false)
+                    .tutorialHighlight(id: index == 0 ? "tutorial_friendCard" : "noop_friend_\(index)")
+            }
+        } header: {
+            sectionHeader(
+                title: "Friends",
+                systemImage: "person.2.fill",
+                tint: .blue,
+                count: viewModel.filteredFriends.count
+            )
+        }
+    }
+
+    // MARK: - Friend Row
+
+    private func friendRow(for friendship: Friendship, isFamilyMember: Bool) -> some View {
+        let friendId = friendship.friendId(currentUserId: currentUserId)
+
+        return FriendRow(
+            friendship: friendship,
+            currentUserId: currentUserId,
+            isFamilyMember: isFamilyMember,
+            freshProfilePictureURL: viewModel.friendProfilePictures[friendId],
+            onMessage: { startConversation(with: friendship) },
+            onAddToFamily: { viewModel.addToFamily(friendship) },
+            onRemoveFromFamily: { viewModel.removeFromFamily(friendship) }
+        )
+        .modifier(FriendListRowStyle(
+            colorScheme: colorScheme,
+            borderStyle: isFamilyMember
+                ? AnyShapeStyle(LinearGradient(
+                    colors: [Color.purple.opacity(0.4), Color.purple.opacity(0.15)],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                ))
+                : nil
+        ))
+        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+            Button(role: .destructive) {
+                friendshipToRemove = friendship
+                showingRemoveAlert = true
+            } label: {
+                Label("Remove", systemImage: "person.badge.minus")
+            }
+        }
+        .contextMenu {
+            Button {
+                startConversation(with: friendship)
+            } label: {
+                Label("Message", systemImage: "message.fill")
+            }
+
+            if isFamilyMember {
+                Button {
+                    viewModel.removeFromFamily(friendship)
+                } label: {
+                    Label("Remove from Family", systemImage: "house.slash.fill")
+                }
+            } else {
+                Button {
+                    viewModel.addToFamily(friendship)
+                } label: {
+                    Label("Add to Family", systemImage: "house.fill")
+                }
+            }
+
+            Button(role: .destructive) {
+                friendshipToRemove = friendship
+                showingRemoveAlert = true
+            } label: {
+                Label("Remove Friend", systemImage: "person.badge.minus")
+            }
+        }
+    }
+
+    // MARK: - Section Header
+
+    private func sectionHeader(
+        title: String,
+        systemImage: String,
+        tint: Color,
+        count: Int,
+        highlightCount: Bool = false
+    ) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: systemImage)
+                .font(.caption)
+                .foregroundColor(tint)
+
+            Text(title)
+                .font(.headline)
+                .foregroundStyle(.primary)
+
+            if highlightCount {
+                Text("\(count)")
                     .font(.caption.bold())
                     .foregroundColor(.white)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 2)
                     .background(Color.appAccent)
                     .clipShape(Capsule())
-
-                Spacer()
-            }
-            .padding(.horizontal)
-
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 12) {
-                    ForEach(viewModel.pendingRequests) { friendship in
-                        PendingRequestCard(
-                            friendship: friendship,
-                            colorScheme: colorScheme,
-                            freshProfilePictureURL: viewModel.friendProfilePictures[friendship.requesterId],
-                            onAccept: { viewModel.acceptRequest(friendship) },
-                            onReject: { viewModel.rejectRequest(friendship) }
-                        )
-                    }
-                }
-                .padding(.horizontal)
-            }
-        }
-    }
-
-    // MARK: - Family Grid Section
-
-    private var familyGridSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Image(systemName: "house.fill")
-                    .foregroundColor(.purple)
-                Text("Family")
-                    .font(.headline)
-                    .foregroundStyle(.primary)
-
-                Text("\(viewModel.familyMembers.count)")
+            } else {
+                Text("\(count)")
                     .font(.caption)
                     .foregroundColor(.secondary)
-
-                Spacer()
             }
-            .padding(.horizontal)
 
-            LazyVGrid(columns: gridColumns, spacing: 12) {
-                ForEach(viewModel.familyMembers) { friendship in
-                    let friendId = friendship.friendId(currentUserId: sessionManager.currentUser?.userId ?? "")
-                    FriendCard(
-                        friendship: friendship,
-                        currentUserId: sessionManager.currentUser?.userId ?? "",
-                        colorScheme: colorScheme,
-                        isFamilyMember: true,
-                        freshProfilePictureURL: viewModel.friendProfilePictures[friendId],
-                        onMessage: { startConversation(with: friendship) },
-                        onRemove: {
-                            friendshipToRemove = friendship
-                            showingRemoveAlert = true
-                        },
-                        onAddToFamily: { viewModel.addToFamily(friendship) },
-                        onRemoveFromFamily: { viewModel.removeFromFamily(friendship) }
-                    )
-                }
-            }
-            .padding(.horizontal)
+            Spacer()
         }
+        .textCase(nil)
+        .padding(.vertical, 4)
+        .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 4, trailing: 16))
     }
 
-    // MARK: - Friends Grid Section
-
-    private var friendsGridSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Image(systemName: "person.2.fill")
-                    .foregroundColor(.blue)
-                Text("Friends")
-                    .font(.headline)
-                    .foregroundStyle(.primary)
-
-                Text("\(viewModel.friends.count)")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-
-                Spacer()
-            }
-            .padding(.horizontal)
-
-            LazyVGrid(columns: gridColumns, spacing: 12) {
-                ForEach(Array(viewModel.friends.enumerated()), id: \.element.id) { index, friendship in
-                    let friendId = friendship.friendId(currentUserId: sessionManager.currentUser?.userId ?? "")
-                    FriendCard(
-                        friendship: friendship,
-                        currentUserId: sessionManager.currentUser?.userId ?? "",
-                        colorScheme: colorScheme,
-                        isFamilyMember: false,
-                        freshProfilePictureURL: viewModel.friendProfilePictures[friendId],
-                        onMessage: { startConversation(with: friendship) },
-                        onRemove: {
-                            friendshipToRemove = friendship
-                            showingRemoveAlert = true
-                        },
-                        onAddToFamily: { viewModel.addToFamily(friendship) },
-                        onRemoveFromFamily: { viewModel.removeFromFamily(friendship) }
-                    )
-                    .tutorialHighlight(id: index == 0 ? "tutorial_friendCard" : "noop_friend_\(index)")
-                }
-            }
-            .padding(.horizontal)
-        }
-    }
-
-    // MARK: - Sent Requests Section
-
-    private var sentRequestsSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text("Sent Requests")
-                    .font(.headline)
-                    .foregroundStyle(.primary)
-                Spacer()
-            }
-            .padding(.horizontal)
-
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 10) {
-                    ForEach(viewModel.sentRequests) { friendship in
-                        SentRequestChip(
-                            friendship: friendship,
-                            currentUserId: sessionManager.currentUser?.userId ?? "",
-                            colorScheme: colorScheme,
-                            freshProfilePictureURL: viewModel.friendProfilePictures[friendship.receiverId],
-                            onCancel: {
-                                friendshipToCancel = friendship
-                                showingCancelAlert = true
-                            }
-                        )
-                    }
-                }
-                .padding(.horizontal)
-            }
-        }
-    }
-
-    // MARK: - Invite Friends Section
-
-    private var inviteFriendsSection: some View {
-        Button(action: inviteFriends) {
-            HStack(spacing: 14) {
-                Circle()
-                    .fill(Color.appAccent.opacity(0.15))
-                    .frame(width: 44, height: 44)
-                    .overlay(
-                        Image(systemName: "envelope.open.fill")
-                            .font(.system(size: 18))
-                            .foregroundColor(.appAccent)
-                    )
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Invite Friends")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(.primary)
-
-                    Text("Copy Allim's App Store link to share with friends")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-
-                Spacer()
-
-                Image(systemName: "doc.on.doc")
-                    .font(.subheadline)
-                    .foregroundColor(.appAccent)
-            }
-            .padding(16)
-            .background(
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(.ultraThinMaterial)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 16)
-                            .stroke(Color.cardBorder(for: colorScheme), lineWidth: 1.5)
-                    )
-                    .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.3 : 0.08), radius: 8, x: 0, y: 4)
-            )
-        }
-        .buttonStyle(.plain)
-        .padding(.horizontal)
-    }
-
-    // MARK: - Empty State
+    // MARK: - Empty States
 
     private var emptyState: some View {
         VStack(spacing: 20) {
@@ -404,6 +391,24 @@ struct FriendsView: View {
         .frame(maxWidth: .infinity)
     }
 
+    private var noSearchResultsState: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 36))
+                .foregroundStyle(.gray)
+
+            Text("No Matches")
+                .font(.headline)
+
+            Text("No friends match \u{201C}\(viewModel.searchText)\u{201D}")
+                .font(.subheadline)
+                .foregroundStyle(.gray)
+                .multilineTextAlignment(.center)
+        }
+        .padding(.top, 60)
+        .frame(maxWidth: .infinity)
+    }
+
     // MARK: - Actions
 
     /// Copies Allim's App Store link so the user can invite friends who don't have the app yet.
@@ -426,21 +431,45 @@ struct FriendsView: View {
     }
 }
 
-// MARK: - Friend Card (Grid Cell)
+// MARK: - List Row Style
 
-struct FriendCard: View {
+/// Shared card styling for the rows of the Friends list.
+private struct FriendListRowStyle: ViewModifier {
+    let colorScheme: ColorScheme
+    /// Border stroke; falls back to the standard card border when nil.
+    var borderStyle: AnyShapeStyle?
+
+    func body(content: Content) -> some View {
+        content
+            .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
+            .listRowSeparator(.hidden)
+            .listRowBackground(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(.ultraThinMaterial)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16)
+                            .stroke(
+                                borderStyle ?? AnyShapeStyle(Color.cardBorder(for: colorScheme)),
+                                lineWidth: 1.5
+                            )
+                    )
+                    .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.3 : 0.08), radius: 8, x: 0, y: 4)
+                    .padding(.vertical, 4)
+            )
+    }
+}
+
+// MARK: - Friend Row
+
+struct FriendRow: View {
     let friendship: Friendship
     let currentUserId: String
-    let colorScheme: ColorScheme
     var isFamilyMember: Bool = false
     /// Fresh profile picture URL fetched from the `users` collection, overriding the stale one in the friendship doc.
     var freshProfilePictureURL: String?
     let onMessage: () -> Void
-    let onRemove: () -> Void
     var onAddToFamily: (() -> Void)?
     var onRemoveFromFamily: (() -> Void)?
-
-    @State private var showFamilyPopover = false
 
     private var friendName: String {
         friendship.friendName(currentUserId: currentUserId)
@@ -465,103 +494,29 @@ struct FriendCard: View {
     }
 
     var body: some View {
-        VStack(spacing: 12) {
-            // Avatar - tappable for family action
-            Button(action: { showFamilyPopover = true }) {
-                ZStack(alignment: .bottomTrailing) {
-                    ProfilePictureView(profilePictureURL: friendProfilePictureURL, size: 64) {
-                        Circle()
-                            .fill(
-                                LinearGradient(
-                                    colors: [avatarColor.opacity(0.7), avatarColor],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
-                            .frame(width: 64, height: 64)
-                            .overlay(
-                                Text(avatarInitial)
-                                    .font(.title2.bold())
-                                    .foregroundColor(.white)
-                            )
-                    }
-                    .shadow(color: avatarColor.opacity(0.3), radius: 6, x: 0, y: 3)
-
-                    if isFamilyMember {
-                        Image(systemName: "house.fill")
-                            .font(.system(size: 10))
+        HStack(spacing: 12) {
+            ProfilePictureView(profilePictureURL: friendProfilePictureURL, size: 48) {
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            colors: [avatarColor.opacity(0.7), avatarColor],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 48, height: 48)
+                    .overlay(
+                        Text(avatarInitial)
+                            .font(.headline)
                             .foregroundColor(.white)
-                            .padding(4)
-                            .background(Color.purple)
-                            .clipShape(Circle())
-                            .offset(x: 2, y: 2)
-                    }
-                }
+                    )
             }
-            .buttonStyle(.plain)
-            .popover(isPresented: $showFamilyPopover, attachmentAnchor: .rect(.bounds), arrowEdge: .bottom) {
-                VStack(spacing: 12) {
-                    // Action button
-                    if isFamilyMember {
-                        Button {
-                            onRemoveFromFamily?()
-                            showFamilyPopover = false
-                        } label: {
-                            Label("Remove from Family", systemImage: "house.slash.fill")
-                                .font(.subheadline.weight(.medium))
-                                .foregroundColor(.white)
-                                .frame(maxWidth: .infinity)
-                                .frame(height: 44)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 10)
-                                        .fill(Color.red)
-                                )
-                        }
-                        .buttonStyle(.plain)
-                    } else {
-                        Button {
-                            onAddToFamily?()
-                            showFamilyPopover = false
-                        } label: {
-                            Label("Add to Family", systemImage: "house.fill")
-                                .font(.subheadline.weight(.medium))
-                                .foregroundColor(.white)
-                                .frame(maxWidth: .infinity)
-                                .frame(height: 44)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 10)
-                                        .fill(
-                                            LinearGradient(
-                                                colors: [.blue, .purple],
-                                                startPoint: .leading,
-                                                endPoint: .trailing
-                                            )
-                                        )
-                                )
-                        }
-                        .buttonStyle(.plain)
-                    }
+            .shadow(color: avatarColor.opacity(0.3), radius: 4, x: 0, y: 2)
 
-                    // Cancel
-                    Button {
-                        showFamilyPopover = false
-                    } label: {
-                        Text("Cancel")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.plain)
-                }
-                .padding(16)
-                .frame(minWidth: 220)
-                .presentationCompactAdaptation(.popover)
-            }
-
-            // Name & UserId
-            VStack(spacing: 2) {
+            VStack(alignment: .leading, spacing: 2) {
                 Text(friendName)
                     .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.primary)
                     .lineLimit(1)
 
                 Text(friendUserId)
@@ -570,8 +525,27 @@ struct FriendCard: View {
                     .lineLimit(1)
             }
 
-            // Action Buttons
+            Spacer(minLength: 8)
+
             HStack(spacing: 8) {
+                // Family toggle — filled while they're in Family, outlined otherwise.
+                Button {
+                    if isFamilyMember {
+                        onRemoveFromFamily?()
+                    } else {
+                        onAddToFamily?()
+                    }
+                } label: {
+                    Image(systemName: isFamilyMember ? "house.fill" : "house")
+                        .font(.caption)
+                        .foregroundColor(isFamilyMember ? .white : .purple)
+                        .frame(width: 32, height: 32)
+                        .background(isFamilyMember ? Color.purple : Color.purple.opacity(0.12))
+                        .clipShape(Circle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(isFamilyMember ? "Remove \(friendName) from Family" : "Add \(friendName) to Family")
+
                 Button(action: onMessage) {
                     Image(systemName: "message.fill")
                         .font(.caption)
@@ -581,43 +555,18 @@ struct FriendCard: View {
                         .clipShape(Circle())
                 }
                 .buttonStyle(.plain)
-
-                Button(action: onRemove) {
-                    Image(systemName: "person.badge.minus")
-                        .font(.caption)
-                        .foregroundColor(.appError)
-                        .frame(width: 32, height: 32)
-                        .background(Color.appError.opacity(0.1))
-                        .clipShape(Circle())
-                }
-                .buttonStyle(.plain)
+                .accessibilityLabel("Message \(friendName)")
             }
         }
-        .padding(.vertical, 16)
-        .padding(.horizontal, 8)
-        .frame(maxWidth: .infinity)
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(.ultraThinMaterial)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 16)
-                        .stroke(
-                            isFamilyMember
-                                ? LinearGradient(colors: [Color.purple.opacity(0.4), Color.purple.opacity(0.15)], startPoint: .topLeading, endPoint: .bottomTrailing)
-                                : Color.cardBorder(for: colorScheme),
-                            lineWidth: 1.5
-                        )
-                )
-                .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.3 : 0.08), radius: 8, x: 0, y: 4)
-        )
+        .padding(.vertical, 10)
+        .padding(.horizontal, 12)
     }
 }
 
-// MARK: - Pending Request Card
+// MARK: - Pending Request Row
 
-struct PendingRequestCard: View {
+struct PendingRequestRow: View {
     let friendship: Friendship
-    let colorScheme: ColorScheme
     var freshProfilePictureURL: String?
     let onAccept: () -> Void
     let onReject: () -> Void
@@ -627,9 +576,8 @@ struct PendingRequestCard: View {
     }
 
     var body: some View {
-        VStack(spacing: 12) {
-            // Avatar
-            ProfilePictureView(profilePictureURL: requesterPictureURL, size: 52) {
+        HStack(spacing: 12) {
+            ProfilePictureView(profilePictureURL: requesterPictureURL, size: 48) {
                 Circle()
                     .fill(
                         LinearGradient(
@@ -638,25 +586,28 @@ struct PendingRequestCard: View {
                             endPoint: .bottomTrailing
                         )
                     )
-                    .frame(width: 52, height: 52)
+                    .frame(width: 48, height: 48)
                     .overlay(
                         Text(String(friendship.requesterName.prefix(1)).uppercased())
-                            .font(.title3.bold())
+                            .font(.headline)
                             .foregroundColor(.white)
                     )
             }
 
-            VStack(spacing: 2) {
+            VStack(alignment: .leading, spacing: 2) {
                 Text(friendship.requesterName)
                     .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.primary)
                     .lineLimit(1)
 
                 Text("wants to be friends")
                     .font(.caption2)
                     .foregroundColor(.secondary)
+                    .lineLimit(1)
             }
 
-            // Accept / Reject
+            Spacer(minLength: 8)
+
             HStack(spacing: 8) {
                 Button(action: onReject) {
                     Image(systemName: "xmark")
@@ -679,30 +630,15 @@ struct PendingRequestCard: View {
                 .buttonStyle(.plain)
             }
         }
-        .padding(.vertical, 14)
-        .padding(.horizontal, 16)
-        .frame(width: 150)
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(.ultraThinMaterial)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 16)
-                        .stroke(
-                            Color.appWarning.opacity(0.3),
-                            lineWidth: 1.5
-                        )
-                )
-                .shadow(color: Color.appWarning.opacity(0.15), radius: 8, x: 0, y: 4)
-        )
+        .padding(.vertical, 10)
+        .padding(.horizontal, 12)
     }
 }
 
-// MARK: - Sent Request Chip
+// MARK: - Sent Request Row
 
-struct SentRequestChip: View {
+struct SentRequestRow: View {
     let friendship: Friendship
-    let currentUserId: String
-    let colorScheme: ColorScheme
     var freshProfilePictureURL: String?
     let onCancel: () -> Void
 
@@ -711,56 +647,47 @@ struct SentRequestChip: View {
     }
 
     var body: some View {
-        HStack(spacing: 8) {
-            ProfilePictureView(profilePictureURL: receiverPictureURL, size: 32) {
+        HStack(spacing: 12) {
+            ProfilePictureView(profilePictureURL: receiverPictureURL, size: 48) {
                 Circle()
                     .fill(Color.secondary.opacity(0.2))
-                    .frame(width: 32, height: 32)
+                    .frame(width: 48, height: 48)
                     .overlay(
                         Text(String(friendship.receiverName.prefix(1)).uppercased())
-                            .font(.caption.bold())
+                            .font(.headline)
                             .foregroundColor(.secondary)
                     )
             }
 
-            VStack(alignment: .leading, spacing: 1) {
+            VStack(alignment: .leading, spacing: 2) {
                 Text(friendship.receiverName)
-                    .font(.caption.weight(.medium))
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.primary)
                     .lineLimit(1)
 
-                HStack(spacing: 2) {
+                HStack(spacing: 3) {
                     Image(systemName: "clock")
-                        .font(.system(size: 8))
-                    Text("Pending")
+                        .font(.system(size: 9))
+                    Text("Request sent")
                         .font(.caption2)
                 }
                 .foregroundColor(.secondary)
             }
 
+            Spacer(minLength: 8)
+
             Button(action: onCancel) {
                 Image(systemName: "xmark")
                     .font(.caption2.bold())
                     .foregroundColor(.appError)
-                    .frame(width: 24, height: 24)
+                    .frame(width: 32, height: 32)
                     .background(Color.appError.opacity(0.1))
                     .clipShape(Circle())
             }
             .buttonStyle(.plain)
         }
-        .padding(.vertical, 8)
-        .padding(.leading, 8)
-        .padding(.trailing, 10)
-        .background(
-            Capsule()
-                .fill(.ultraThinMaterial)
-                .overlay(
-                    Capsule()
-                        .stroke(
-                            Color.cardBorder(for: colorScheme),
-                            lineWidth: 1
-                        )
-                )
-        )
+        .padding(.vertical, 10)
+        .padding(.horizontal, 12)
     }
 }
 
