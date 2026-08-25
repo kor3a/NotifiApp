@@ -165,6 +165,14 @@ class FriendsViewModel: ObservableObject {
         self.friends = sortedByFriendName(nonFamily, currentUserId: currentUserId)
         self.pendingRequests = pending.sorted { $0.createdAt > $1.createdAt }
         self.sentRequests = sent.sorted { $0.createdAt > $1.createdAt }
+
+        // Warm the avatar cache off the friendship documents so the photos are
+        // decoded before the list draws rather than fading in after it.
+        ProfileImageCache.shared.prefetch(
+            (family + nonFamily + pending + sent).map {
+                $0.friendProfilePictureURL(currentUserId: currentUserId)
+            }
+        )
     }
 
     /// Sort friendships alphabetically by the other user's display name, falling
