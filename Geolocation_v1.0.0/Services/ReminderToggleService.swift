@@ -2,7 +2,8 @@
 //  ReminderToggleService.swift
 //  Geolocation_v1.0.0
 //
-//  The single place that knows how a reminder is checked on or off in Firestore.
+//  The single place that knows how a reminder is checked on or off in Firestore,
+//  and how an edit to one is attributed.
 //
 //  Keeping it in one place means any caller — with or without a ReminderViewModel
 //  behind it — writes exactly the same fields: the check-off attribution stamp,
@@ -124,5 +125,44 @@ enum ReminderToggleService {
                 completion?(error)
             }
         }
+    }
+}
+
+// MARK: - Edit Attribution
+
+/// Stamps who last changed a reminder's content.
+///
+/// A shared list shows one avatar per row. That avatar used to name the item's
+/// original author for life, so a member who renamed, re-quantified or
+/// re-categorized someone else's item left no trace on the row. Every
+/// user-initiated content edit now stamps the editor, and the avatar follows the
+/// stamp — the initial you see is the person whose change you are looking at.
+///
+/// Checking an item on or off is deliberately not an edit: it carries its own
+/// `checkedOffBy` attribution (see `ReminderToggleService.toggleFields`) and
+/// shouldn't repaint the row's avatar for what is a shopping action rather than
+/// a change to the item. AI auto-categorization isn't an edit either — nobody
+/// did it.
+enum ReminderEditAttribution {
+
+    /// The Firestore fields marking the signed-in user as this reminder's last
+    /// editor. Empty when there is no signed-in identity to credit, so a write
+    /// never clears an existing stamp with a half-known one.
+    static func stampFields(now: Date = Date()) -> [String: Any] {
+        let user = UserSessionManager.shared.currentUser
+        let name = user?.name ?? ""
+        let userId = user?.userId ?? ""
+        guard !name.isEmpty || !userId.isEmpty else { return [:] }
+
+        var fields: [String: Any] = ["lastEditedAt": now.timeIntervalSince1970]
+        if !name.isEmpty { fields["lastEditedBy"] = name }
+        if !userId.isEmpty { fields["lastEditedById"] = userId }
+        return fields
+    }
+
+    /// `fields` with the last-editor stamp merged in. Values already present in
+    /// `fields` win, so an explicit attribution is never overwritten.
+    static func stamped(_ fields: [String: Any], now: Date = Date()) -> [String: Any] {
+        fields.merging(stampFields(now: now)) { existing, _ in existing }
     }
 }

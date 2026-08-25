@@ -204,4 +204,194 @@ final class ReminderTests: XCTestCase {
         XCTAssertTrue(vm.isDuplicateReminder(title: "BUY BREAD"))
         XCTAssertFalse(vm.isDuplicateReminder(title: "Buy cheese"))
     }
+
+    // MARK: - Last-edit attribution (model)
+
+    func testCodable_roundTrip_lastEditedFields() throws {
+        let reminder = Reminder(
+            id: "rem-edited",
+            userStoreId: "us1",
+            title: "Buy oat milk",
+            isDone: false,
+            createdAt: 1700000000.0,
+            isShared: true,
+            sharedFrom: "Bob",
+            sharedFromId: "bob_id",
+            lastEditedAt: 1700005000.0,
+            lastEditedBy: "Alice",
+            lastEditedById: "alice_id"
+        )
+        let data = try JSONEncoder().encode(reminder)
+        let decoded = try JSONDecoder().decode(Reminder.self, from: data)
+
+        // The author is preserved — an edit records who edited, it doesn't
+        // rewrite who created the item.
+        XCTAssertEqual(decoded.sharedFrom, "Bob")
+        XCTAssertEqual(decoded.sharedFromId, "bob_id")
+        XCTAssertEqual(decoded.lastEditedAt, 1700005000.0)
+        XCTAssertEqual(decoded.lastEditedBy, "Alice")
+        XCTAssertEqual(decoded.lastEditedById, "alice_id")
+    }
+
+    func testCodable_roundTrip_unedited_hasNoEditStamp() throws {
+        let reminder = Reminder(
+            id: "rem-fresh",
+            userStoreId: "us1",
+            title: "Buy milk",
+            isDone: false,
+            createdAt: 1700000000.0
+        )
+        let data = try JSONEncoder().encode(reminder)
+        let decoded = try JSONDecoder().decode(Reminder.self, from: data)
+
+        XCTAssertNil(decoded.lastEditedAt)
+        XCTAssertNil(decoded.lastEditedBy)
+        XCTAssertNil(decoded.lastEditedById)
+    }
+
+    // MARK: - Which member the row's avatar names
+
+    func testAttributedParticipant_neverEdited_namesAuthor() {
+        let participant = SharedAvatarPalette.attributedParticipant(
+            sharedFrom: "Bob",
+            sharedFromId: "bob_id",
+            lastEditedBy: nil,
+            lastEditedById: nil
+        )
+        XCTAssertEqual(participant.id, "bob_id")
+        XCTAssertEqual(participant.name, "Bob")
+    }
+
+    func testAttributedParticipant_editedByOtherMember_namesEditor() {
+        // Bob created it, Alice edited it — the row becomes Alice's.
+        let participant = SharedAvatarPalette.attributedParticipant(
+            sharedFrom: "Bob",
+            sharedFromId: "bob_id",
+            lastEditedBy: "Alice",
+            lastEditedById: "alice_id"
+        )
+        XCTAssertEqual(participant.id, "alice_id")
+        XCTAssertEqual(participant.name, "Alice")
+    }
+
+    func testAttributedParticipant_editorIdOnly_recoversNameFromMembers() {
+        let participant = SharedAvatarPalette.attributedParticipant(
+            sharedFrom: "Bob",
+            sharedFromId: "bob_id",
+            lastEditedBy: nil,
+            lastEditedById: "alice_id",
+            memberNames: ["alice_id": "Alice", "bob_id": "Bob"]
+        )
+        XCTAssertEqual(participant.id, "alice_id")
+        XCTAssertEqual(participant.name, "Alice")
+    }
+
+    func testAttributedParticipant_unnamedEditor_fallsBackToAuthor() {
+        // An edit stamp we can't put a name to must not blank the row.
+        let participant = SharedAvatarPalette.attributedParticipant(
+            sharedFrom: "Bob",
+            sharedFromId: "bob_id",
+            lastEditedBy: nil,
+            lastEditedById: "stranger_id"
+        )
+        XCTAssertEqual(participant.id, "bob_id")
+        XCTAssertEqual(participant.name, "Bob")
+    }
+
+    func testAttributedParticipant_noAttributionAtAll_isEmpty() {
+        let participant = SharedAvatarPalette.attributedParticipant(
+            sharedFrom: nil,
+            sharedFromId: nil,
+            lastEditedBy: nil,
+            lastEditedById: nil
+        )
+        XCTAssertNil(participant.id)
+        XCTAssertNil(participant.name)
+    }
+
+    func testParticipantIdentity_authorAndEditor_getDistinctColorKeys() {
+        let author = SharedAvatarPalette.participantIdentity(
+            name: "Bob",
+            id: "bob_id",
+            currentUserName: "Carol",
+            currentUserId: "carol_id"
+        )
+        let editor = SharedAvatarPalette.participantIdentity(
+            name: "Alice",
+            id: "alice_id",
+            currentUserName: "Carol",
+            currentUserId: "carol_id"
+        )
+        XCTAssertEqual(author?.name, "Bob")
+        XCTAssertEqual(editor?.name, "Alice")
+        XCTAssertNotEqual(author?.key, editor?.key)
+    }
+
+    func testParticipantIdentity_currentUserAsEditor_usesTheirOwnIdentity() {
+        let identity = SharedAvatarPalette.participantIdentity(
+            name: "Alice",
+            id: "alice_id",
+            currentUserName: "Alice",
+            currentUserId: "alice_id"
+        )
+        XCTAssertEqual(identity?.name, "Alice")
+        XCTAssertEqual(identity?.key, SharedAvatarPalette.identityKey(id: "alice_id", name: "Alice"))
+    }
+
+    // MARK: - Stamping an edit (ReminderEditAttribution)
+
+    private func withSignedInUser(_ user: User?, _ body: () -> Void) {
+        let previous = UserSessionManager.shared.currentUser
+        UserSessionManager.shared.currentUser = user
+        body()
+        UserSessionManager.shared.currentUser = previous
+    }
+
+    private func makeUser(id: String, name: String) -> User {
+        User(
+            userId: id,
+            name: name,
+            email: "\(id)@example.com",
+            joined: 1700000000.0,
+            profilePictureURL: nil
+        )
+    }
+
+    func testStampFields_signedInUser_recordsWhoAndWhen() {
+        withSignedInUser(makeUser(id: "alice_id", name: "Alice")) {
+            let fields = ReminderEditAttribution.stampFields(
+                now: Date(timeIntervalSince1970: 1700005000.0)
+            )
+            XCTAssertEqual(fields["lastEditedBy"] as? String, "Alice")
+            XCTAssertEqual(fields["lastEditedById"] as? String, "alice_id")
+            XCTAssertEqual(fields["lastEditedAt"] as? TimeInterval, 1700005000.0)
+        }
+    }
+
+    func testStampFields_noSignedInUser_stampsNothing() {
+        // Nobody to credit — better to leave the previous stamp standing than to
+        // half-overwrite it.
+        withSignedInUser(nil) {
+            XCTAssertTrue(ReminderEditAttribution.stampFields().isEmpty)
+        }
+    }
+
+    func testStamped_keepsTheEditItselfAndAddsAttribution() {
+        withSignedInUser(makeUser(id: "alice_id", name: "Alice")) {
+            let fields = ReminderEditAttribution.stamped(["title": "Buy oat milk"])
+            XCTAssertEqual(fields["title"] as? String, "Buy oat milk")
+            XCTAssertEqual(fields["lastEditedBy"] as? String, "Alice")
+            XCTAssertEqual(fields["lastEditedById"] as? String, "alice_id")
+        }
+    }
+
+    func testStamped_doesNotOverwriteAnExplicitAttribution() {
+        withSignedInUser(makeUser(id: "alice_id", name: "Alice")) {
+            let fields = ReminderEditAttribution.stamped([
+                "title": "Buy oat milk",
+                "lastEditedBy": "Bob"
+            ])
+            XCTAssertEqual(fields["lastEditedBy"] as? String, "Bob")
+        }
+    }
 }

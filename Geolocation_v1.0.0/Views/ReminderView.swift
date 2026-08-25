@@ -141,8 +141,9 @@ struct ReminderView: View {
 
     /// userId → display name for everyone who participates in this store. Built
     /// from the current user, the store owner, and any reminder that recorded
-    /// both an author id and name — so an author's name (and initial) can be
-    /// recovered for reminders that carry only `sharedFromId`.
+    /// both an id and a name for its author or its last editor — so a
+    /// participant's name (and initial) can be recovered for reminders that
+    /// carry only their id.
     private var storeMemberNames: [String: String] {
         // Start with names resolved from the user's friends list, then let the
         // local (authoritative) sources below override.
@@ -157,22 +158,28 @@ struct ReminderView: View {
            let name = userStoreItem.sharedFromName, !name.isEmpty {
             names[id] = name
         }
-        // Any reminder that recorded both fields teaches us that id's name.
+        // Any reminder that recorded both fields teaches us that id's name —
+        // for whoever authored it and for whoever last edited it.
         for reminder in viewModel.reminders {
             if let id = reminder.sharedFromId, !id.isEmpty,
                let name = reminder.sharedFrom, !name.isEmpty {
+                names[id] = name
+            }
+            if let id = reminder.lastEditedById, !id.isEmpty,
+               let name = reminder.lastEditedBy, !name.isEmpty {
                 names[id] = name
             }
         }
         return names
     }
 
-    /// Store-wide avatar color assignment. Collects the identity of every author
-    /// whose avatar can appear in this store and resolves colors so members who
-    /// share a first initial never share a color. Authors are keyed by userId
-    /// (via `authorIdentity`), so two *different* accounts with the same display
-    /// name still get distinct colors. Computed from the full author set so the
-    /// mapping is stable across every reminder row.
+    /// Store-wide avatar color assignment. Collects the identity of everyone
+    /// whose avatar can appear in this store — each item's author and, where one
+    /// exists, its last editor — and resolves colors so members who share a first
+    /// initial never share a color. Participants are keyed by userId (via
+    /// `participantIdentity`), so two *different* accounts with the same display
+    /// name still get distinct colors. Computed from the full participant set so
+    /// the mapping is stable across every reminder row.
     private var avatarColorMap: [String: Color] {
         let currentUser = UserSessionManager.shared.currentUser
         let members = storeMemberNames
@@ -187,19 +194,25 @@ struct ReminderView: View {
         }
 
         for reminder in viewModel.reminders where reminder.isShared == true {
-            // Recover the author name from the member map when the reminder
-            // itself carries only the author id, so the color key and initial
-            // agree with what the badge renders.
-            let resolvedName = (reminder.sharedFrom?.isEmpty == false)
-                ? reminder.sharedFrom
-                : reminder.sharedFromId.flatMap { members[$0] }
-            if let identity = SharedAvatarPalette.authorIdentity(
-                sharedFrom: resolvedName,
-                sharedFromId: reminder.sharedFromId,
-                currentUserName: currentUser?.name,
-                currentUserId: currentUser?.userId
-            ) {
-                identities.append(identity)
+            // Recover a name from the member map when the reminder itself
+            // carries only an id, so the color key and initial agree with what
+            // the badge renders. Both the author and the last editor are
+            // collected: the badge shows the editor once there is one, and the
+            // author needs a color for every row nobody has edited yet.
+            let participants = [
+                (reminder.sharedFromId, reminder.sharedFrom),
+                (reminder.lastEditedById, reminder.lastEditedBy)
+            ]
+            for (id, name) in participants {
+                let resolvedName = (name?.isEmpty == false) ? name : id.flatMap { members[$0] }
+                if let identity = SharedAvatarPalette.participantIdentity(
+                    name: resolvedName,
+                    id: id,
+                    currentUserName: currentUser?.name,
+                    currentUserId: currentUser?.userId
+                ) {
+                    identities.append(identity)
+                }
             }
         }
 
