@@ -42,6 +42,7 @@ struct ShareStoreView: View {
     @State private var reminderTitles: [String] = []
     @State private var selectedFriend: Contact?
     @State private var isSharingWithAllFamily: Bool = false
+    @State private var showShareInfo: Bool = false
     @State private var familyShareProgress: String = ""
 
     private let db = Firestore.firestore()
@@ -59,6 +60,11 @@ struct ShareStoreView: View {
                     VStack(spacing: 20) {
                         // Store Info — hero header
                         storeHeader
+
+                        // Permission Selection — chosen before picking a recipient
+                        if userStoreItem.sharedFromName == nil {
+                            permissionSection
+                        }
 
                         // Show who shared the store with the current user (if applicable)
                         if let sharedByName = userStoreItem.sharedFromName {
@@ -86,34 +92,15 @@ struct ShareStoreView: View {
                                 selectedFriendChip
                             }
 
-                            if !friendsViewModel.friends.isEmpty || !friendsViewModel.familyMembers.isEmpty {
-                                HStack {
-                                    Rectangle()
-                                        .fill(Color.secondary.opacity(0.25))
-                                        .frame(height: 1)
-                                    Text("or enter email manually")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                        .fixedSize()
-                                    Rectangle()
-                                        .fill(Color.secondary.opacity(0.25))
-                                        .frame(height: 1)
-                                }
-                                .padding(.vertical, 4)
+                            // Sharing is friends/family only, so say what to do when
+                            // there is nobody to share with yet.
+                            if friendsViewModel.friends.isEmpty && friendsViewModel.familyMembers.isEmpty {
+                                infoCallout(
+                                    icon: "person.crop.circle.badge.plus",
+                                    tint: .appAccent,
+                                    text: "Add friends or family in the Friends tab to share this store with them."
+                                )
                             }
-
-                            // Email Input
-                            emailInputSection
-
-                            // Permission Selection
-                            permissionSection
-
-                            // Info Text
-                            infoCallout(
-                                icon: "info.circle.fill",
-                                tint: .appAccent,
-                                text: "A share request will be sent to the recipient's messages. They must accept before the store appears in their list. The recipient must have an account with the email address you provide."
-                            )
 
                             // Show reminder count
                             if !reminderTitles.isEmpty {
@@ -196,6 +183,31 @@ struct ShareStoreView: View {
             }
 
             Spacer(minLength: 0)
+
+            shareInfoButton
+        }
+    }
+
+    /// Explains the share flow from a bubble next to the store name, keeping the
+    /// detail out of the way until it's asked for.
+    private var shareInfoButton: some View {
+        Button {
+            showShareInfo = true
+        } label: {
+            Image(systemName: "info.circle.fill")
+                .font(.title3)
+                .foregroundStyle(Color.appAccent)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("About sharing")
+        .popover(isPresented: $showShareInfo) {
+            Text("A share request will be sent to the recipient's messages. They must accept before the store is shared successfully for both users.")
+                .font(.callout)
+                .multilineTextAlignment(.leading)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(16)
+                .frame(width: 280)
+                .presentationCompactAdaptation(.popover)
         }
     }
 
@@ -453,31 +465,6 @@ struct ShareStoreView: View {
                         .stroke(Color.appAccent.opacity(0.3), lineWidth: 1)
                 )
         )
-    }
-
-    /// Manual email entry.
-    private var emailInputSection: some View {
-        sectionContainer(title: "Recipient's Email", icon: "envelope.fill", tint: .appAccent) {
-            TextField("Enter email address", text: $recipientEmail)
-                .textInputAutocapitalization(.never)
-                .keyboardType(.emailAddress)
-                .autocorrectionDisabled()
-                .padding(14)
-                .background(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .fill(Color.primary.opacity(colorScheme == .dark ? 0.08 : 0.07))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                .stroke(Color.secondary.opacity(0.35), lineWidth: 1)
-                        )
-                )
-                .onChange(of: recipientEmail) { _, newValue in
-                    // Clear selected friend if email changes
-                    if selectedFriend != nil && newValue != selectedFriend?.email {
-                        selectedFriend = nil
-                    }
-                }
-        }
     }
 
     /// Permission picker plus an explanation of the selected mode.
