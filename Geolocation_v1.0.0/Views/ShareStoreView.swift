@@ -47,7 +47,7 @@ private struct SwipeToRemoveRow<Content: View>: View {
     /// part in the layout itself.
     @State private var rowHeight: CGFloat = 0
 
-    private let actionWidth: CGFloat = 88
+    private let actionWidth: CGFloat = 60
     /// A drag has to be this much wider than it is tall before it counts as a swipe.
     private let horizontalBias: CGFloat = 2
 
@@ -140,26 +140,18 @@ private struct SwipeToRemoveRow<Content: View>: View {
             close()
             onRemove()
         } label: {
-            VStack(spacing: 2) {
-                Image(systemName: "person.badge.minus")
-                    .font(.subheadline)
-                Text("Remove")
-                    .font(.caption2)
-                    .fontWeight(.semibold)
-            }
-            .foregroundStyle(Color.white.opacity(0.85))
-            .frame(width: actionWidth)
-            .frame(maxHeight: .infinity)
-            .background(
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .fill(Color.appError.opacity(0.45))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .stroke(Color.appError.opacity(0.35), lineWidth: 1)
-            )
+            Circle()
+                .fill(Color.appError.opacity(0.7))
+                .frame(width: 40, height: 40)
+                .overlay(
+                    Image(systemName: "person.fill.badge.minus")
+                        .font(.system(size: 17))
+                        .foregroundStyle(Color.white.opacity(0.95))
+                )
+                .frame(width: actionWidth)
         }
         .buttonStyle(.plain)
+        .accessibilityLabel("Remove")
     }
 
     private func close() {
