@@ -26,12 +26,16 @@ struct SharedUser: Identifiable {
 /// action sits behind the row's trailing edge and is only drawn once the row has
 /// started moving, which keeps it from showing through the row's own background.
 private struct SwipeToRemoveRow<Content: View>: View {
+    let rowID: String
     let isEnabled: Bool
+    /// The one row allowed to be open, held by the parent so opening a second row
+    /// closes the first and a tap anywhere in the sheet can dismiss it.
+    @Binding var openRowID: String?
     let onRemove: () -> Void
     @ViewBuilder var content: Content
 
-    @State private var offset: CGFloat = 0
-    @State private var isOpen = false
+    /// Live translation of the drag in progress; folded into `offset` and reset on end.
+    @State private var dragTranslation: CGFloat = 0
     /// Set once a drag proves horizontal, and cleared when it ends. While a drag is
     /// still ambiguous the row ignores it, so a vertical pan reaches the ScrollView.
     @State private var isSwiping = false
@@ -39,6 +43,13 @@ private struct SwipeToRemoveRow<Content: View>: View {
     private let actionWidth: CGFloat = 88
     /// A drag has to be this much wider than it is tall before it counts as a swipe.
     private let horizontalBias: CGFloat = 2
+
+    private var isOpen: Bool { openRowID == rowID }
+
+    private var offset: CGFloat {
+        let base: CGFloat = isOpen ? -actionWidth : 0
+        return min(0, max(-actionWidth, base + dragTranslation))
+    }
 
     var body: some View {
         ZStack(alignment: .trailing) {
@@ -70,6 +81,15 @@ private struct SwipeToRemoveRow<Content: View>: View {
             }
 
             content
+                // While open, a tap on the row closes it instead of reaching the
+                // button underneath.
+                .overlay {
+                    if isOpen {
+                        Color.clear
+                            .contentShape(Rectangle())
+                            .onTapGesture { close() }
+                    }
+                }
                 .offset(x: offset)
                 // Simultaneous so a vertical drag still scrolls the sheet, and masked
                 // off entirely on rows that can't be removed — an always-attached drag
@@ -80,27 +100,32 @@ private struct SwipeToRemoveRow<Content: View>: View {
                             let dx = value.translation.width
                             let dy = value.translation.height
 
-                            // Commit to a swipe only once the drag is clearly sideways.
-                            // Until then leave the pan to the ScrollView.
+                            // Commit to a swipe only once the drag is clearly sideways:
+                            // leftward to open, or rightward while already open. Until
+                            // then leave the pan to the ScrollView.
                             if !isSwiping {
-                                guard dx < 0, abs(dx) > abs(dy) * horizontalBias else { return }
+                                guard dx < 0 || isOpen else { return }
+                                guard abs(dx) > abs(dy) * horizontalBias else { return }
                                 isSwiping = true
                             }
 
-                            let base: CGFloat = isOpen ? -actionWidth : 0
-                            offset = min(0, max(-actionWidth, base + dx))
+                            dragTranslation = dx
                         }
                         .onEnded { _ in
-                            defer { isSwiping = false }
-                            guard isSwiping else { return }
+                            guard isSwiping else {
+                                dragTranslation = 0
+                                return
+                            }
+
+                            let shouldOpen = offset < -actionWidth / 2
+                            isSwiping = false
 
                             withAnimation(.easeOut(duration: 0.2)) {
-                                if offset < -actionWidth / 2 {
-                                    offset = -actionWidth
-                                    isOpen = true
-                                } else {
-                                    offset = 0
-                                    isOpen = false
+                                dragTranslation = 0
+                                if shouldOpen {
+                                    openRowID = rowID
+                                } else if isOpen {
+                                    openRowID = nil
                                 }
                             }
                         },
@@ -109,14 +134,14 @@ private struct SwipeToRemoveRow<Content: View>: View {
         }
         // A row that stops being removable must not stay stuck open.
         .onChange(of: isEnabled) { _, enabled in
-            if !enabled { close() }
+            if !enabled && isOpen { close() }
         }
     }
 
     private func close() {
         withAnimation(.easeOut(duration: 0.2)) {
-            offset = 0
-            isOpen = false
+            dragTranslation = 0
+            if isOpen { openRowID = nil }
         }
     }
 }
@@ -163,6 +188,8 @@ struct ShareStoreView: View {
     @State private var shareProgress: String = ""
     /// The sharer's profile picture, looked up from their user document.
     @State private var sharedByPictureURL: String?
+    /// The single recipient row currently swiped open, if any.
+    @State private var openSwipeRowID: String?
 
     private let db = Firestore.firestore()
     private let messagingService = MessagingService.shared
@@ -209,6 +236,14 @@ struct ShareStoreView: View {
                         } // End of owner-only sharing UI
                     }
                     .padding(20)
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        // Tapping anywhere else puts an open swipe action away.
+                        guard openSwipeRowID != nil else { return }
+                        withAnimation(.easeOut(duration: 0.2)) {
+                            openSwipeRowID = nil
+                        }
+                    }
                 }
             }
             .navigationTitle("Share Store")
@@ -482,7 +517,9 @@ struct ShareStoreView: View {
         let isShared = isAlreadyShared(contact)
 
         return SwipeToRemoveRow(
+            rowID: contact.id,
             isEnabled: isShared,
+            openRowID: $openSwipeRowID,
             onRemove: { unshare(contact) }
         ) {
             contactRowButton(contact: contact, tint: tint, isShared: isShared)
@@ -778,6 +815,7 @@ struct ShareStoreView: View {
 
     /// Revokes a recipient's access from their row.
     private func unshare(_ contact: Contact) {
+        openSwipeRowID = nil
         guard let sharedUser = sharedUser(for: contact) else { return }
         unshareWithUser(sharedUser)
     }
@@ -802,6 +840,12 @@ struct ShareStoreView: View {
     }
 
     private func toggleSelection(of contact: Contact) {
+        if openSwipeRowID != nil {
+            withAnimation(.easeOut(duration: 0.2)) {
+                openSwipeRowID = nil
+            }
+        }
+
         if selectedContactIDs.contains(contact.id) {
             selectedContactIDs.remove(contact.id)
         } else {
