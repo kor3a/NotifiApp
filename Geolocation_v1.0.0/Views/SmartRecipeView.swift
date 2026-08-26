@@ -7,6 +7,91 @@
 
 import SwiftUI
 
+// MARK: - Recipe Palette
+
+/// The Recipe Assistant runs on its own warm, kitchen-toned accent rather than
+/// the app's blue. The screen sits on a culinary backdrop image, and the cool
+/// system blue reads as foreign against it.
+private enum RecipePalette {
+    static let apricot = Color(red: 1.00, green: 0.60, blue: 0.24)
+    static let paprika = Color(red: 0.90, green: 0.32, blue: 0.23)
+    static let basil = Color(red: 0.33, green: 0.60, blue: 0.36)
+
+    static let warmGradient = LinearGradient(
+        colors: [apricot, paprika],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
+
+    /// Wash laid over the backdrop art so message text keeps its contrast.
+    static func scrim(for colorScheme: ColorScheme) -> Color {
+        colorScheme == .dark ? Color.black.opacity(0.28) : Color.white.opacity(0.30)
+    }
+
+    /// Tint over the `.ultraThinMaterial` surfaces — bubbles, chips, input bar.
+    /// Material takes on whatever sits behind it, so without this the artwork
+    /// bleeds through and bubbles lose their edges.
+    static func surfaceTint(for colorScheme: ColorScheme) -> Color {
+        colorScheme == .dark ? Color.white.opacity(0.06) : Color.white.opacity(0.55)
+    }
+
+    static func surfaceBorder(for colorScheme: ColorScheme) -> Color {
+        colorScheme == .dark ? Color.white.opacity(0.12) : Color.white.opacity(0.85)
+    }
+
+    static func hairline(for colorScheme: ColorScheme) -> Color {
+        colorScheme == .dark ? Color.white.opacity(0.10) : Color.black.opacity(0.06)
+    }
+
+    static func shadow(for colorScheme: ColorScheme) -> Color {
+        colorScheme == .dark
+            ? Color.black.opacity(0.45)
+            : Color(red: 0.45, green: 0.26, blue: 0.12).opacity(0.16)
+    }
+}
+
+// MARK: - Backdrop
+
+/// Full-bleed culinary artwork behind the whole screen. The asset carries its
+/// own light and dark variants; the scrim on top keeps text legible over it.
+private struct RecipeBackdrop: View {
+    let colorScheme: ColorScheme
+
+    var body: some View {
+        GeometryReader { geometry in
+            Image("RecipeBackground")
+                .resizable()
+                .scaledToFill()
+                .frame(width: geometry.size.width, height: geometry.size.height)
+                .clipped()
+                .overlay(RecipePalette.scrim(for: colorScheme))
+        }
+        .ignoresSafeArea()
+    }
+}
+
+/// Glass surface shared by assistant bubbles, suggestion chips and banners.
+private func recipeSurface(for colorScheme: ColorScheme, cornerRadius: CGFloat = 20) -> some View {
+    let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+    return shape
+        .fill(.ultraThinMaterial)
+        .overlay(shape.fill(RecipePalette.surfaceTint(for: colorScheme)))
+        .overlay(shape.stroke(RecipePalette.surfaceBorder(for: colorScheme), lineWidth: 1))
+        .shadow(color: RecipePalette.shadow(for: colorScheme), radius: 8, x: 0, y: 3)
+}
+
+/// The small fork-and-knife mark that sits beside every assistant message.
+private struct RecipeAssistantAvatar: View {
+    var body: some View {
+        Image(systemName: "fork.knife")
+            .font(.system(size: 12, weight: .bold))
+            .foregroundColor(.white)
+            .frame(width: 26, height: 26)
+            .background(Circle().fill(RecipePalette.warmGradient))
+            .padding(.top, 2)
+    }
+}
+
 struct SmartRecipeView: View {
     @ObservedObject var viewModel: SmartRecipeViewModel
     @ObservedObject var storesViewModel: StoresViewModel
@@ -17,129 +102,16 @@ struct SmartRecipeView: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 0) {
-                // Chat messages
-                ScrollViewReader { proxy in
-                    ScrollView {
-                        LazyVStack(spacing: 12) {
-                            // Welcome message
-                            if viewModel.messages.isEmpty {
-                                welcomeView
-                            }
+            ZStack {
+                RecipeBackdrop(colorScheme: colorScheme)
 
-                            ForEach(viewModel.messages) { message in
-                                VStack(alignment: .leading, spacing: 8) {
-                                    MessageBubbleView(message: message, colorScheme: colorScheme)
-
-                                    // Show "Add Ingredients to Store" button for recipe messages with ingredients
-                                    if message.role == .assistant, let ingredients = message.ingredients, !ingredients.isEmpty {
-                                        addIngredientsButton(for: message)
-                                    }
-                                }
-                                .id(message.id)
-                            }
-
-                            if viewModel.isLoading {
-                                HStack {
-                                    TypingIndicatorView()
-                                        .padding(.horizontal, 16)
-                                        .padding(.vertical, 10)
-                                        .background(
-                                            RoundedRectangle(cornerRadius: 16)
-                                                .fill(colorScheme == .dark
-                                                    ? Color(white: 0.2)
-                                                    : Color(white: 0.92))
-                                        )
-                                    Spacer()
-                                }
-                                .padding(.horizontal)
-                                .id("loading")
-                            }
-                        }
-                        .padding(.vertical, 12)
-                    }
-                    .scrollDismissesKeyboard(.interactively)
-                    .onChange(of: viewModel.messages.count) { _, _ in
-                        withAnimation {
-                            if let lastMessage = viewModel.messages.last {
-                                proxy.scrollTo(lastMessage.id, anchor: .bottom)
-                            } else if viewModel.isLoading {
-                                proxy.scrollTo("loading", anchor: .bottom)
-                            }
-                        }
-                    }
-                    .onChange(of: viewModel.isLoading) { _, isLoading in
-                        if isLoading {
-                            withAnimation {
-                                proxy.scrollTo("loading", anchor: .bottom)
-                            }
-                        }
-                    }
+                VStack(spacing: 0) {
+                    conversation
+                    statusBanners
+                    inputBar
                 }
-
-                // Error message
-                if let error = viewModel.errorMessage {
-                    HStack {
-                        Image(systemName: "exclamationmark.triangle.fill")
-                            .foregroundColor(.orange)
-                        Text(error)
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        Spacer()
-                        Button("Dismiss") {
-                            viewModel.errorMessage = nil
-                        }
-                        .font(.caption)
-                    }
-                    .padding(.horizontal)
-                    .padding(.vertical, 8)
-                    .background(Color.orange.opacity(0.1))
-                }
-
-                // Success confirmation - ingredients added to store
-                if let count = viewModel.savedIngredientsCount, let storeName = viewModel.savedToStoreName {
-                    HStack {
-                        Image(systemName: "checkmark.circle.fill")
-                            .foregroundColor(.green)
-                        Text("Added \(count) ingredient\(count == 1 ? "" : "s") to \(storeName)")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        Spacer()
-                        Button("Dismiss") {
-                            viewModel.clearSavedConfirmation()
-                        }
-                        .font(.caption)
-                    }
-                    .padding(.horizontal)
-                    .padding(.vertical, 8)
-                    .background(Color.green.opacity(0.1))
-                }
-
-                // Success confirmation - recipe saved to list
-                if let recipeName = viewModel.savedRecipeName {
-                    HStack {
-                        Image(systemName: "checkmark.circle.fill")
-                            .foregroundColor(.green)
-                        Text("\"\(recipeName)\" saved to your recipe list")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        Spacer()
-                        Button("Dismiss") {
-                            viewModel.clearSavedConfirmation()
-                        }
-                        .font(.caption)
-                    }
-                    .padding(.horizontal)
-                    .padding(.vertical, 8)
-                    .background(Color.green.opacity(0.1))
-                }
-
-                Divider()
-
-                // Input bar
-                inputBar
             }
-            .background(Color.backgroundGradient(for: colorScheme).ignoresSafeArea())
+            .tint(RecipePalette.paprika)
             .navigationTitle("Smart Recipe")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -170,122 +142,290 @@ struct SmartRecipeView: View {
         }
     }
 
+    // MARK: - Conversation
+
+    private var conversation: some View {
+        ScrollViewReader { proxy in
+            ScrollView {
+                LazyVStack(spacing: 14) {
+                    // Welcome message
+                    if viewModel.messages.isEmpty {
+                        welcomeView
+                    }
+
+                    ForEach(viewModel.messages) { message in
+                        VStack(alignment: .leading, spacing: 10) {
+                            MessageBubbleView(message: message, colorScheme: colorScheme)
+
+                            // Show "Add Ingredients to Store" button for recipe messages with ingredients
+                            if message.role == .assistant, let ingredients = message.ingredients, !ingredients.isEmpty {
+                                addIngredientsButton(for: message)
+                            }
+                        }
+                        .id(message.id)
+                    }
+
+                    if viewModel.isLoading {
+                        HStack(alignment: .top, spacing: 8) {
+                            RecipeAssistantAvatar()
+
+                            TypingIndicatorView()
+                                .padding(.horizontal, 18)
+                                .padding(.vertical, 14)
+                                .background { recipeSurface(for: colorScheme) }
+
+                            Spacer(minLength: 40)
+                        }
+                        .padding(.horizontal)
+                        .id("loading")
+                    }
+                }
+                .padding(.vertical, 14)
+            }
+            .scrollDismissesKeyboard(.interactively)
+            .onChange(of: viewModel.messages.count) { _, _ in
+                withAnimation {
+                    if let lastMessage = viewModel.messages.last {
+                        proxy.scrollTo(lastMessage.id, anchor: .bottom)
+                    } else if viewModel.isLoading {
+                        proxy.scrollTo("loading", anchor: .bottom)
+                    }
+                }
+            }
+            .onChange(of: viewModel.isLoading) { _, isLoading in
+                if isLoading {
+                    withAnimation {
+                        proxy.scrollTo("loading", anchor: .bottom)
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: - Status Banners
+
+    private var hasStatusBanner: Bool {
+        viewModel.errorMessage != nil
+            || (viewModel.savedIngredientsCount != nil && viewModel.savedToStoreName != nil)
+            || viewModel.savedRecipeName != nil
+    }
+
+    @ViewBuilder
+    private var statusBanners: some View {
+        if hasStatusBanner {
+            VStack(spacing: 8) {
+                // Error message
+                if let error = viewModel.errorMessage {
+                    statusBanner(
+                        icon: "exclamationmark.triangle.fill",
+                        tint: .orange,
+                        text: error
+                    ) {
+                        viewModel.errorMessage = nil
+                    }
+                }
+
+                // Success confirmation - ingredients added to store
+                if let count = viewModel.savedIngredientsCount, let storeName = viewModel.savedToStoreName {
+                    statusBanner(
+                        icon: "checkmark.circle.fill",
+                        tint: RecipePalette.basil,
+                        text: "Added \(count) ingredient\(count == 1 ? "" : "s") to \(storeName)"
+                    ) {
+                        viewModel.clearSavedConfirmation()
+                    }
+                }
+
+                // Success confirmation - recipe saved to list
+                if let recipeName = viewModel.savedRecipeName {
+                    statusBanner(
+                        icon: "checkmark.circle.fill",
+                        tint: RecipePalette.basil,
+                        text: "\"\(recipeName)\" saved to your recipe list"
+                    ) {
+                        viewModel.clearSavedConfirmation()
+                    }
+                }
+            }
+            .padding(.horizontal, 14)
+            .padding(.bottom, 8)
+        }
+    }
+
+    private func statusBanner(
+        icon: String,
+        tint: Color,
+        text: String,
+        onDismiss: @escaping () -> Void
+    ) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: icon)
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(tint)
+
+            Text(text)
+                .font(.footnote)
+                .foregroundColor(.primary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Spacer(minLength: 8)
+
+            Button("Dismiss", action: onDismiss)
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(tint)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background { recipeSurface(for: colorScheme, cornerRadius: 14) }
+    }
+
     // MARK: - Add Ingredients Button
 
     private func addIngredientsButton(for message: RecipeChatMessage) -> some View {
-        HStack(spacing: 8) {
-            Button {
-                messageIdForStorePicker = message.id
-            } label: {
-                HStack(spacing: 6) {
-                    Image(systemName: "cart.badge.plus")
-                        .font(.system(size: 14))
-                    Text("Add to Store")
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                }
-                .padding(.horizontal, 14)
-                .padding(.vertical, 8)
-                .background(
-                    RoundedRectangle(cornerRadius: 20)
-                        .fill(Color.blue)
-                )
-                .foregroundColor(.white)
+        let addToStore = recipeActionButton(
+            title: "Add to Store",
+            icon: "cart.badge.plus",
+            fill: AnyShapeStyle(RecipePalette.warmGradient)
+        ) {
+            messageIdForStorePicker = message.id
+        }
+
+        let addToRecipes = recipeActionButton(
+            title: "Add to Recipes",
+            icon: "text.badge.plus",
+            fill: AnyShapeStyle(RecipePalette.basil)
+        ) {
+            viewModel.addRecipeToList(messageId: message.id)
+        }
+
+        // Side by side where there is room; the pair is wider than the content
+        // column on the smallest phones, so they stack there instead of wrapping
+        // each label onto two lines.
+        return ViewThatFits(in: .horizontal) {
+            HStack(spacing: 10) {
+                addToStore
+                addToRecipes
             }
 
-            Button {
-                viewModel.addRecipeToList(messageId: message.id)
-            } label: {
-                HStack(spacing: 6) {
-                    Image(systemName: "text.badge.plus")
-                        .font(.system(size: 14))
-                    Text("Add to Recipes")
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                }
-                .padding(.horizontal, 14)
-                .padding(.vertical, 8)
-                .background(
-                    RoundedRectangle(cornerRadius: 20)
-                        .fill(Color.green)
-                )
-                .foregroundColor(.white)
+            VStack(alignment: .leading, spacing: 8) {
+                addToStore
+                addToRecipes
             }
         }
         .disabled(viewModel.isSavingIngredients)
         .opacity(viewModel.isSavingIngredients ? 0.6 : 1.0)
-        .padding(.horizontal)
+        // Lines up with the assistant bubble, which is inset by its avatar.
+        .padding(.leading, 50)
+        .padding(.trailing, 16)
+    }
+
+    private func recipeActionButton(
+        title: String,
+        icon: String,
+        fill: AnyShapeStyle,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                Image(systemName: icon)
+                    .font(.system(size: 13, weight: .semibold))
+                Text(title)
+                    .font(.subheadline.weight(.semibold))
+                    .lineLimit(1)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+            .background(Capsule().fill(fill))
+            .foregroundColor(.white)
+            .shadow(color: RecipePalette.shadow(for: colorScheme), radius: 6, x: 0, y: 3)
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: - Welcome View
 
     private var welcomeView: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "fork.knife.circle.fill")
-                .font(.system(size: 60))
-                .foregroundStyle(.linearGradient(
-                    colors: [.blue, .purple],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                ))
-                .padding(.top, 40)
+        VStack(spacing: 18) {
+            Image(systemName: "fork.knife")
+                .font(.system(size: 36, weight: .semibold))
+                .foregroundColor(.white)
+                .frame(width: 84, height: 84)
+                .background(Circle().fill(RecipePalette.warmGradient))
+                .overlay(Circle().stroke(Color.white.opacity(0.4), lineWidth: 1))
+                .shadow(color: RecipePalette.paprika.opacity(0.35), radius: 18, x: 0, y: 8)
+                .padding(.top, 36)
 
-            Text("Smart Recipe Assistant")
-                .font(.title2)
-                .fontWeight(.bold)
+            VStack(spacing: 8) {
+                Text("Recipe Assistant")
+                    .font(.title2)
+                    .fontWeight(.bold)
 
-            Text("Ask me for any recipe! I can help with meal ideas, cooking instructions, ingredient substitutions, and more.")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 32)
+                Text("Ask for any recipe — meal ideas, step-by-step instructions, ingredient swaps — then send the ingredients straight to a store list.")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 32)
+            }
 
             // Suggestion chips
-            VStack(spacing: 8) {
-                suggestionChip("Quick weeknight pasta dinner")
-                suggestionChip("Healthy breakfast smoothie bowl")
-                suggestionChip("Easy chocolate chip cookies")
+            VStack(spacing: 10) {
+                suggestionChip("Quick weeknight pasta dinner", icon: "timer")
+                suggestionChip("Healthy breakfast smoothie bowl", icon: "leaf.fill")
+                suggestionChip("Easy chocolate chip cookies", icon: "birthday.cake.fill")
             }
-            .padding(.top, 8)
+            .padding(.horizontal, 20)
+            .padding(.top, 4)
         }
-        .padding(.bottom, 20)
+        .padding(.bottom, 24)
     }
 
-    private func suggestionChip(_ text: String) -> some View {
+    private func suggestionChip(_ text: String, icon: String) -> some View {
         Button {
             viewModel.inputText = text
             viewModel.sendMessage()
         } label: {
-            Text(text)
-                .font(.subheadline)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 10)
-                .background(
-                    RoundedRectangle(cornerRadius: 20)
-                        .fill(.ultraThinMaterial)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 20)
-                                .stroke(Color.blue.opacity(0.3), lineWidth: 1)
-                        )
-                )
-                .foregroundColor(.primary)
+            HStack(spacing: 12) {
+                Image(systemName: icon)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(RecipePalette.paprika)
+                    .frame(width: 30, height: 30)
+                    .background(Circle().fill(RecipePalette.apricot.opacity(0.18)))
+
+                Text(text)
+                    .font(.subheadline)
+                    .foregroundColor(.primary)
+                    .multilineTextAlignment(.leading)
+
+                Spacer(minLength: 4)
+
+                Image(systemName: "arrow.up.right")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundColor(.secondary)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+            .background { recipeSurface(for: colorScheme, cornerRadius: 16) }
         }
+        .buttonStyle(.plain)
     }
 
     // MARK: - Input Bar
 
     private var inputBar: some View {
-        HStack(spacing: 12) {
+        let isSendDisabled = viewModel.inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            || viewModel.isLoading
+
+        return HStack(spacing: 10) {
             TextField("Ask for a recipe...", text: $viewModel.inputText, axis: .vertical)
                 .textFieldStyle(.plain)
                 .lineLimit(1...5)
                 .padding(.horizontal, 16)
-                .padding(.vertical, 10)
+                .padding(.vertical, 11)
                 .background(
-                    RoundedRectangle(cornerRadius: 20)
-                        .fill(colorScheme == .dark
-                            ? Color(white: 0.15)
-                            : Color(white: 0.95))
+                    Capsule()
+                        .fill(.ultraThinMaterial)
+                        .overlay(Capsule().fill(RecipePalette.surfaceTint(for: colorScheme)))
+                        .overlay(Capsule().stroke(RecipePalette.surfaceBorder(for: colorScheme), lineWidth: 1))
                 )
                 .focused($isInputFocused)
                 .onSubmit {
@@ -295,18 +435,37 @@ struct SmartRecipeView: View {
             Button {
                 viewModel.sendMessage()
             } label: {
-                Image(systemName: "arrow.up.circle.fill")
-                    .font(.system(size: 32))
-                    .foregroundStyle(
-                        viewModel.inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || viewModel.isLoading
-                            ? Color.gray
-                            : Color.blue
+                Image(systemName: "arrow.up")
+                    .font(.system(size: 17, weight: .bold))
+                    .foregroundColor(.white)
+                    .frame(width: 42, height: 42)
+                    .background(
+                        Circle().fill(isSendDisabled
+                            ? AnyShapeStyle(Color.secondary.opacity(0.4))
+                            : AnyShapeStyle(RecipePalette.warmGradient))
+                    )
+                    .shadow(
+                        color: isSendDisabled ? .clear : RecipePalette.paprika.opacity(0.35),
+                        radius: 8, x: 0, y: 4
                     )
             }
-            .disabled(viewModel.inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || viewModel.isLoading)
+            .buttonStyle(.plain)
+            .disabled(isSendDisabled)
+            .animation(.easeInOut(duration: 0.15), value: isSendDisabled)
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        .padding(.horizontal, 14)
+        .padding(.top, 10)
+        .padding(.bottom, 8)
+        .background(
+            Rectangle()
+                .fill(.ultraThinMaterial)
+                .overlay(alignment: .top) {
+                    Rectangle()
+                        .fill(RecipePalette.hairline(for: colorScheme))
+                        .frame(height: 0.5)
+                }
+                .ignoresSafeArea(edges: .bottom)
+        )
     }
 }
 
@@ -398,38 +557,30 @@ struct MessageBubbleView: View {
     let colorScheme: ColorScheme
 
     var body: some View {
-        HStack {
-            if message.role == .user {
-                Spacer(minLength: 60)
-            }
-
-            VStack(alignment: message.role == .user ? .trailing : .leading, spacing: 4) {
-                if message.role == .assistant {
-                    MarkdownTextView(text: message.content)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 10)
-                        .background(
-                            RoundedRectangle(cornerRadius: 16)
-                                .fill(colorScheme == .dark
-                                    ? Color(white: 0.2)
-                                    : Color(white: 0.92))
-                        )
-                        .foregroundColor(.primary)
-                } else {
-                    Text(message.content)
-                        .font(.body)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 10)
-                        .background(
-                            RoundedRectangle(cornerRadius: 16)
-                                .fill(Color.blue)
-                        )
-                        .foregroundColor(.white)
-                }
-            }
-
+        HStack(alignment: .top, spacing: 8) {
             if message.role == .assistant {
+                RecipeAssistantAvatar()
+
+                MarkdownTextView(text: message.content)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                    .background { recipeSurface(for: colorScheme) }
+                    .foregroundColor(.primary)
+
+                Spacer(minLength: 40)
+            } else {
                 Spacer(minLength: 60)
+
+                Text(message.content)
+                    .font(.body)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 11)
+                    .background(
+                        RoundedRectangle(cornerRadius: 20, style: .continuous)
+                            .fill(RecipePalette.warmGradient)
+                    )
+                    .foregroundColor(.white)
+                    .shadow(color: RecipePalette.paprika.opacity(0.28), radius: 8, x: 0, y: 4)
             }
         }
         .padding(.horizontal)
@@ -584,7 +735,7 @@ struct TypingIndicatorView: View {
         HStack(spacing: 4) {
             ForEach(0..<3) { index in
                 Circle()
-                    .fill(Color.secondary)
+                    .fill(RecipePalette.paprika)
                     .frame(width: 7, height: 7)
                     .opacity(dotCount % 3 == index ? 1.0 : 0.3)
             }
