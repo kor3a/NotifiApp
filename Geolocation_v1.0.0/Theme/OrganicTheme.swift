@@ -248,36 +248,23 @@ extension View {
 /// Blush rather than filled terracotta: every one of these screens already has
 /// a single loud primary action (the compose disc, the add-store FAB), and a
 /// second filled circle next to it would just split the user's attention.
-struct OrganicCircleButton<Glyph: View>: View {
+struct OrganicCircleButton: View {
+    let systemImage: String
     var size: CGFloat = 54
+    var glyphSize: CGFloat = 20
     let action: () -> Void
-    @ViewBuilder let glyph: () -> Glyph
 
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         Button(action: action) {
-            glyph()
+            Image(systemName: systemImage)
+                .font(.system(size: glyphSize, weight: .semibold))
                 .foregroundColor(OrganicPalette.terracotta(colorScheme))
                 .frame(width: size, height: size)
                 .background(Circle().fill(OrganicPalette.blush(colorScheme)))
         }
         .buttonStyle(.plain)
-    }
-}
-
-extension OrganicCircleButton where Glyph == Image {
-    /// The common case: an SF Symbol on the disc.
-    init(
-        systemImage: String,
-        size: CGFloat = 54,
-        glyphSize: CGFloat = 20,
-        action: @escaping () -> Void
-    ) {
-        self.init(size: size, action: action) {
-            Image(systemName: systemImage)
-                .font(.system(size: glyphSize, weight: .semibold))
-        }
     }
 }
 
