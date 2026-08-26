@@ -83,7 +83,8 @@ struct RecipeView: View {
     // MARK: - Recipe List
 
     /// Rows sit straight on the backdrop — no card per recipe. A hairline rule
-    /// between rows and the warm tile on the left carry the separation instead.
+    /// between rows and the warm accent rule on the left carry the separation
+    /// instead.
     private var recipeList: some View {
         List {
             listHeader
@@ -99,7 +100,7 @@ struct RecipeView: View {
                         Rectangle()
                             .fill(recipeRowDivider(for: colorScheme))
                             .frame(height: 1)
-                            .padding(.leading, 60)
+                            .padding(.leading, 17)
                     }
                 }
                 .contentShape(Rectangle())
@@ -171,62 +172,89 @@ private struct RecipeRowView: View {
     let recipe: Recipe
     let colorScheme: ColorScheme
 
-    private var ingredientPreview: String {
-        guard !recipe.ingredients.isEmpty else { return "No ingredients yet" }
-        let shown = recipe.ingredients.prefix(3).joined(separator: " · ")
-        return recipe.ingredients.count > 3 ? shown + " · …" : shown
+    /// Ingredients shown as chips before the row spills into a "+n" summary.
+    private static let chipLimit = 3
+
+    /// Indexed so a recipe that repeats an ingredient still gets stable row ids.
+    private var visibleIngredients: [(offset: Int, element: String)] {
+        Array(recipe.ingredients.prefix(Self.chipLimit).enumerated())
+    }
+
+    private var hiddenCount: Int {
+        max(0, recipe.ingredients.count - Self.chipLimit)
     }
 
     var body: some View {
-        HStack(spacing: 14) {
-            // Warm tile stands in for the card that used to wrap the whole row.
-            RoundedRectangle(cornerRadius: 13, style: .continuous)
+        HStack(alignment: .top, spacing: 14) {
+            // Thin warm rule down the leading edge — the row's only ornament now
+            // that the fork-and-knife tile is gone.
+            Capsule()
                 .fill(RecipePalette.warmGradient)
-                .frame(width: 46, height: 46)
-                .overlay(
-                    Image(systemName: "fork.knife")
-                        .font(.system(size: 19, weight: .semibold))
-                        .foregroundColor(.white)
-                )
-                .shadow(color: RecipePalette.shadow(for: colorScheme), radius: 6, x: 0, y: 3)
+                .frame(width: 3)
 
-            VStack(alignment: .leading, spacing: 4) {
-                Text(recipe.name)
-                    .font(.headline)
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
-                Text(ingredientPreview)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-            }
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(alignment: .firstTextBaseline, spacing: 10) {
+                    Text(recipe.name)
+                        .font(.title3)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
 
-            Spacer(minLength: 8)
+                    Spacer(minLength: 4)
 
-            HStack(spacing: 8) {
-                Text("\(recipe.ingredients.count)")
-                    .font(.caption)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(RecipePalette.paprika)
-                    .frame(minWidth: 14)
-                    .padding(.vertical, 4)
-                    .padding(.horizontal, 9)
-                    .background(
-                        Capsule()
-                            .fill(RecipePalette.apricot.opacity(colorScheme == .dark ? 0.22 : 0.28))
-                    )
-                    .overlay(
-                        Capsule()
-                            .stroke(RecipePalette.apricot.opacity(0.45), lineWidth: 1)
-                    )
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(.tertiary)
+                }
 
-                Image(systemName: "chevron.right")
-                    .font(.caption)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(.tertiary)
+                if recipe.ingredients.isEmpty {
+                    Text("No ingredients yet")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else {
+                    HStack(spacing: 6) {
+                        ForEach(visibleIngredients, id: \.offset) { _, ingredient in
+                            IngredientChip(text: ingredient, colorScheme: colorScheme)
+                        }
+                        if hiddenCount > 0 {
+                            Text("+\(hiddenCount)")
+                                .font(.caption2)
+                                .fontWeight(.semibold)
+                                .foregroundStyle(.secondary)
+                                .fixedSize()
+                        }
+                        Spacer(minLength: 0)
+                    }
+                }
             }
         }
-        .padding(.vertical, 14)
+        .padding(.vertical, 16)
+    }
+}
+
+/// Single ingredient, shown as a soft capsule. Deliberately lighter than a card:
+/// tinted fill, hairline edge, no shadow.
+private struct IngredientChip: View {
+    let text: String
+    let colorScheme: ColorScheme
+
+    var body: some View {
+        Text(text)
+            .font(.caption2)
+            .foregroundStyle(.primary)
+            .lineLimit(1)
+            .truncationMode(.tail)
+            .padding(.vertical, 4)
+            .padding(.horizontal, 9)
+            .background(
+                Capsule()
+                    .fill(RecipePalette.apricot.opacity(colorScheme == .dark ? 0.20 : 0.26))
+            )
+            .overlay(
+                Capsule()
+                    .stroke(RecipePalette.apricot.opacity(0.42), lineWidth: 1)
+            )
     }
 }
 
