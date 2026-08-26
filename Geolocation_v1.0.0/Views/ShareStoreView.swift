@@ -49,11 +49,17 @@ private struct SwipeToRemoveRow<Content: View>: View {
                             .font(.caption2)
                             .fontWeight(.semibold)
                     }
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Color.white.opacity(0.85))
                     .frame(width: actionWidth)
                     .frame(maxHeight: .infinity)
-                    .background(Color.appError)
-                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    .background(
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .fill(Color.appError.opacity(0.45))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .stroke(Color.appError.opacity(0.35), lineWidth: 1)
+                    )
                 }
                 .buttonStyle(.plain)
             }
@@ -181,15 +187,6 @@ struct ShareStoreView: View {
                                     icon: "person.crop.circle.badge.plus",
                                     tint: .appAccent,
                                     text: "Add friends or family in the Friends tab to share this store with them."
-                                )
-                            }
-
-                            // Show reminder count
-                            if !reminderTitles.isEmpty {
-                                infoCallout(
-                                    icon: "checklist",
-                                    tint: .appSuccess,
-                                    text: "\(reminderTitles.count) active reminder\(reminderTitles.count == 1 ? "" : "s") will be included with this store."
                                 )
                             }
                         } // End of owner-only sharing UI
