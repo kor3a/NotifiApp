@@ -34,15 +34,19 @@ private struct SwipeToRemoveRow<Content: View>: View {
     let onRemove: () -> Void
     @ViewBuilder var content: Content
 
-    /// How far the finger has moved since the swipe was recognised. Measured from the
-    /// recognition point rather than the touch-down point, so the row starts moving
-    /// from where it sits instead of jumping the distance the gesture needed to commit.
-    @State private var dragTranslation: CGFloat = 0
+    /// The row's actual displacement, and the only thing that positions it. It is
+    /// deliberately local and never derived from `openRowID`: a value computed from
+    /// both local and parent state settles over two update passes, which is what made
+    /// the row snap back to centre for a frame before opening.
+    @State private var offset: CGFloat = 0
+    /// Where the row sat, and how far the finger had travelled, when the swipe was
+    /// recognised. Tracking from there keeps the row under the finger instead of
+    /// jumping the distance the recogniser needed.
+    @State private var offsetAtSwipeStart: CGFloat = 0
+    @State private var translationAtSwipeStart: CGFloat = 0
     /// Set once a drag proves horizontal, and cleared when it ends. While a drag is
     /// still ambiguous the row ignores it, so a vertical pan reaches the ScrollView.
     @State private var isSwiping = false
-    /// The translation at the moment the swipe was recognised.
-    @State private var swipeOrigin: CGFloat = 0
     /// The row's measured height, so the action button matches it without taking
     /// part in the layout itself.
     @State private var rowHeight: CGFloat = 0
@@ -51,12 +55,7 @@ private struct SwipeToRemoveRow<Content: View>: View {
     /// A drag has to be this much wider than it is tall before it counts as a swipe.
     private let horizontalBias: CGFloat = 2
 
-    private var isOpen: Bool { openRowID == rowID }
-
-    private var offset: CGFloat {
-        let base: CGFloat = isOpen ? -actionWidth : 0
-        return min(0, max(-actionWidth, base + dragTranslation))
-    }
+    private var isRevealed: Bool { offset < 0 }
 
     var body: some View {
         ZStack(alignment: .trailing) {
@@ -64,8 +63,8 @@ private struct SwipeToRemoveRow<Content: View>: View {
             // made the swipe stutter. Hidden by opacity while the row is closed.
             removeButton
                 .frame(height: rowHeight > 0 ? rowHeight : nil)
-                .opacity(offset < 0 ? 1 : 0)
-                .allowsHitTesting(offset < 0)
+                .opacity(isRevealed ? 1 : 0)
+                .allowsHitTesting(isRevealed)
 
             content
                 .background(
@@ -80,7 +79,7 @@ private struct SwipeToRemoveRow<Content: View>: View {
                     Color.clear
                         .contentShape(Rectangle())
                         .onTapGesture { close() }
-                        .allowsHitTesting(isOpen)
+                        .allowsHitTesting(isRevealed)
                 }
                 .offset(x: offset)
                 // Simultaneous so a vertical drag still scrolls the sheet, and masked
@@ -93,35 +92,24 @@ private struct SwipeToRemoveRow<Content: View>: View {
                             let dy = value.translation.height
 
                             // Commit to a swipe only once the drag is clearly sideways:
-                            // leftward to open, or rightward while already open. Until
-                            // then leave the pan to the ScrollView.
+                            // leftward to open, or rightward while already revealed.
+                            // Until then leave the pan to the ScrollView.
                             if !isSwiping {
-                                guard dx < 0 || isOpen else { return }
+                                guard dx < 0 || isRevealed else { return }
                                 guard abs(dx) > abs(dy) * horizontalBias else { return }
                                 isSwiping = true
-                                swipeOrigin = dx
+                                translationAtSwipeStart = dx
+                                offsetAtSwipeStart = offset
                             }
 
-                            dragTranslation = dx - swipeOrigin
+                            let travel = dx - translationAtSwipeStart
+                            offset = min(0, max(-actionWidth, offsetAtSwipeStart + travel))
                         }
                         .onEnded { _ in
-                            guard isSwiping else {
-                                dragTranslation = 0
-                                return
-                            }
-
-                            let shouldOpen = offset < -actionWidth / 2
+                            guard isSwiping else { return }
                             isSwiping = false
-                            swipeOrigin = 0
 
-                            withAnimation(.easeOut(duration: 0.22)) {
-                                dragTranslation = 0
-                                if shouldOpen {
-                                    openRowID = rowID
-                                } else if isOpen {
-                                    openRowID = nil
-                                }
-                            }
+                            settle(open: offset < -actionWidth / 2)
                         },
                     including: isEnabled ? .all : .subviews
                 )
@@ -129,9 +117,15 @@ private struct SwipeToRemoveRow<Content: View>: View {
         .onPreferenceChange(RowHeightKey.self) { height in
             rowHeight = height
         }
+        // Another row opening, or the sheet dismissing the open one, closes this row.
+        .onChange(of: openRowID) { _, newValue in
+            if newValue != rowID && offset != 0 {
+                withAnimation(.easeOut(duration: 0.22)) { offset = 0 }
+            }
+        }
         // A row that stops being removable must not stay stuck open.
         .onChange(of: isEnabled) { _, enabled in
-            if !enabled && isOpen { close() }
+            if !enabled { close() }
         }
     }
 
@@ -154,11 +148,22 @@ private struct SwipeToRemoveRow<Content: View>: View {
         .accessibilityLabel("Remove")
     }
 
-    private func close() {
+    /// Animates the row to its resting place, then records the result for the sheet.
+    /// The bookkeeping is deliberately outside the animation — `offset` is what moves.
+    private func settle(open: Bool) {
         withAnimation(.easeOut(duration: 0.22)) {
-            dragTranslation = 0
-            if isOpen { openRowID = nil }
+            offset = open ? -actionWidth : 0
         }
+
+        if open {
+            openRowID = rowID
+        } else if openRowID == rowID {
+            openRowID = nil
+        }
+    }
+
+    private func close() {
+        settle(open: false)
     }
 }
 
