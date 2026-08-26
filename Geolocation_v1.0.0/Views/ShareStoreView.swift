@@ -29,6 +29,8 @@ struct ShareStoreView: View {
     let userStoreItem: UserStoreItem
 
     @StateObject private var friendsViewModel = FriendsViewModel()
+    /// Observed so the header refreshes once a logo finishes downloading.
+    @ObservedObject private var logoProvider = StoreLogoProvider.shared
     @State private var recipientEmail: String = ""
     @State private var selectedPermission: StorePermission = .edit
     @State private var isSharing: Bool = false
@@ -186,15 +188,7 @@ struct ShareStoreView: View {
     /// Hero header showing the store being shared.
     private var storeHeader: some View {
         HStack(spacing: 16) {
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(Color.iconGradient)
-                .frame(width: 60, height: 60)
-                .overlay(
-                    Image(systemName: "cart.fill")
-                        .font(.system(size: 26, weight: .semibold))
-                        .foregroundStyle(.white)
-                )
-                .shadow(color: Color.appAccent.opacity(0.35), radius: 8, x: 0, y: 4)
+            storeLogoTile
 
             VStack(alignment: .leading, spacing: 4) {
                 Text("Sharing")
@@ -218,6 +212,32 @@ struct ShareStoreView: View {
         }
         .padding(18)
         .cardStyle()
+    }
+
+    /// Store logo shown in the hero header, matching the logos used in `StoresView`.
+    /// Falls back to the generic cart tile while a logo downloads, or permanently when
+    /// no logo can be retrieved for this store.
+    private var storeLogoTile: some View {
+        Group {
+            if let logo = logoProvider.cachedImage(for: userStoreItem.store.name) {
+                Image(uiImage: logo)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 60, height: 60)
+                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .shadow(color: .black.opacity(0.18), radius: 8, x: 0, y: 4)
+            } else {
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(Color.iconGradient)
+                    .frame(width: 60, height: 60)
+                    .overlay(
+                        Image(systemName: "cart.fill")
+                            .font(.system(size: 26, weight: .semibold))
+                            .foregroundStyle(.white)
+                    )
+                    .shadow(color: Color.appAccent.opacity(0.35), radius: 8, x: 0, y: 4)
+            }
+        }
     }
 
     /// Section shown to a recipient describing who shared the store with them.
