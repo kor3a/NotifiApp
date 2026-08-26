@@ -140,11 +140,11 @@ struct RecipeView: View {
         VStack(spacing: 24) {
             ZStack {
                 Circle()
-                    .fill(RecipePalette.warmGradient.opacity(0.18))
+                    .fill(RecipePalette.apricot.opacity(0.18))
                     .frame(width: 100, height: 100)
                 Image(systemName: "fork.knife.circle")
                     .font(.system(size: 44, weight: .light))
-                    .foregroundStyle(RecipePalette.warmGradient)
+                    .foregroundStyle(RecipePalette.paprika)
             }
             VStack(spacing: 8) {
                 Text("No Recipes Yet")
@@ -187,9 +187,9 @@ private struct RecipeRowView: View {
     var body: some View {
         HStack(alignment: .top, spacing: 14) {
             // Thin warm rule down the leading edge — the row's only ornament now
-            // that the fork-and-knife tile is gone.
+            // that the fork-and-knife tile is gone. Flat paprika, no gradient.
             Capsule()
-                .fill(RecipePalette.warmGradient)
+                .fill(RecipePalette.paprika)
                 .frame(width: 3)
 
             VStack(alignment: .leading, spacing: 10) {
