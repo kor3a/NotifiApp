@@ -20,107 +20,51 @@ struct NewGroupView: View {
     @State private var createdConversation: Conversation?
     @State private var isCreating = false
 
+    @Environment(\.colorScheme) private var colorScheme
+    @FocusState private var isQueryFocused: Bool
+
     var body: some View {
         NavigationStack {
-            List {
-                // Group name
-                Section("Group Name") {
-                    TextField("Family, Friends, Team…", text: $groupName)
-                        .autocorrectionDisabled()
-                }
+            ZStack {
+                OrganicPalette.canvas(colorScheme)
+                    .ignoresSafeArea()
 
-                // Add members search
-                Section {
-                    HStack {
-                        TextField("Enter email or username", text: $searchQuery)
-                            .textInputAutocapitalization(.never)
-                            .autocorrectionDisabled()
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 20) {
+                        Text("New group")
+                            .font(OrganicPalette.display(32))
+                            .foregroundColor(OrganicPalette.ink(colorScheme))
+                            .padding(.top, 8)
 
-                        if isSearching {
-                            ProgressView()
-                        } else {
-                            Button("Search") { search() }
-                                .disabled(searchQuery.isEmpty)
-                        }
+                        nameField
+                        memberSearch
+                        selectedMemberList
+                        recentContactList
                     }
-
-                    if let contact = searchedContact {
-                        if selectedMembers.contains(where: { $0.id == contact.id }) {
-                            HStack {
-                                ContactRow(contact: contact)
-                                Spacer()
-                                Image(systemName: "checkmark.circle.fill")
-                                    .foregroundColor(.appAccent)
-                            }
-                        } else {
-                            Button(action: { addMember(contact) }) {
-                                HStack {
-                                    ContactRow(contact: contact)
-                                    Spacer()
-                                    Image(systemName: "plus.circle")
-                                        .foregroundColor(.appAccent)
-                                }
-                            }
-                        }
-                    } else if !searchQuery.isEmpty && !isSearching {
-                        Text("No user found")
-                            .foregroundColor(.secondary)
-                            .font(.subheadline)
-                    }
-                } header: {
-                    Text("Add Members")
-                } footer: {
-                    Text("Search by email address or username")
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 24)
                 }
-
-                // Selected members
-                if !selectedMembers.isEmpty {
-                    Section("Members (\(selectedMembers.count))") {
-                        ForEach(selectedMembers) { member in
-                            HStack {
-                                ContactRow(contact: member)
-                                Spacer()
-                                Button(action: { removeMember(member) }) {
-                                    Image(systemName: "minus.circle.fill")
-                                        .foregroundColor(.red)
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // Recent contacts for quick adding
-                if !viewModel.recentContacts.isEmpty {
-                    Section("Recent Contacts") {
-                        ForEach(viewModel.recentContacts) { contact in
-                            let isSelected = selectedMembers.contains(where: { $0.id == contact.id })
-                            Button(action: {
-                                if isSelected { removeMember(contact) } else { addMember(contact) }
-                            }) {
-                                HStack {
-                                    ContactRow(contact: contact)
-                                    Spacer()
-                                    Image(systemName: isSelected ? "checkmark.circle.fill" : "plus.circle")
-                                        .foregroundColor(isSelected ? .appAccent : .secondary)
-                                }
-                            }
-                        }
-                    }
-                }
+                .scrollDismissesKeyboard(.immediately)
             }
-            .navigationTitle("New Group")
+            .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(OrganicPalette.canvas(colorScheme), for: .navigationBar)
+            .tint(OrganicPalette.terracotta(colorScheme))
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button("Cancel") { dismiss() }
+                        .foregroundColor(OrganicPalette.terracotta(colorScheme))
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     if isCreating {
                         ProgressView()
+                            .tint(OrganicPalette.terracotta(colorScheme))
                     } else {
                         Button("Create") { createGroup() }
-                            .disabled(groupName.trimmingCharacters(in: .whitespaces).isEmpty || selectedMembers.isEmpty)
-                            .fontWeight(.semibold)
+                            .font(.system(size: 16, weight: .bold, design: .serif))
+                            .foregroundColor(OrganicPalette.terracotta(colorScheme))
+                            .disabled(!canCreate)
+                            .opacity(canCreate ? 1 : 0.4)
                     }
                 }
             }
@@ -133,8 +77,157 @@ struct NewGroupView: View {
         }
     }
 
+    private var canCreate: Bool {
+        !groupName.trimmingCharacters(in: .whitespaces).isEmpty && !selectedMembers.isEmpty
+    }
+
+    // MARK: - Sections
+
+    private var nameField: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            sectionLabel("Name")
+
+            TextField(
+                "",
+                text: $groupName,
+                prompt: Text("Family, Friends, Team\u{2026}")
+                    .foregroundColor(OrganicPalette.inkSoft(colorScheme).opacity(0.8))
+            )
+            .font(.system(size: 17))
+            .foregroundColor(OrganicPalette.ink(colorScheme))
+            .autocorrectionDisabled()
+            .padding(.horizontal, 18)
+            .frame(height: 54)
+            .background(Capsule().fill(OrganicPalette.field(colorScheme)))
+        }
+    }
+
+    private var memberSearch: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            sectionLabel("Add members")
+
+            HStack(spacing: 10) {
+                Image(systemName: "magnifyingglass")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(OrganicPalette.inkSoft(colorScheme))
+
+                TextField(
+                    "",
+                    text: $searchQuery,
+                    prompt: Text("Email or username")
+                        .foregroundColor(OrganicPalette.inkSoft(colorScheme).opacity(0.8))
+                )
+                .font(.system(size: 17))
+                .foregroundColor(OrganicPalette.ink(colorScheme))
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .submitLabel(.search)
+                .focused($isQueryFocused)
+                .onSubmit { search() }
+
+                if isSearching {
+                    ProgressView()
+                        .tint(OrganicPalette.terracotta(colorScheme))
+                } else {
+                    Button(action: search) {
+                        Text("Search")
+                            .font(.system(size: 15, weight: .bold, design: .serif))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 16)
+                            .frame(height: 38)
+                            .background(Capsule().fill(OrganicPalette.terracotta(colorScheme)))
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(searchQuery.isEmpty)
+                    .opacity(searchQuery.isEmpty ? 0.4 : 1)
+                }
+            }
+            .padding(.leading, 18)
+            .padding(.trailing, 8)
+            .frame(height: 56)
+            .background(Capsule().fill(OrganicPalette.field(colorScheme)))
+
+            if let contact = searchedContact {
+                let isSelected = selectedMembers.contains(where: { $0.id == contact.id })
+                Button {
+                    if isSelected { removeMember(contact) } else { addMember(contact) }
+                } label: {
+                    OrganicContactRow(contact: contact, isSelected: isSelected, showsSelection: true)
+                }
+                .buttonStyle(.plain)
+            } else if !searchQuery.isEmpty && !isSearching {
+                Text("No user found")
+                    .font(.system(size: 15))
+                    .foregroundColor(OrganicPalette.inkSoft(colorScheme))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var selectedMemberList: some View {
+        if !selectedMembers.isEmpty {
+            VStack(alignment: .leading, spacing: 10) {
+                sectionLabel("Members", count: selectedMembers.count)
+
+                ForEach(selectedMembers) { member in
+                    Button {
+                        removeMember(member)
+                    } label: {
+                        OrganicContactRow(contact: member, isSelected: true, showsSelection: true)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Remove \(member.name) from the group")
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var recentContactList: some View {
+        // Anyone already picked shows in Members above, so listing them again
+        // here would put the same person on screen twice.
+        let unpicked = viewModel.recentContacts.filter { contact in
+            !selectedMembers.contains(where: { $0.id == contact.id })
+        }
+
+        if !unpicked.isEmpty {
+            VStack(alignment: .leading, spacing: 10) {
+                sectionLabel("Recent")
+
+                ForEach(unpicked) { contact in
+                    Button {
+                        addMember(contact)
+                    } label: {
+                        OrganicContactRow(contact: contact, showsSelection: true)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Add \(contact.name) to the group")
+                }
+            }
+        }
+    }
+
+    private func sectionLabel(_ title: String, count: Int? = nil) -> some View {
+        HStack(spacing: 8) {
+            Text(title)
+                .font(OrganicPalette.display(22))
+                .foregroundColor(OrganicPalette.ink(colorScheme))
+
+            if let count {
+                Text("\(count)")
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundColor(OrganicPalette.inkSoft(colorScheme))
+            }
+
+            Spacer()
+        }
+    }
+
     private func search() {
         guard !searchQuery.isEmpty else { return }
+        isQueryFocused = false
         isSearching = true
         searchedContact = nil
 

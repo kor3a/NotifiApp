@@ -7,177 +7,6 @@
 
 import SwiftUI
 
-// MARK: - Friends Palette
-
-/// The Friends tab runs on its own warm, paper-toned palette instead of the
-/// app's cool default gradient. The screen is about people rather than data, so
-/// it uses a cream canvas, a terracotta accent and a sage green for Family —
-/// the system blue and the frosted material cards read as clinical beside the
-/// soft, rounded shapes the rest of this screen is built from.
-enum FriendsPalette {
-    /// Full-bleed paper backdrop behind the whole tab.
-    static func canvas(_ scheme: ColorScheme) -> Color {
-        scheme == .dark
-            ? Color(red: 0.10, green: 0.09, blue: 0.08)
-            : Color(red: 0.95, green: 0.91, blue: 0.84)
-    }
-
-    /// Card and row surfaces — a shade lifted off the canvas, no border needed.
-    static func surface(_ scheme: ColorScheme) -> Color {
-        scheme == .dark
-            ? Color(red: 0.15, green: 0.13, blue: 0.11)
-            : Color(red: 0.98, green: 0.96, blue: 0.93)
-    }
-
-    /// The recessed search pill — sunk into the canvas rather than raised off it.
-    static func field(_ scheme: ColorScheme) -> Color {
-        scheme == .dark
-            ? Color(red: 0.18, green: 0.16, blue: 0.14)
-            : Color(red: 0.91, green: 0.87, blue: 0.82)
-    }
-
-    static func ink(_ scheme: ColorScheme) -> Color {
-        scheme == .dark
-            ? Color(red: 0.95, green: 0.91, blue: 0.84)
-            : Color(red: 0.14, green: 0.12, blue: 0.10)
-    }
-
-    static func inkSoft(_ scheme: ColorScheme) -> Color {
-        scheme == .dark
-            ? Color(red: 0.66, green: 0.60, blue: 0.53)
-            : Color(red: 0.42, green: 0.36, blue: 0.30)
-    }
-
-    /// Primary accent — the add button, request badges, action glyphs.
-    static func terracotta(_ scheme: ColorScheme) -> Color {
-        scheme == .dark
-            ? Color(red: 0.85, green: 0.48, blue: 0.27)
-            : Color(red: 0.74, green: 0.39, blue: 0.19)
-    }
-
-    /// Tinted wash of the accent, for request cards and quiet icon buttons.
-    static func blush(_ scheme: ColorScheme) -> Color {
-        scheme == .dark
-            ? Color(red: 0.21, green: 0.14, blue: 0.10)
-            : Color(red: 0.98, green: 0.92, blue: 0.87)
-    }
-
-    /// Family's own accent. Family is a warmer, closer relationship than a
-    /// plain friendship, so it gets the one non-terracotta hue on the screen.
-    static func sage(_ scheme: ColorScheme) -> Color {
-        scheme == .dark
-            ? Color(red: 0.15, green: 0.21, blue: 0.12)
-            : Color(red: 0.85, green: 0.91, blue: 0.78)
-    }
-
-    static func sageInk(_ scheme: ColorScheme) -> Color {
-        scheme == .dark
-            ? Color(red: 0.78, green: 0.86, blue: 0.68)
-            : Color(red: 0.18, green: 0.29, blue: 0.13)
-    }
-
-    /// Hairline used to outline the ghost buttons that sit on tinted cards.
-    static func outline(_ scheme: ColorScheme) -> Color {
-        scheme == .dark ? Color.white.opacity(0.16) : Color.black.opacity(0.14)
-    }
-
-    /// Cards sit on paper, so their shadow is a warm brown rather than black.
-    static func shadow(_ scheme: ColorScheme) -> Color {
-        scheme == .dark
-            ? Color.black.opacity(0.40)
-            : Color(red: 0.35, green: 0.22, blue: 0.10).opacity(0.10)
-    }
-
-    /// Display type for titles and section headers. The serif is what makes the
-    /// screen read as organic rather than as another system list.
-    static func display(_ size: CGFloat) -> Font {
-        .system(size: size, weight: .heavy, design: .serif)
-    }
-}
-
-// MARK: - Avatar Tints
-
-/// A fill and its matching glyph color, picked together so the initial always
-/// has contrast — a light peach circle needs dark type, a saturated terracotta
-/// one needs white.
-struct FriendsAvatarTint {
-    let fill: Color
-    let glyph: Color
-
-    /// The muted, earthy set the avatars cycle through, chosen by name so a
-    /// given friend keeps the same color between launches.
-    static let all: [FriendsAvatarTint] = [
-        FriendsAvatarTint(
-            fill: Color(red: 0.96, green: 0.73, blue: 0.59),
-            glyph: Color(red: 0.55, green: 0.26, blue: 0.11)
-        ),
-        FriendsAvatarTint(
-            fill: Color(red: 0.64, green: 0.74, blue: 0.53),
-            glyph: Color(red: 0.15, green: 0.25, blue: 0.10)
-        ),
-        FriendsAvatarTint(
-            fill: Color(red: 0.78, green: 0.75, blue: 0.68),
-            glyph: Color(red: 0.28, green: 0.24, blue: 0.19)
-        ),
-        FriendsAvatarTint(
-            fill: Color(red: 0.79, green: 0.45, blue: 0.24),
-            glyph: .white
-        ),
-        FriendsAvatarTint(
-            fill: Color(red: 0.87, green: 0.68, blue: 0.40),
-            glyph: Color(red: 0.40, green: 0.25, blue: 0.07)
-        ),
-        FriendsAvatarTint(
-            fill: Color(red: 0.55, green: 0.62, blue: 0.44),
-            glyph: .white
-        ),
-    ]
-
-    static func forName(_ name: String) -> FriendsAvatarTint {
-        // `hashValue` is seeded per launch, so sum the scalars instead — the
-        // same name has to land on the same color every time the app opens.
-        let seed = name.unicodeScalars.reduce(0) { $0 &+ Int($1.value) }
-        return all[seed % all.count]
-    }
-}
-
-// MARK: - Organic Avatar
-
-/// The round avatar used everywhere on this screen: a profile photo when we
-/// have one, otherwise a tinted circle carrying the first initial.
-struct OrganicAvatar: View {
-    let name: String
-    let profilePictureURL: String?
-    var size: CGFloat = 52
-    /// Ring drawn around the circle. Used by the stacked avatars on the Family
-    /// card so overlapping circles stay separated.
-    var ringColor: Color?
-
-    private var tint: FriendsAvatarTint {
-        FriendsAvatarTint.forName(name)
-    }
-
-    private var initial: String {
-        String(name.trimmingCharacters(in: .whitespaces).prefix(1)).uppercased()
-    }
-
-    var body: some View {
-        ProfilePictureView(profilePictureURL: profilePictureURL, size: size) {
-            Circle()
-                .fill(tint.fill)
-                .frame(width: size, height: size)
-                .overlay(
-                    Text(initial)
-                        .font(.system(size: size * 0.42, weight: .bold, design: .serif))
-                        .foregroundColor(tint.glyph)
-                )
-        }
-        .overlay(
-            Circle().strokeBorder(ringColor ?? .clear, lineWidth: ringColor == nil ? 0 : 3)
-        )
-    }
-}
-
 // MARK: - Friends View
 
 struct FriendsView: View {
@@ -203,13 +32,13 @@ struct FriendsView: View {
 
     var body: some View {
         ZStack {
-            FriendsPalette.canvas(colorScheme)
+            OrganicPalette.canvas(colorScheme)
                 .ignoresSafeArea()
 
             if viewModel.isLoading && viewModel.friends.isEmpty && viewModel.pendingRequests.isEmpty {
                 ProgressView("Loading friends...")
-                    .tint(FriendsPalette.terracotta(colorScheme))
-                    .foregroundColor(FriendsPalette.inkSoft(colorScheme))
+                    .tint(OrganicPalette.terracotta(colorScheme))
+                    .foregroundColor(OrganicPalette.inkSoft(colorScheme))
             } else {
                 mainContent
             }
@@ -220,14 +49,14 @@ struct FriendsView: View {
                     Spacer()
                     BannerAdView(adUnitID: kBannerAdUnitID)
                         .frame(height: 50)
-                        .background(FriendsPalette.canvas(colorScheme))
+                        .background(OrganicPalette.canvas(colorScheme))
                 }
             }
         }
         // The screen draws its own oversized serif title, so the system bar
         // would only stack a second "Friends" above it.
         .toolbar(.hidden, for: .navigationBar)
-        .tint(FriendsPalette.terracotta(colorScheme))
+        .tint(OrganicPalette.terracotta(colorScheme))
         .sheet(isPresented: $showAddFriend) {
             AddFriendView(viewModel: viewModel)
         }
@@ -325,13 +154,13 @@ struct FriendsView: View {
 
             if viewModel.hasNoSearchResults {
                 noSearchResultsState
-                    .plainRow()
+                    .organicRow()
             }
 
             if hasNoConnections && !viewModel.isFilteringFriends {
                 emptyState
                     .padding(.top, 24)
-                    .plainRow()
+                    .organicRow()
             }
         }
         .listStyle(.plain)
@@ -362,8 +191,8 @@ struct FriendsView: View {
             VStack(alignment: .leading, spacing: 18) {
                 HStack(alignment: .center) {
                     Text("Friends")
-                        .font(FriendsPalette.display(40))
-                        .foregroundColor(FriendsPalette.ink(colorScheme))
+                        .font(OrganicPalette.display(40))
+                        .foregroundColor(OrganicPalette.ink(colorScheme))
 
                     Spacer()
 
@@ -372,8 +201,8 @@ struct FriendsView: View {
                             .font(.system(size: 22, weight: .semibold))
                             .foregroundColor(.white)
                             .frame(width: 54, height: 54)
-                            .background(Circle().fill(FriendsPalette.terracotta(colorScheme)))
-                            .shadow(color: FriendsPalette.terracotta(colorScheme).opacity(0.35), radius: 10, x: 0, y: 5)
+                            .background(Circle().fill(OrganicPalette.terracotta(colorScheme)))
+                            .shadow(color: OrganicPalette.terracotta(colorScheme).opacity(0.35), radius: 10, x: 0, y: 5)
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel("Add friend")
@@ -387,7 +216,7 @@ struct FriendsView: View {
                     familyCard
                 }
             }
-            .plainRow()
+            .organicRow()
         }
     }
 
@@ -395,16 +224,16 @@ struct FriendsView: View {
         HStack(spacing: 10) {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 16, weight: .semibold))
-                .foregroundColor(FriendsPalette.inkSoft(colorScheme))
+                .foregroundColor(OrganicPalette.inkSoft(colorScheme))
 
             TextField(
                 "",
                 text: $viewModel.searchText,
                 prompt: Text("Search friends")
-                    .foregroundColor(FriendsPalette.inkSoft(colorScheme).opacity(0.8))
+                    .foregroundColor(OrganicPalette.inkSoft(colorScheme).opacity(0.8))
             )
             .font(.system(size: 17))
-            .foregroundColor(FriendsPalette.ink(colorScheme))
+            .foregroundColor(OrganicPalette.ink(colorScheme))
             .textInputAutocapitalization(.never)
             .autocorrectionDisabled()
             .submitLabel(.search)
@@ -417,7 +246,7 @@ struct FriendsView: View {
                 } label: {
                     Image(systemName: "xmark.circle.fill")
                         .font(.system(size: 16))
-                        .foregroundColor(FriendsPalette.inkSoft(colorScheme).opacity(0.7))
+                        .foregroundColor(OrganicPalette.inkSoft(colorScheme).opacity(0.7))
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Clear search")
@@ -425,7 +254,7 @@ struct FriendsView: View {
         }
         .padding(.horizontal, 18)
         .frame(height: 54)
-        .background(Capsule().fill(FriendsPalette.field(colorScheme)))
+        .background(Capsule().fill(OrganicPalette.field(colorScheme)))
     }
 
     // MARK: - Family Card
@@ -441,12 +270,12 @@ struct FriendsView: View {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Family")
-                        .font(FriendsPalette.display(26))
-                        .foregroundColor(FriendsPalette.sageInk(colorScheme))
+                        .font(OrganicPalette.display(26))
+                        .foregroundColor(OrganicPalette.sageInk(colorScheme))
 
                     Text(count == 1 ? "1 person you share with first" : "\(count) people you share with first")
                         .font(.system(size: 15))
-                        .foregroundColor(FriendsPalette.sageInk(colorScheme).opacity(0.75))
+                        .foregroundColor(OrganicPalette.sageInk(colorScheme).opacity(0.75))
                 }
 
                 Spacer(minLength: 12)
@@ -458,15 +287,15 @@ struct FriendsView: View {
                 } label: {
                     Text(isManagingFamily ? "Done" : "Manage")
                         .font(.system(size: 15, weight: .bold, design: .serif))
-                        .foregroundColor(FriendsPalette.sageInk(colorScheme))
+                        .foregroundColor(OrganicPalette.sageInk(colorScheme))
                         .padding(.horizontal, 18)
                         .padding(.vertical, 10)
                         .background(
                             Capsule()
-                                .fill(isManagingFamily ? FriendsPalette.sageInk(colorScheme).opacity(0.15) : .clear)
+                                .fill(isManagingFamily ? OrganicPalette.sageInk(colorScheme).opacity(0.15) : .clear)
                         )
                         .overlay(
-                            Capsule().stroke(FriendsPalette.sageInk(colorScheme).opacity(0.35), lineWidth: 1.5)
+                            Capsule().stroke(OrganicPalette.sageInk(colorScheme).opacity(0.35), lineWidth: 1.5)
                         )
                 }
                 .buttonStyle(.plain)
@@ -480,7 +309,7 @@ struct FriendsView: View {
                      ? "Tap the house on any friend to add or remove them."
                      : "Shared stores and reminders reach them first.")
                     .font(.system(size: 15))
-                    .foregroundColor(FriendsPalette.sageInk(colorScheme).opacity(0.8))
+                    .foregroundColor(OrganicPalette.sageInk(colorScheme).opacity(0.8))
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
@@ -488,7 +317,7 @@ struct FriendsView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .fill(FriendsPalette.sage(colorScheme))
+                .fill(OrganicPalette.sage(colorScheme))
         )
     }
 
@@ -505,17 +334,17 @@ struct FriendsView: View {
                     name: name,
                     profilePictureURL: profilePictureURL(for: friendship),
                     size: 46,
-                    ringColor: FriendsPalette.sage(colorScheme)
+                    ringColor: OrganicPalette.sage(colorScheme)
                 )
             }
 
             if overflow > 0 {
                 Text("+\(overflow)")
                     .font(.system(size: 15, weight: .bold, design: .serif))
-                    .foregroundColor(FriendsPalette.sageInk(colorScheme))
+                    .foregroundColor(OrganicPalette.sageInk(colorScheme))
                     .frame(width: 46, height: 46)
-                    .background(Circle().fill(FriendsPalette.sageInk(colorScheme).opacity(0.18)))
-                    .overlay(Circle().strokeBorder(FriendsPalette.sage(colorScheme), lineWidth: 3))
+                    .background(Circle().fill(OrganicPalette.sageInk(colorScheme).opacity(0.18)))
+                    .overlay(Circle().strokeBorder(OrganicPalette.sage(colorScheme), lineWidth: 3))
             }
         }
         .accessibilityElement(children: .ignore)
@@ -539,7 +368,7 @@ struct FriendsView: View {
                     onAccept: { viewModel.acceptRequest(friendship) },
                     onReject: { viewModel.rejectRequest(friendship) }
                 )
-                .plainRow()
+                .organicRow()
             }
         }
     }
@@ -557,7 +386,7 @@ struct FriendsView: View {
                         showingCancelAlert = true
                     }
                 )
-                .plainRow()
+                .organicRow()
                 .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                     Button(role: .destructive) {
                         friendshipToCancel = friendship
@@ -616,7 +445,7 @@ struct FriendsView: View {
                 }
             }
         )
-        .plainRow()
+        .organicRow()
         .tutorialHighlight(id: tutorialId ?? "noop_friend_\(friendship.id)")
         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
             Button(role: .destructive) {
@@ -668,14 +497,11 @@ struct FriendsView: View {
 
     // MARK: - Section Label
 
-    /// Section titles are ordinary rows rather than List headers. A `.plain`
-    /// list pins its headers and draws its own backing behind them, which puts
-    /// a grey bar across the cream canvas as soon as the list scrolls.
     private func sectionLabel(_ title: String, count: Int, highlighted: Bool = false) -> some View {
         HStack(spacing: 10) {
             Text(title)
-                .font(FriendsPalette.display(22))
-                .foregroundColor(FriendsPalette.ink(colorScheme))
+                .font(OrganicPalette.display(22))
+                .foregroundColor(OrganicPalette.ink(colorScheme))
 
             if highlighted {
                 Text("\(count)")
@@ -683,18 +509,16 @@ struct FriendsView: View {
                     .foregroundColor(.white)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 3)
-                    .background(Capsule().fill(FriendsPalette.terracotta(colorScheme)))
+                    .background(Capsule().fill(OrganicPalette.terracotta(colorScheme)))
             } else {
                 Text("\(count)")
                     .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(FriendsPalette.inkSoft(colorScheme))
+                    .foregroundColor(OrganicPalette.inkSoft(colorScheme))
             }
 
             Spacer()
         }
-        .listRowInsets(EdgeInsets(top: 6, leading: 20, bottom: 2, trailing: 20))
-        .listRowSeparator(.hidden)
-        .listRowBackground(Color.clear)
+        .organicSectionLabelRow()
     }
 
     // MARK: - Empty States
@@ -703,17 +527,17 @@ struct FriendsView: View {
         VStack(spacing: 14) {
             Image(systemName: "person.2")
                 .font(.system(size: 44, weight: .light))
-                .foregroundColor(FriendsPalette.terracotta(colorScheme).opacity(0.55))
+                .foregroundColor(OrganicPalette.terracotta(colorScheme).opacity(0.55))
                 .frame(width: 96, height: 96)
-                .background(Circle().fill(FriendsPalette.blush(colorScheme)))
+                .background(Circle().fill(OrganicPalette.blush(colorScheme)))
 
             Text("No friends yet")
-                .font(FriendsPalette.display(26))
-                .foregroundColor(FriendsPalette.ink(colorScheme))
+                .font(OrganicPalette.display(26))
+                .foregroundColor(OrganicPalette.ink(colorScheme))
 
             Text("Add friends to share stores and reminders with the people you shop for.")
                 .font(.system(size: 16))
-                .foregroundColor(FriendsPalette.inkSoft(colorScheme))
+                .foregroundColor(OrganicPalette.inkSoft(colorScheme))
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 24)
 
@@ -723,7 +547,7 @@ struct FriendsView: View {
                     .foregroundColor(.white)
                     .padding(.horizontal, 32)
                     .frame(height: 52)
-                    .background(Capsule().fill(FriendsPalette.terracotta(colorScheme)))
+                    .background(Capsule().fill(OrganicPalette.terracotta(colorScheme)))
             }
             .buttonStyle(.plain)
             .padding(.top, 4)
@@ -731,7 +555,7 @@ struct FriendsView: View {
             Button(action: inviteFriends) {
                 Text("Invite friends to Allim")
                     .font(.system(size: 15, weight: .semibold))
-                    .foregroundColor(FriendsPalette.terracotta(colorScheme))
+                    .foregroundColor(OrganicPalette.terracotta(colorScheme))
             }
             .buttonStyle(.plain)
         }
@@ -743,17 +567,17 @@ struct FriendsView: View {
         VStack(spacing: 10) {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 30, weight: .light))
-                .foregroundColor(FriendsPalette.terracotta(colorScheme).opacity(0.55))
+                .foregroundColor(OrganicPalette.terracotta(colorScheme).opacity(0.55))
                 .frame(width: 72, height: 72)
-                .background(Circle().fill(FriendsPalette.blush(colorScheme)))
+                .background(Circle().fill(OrganicPalette.blush(colorScheme)))
 
             Text("No matches")
-                .font(FriendsPalette.display(22))
-                .foregroundColor(FriendsPalette.ink(colorScheme))
+                .font(OrganicPalette.display(22))
+                .foregroundColor(OrganicPalette.ink(colorScheme))
 
             Text("Nobody matches \u{201C}\(viewModel.searchText)\u{201D}")
                 .font(.system(size: 15))
-                .foregroundColor(FriendsPalette.inkSoft(colorScheme))
+                .foregroundColor(OrganicPalette.inkSoft(colorScheme))
                 .multilineTextAlignment(.center)
         }
         .padding(.top, 40)
@@ -779,34 +603,6 @@ struct FriendsView: View {
                 selectedConversation = conversation
             }
         }
-    }
-}
-
-// MARK: - List Row Style
-
-private extension View {
-    /// Strips the List chrome so each row is just the card it draws itself.
-    /// Every surface on this screen carries its own shape and fill, so the row
-    /// background, separators and default insets would only fight them.
-    func plainRow() -> some View {
-        self
-            .listRowInsets(EdgeInsets(top: 5, leading: 20, bottom: 5, trailing: 20))
-            .listRowSeparator(.hidden)
-            .listRowBackground(Color.clear)
-    }
-}
-
-// MARK: - Card Surface
-
-/// The raised paper surface shared by request cards and friend rows.
-private struct FriendsCardBackground: View {
-    let colorScheme: ColorScheme
-    var fill: Color?
-
-    var body: some View {
-        RoundedRectangle(cornerRadius: 24, style: .continuous)
-            .fill(fill ?? FriendsPalette.surface(colorScheme))
-            .shadow(color: FriendsPalette.shadow(colorScheme), radius: 10, x: 0, y: 4)
     }
 }
 
@@ -846,23 +642,23 @@ struct FriendCard: View {
                 HStack(spacing: 8) {
                     Text(friendName)
                         .font(.system(size: 18, weight: .semibold))
-                        .foregroundColor(FriendsPalette.ink(colorScheme))
+                        .foregroundColor(OrganicPalette.ink(colorScheme))
                         .lineLimit(1)
 
                     if isFamilyMember {
                         Text("FAMILY")
                             .font(.system(size: 10, weight: .bold))
                             .kerning(0.6)
-                            .foregroundColor(FriendsPalette.sageInk(colorScheme))
+                            .foregroundColor(OrganicPalette.sageInk(colorScheme))
                             .padding(.horizontal, 8)
                             .padding(.vertical, 3)
-                            .background(Capsule().fill(FriendsPalette.sage(colorScheme)))
+                            .background(Capsule().fill(OrganicPalette.sage(colorScheme)))
                     }
                 }
 
                 Text(handle)
                     .font(.system(size: 14))
-                    .foregroundColor(FriendsPalette.inkSoft(colorScheme))
+                    .foregroundColor(OrganicPalette.inkSoft(colorScheme))
                     .lineLimit(1)
             }
 
@@ -872,7 +668,7 @@ struct FriendCard: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 14)
-        .background(FriendsCardBackground(colorScheme: colorScheme))
+        .background(OrganicCardBackground(colorScheme: colorScheme))
     }
 
     @ViewBuilder
@@ -881,13 +677,13 @@ struct FriendCard: View {
             Button(action: onToggleFamily) {
                 Image(systemName: isFamilyMember ? "house.fill" : "house")
                     .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(isFamilyMember ? .white : FriendsPalette.sageInk(colorScheme))
+                    .foregroundColor(isFamilyMember ? .white : OrganicPalette.sageInk(colorScheme))
                     .frame(width: 44, height: 44)
                     .background(
                         Circle().fill(
                             isFamilyMember
-                                ? FriendsPalette.sageInk(colorScheme)
-                                : FriendsPalette.sage(colorScheme)
+                                ? OrganicPalette.sageInk(colorScheme)
+                                : OrganicPalette.sage(colorScheme)
                         )
                     )
             }
@@ -897,9 +693,9 @@ struct FriendCard: View {
             Button(action: onMessage) {
                 Image(systemName: "message.fill")
                     .font(.system(size: 15, weight: .semibold))
-                    .foregroundColor(FriendsPalette.terracotta(colorScheme))
+                    .foregroundColor(OrganicPalette.terracotta(colorScheme))
                     .frame(width: 44, height: 44)
-                    .background(Circle().fill(FriendsPalette.blush(colorScheme)))
+                    .background(Circle().fill(OrganicPalette.blush(colorScheme)))
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Message \(friendName)")
@@ -934,12 +730,12 @@ struct RequestCard: View {
             VStack(alignment: .leading, spacing: 3) {
                 Text(friendship.requesterName)
                     .font(.system(size: 18, weight: .semibold))
-                    .foregroundColor(FriendsPalette.ink(colorScheme))
+                    .foregroundColor(OrganicPalette.ink(colorScheme))
                     .lineLimit(1)
 
                 Text("wants to share lists")
                     .font(.system(size: 14))
-                    .foregroundColor(FriendsPalette.inkSoft(colorScheme))
+                    .foregroundColor(OrganicPalette.inkSoft(colorScheme))
                     .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -954,7 +750,7 @@ struct RequestCard: View {
                         .foregroundColor(.white)
                         .padding(.horizontal, 16)
                         .frame(height: 42)
-                        .background(Capsule().fill(FriendsPalette.terracotta(colorScheme)))
+                        .background(Capsule().fill(OrganicPalette.terracotta(colorScheme)))
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Accept request from \(friendship.requesterName)")
@@ -962,10 +758,10 @@ struct RequestCard: View {
                 Button(action: onReject) {
                     Image(systemName: "xmark")
                         .font(.system(size: 14, weight: .bold))
-                        .foregroundColor(FriendsPalette.inkSoft(colorScheme))
+                        .foregroundColor(OrganicPalette.inkSoft(colorScheme))
                         .frame(width: 40, height: 40)
                         .overlay(
-                            Circle().stroke(FriendsPalette.outline(colorScheme), lineWidth: 1.5)
+                            Circle().stroke(OrganicPalette.outline(colorScheme), lineWidth: 1.5)
                         )
                 }
                 .buttonStyle(.plain)
@@ -975,7 +771,7 @@ struct RequestCard: View {
         .padding(.horizontal, 16)
         .padding(.vertical, 14)
         .background(
-            FriendsCardBackground(colorScheme: colorScheme, fill: FriendsPalette.blush(colorScheme))
+            OrganicCardBackground(colorScheme: colorScheme, fill: OrganicPalette.blush(colorScheme))
         )
     }
 }
@@ -1007,12 +803,12 @@ struct SentRequestCard: View {
             VStack(alignment: .leading, spacing: 3) {
                 Text(friendship.receiverName)
                     .font(.system(size: 17, weight: .semibold))
-                    .foregroundColor(FriendsPalette.ink(colorScheme).opacity(0.8))
+                    .foregroundColor(OrganicPalette.ink(colorScheme).opacity(0.8))
                     .lineLimit(1)
 
                 Text("Request sent")
                     .font(.system(size: 14))
-                    .foregroundColor(FriendsPalette.inkSoft(colorScheme))
+                    .foregroundColor(OrganicPalette.inkSoft(colorScheme))
                     .lineLimit(1)
             }
 
@@ -1021,10 +817,10 @@ struct SentRequestCard: View {
             Button(action: onCancel) {
                 Image(systemName: "xmark")
                     .font(.system(size: 13, weight: .bold))
-                    .foregroundColor(FriendsPalette.inkSoft(colorScheme))
+                    .foregroundColor(OrganicPalette.inkSoft(colorScheme))
                     .frame(width: 38, height: 38)
                     .overlay(
-                        Circle().stroke(FriendsPalette.outline(colorScheme), lineWidth: 1.5)
+                        Circle().stroke(OrganicPalette.outline(colorScheme), lineWidth: 1.5)
                     )
             }
             .buttonStyle(.plain)
@@ -1034,7 +830,7 @@ struct SentRequestCard: View {
         .padding(.vertical, 12)
         .background(
             RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .stroke(FriendsPalette.outline(colorScheme).opacity(0.7), lineWidth: 1.5)
+                .stroke(OrganicPalette.outline(colorScheme).opacity(0.7), lineWidth: 1.5)
         )
     }
 }
@@ -1052,19 +848,19 @@ struct AddFriendView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                FriendsPalette.canvas(colorScheme)
+                OrganicPalette.canvas(colorScheme)
                     .ignoresSafeArea()
 
                 ScrollView {
                     VStack(alignment: .leading, spacing: 20) {
                         Text("Add a friend")
-                            .font(FriendsPalette.display(32))
-                            .foregroundColor(FriendsPalette.ink(colorScheme))
+                            .font(OrganicPalette.display(32))
+                            .foregroundColor(OrganicPalette.ink(colorScheme))
                             .padding(.top, 8)
 
                         Text("Search by email address or username to send them a request.")
                             .font(.system(size: 16))
-                            .foregroundColor(FriendsPalette.inkSoft(colorScheme))
+                            .foregroundColor(OrganicPalette.inkSoft(colorScheme))
 
                         queryField
 
@@ -1077,7 +873,7 @@ struct AddFriendView: View {
                         } else if !searchQuery.isEmpty && !viewModel.isSearching {
                             Text("No user found")
                                 .font(.system(size: 15))
-                                .foregroundColor(FriendsPalette.inkSoft(colorScheme))
+                                .foregroundColor(OrganicPalette.inkSoft(colorScheme))
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 24)
                         }
@@ -1088,13 +884,13 @@ struct AddFriendView: View {
             }
             .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbarBackground(FriendsPalette.canvas(colorScheme), for: .navigationBar)
+            .toolbarBackground(OrganicPalette.canvas(colorScheme), for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button("Cancel") {
                         dismiss()
                     }
-                    .foregroundColor(FriendsPalette.terracotta(colorScheme))
+                    .foregroundColor(OrganicPalette.terracotta(colorScheme))
                 }
             }
             .alert("Success", isPresented: .init(
@@ -1123,16 +919,16 @@ struct AddFriendView: View {
         HStack(spacing: 10) {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 16, weight: .semibold))
-                .foregroundColor(FriendsPalette.inkSoft(colorScheme))
+                .foregroundColor(OrganicPalette.inkSoft(colorScheme))
 
             TextField(
                 "",
                 text: $searchQuery,
                 prompt: Text("Email or username")
-                    .foregroundColor(FriendsPalette.inkSoft(colorScheme).opacity(0.8))
+                    .foregroundColor(OrganicPalette.inkSoft(colorScheme).opacity(0.8))
             )
             .font(.system(size: 17))
-            .foregroundColor(FriendsPalette.ink(colorScheme))
+            .foregroundColor(OrganicPalette.ink(colorScheme))
             .textInputAutocapitalization(.never)
             .autocorrectionDisabled()
             .submitLabel(.search)
@@ -1141,7 +937,7 @@ struct AddFriendView: View {
 
             if viewModel.isSearching {
                 ProgressView()
-                    .tint(FriendsPalette.terracotta(colorScheme))
+                    .tint(OrganicPalette.terracotta(colorScheme))
             } else {
                 Button(action: runSearch) {
                     Text("Search")
@@ -1149,7 +945,7 @@ struct AddFriendView: View {
                         .foregroundColor(.white)
                         .padding(.horizontal, 16)
                         .frame(height: 38)
-                        .background(Capsule().fill(FriendsPalette.terracotta(colorScheme)))
+                        .background(Capsule().fill(OrganicPalette.terracotta(colorScheme)))
                 }
                 .buttonStyle(.plain)
                 .disabled(searchQuery.isEmpty)
@@ -1159,7 +955,7 @@ struct AddFriendView: View {
         .padding(.leading, 18)
         .padding(.trailing, 8)
         .frame(height: 56)
-        .background(Capsule().fill(FriendsPalette.field(colorScheme)))
+        .background(Capsule().fill(OrganicPalette.field(colorScheme)))
     }
 
     private func runSearch() {
@@ -1185,12 +981,12 @@ struct SearchResultCard: View {
             VStack(alignment: .leading, spacing: 3) {
                 Text(contact.name)
                     .font(.system(size: 18, weight: .semibold))
-                    .foregroundColor(FriendsPalette.ink(colorScheme))
+                    .foregroundColor(OrganicPalette.ink(colorScheme))
                     .lineLimit(1)
 
                 Text(contact.email)
                     .font(.system(size: 14))
-                    .foregroundColor(FriendsPalette.inkSoft(colorScheme))
+                    .foregroundColor(OrganicPalette.inkSoft(colorScheme))
                     .lineLimit(1)
             }
 
@@ -1200,7 +996,7 @@ struct SearchResultCard: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 14)
-        .background(FriendsCardBackground(colorScheme: colorScheme))
+        .background(OrganicCardBackground(colorScheme: colorScheme))
     }
 
     @ViewBuilder
@@ -1210,19 +1006,19 @@ struct SearchResultCard: View {
         if relationship.exists {
             switch relationship.status {
             case .accepted:
-                statusPill("Friends", tint: FriendsPalette.sageInk(colorScheme), fill: FriendsPalette.sage(colorScheme))
+                statusPill("Friends", tint: OrganicPalette.sageInk(colorScheme), fill: OrganicPalette.sage(colorScheme))
             case .pending:
                 if relationship.isSentByMe {
                     statusPill(
                         "Pending",
-                        tint: FriendsPalette.inkSoft(colorScheme),
-                        fill: FriendsPalette.field(colorScheme)
+                        tint: OrganicPalette.inkSoft(colorScheme),
+                        fill: OrganicPalette.field(colorScheme)
                     )
                 } else {
                     statusPill(
                         "Respond",
-                        tint: FriendsPalette.terracotta(colorScheme),
-                        fill: FriendsPalette.blush(colorScheme)
+                        tint: OrganicPalette.terracotta(colorScheme),
+                        fill: OrganicPalette.blush(colorScheme)
                     )
                 }
             case .rejected, .none:
@@ -1249,7 +1045,7 @@ struct SearchResultCard: View {
                 .foregroundColor(.white)
                 .padding(.horizontal, 20)
                 .frame(height: 38)
-                .background(Capsule().fill(FriendsPalette.terracotta(colorScheme)))
+                .background(Capsule().fill(OrganicPalette.terracotta(colorScheme)))
         }
         .buttonStyle(.plain)
         .disabled(viewModel.isLoading)

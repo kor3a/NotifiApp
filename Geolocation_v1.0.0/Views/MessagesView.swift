@@ -14,22 +14,34 @@ struct MessagesView: View {
     @ObservedObject private var subscriptionManager = SubscriptionManager.shared
     @State private var showNewMessage = false
     @State private var showNewGroup = false
-    @State private var notificationConversation: Conversation? = nil
+    /// The chat being pushed — set by tapping a row, and by a notification
+    /// tap arriving through `pendingConversationId`.
+    @State private var selectedConversation: Conversation? = nil
     @State private var showDeleteGroupAlert = false
     @State private var pendingDeleteConversation: Conversation? = nil
     @Environment(\.colorScheme) var colorScheme
 
     var body: some View {
         ZStack {
-            Color.backgroundGradient(for: colorScheme)
+            OrganicPalette.canvas(colorScheme)
                 .ignoresSafeArea()
 
-            if viewModel.isLoading && viewModel.conversations.isEmpty {
-                ProgressView("Loading messages...")
-            } else if viewModel.conversations.isEmpty {
-                emptyState
-            } else {
-                conversationsList
+            VStack(spacing: 0) {
+                header
+
+                if viewModel.isLoading && viewModel.conversations.isEmpty {
+                    Spacer()
+                    ProgressView("Loading messages...")
+                        .tint(OrganicPalette.terracotta(colorScheme))
+                        .foregroundColor(OrganicPalette.inkSoft(colorScheme))
+                    Spacer()
+                } else if viewModel.conversations.isEmpty {
+                    Spacer()
+                    emptyState
+                    Spacer()
+                } else {
+                    conversationsList
+                }
             }
 
             // Sticky banner ad above tab bar (hidden for subscribers)
@@ -38,31 +50,21 @@ struct MessagesView: View {
                     Spacer()
                     BannerAdView(adUnitID: kBannerAdUnitID)
                         .frame(height: 50)
-                        .background(Color(.systemBackground).opacity(0.95))
+                        .background(OrganicPalette.canvas(colorScheme))
                 }
             }
         }
-        .navigationTitle("Messages")
-        .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                HStack(spacing: 4) {
-                    Button(action: { showNewGroup = true }) {
-                        Image(systemName: "person.3")
-                    }
-                    Button(action: { showNewMessage = true }) {
-                        Image(systemName: "square.and.pencil")
-                    }
-                    .tutorialHighlight(id: "tutorial_compose")
-                }
-            }
-        }
+        // The screen draws its own oversized serif title, so the system bar
+        // would only stack a second "Messages" above it.
+        .toolbar(.hidden, for: .navigationBar)
+        .tint(OrganicPalette.terracotta(colorScheme))
         .sheet(isPresented: $showNewGroup) {
             NewGroupView(viewModel: viewModel)
         }
         .sheet(isPresented: $showNewMessage) {
             NewMessageView(viewModel: viewModel)
         }
-        .navigationDestination(item: $notificationConversation) { conversation in
+        .navigationDestination(item: $selectedConversation) { conversation in
             ConversationView(conversation: conversation, viewModel: viewModel)
         }
         .onAppear {
@@ -72,7 +74,7 @@ struct MessagesView: View {
         .onChange(of: pendingConversationId) { _, conversationId in
             guard let conversationId = conversationId else { return }
             if let conversation = viewModel.conversations.first(where: { $0.id == conversationId }) {
-                notificationConversation = conversation
+                selectedConversation = conversation
                 pendingConversationId = nil
             } else {
                 // Conversations not loaded yet — fetch and navigate when they load
@@ -83,32 +85,78 @@ struct MessagesView: View {
             // Once conversations load, complete any pending notification navigation
             guard let conversationId = pendingConversationId else { return }
             if let conversation = conversations.first(where: { $0.id == conversationId }) {
-                notificationConversation = conversation
+                selectedConversation = conversation
                 pendingConversationId = nil
             }
         }
     }
 
-    private var emptyState: some View {
-        VStack(spacing: 20) {
-            Image(systemName: "message")
-                .resizable()
-                .frame(width: 60, height: 60)
-                .foregroundStyle(.gray)
+    /// Title and actions, drawn in the content rather than the navigation bar.
+    /// Compose is the primary action and gets the terracotta disc; the group
+    /// button sits beside it in the quieter blush treatment.
+    private var header: some View {
+        HStack(alignment: .center, spacing: 12) {
+            Text("Messages")
+                .font(OrganicPalette.display(40))
+                .foregroundColor(OrganicPalette.ink(colorScheme))
 
-            Text("No Messages")
-                .font(.title2)
-                .bold()
+            Spacer()
 
-            Text("Start a conversation to share reminders")
-                .foregroundStyle(.gray)
-                .multilineTextAlignment(.center)
+            Button(action: { showNewGroup = true }) {
+                Image(systemName: "person.3")
+                    .font(.system(size: 19, weight: .semibold))
+                    .foregroundColor(OrganicPalette.terracotta(colorScheme))
+                    .frame(width: 54, height: 54)
+                    .background(Circle().fill(OrganicPalette.blush(colorScheme)))
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("New group chat")
 
             Button(action: { showNewMessage = true }) {
-                Label("New Message", systemImage: "plus")
+                Image(systemName: "square.and.pencil")
+                    .font(.system(size: 21, weight: .semibold))
+                    .foregroundColor(.white)
+                    .frame(width: 54, height: 54)
+                    .background(Circle().fill(OrganicPalette.terracotta(colorScheme)))
+                    .shadow(color: OrganicPalette.terracotta(colorScheme).opacity(0.35), radius: 10, x: 0, y: 5)
             }
-            .buttonStyle(PrimaryButtonStyle())
-            .padding(.horizontal, 40)
+            .buttonStyle(.plain)
+            .accessibilityLabel("New message")
+            .tutorialHighlight(id: "tutorial_compose")
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 8)
+        .padding(.bottom, 14)
+    }
+
+    private var emptyState: some View {
+        VStack(spacing: 14) {
+            Image(systemName: "message")
+                .font(.system(size: 44, weight: .light))
+                .foregroundColor(OrganicPalette.terracotta(colorScheme).opacity(0.55))
+                .frame(width: 96, height: 96)
+                .background(Circle().fill(OrganicPalette.blush(colorScheme)))
+
+            Text("No messages yet")
+                .font(OrganicPalette.display(26))
+                .foregroundColor(OrganicPalette.ink(colorScheme))
+
+            Text("Start a conversation to share stores and reminders with a friend.")
+                .font(.system(size: 16))
+                .foregroundColor(OrganicPalette.inkSoft(colorScheme))
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 40)
+
+            Button(action: { showNewMessage = true }) {
+                Text("New message")
+                    .font(.system(size: 17, weight: .bold, design: .serif))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 32)
+                    .frame(height: 52)
+                    .background(Capsule().fill(OrganicPalette.terracotta(colorScheme)))
+            }
+            .buttonStyle(.plain)
+            .padding(.top, 4)
         }
         .padding()
     }
@@ -116,30 +164,20 @@ struct MessagesView: View {
     private var conversationsList: some View {
         List {
             ForEach(viewModel.conversations) { conversation in
-                NavigationLink(destination: ConversationView(
-                    conversation: conversation,
-                    viewModel: viewModel
-                )) {
+                // Rows push through `navigationDestination` rather than being
+                // NavigationLinks: a link inside a List draws its own chevron
+                // and press highlight, both of which cut across the card shape.
+                Button {
+                    selectedConversation = conversation
+                } label: {
                     ConversationRow(
                         conversation: conversation,
                         currentUserId: sessionManager.currentUser?.userId ?? "",
                         profilePictureURL: viewModel.profilePictureURL(for: conversation)
                     )
                 }
-                .listRowBackground(
-                    RoundedRectangle(cornerRadius: 16)
-                        .fill(.ultraThinMaterial)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 16)
-                                .stroke(
-                                    Color.cardBorder(for: colorScheme),
-                                    lineWidth: 1.5
-                                )
-                        )
-                        .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.3 : 0.1), radius: 8, x: 0, y: 4)
-                        .padding(.vertical, 4)
-                )
-                .listRowSeparator(.hidden)
+                .buttonStyle(.plain)
+                .organicRow()
                 .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                     Button(role: .destructive) {
                         handleDelete(conversation)
@@ -152,7 +190,7 @@ struct MessagesView: View {
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
         .safeAreaInset(edge: .bottom) {
-            Color.clear.frame(height: 50)
+            Color.clear.frame(height: subscriptionManager.isSubscribed ? 0 : 50)
         }
         .alert("Delete Group Chat?", isPresented: $showDeleteGroupAlert) {
             Button("Delete for Everyone", role: .destructive) {
@@ -194,104 +232,91 @@ struct ConversationRow: View {
     let currentUserId: String
     let profilePictureURL: String?
 
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var unreadCount: Int {
+        conversation.unreadCountFor(userId: currentUserId)
+    }
+
+    private var isUnread: Bool { unreadCount > 0 }
+
+    private var displayName: String {
+        conversation.displayName(currentUserId: currentUserId)
+    }
+
+    /// The one line of context under the name: the last message when there is
+    /// one, the member list for a group that hasn't been used yet, otherwise a
+    /// nudge that the chat is empty.
+    private var preview: String {
+        if let lastMessage = conversation.lastMessageContent, !lastMessage.isEmpty {
+            return lastMessage
+        }
+        if conversation.isGroupConversation {
+            return conversation.memberNamesSubtitle(currentUserId: currentUserId)
+        }
+        return "No messages yet"
+    }
+
+    private var hasMessages: Bool {
+        !(conversation.lastMessageContent?.isEmpty ?? true)
+    }
+
     var body: some View {
-        HStack(spacing: 12) {
-            // Avatar — group vs 1:1
-            if conversation.isGroupConversation {
-                groupAvatar
-            } else {
-                ProfilePictureView(profilePictureURL: profilePictureURL, size: 50) {
-                    Circle()
-                        .fill(Color.appAccent.opacity(0.2))
-                        .frame(width: 50, height: 50)
-                        .overlay(
-                            Text(avatarInitial)
-                                .font(.headline)
-                                .foregroundColor(.appAccent)
-                        )
-                }
-            }
+        HStack(spacing: 14) {
+            OrganicAvatar(
+                name: displayName,
+                profilePictureURL: conversation.isGroupConversation ? nil : profilePictureURL,
+                systemImage: conversation.isGroupConversation ? "person.3.fill" : nil
+            )
 
             VStack(alignment: .leading, spacing: 4) {
-                HStack {
-                    Text(conversation.displayName(currentUserId: currentUserId))
-                        .font(.headline)
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Text(displayName)
+                        .font(.system(size: 18, weight: isUnread ? .bold : .semibold))
+                        .foregroundColor(OrganicPalette.ink(colorScheme))
                         .lineLimit(1)
 
-                    if !conversation.isGroupConversation,
-                       let otherId = conversation.otherParticipantId(currentUserId: currentUserId) {
-                        Text("@\(otherId)")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                            .lineLimit(1)
-                    }
-
-                    Spacer()
+                    Spacer(minLength: 4)
 
                     if let timestamp = conversation.lastMessageAt {
                         Text(formatTime(timestamp))
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                            .font(.system(size: 13))
+                            .foregroundColor(OrganicPalette.inkSoft(colorScheme))
+                            .lineLimit(1)
                     }
                 }
 
-                HStack {
-                    if conversation.isGroupConversation {
-                        Text(conversation.memberNamesSubtitle(currentUserId: currentUserId))
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                            .lineLimit(1)
-                    }
+                HStack(spacing: 8) {
+                    Text(preview)
+                        .font(.system(size: 15))
+                        .foregroundColor(
+                            isUnread
+                                ? OrganicPalette.ink(colorScheme)
+                                : OrganicPalette.inkSoft(colorScheme)
+                        )
+                        .italic(!hasMessages && !conversation.isGroupConversation)
+                        .lineLimit(1)
 
-                    if let lastMessage = conversation.lastMessageContent, !lastMessage.isEmpty {
-                        Text(lastMessage)
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                            .lineLimit(1)
-                    } else if !conversation.isGroupConversation {
-                        Text("No messages yet")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                            .italic()
-                    }
+                    Spacer(minLength: 4)
 
-                    Spacer()
-
-                    if conversation.unreadCountFor(userId: currentUserId) > 0 {
-                        Text("\(conversation.unreadCountFor(userId: currentUserId))")
-                            .font(.caption)
+                    if isUnread {
+                        Text("\(unreadCount)")
+                            .font(.system(size: 13, weight: .bold, design: .serif))
                             .foregroundColor(.white)
                             .padding(.horizontal, 8)
                             .padding(.vertical, 2)
-                            .background(Color.appAccent)
-                            .clipShape(Capsule())
+                            .background(Capsule().fill(OrganicPalette.terracotta(colorScheme)))
                     }
                 }
             }
         }
-        .padding(.vertical, 8)
-    }
-
-    /// Stacked initials avatar for group conversations
-    private var groupAvatar: some View {
-        ZStack {
-            Circle()
-                .fill(Color.purple.opacity(0.18))
-                .frame(width: 50, height: 50)
-            Image(systemName: "person.3.fill")
-                .font(.system(size: 22))
-                .foregroundColor(.purple)
-        }
-    }
-
-    private var avatarInitial: String {
-        let name = conversation.otherParticipantName(currentUserId: currentUserId)
-        return String(name.prefix(1)).uppercased()
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
+        .background(OrganicCardBackground(colorScheme: colorScheme))
     }
 
     private func formatTime(_ timestamp: TimeInterval) -> String {
         let date = Date(timeIntervalSince1970: timestamp)
-        let now = Date()
         let calendar = Calendar.current
 
         if calendar.isDateInToday(date) {
@@ -314,60 +339,77 @@ struct NewMessageView: View {
     @ObservedObject var viewModel: MessagesViewModel
     @ObservedObject private var sessionManager = UserSessionManager.shared
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var colorScheme
     @State private var searchQuery = ""
     @State private var selectedConversation: Conversation?
+    @FocusState private var isQueryFocused: Bool
 
     var body: some View {
         NavigationStack {
-            List {
-                Section {
-                    HStack {
-                        TextField("Enter email or username", text: $searchQuery)
-                            .textInputAutocapitalization(.never)
-                            .autocorrectionDisabled()
+            ZStack {
+                OrganicPalette.canvas(colorScheme)
+                    .ignoresSafeArea()
 
-                        if viewModel.isSearching {
-                            ProgressView()
-                        } else {
-                            Button("Search") {
-                                viewModel.searchContact(query: searchQuery)
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 20) {
+                        Text("New message")
+                            .font(OrganicPalette.display(32))
+                            .foregroundColor(OrganicPalette.ink(colorScheme))
+                            .padding(.top, 8)
+
+                        Text("Search by email address or username, or pick someone you've messaged before.")
+                            .font(.system(size: 16))
+                            .foregroundColor(OrganicPalette.inkSoft(colorScheme))
+
+                        queryField
+
+                        if let contact = viewModel.searchedContact {
+                            Button {
+                                startConversation(with: contact)
+                            } label: {
+                                OrganicContactRow(contact: contact)
                             }
-                            .disabled(searchQuery.isEmpty)
+                            .buttonStyle(.plain)
+                        } else if !searchQuery.isEmpty && !viewModel.isSearching {
+                            Text("No user found")
+                                .font(.system(size: 15))
+                                .foregroundColor(OrganicPalette.inkSoft(colorScheme))
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 20)
                         }
-                    }
 
-                    if let contact = viewModel.searchedContact {
-                        Button(action: { startConversation(with: contact) }) {
-                            ContactRow(contact: contact)
-                        }
-                    } else if !searchQuery.isEmpty && !viewModel.isSearching && viewModel.searchedContact == nil {
-                        Text("No user found")
-                            .foregroundColor(.secondary)
-                            .font(.subheadline)
-                    }
-                } header: {
-                    Text("Find by Email or Username")
-                } footer: {
-                    Text("Search by email address or username")
-                }
+                        if !viewModel.recentContacts.isEmpty {
+                            Text("Recent")
+                                .font(OrganicPalette.display(22))
+                                .foregroundColor(OrganicPalette.ink(colorScheme))
+                                .padding(.top, 4)
 
-                if !viewModel.recentContacts.isEmpty {
-                    Section("Recent Contacts") {
-                        ForEach(viewModel.recentContacts) { contact in
-                            Button(action: { startConversation(with: contact) }) {
-                                ContactRow(contact: contact)
+                            VStack(spacing: 10) {
+                                ForEach(viewModel.recentContacts) { contact in
+                                    Button {
+                                        startConversation(with: contact)
+                                    } label: {
+                                        OrganicContactRow(contact: contact)
+                                    }
+                                    .buttonStyle(.plain)
+                                }
                             }
                         }
                     }
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 24)
                 }
+                .scrollDismissesKeyboard(.immediately)
             }
-            .navigationTitle("New Message")
+            .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(OrganicPalette.canvas(colorScheme), for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button("Cancel") {
                         dismiss()
                     }
+                    .foregroundColor(OrganicPalette.terracotta(colorScheme))
                 }
             }
             .onAppear {
@@ -377,6 +419,55 @@ struct NewMessageView: View {
                 ConversationView(conversation: conversation, viewModel: viewModel)
             }
         }
+    }
+
+    private var queryField: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundColor(OrganicPalette.inkSoft(colorScheme))
+
+            TextField(
+                "",
+                text: $searchQuery,
+                prompt: Text("Email or username")
+                    .foregroundColor(OrganicPalette.inkSoft(colorScheme).opacity(0.8))
+            )
+            .font(.system(size: 17))
+            .foregroundColor(OrganicPalette.ink(colorScheme))
+            .textInputAutocapitalization(.never)
+            .autocorrectionDisabled()
+            .submitLabel(.search)
+            .focused($isQueryFocused)
+            .onSubmit { runSearch() }
+
+            if viewModel.isSearching {
+                ProgressView()
+                    .tint(OrganicPalette.terracotta(colorScheme))
+            } else {
+                Button(action: runSearch) {
+                    Text("Search")
+                        .font(.system(size: 15, weight: .bold, design: .serif))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 16)
+                        .frame(height: 38)
+                        .background(Capsule().fill(OrganicPalette.terracotta(colorScheme)))
+                }
+                .buttonStyle(.plain)
+                .disabled(searchQuery.isEmpty)
+                .opacity(searchQuery.isEmpty ? 0.4 : 1)
+            }
+        }
+        .padding(.leading, 18)
+        .padding(.trailing, 8)
+        .frame(height: 56)
+        .background(Capsule().fill(OrganicPalette.field(colorScheme)))
+    }
+
+    private func runSearch() {
+        guard !searchQuery.isEmpty else { return }
+        isQueryFocused = false
+        viewModel.searchContact(query: searchQuery)
     }
 
     private func startConversation(with contact: Contact) {
