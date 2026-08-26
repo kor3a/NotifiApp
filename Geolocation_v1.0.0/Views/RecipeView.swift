@@ -20,8 +20,10 @@ struct RecipeView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                Color.backgroundGradient(for: colorScheme)
-                    .ignoresSafeArea()
+                // Same culinary artwork the Smart Recipe screen sits on, with a
+                // heavier wash: this screen puts bare text on the photo instead
+                // of tucking it inside cards.
+                RecipeBackdrop(colorScheme: colorScheme, extraScrimOpacity: 0.22)
 
                 if viewModel.isLoading {
                     ProgressView("Loading recipes...")
@@ -31,6 +33,7 @@ struct RecipeView: View {
                     recipeList
                 }
             }
+            .tint(RecipePalette.paprika)
             .navigationTitle("My Recipes")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -79,35 +82,55 @@ struct RecipeView: View {
 
     // MARK: - Recipe List
 
+    /// Rows sit straight on the backdrop — no card per recipe. A hairline rule
+    /// between rows and the warm tile on the left carry the separation instead.
     private var recipeList: some View {
         List {
-            ForEach(viewModel.recipes) { recipe in
-                RecipeRowView(recipe: recipe)
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        recipeToEdit = recipe
+            listHeader
+                .listRowBackground(Color.clear)
+                .listRowInsets(EdgeInsets(top: 4, leading: 22, bottom: 10, trailing: 22))
+                .listRowSeparator(.hidden)
+
+            ForEach(Array(viewModel.recipes.enumerated()), id: \.element.id) { index, recipe in
+                VStack(spacing: 0) {
+                    RecipeRowView(recipe: recipe, colorScheme: colorScheme)
+
+                    if index < viewModel.recipes.count - 1 {
+                        Rectangle()
+                            .fill(recipeRowDivider(for: colorScheme))
+                            .frame(height: 1)
+                            .padding(.leading, 60)
                     }
-                    .listRowBackground(
-                        RoundedRectangle(cornerRadius: 16)
-                            .fill(.ultraThinMaterial)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 16)
-                                    .stroke(Color.cardBorder(for: colorScheme), lineWidth: 1.5)
-                            )
-                            .padding(.vertical, 4)
-                    )
-                    .listRowSeparator(.hidden)
-                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                        Button(role: .destructive) {
-                            recipeToDelete = recipe
-                        } label: {
-                            Label("Delete", systemImage: "trash")
-                        }
+                }
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    recipeToEdit = recipe
+                }
+                .listRowBackground(Color.clear)
+                .listRowInsets(EdgeInsets(top: 0, leading: 22, bottom: 0, trailing: 22))
+                .listRowSeparator(.hidden)
+                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                    Button(role: .destructive) {
+                        recipeToDelete = recipe
+                    } label: {
+                        Label("Delete", systemImage: "trash")
                     }
+                }
             }
         }
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
+        .environment(\.defaultMinListRowHeight, 0)
+    }
+
+    private var listHeader: some View {
+        let count = viewModel.recipes.count
+        return Text("\(count) recipe\(count == 1 ? "" : "s")")
+            .font(.caption)
+            .fontWeight(.semibold)
+            .textCase(.uppercase)
+            .tracking(1.1)
+            .foregroundStyle(.secondary)
     }
 
     // MARK: - Empty State
@@ -116,19 +139,11 @@ struct RecipeView: View {
         VStack(spacing: 24) {
             ZStack {
                 Circle()
-                    .fill(LinearGradient(
-                        colors: [Color.blue.opacity(0.15), Color.purple.opacity(0.15)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ))
+                    .fill(RecipePalette.warmGradient.opacity(0.18))
                     .frame(width: 100, height: 100)
                 Image(systemName: "fork.knife.circle")
                     .font(.system(size: 44, weight: .light))
-                    .foregroundStyle(LinearGradient(
-                        colors: [.blue, .purple],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ))
+                    .foregroundStyle(RecipePalette.warmGradient)
             }
             VStack(spacing: 8) {
                 Text("No Recipes Yet")
@@ -146,34 +161,72 @@ struct RecipeView: View {
 
 // MARK: - Recipe Row
 
+/// Hairline between rows. Kept a touch stronger than `RecipePalette.hairline`
+/// so it still reads over the photograph without a card behind it.
+private func recipeRowDivider(for colorScheme: ColorScheme) -> Color {
+    colorScheme == .dark ? Color.white.opacity(0.16) : Color.black.opacity(0.12)
+}
+
 private struct RecipeRowView: View {
     let recipe: Recipe
+    let colorScheme: ColorScheme
+
+    private var ingredientPreview: String {
+        guard !recipe.ingredients.isEmpty else { return "No ingredients yet" }
+        let shown = recipe.ingredients.prefix(3).joined(separator: " · ")
+        return recipe.ingredients.count > 3 ? shown + " · …" : shown
+    }
 
     var body: some View {
         HStack(spacing: 14) {
-            ZStack {
-                Circle()
-                    .fill(Color.blue.opacity(0.12))
-                    .frame(width: 42, height: 42)
-                Image(systemName: "fork.knife")
-                    .font(.system(size: 18, weight: .medium))
-                    .foregroundStyle(Color.appAccent)
-            }
-            VStack(alignment: .leading, spacing: 3) {
+            // Warm tile stands in for the card that used to wrap the whole row.
+            RoundedRectangle(cornerRadius: 13, style: .continuous)
+                .fill(RecipePalette.warmGradient)
+                .frame(width: 46, height: 46)
+                .overlay(
+                    Image(systemName: "fork.knife")
+                        .font(.system(size: 19, weight: .semibold))
+                        .foregroundColor(.white)
+                )
+                .shadow(color: RecipePalette.shadow(for: colorScheme), radius: 6, x: 0, y: 3)
+
+            VStack(alignment: .leading, spacing: 4) {
                 Text(recipe.name)
-                    .font(.body)
-                    .fontWeight(.medium)
-                Text("\(recipe.ingredients.count) ingredient\(recipe.ingredients.count == 1 ? "" : "s")")
+                    .font(.headline)
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                Text(ingredientPreview)
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                    .lineLimit(1)
             }
-            Spacer()
-            Image(systemName: "chevron.right")
-                .font(.caption)
-                .foregroundStyle(.tertiary)
+
+            Spacer(minLength: 8)
+
+            HStack(spacing: 8) {
+                Text("\(recipe.ingredients.count)")
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(RecipePalette.paprika)
+                    .frame(minWidth: 14)
+                    .padding(.vertical, 4)
+                    .padding(.horizontal, 9)
+                    .background(
+                        Capsule()
+                            .fill(RecipePalette.apricot.opacity(colorScheme == .dark ? 0.22 : 0.28))
+                    )
+                    .overlay(
+                        Capsule()
+                            .stroke(RecipePalette.apricot.opacity(0.45), lineWidth: 1)
+                    )
+
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(.tertiary)
+            }
         }
-        .padding(.vertical, 10)
-        .padding(.horizontal, 4)
+        .padding(.vertical, 14)
     }
 }
 

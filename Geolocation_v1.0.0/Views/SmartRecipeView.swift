@@ -9,10 +9,10 @@ import SwiftUI
 
 // MARK: - Recipe Palette
 
-/// The Recipe Assistant runs on its own warm, kitchen-toned accent rather than
-/// the app's blue. The screen sits on a culinary backdrop image, and the cool
-/// system blue reads as foreign against it.
-private enum RecipePalette {
+/// The recipe screens run on their own warm, kitchen-toned accent rather than
+/// the app's blue. They sit on a culinary backdrop image, and the cool system
+/// blue reads as foreign against it.
+enum RecipePalette {
     static let apricot = Color(red: 1.00, green: 0.60, blue: 0.24)
     static let paprika = Color(red: 0.90, green: 0.32, blue: 0.23)
     static let basil = Color(red: 0.33, green: 0.60, blue: 0.36)
@@ -54,8 +54,12 @@ private enum RecipePalette {
 
 /// Full-bleed culinary artwork behind the whole screen. The asset carries its
 /// own light and dark variants; the scrim on top keeps text legible over it.
-private struct RecipeBackdrop: View {
+struct RecipeBackdrop: View {
     let colorScheme: ColorScheme
+    /// Extra wash laid over the standard scrim. Screens that put plain text
+    /// straight onto the artwork — with no card behind it — dial this up so the
+    /// busier parts of the photo don't fight the type.
+    var extraScrimOpacity: Double = 0
 
     var body: some View {
         GeometryReader { geometry in
@@ -65,6 +69,7 @@ private struct RecipeBackdrop: View {
                 .frame(width: geometry.size.width, height: geometry.size.height)
                 .clipped()
                 .overlay(RecipePalette.scrim(for: colorScheme))
+                .overlay((colorScheme == .dark ? Color.black : Color.white).opacity(extraScrimOpacity))
         }
         .ignoresSafeArea()
     }
