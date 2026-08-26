@@ -20,8 +20,10 @@ struct RecipeView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                Color.backgroundGradient(for: colorScheme)
-                    .ignoresSafeArea()
+                // Same culinary artwork the Smart Recipe screen sits on, with a
+                // heavier wash: this screen puts bare text on the photo instead
+                // of tucking it inside cards.
+                RecipeBackdrop(colorScheme: colorScheme, extraScrimOpacity: 0.22)
 
                 if viewModel.isLoading {
                     ProgressView("Loading recipes...")
@@ -31,6 +33,7 @@ struct RecipeView: View {
                     recipeList
                 }
             }
+            .tint(RecipePalette.paprika)
             .navigationTitle("My Recipes")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -79,35 +82,56 @@ struct RecipeView: View {
 
     // MARK: - Recipe List
 
+    /// Rows sit straight on the backdrop — no card per recipe. A hairline rule
+    /// between rows and the warm accent rule on the left carry the separation
+    /// instead.
     private var recipeList: some View {
         List {
-            ForEach(viewModel.recipes) { recipe in
-                RecipeRowView(recipe: recipe)
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        recipeToEdit = recipe
+            listHeader
+                .listRowBackground(Color.clear)
+                .listRowInsets(EdgeInsets(top: 4, leading: 22, bottom: 10, trailing: 22))
+                .listRowSeparator(.hidden)
+
+            ForEach(Array(viewModel.recipes.enumerated()), id: \.element.id) { index, recipe in
+                VStack(spacing: 0) {
+                    RecipeRowView(recipe: recipe, colorScheme: colorScheme)
+
+                    if index < viewModel.recipes.count - 1 {
+                        Rectangle()
+                            .fill(recipeRowDivider(for: colorScheme))
+                            .frame(height: 1)
+                            .padding(.leading, 17)
                     }
-                    .listRowBackground(
-                        RoundedRectangle(cornerRadius: 16)
-                            .fill(.ultraThinMaterial)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 16)
-                                    .stroke(Color.cardBorder(for: colorScheme), lineWidth: 1.5)
-                            )
-                            .padding(.vertical, 4)
-                    )
-                    .listRowSeparator(.hidden)
-                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                        Button(role: .destructive) {
-                            recipeToDelete = recipe
-                        } label: {
-                            Label("Delete", systemImage: "trash")
-                        }
+                }
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    recipeToEdit = recipe
+                }
+                .listRowBackground(Color.clear)
+                .listRowInsets(EdgeInsets(top: 0, leading: 22, bottom: 0, trailing: 22))
+                .listRowSeparator(.hidden)
+                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                    Button(role: .destructive) {
+                        recipeToDelete = recipe
+                    } label: {
+                        Label("Delete", systemImage: "trash")
                     }
+                }
             }
         }
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
+        .environment(\.defaultMinListRowHeight, 0)
+    }
+
+    private var listHeader: some View {
+        let count = viewModel.recipes.count
+        return Text("\(count) recipe\(count == 1 ? "" : "s")")
+            .font(.caption)
+            .fontWeight(.semibold)
+            .textCase(.uppercase)
+            .tracking(1.1)
+            .foregroundStyle(.secondary)
     }
 
     // MARK: - Empty State
@@ -116,19 +140,11 @@ struct RecipeView: View {
         VStack(spacing: 24) {
             ZStack {
                 Circle()
-                    .fill(LinearGradient(
-                        colors: [Color.blue.opacity(0.15), Color.purple.opacity(0.15)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ))
+                    .fill(RecipePalette.apricot.opacity(0.18))
                     .frame(width: 100, height: 100)
                 Image(systemName: "fork.knife.circle")
                     .font(.system(size: 44, weight: .light))
-                    .foregroundStyle(LinearGradient(
-                        colors: [.blue, .purple],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ))
+                    .foregroundStyle(RecipePalette.paprika)
             }
             VStack(spacing: 8) {
                 Text("No Recipes Yet")
@@ -146,34 +162,99 @@ struct RecipeView: View {
 
 // MARK: - Recipe Row
 
+/// Hairline between rows. Kept a touch stronger than `RecipePalette.hairline`
+/// so it still reads over the photograph without a card behind it.
+private func recipeRowDivider(for colorScheme: ColorScheme) -> Color {
+    colorScheme == .dark ? Color.white.opacity(0.16) : Color.black.opacity(0.12)
+}
+
 private struct RecipeRowView: View {
     let recipe: Recipe
+    let colorScheme: ColorScheme
+
+    /// Ingredients shown as chips before the row spills into a "+n" summary.
+    private static let chipLimit = 3
+
+    /// Indexed so a recipe that repeats an ingredient still gets stable row ids.
+    private var visibleIngredients: [(offset: Int, element: String)] {
+        Array(recipe.ingredients.prefix(Self.chipLimit).enumerated())
+    }
+
+    private var hiddenCount: Int {
+        max(0, recipe.ingredients.count - Self.chipLimit)
+    }
 
     var body: some View {
-        HStack(spacing: 14) {
-            ZStack {
-                Circle()
-                    .fill(Color.blue.opacity(0.12))
-                    .frame(width: 42, height: 42)
-                Image(systemName: "fork.knife")
-                    .font(.system(size: 18, weight: .medium))
-                    .foregroundStyle(Color.appAccent)
+        HStack(alignment: .top, spacing: 14) {
+            // Thin warm rule down the leading edge — the row's only ornament now
+            // that the fork-and-knife tile is gone. Flat paprika, no gradient.
+            Capsule()
+                .fill(RecipePalette.paprika)
+                .frame(width: 3)
+
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(alignment: .firstTextBaseline, spacing: 10) {
+                    Text(recipe.name)
+                        .font(.title3)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+
+                    Spacer(minLength: 4)
+
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(.tertiary)
+                }
+
+                if recipe.ingredients.isEmpty {
+                    Text("No ingredients yet")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else {
+                    HStack(spacing: 6) {
+                        ForEach(visibleIngredients, id: \.offset) { _, ingredient in
+                            IngredientChip(text: ingredient, colorScheme: colorScheme)
+                        }
+                        if hiddenCount > 0 {
+                            Text("+\(hiddenCount)")
+                                .font(.caption2)
+                                .fontWeight(.semibold)
+                                .foregroundStyle(.secondary)
+                                .fixedSize()
+                        }
+                        Spacer(minLength: 0)
+                    }
+                }
             }
-            VStack(alignment: .leading, spacing: 3) {
-                Text(recipe.name)
-                    .font(.body)
-                    .fontWeight(.medium)
-                Text("\(recipe.ingredients.count) ingredient\(recipe.ingredients.count == 1 ? "" : "s")")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            Spacer()
-            Image(systemName: "chevron.right")
-                .font(.caption)
-                .foregroundStyle(.tertiary)
         }
-        .padding(.vertical, 10)
-        .padding(.horizontal, 4)
+        .padding(.vertical, 16)
+    }
+}
+
+/// Single ingredient, shown as a soft capsule. Deliberately lighter than a card:
+/// tinted fill, hairline edge, no shadow.
+private struct IngredientChip: View {
+    let text: String
+    let colorScheme: ColorScheme
+
+    var body: some View {
+        Text(text)
+            .font(.caption2)
+            .foregroundStyle(.primary)
+            .lineLimit(1)
+            .truncationMode(.tail)
+            .padding(.vertical, 4)
+            .padding(.horizontal, 9)
+            .background(
+                Capsule()
+                    .fill(RecipePalette.apricot.opacity(colorScheme == .dark ? 0.20 : 0.26))
+            )
+            .overlay(
+                Capsule()
+                    .stroke(RecipePalette.apricot.opacity(0.42), lineWidth: 1)
+            )
     }
 }
 
