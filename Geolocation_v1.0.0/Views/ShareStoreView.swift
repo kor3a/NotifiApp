@@ -392,6 +392,18 @@ struct ShareStoreView: View {
                     .padding(.vertical, 12)
             }
         }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 4)
+        // Tinted to the active tab, so the Family and Friends lists are
+        // distinguishable at a glance and sit apart from the sheet background.
+        .background(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(activeRecipientTab.tint.opacity(0.08))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .stroke(activeRecipientTab.tint.opacity(0.22), lineWidth: 1)
+        )
     }
 
     /// One tab of the Family / Friends picker.
