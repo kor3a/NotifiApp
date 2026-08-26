@@ -74,19 +74,13 @@ struct ShareStoreView: View {
 
                 ScrollView {
                     VStack(spacing: 20) {
-                        // Sharing explainer, tucked under the Share button
-                        HStack {
-                            Spacer(minLength: 0)
-                            shareInfoButton
-                        }
-
-                        // Permission Selection — chosen before picking a recipient
-                        if userStoreItem.sharedFromName == nil {
-                            permissionSection
-                        }
-
-                        // Store Info — hero header
+                        // Store Info — hero header, with the info bubble on the
+                        // same row and its explainer expanding underneath.
                         storeHeader
+
+                        if showShareInfo {
+                            shareInfoBubble
+                        }
 
                         // Show who shared the store with the current user (if applicable)
                         if let sharedByName = userStoreItem.sharedFromName {
@@ -176,7 +170,8 @@ struct ShareStoreView: View {
 
     // MARK: - SUBVIEWS
 
-    /// Hero header showing the store being shared.
+    /// Hero header showing the store being shared, with the info toggle pinned
+    /// to the trailing edge of the same row.
     private var storeHeader: some View {
         HStack(spacing: 16) {
             storeLogoTile
@@ -187,34 +182,43 @@ struct ShareStoreView: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
         }
+        // Keeps a long store name clear of the info button it shares the row with.
+        .padding(.horizontal, 32)
         .frame(maxWidth: .infinity)
+        .overlay(alignment: .trailing) {
+            shareInfoButton
+        }
     }
 
-    /// Explains the share flow from a bubble in the sheet's top-right corner,
-    /// keeping the detail out of the way until it's asked for.
+    /// Toggles the share explainer. An inline bubble rather than a popover, which
+    /// the sheet's edge clipped.
     private var shareInfoButton: some View {
         Button {
-            showShareInfo = true
+            withAnimation(.easeInOut(duration: 0.2)) {
+                showShareInfo.toggle()
+            }
         } label: {
-            Image(systemName: "info.circle.fill")
+            Image(systemName: showShareInfo ? "info.circle.fill" : "info.circle")
                 .font(.title3)
                 .foregroundStyle(Color.appAccent)
         }
         .buttonStyle(.plain)
         .accessibilityLabel("About sharing")
-        .popover(
-            isPresented: $showShareInfo,
-            attachmentAnchor: .rect(.bounds),
-            arrowEdge: .bottom
-        ) {
-            Text("A share request will be sent to the recipient's messages. They must accept before the store is shared successfully for both users.")
-                .font(.callout)
-                .multilineTextAlignment(.leading)
-                .fixedSize(horizontal: false, vertical: true)
-                .padding(16)
-                .frame(width: 280)
-                .presentationCompactAdaptation(.popover)
-        }
+    }
+
+    /// The share explainer, shown directly below the info button.
+    private var shareInfoBubble: some View {
+        Text("A share request will be sent to the recipient's messages. They must accept before the store is shared successfully for both users.")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(14)
+            .background(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(Color.appAccent.opacity(0.1))
+            )
+            .transition(.opacity.combined(with: .move(edge: .top)))
     }
 
     /// Store logo shown in the hero header, matching the logos used in `StoresView`.
@@ -332,14 +336,16 @@ struct ShareStoreView: View {
         )
     }
 
-    /// Family / Friends picker with the matching contacts listed underneath.
+    /// Family / Friends picker, the permission chips, and the matching contacts.
     private var recipientSection: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 14) {
             HStack(spacing: 10) {
                 recipientTabChip(.family)
                 recipientTabChip(.friends)
             }
             .frame(maxWidth: .infinity)
+
+            permissionSection
 
             if isSharingWithAllFamily {
                 HStack(spacing: 8) {
@@ -356,25 +362,38 @@ struct ShareStoreView: View {
                 )
             }
 
-            VStack(spacing: 10) {
-                if activeRecipientTab == .family && !friendsViewModel.familyMembers.isEmpty {
-                    allFamilyRow
-                }
-
-                ForEach(activeRecipientContacts) { contact in
-                    contactRow(contact: contact, tint: activeRecipientTab.tint)
-                }
-
-                if activeRecipientContacts.isEmpty {
-                    Text(activeRecipientTab.emptyMessage)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.vertical, 8)
-                }
-            }
+            recipientList
         }
         .animation(.easeInOut(duration: 0.15), value: activeRecipientTab)
+    }
+
+    /// The active tab's contacts, separated by hairlines rather than cards.
+    private var recipientList: some View {
+        VStack(spacing: 0) {
+            if activeRecipientTab == .family && !friendsViewModel.familyMembers.isEmpty {
+                allFamilyRow
+
+                if !activeRecipientContacts.isEmpty {
+                    Divider()
+                }
+            }
+
+            ForEach(Array(activeRecipientContacts.enumerated()), id: \.element.id) { item in
+                contactRow(contact: item.element, tint: activeRecipientTab.tint)
+
+                if item.offset < activeRecipientContacts.count - 1 {
+                    Divider()
+                }
+            }
+
+            if activeRecipientContacts.isEmpty {
+                Text(activeRecipientTab.emptyMessage)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.vertical, 12)
+            }
+        }
     }
 
     /// One tab of the Family / Friends picker.
@@ -445,6 +464,12 @@ struct ShareStoreView: View {
         .disabled(isAlreadyShared)
     }
 
+    /// The name colour for a recipient row across its three states.
+    private func rowNameColor(isShared: Bool, isSelected: Bool, tint: Color) -> Color {
+        if isShared { return .secondary }
+        return isSelected ? tint : .primary
+    }
+
     /// The row chrome shared by the contact rows and the All Family shortcut.
     /// `avatar` is type-erased to keep the call sites' type-checking cheap.
     private func recipientRowLayout(
@@ -459,8 +484,8 @@ struct ShareStoreView: View {
 
             Text(name)
                 .font(.subheadline)
-                .fontWeight(.medium)
-                .foregroundStyle(isShared ? Color.secondary : Color.primary)
+                .fontWeight(isSelected ? .semibold : .medium)
+                .foregroundStyle(rowNameColor(isShared: isShared, isSelected: isSelected, tint: tint))
                 .lineLimit(1)
 
             Spacer(minLength: 0)
@@ -475,15 +500,8 @@ struct ShareStoreView: View {
                     .foregroundStyle(tint)
             }
         }
-        .padding(12)
-        .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(isSelected ? tint.opacity(0.12) : Color.primary.opacity(0.05))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .stroke(isSelected ? tint.opacity(0.45) : Color.clear, lineWidth: 1)
-        )
+        .padding(.vertical, 10)
+        .contentShape(Rectangle())
         .opacity(isShared ? 0.6 : 1)
     }
 
@@ -537,32 +555,35 @@ struct ShareStoreView: View {
             title: title,
             icon: icon,
             tint: tint,
-            isSelected: selectedPermission == permission
+            isSelected: selectedPermission == permission,
+            isCompact: true
         ) {
             selectedPermission = permission
         }
     }
 
-    /// The capsule used by both the permission and recipient selectors.
+    /// The capsule used by both the recipient tabs and, at `isCompact`, the
+    /// permission chips that sit under them.
     private func selectionChip(
         title: String,
         icon: String,
         tint: Color,
         isSelected: Bool,
+        isCompact: Bool = false,
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
-            HStack(spacing: 6) {
+            HStack(spacing: isCompact ? 4 : 6) {
                 Image(systemName: icon)
-                    .font(.caption)
+                    .font(isCompact ? .caption2 : .caption)
                     .fontWeight(.semibold)
                 Text(title)
-                    .font(.subheadline)
+                    .font(isCompact ? .caption : .subheadline)
                     .fontWeight(.semibold)
             }
             .foregroundStyle(isSelected ? Color.white : Color.secondary)
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
+            .padding(.horizontal, isCompact ? 12 : 18)
+            .padding(.vertical, isCompact ? 6 : 11)
             .background(
                 Capsule()
                     .fill(isSelected ? tint : Color.primary.opacity(0.06))
