@@ -23,6 +23,10 @@ struct FriendsView: View {
     @State private var friendshipToCancel: Friendship?
     @State private var showingCancelAlert = false
     @State private var showInviteAlert = false
+    /// While on, family members show a control to take them back out. Adding is
+    /// always one tap; removing sits behind Manage so it can't happen by
+    /// accident on a list the user is only scrolling through.
+    @State private var isManagingFamily = false
     @FocusState private var isSearchFocused: Bool
     @Environment(\.colorScheme) var colorScheme
 
@@ -65,6 +69,11 @@ struct FriendsView: View {
         }
         .onDisappear {
             viewModel.stopListening()
+        }
+        .onChange(of: viewModel.familyMembers.isEmpty) { _, isEmpty in
+            // Manage lives on the Family card; once the last member is removed
+            // that card goes away and nothing could switch it back off.
+            if isEmpty { isManagingFamily = false }
         }
         .alert("Success", isPresented: .init(
             get: { viewModel.successMessage != nil },
@@ -257,8 +266,8 @@ struct FriendsView: View {
         let members = viewModel.familyMembers
         let count = members.count
 
-        return VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .center) {
+        return VStack(alignment: .leading, spacing: 16) {
+            HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Family")
                         .font(OrganicPalette.display(26))
@@ -271,13 +280,38 @@ struct FriendsView: View {
 
                 Spacer(minLength: 12)
 
-                avatarStack(for: members)
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        isManagingFamily.toggle()
+                    }
+                } label: {
+                    Text(isManagingFamily ? "Done" : "Manage")
+                        .font(.system(size: 15, weight: .bold, design: .serif))
+                        .foregroundColor(OrganicPalette.sageInk(colorScheme))
+                        .padding(.horizontal, 18)
+                        .padding(.vertical, 10)
+                        .background(
+                            Capsule()
+                                .fill(isManagingFamily ? OrganicPalette.sageInk(colorScheme).opacity(0.15) : .clear)
+                        )
+                        .overlay(
+                            Capsule().stroke(OrganicPalette.sageInk(colorScheme).opacity(0.35), lineWidth: 1.5)
+                        )
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(isManagingFamily ? "Finish managing Family" : "Manage Family")
             }
 
-            Text("Shared stores and reminders reach them first. Tap the house on a friend to add or remove them.")
-                .font(.system(size: 15))
-                .foregroundColor(OrganicPalette.sageInk(colorScheme).opacity(0.8))
-                .fixedSize(horizontal: false, vertical: true)
+            HStack(spacing: 14) {
+                avatarStack(for: members)
+
+                Text(isManagingFamily
+                     ? "Tap the house on a member to take them out."
+                     : "Shared stores and reminders reach them first.")
+                    .font(.system(size: 15))
+                    .foregroundColor(OrganicPalette.sageInk(colorScheme).opacity(0.8))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
         .padding(22)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -288,8 +322,8 @@ struct FriendsView: View {
     }
 
     /// Overlapping avatars for the Family card. Four circles wide at most,
-    /// counting the "+n" disc — the stack shares the title row now, so a large
-    /// family has to stay inside the same width a small one takes.
+    /// counting the "+n" disc, so a large family takes no more room than a
+    /// small one and the caption beside it keeps its width.
     private func avatarStack(for members: [Friendship]) -> some View {
         let shown = Array(members.prefix(members.count > 4 ? 3 : 4))
         let overflow = members.count - shown.count
@@ -401,6 +435,7 @@ struct FriendsView: View {
             friendship: friendship,
             currentUserId: currentUserId,
             isFamilyMember: isFamilyMember,
+            isManagingFamily: isManagingFamily,
             freshProfilePictureURL: profilePictureURL(for: friendship),
             onMessage: { startConversation(with: friendship) },
             onToggleFamily: {
@@ -560,6 +595,9 @@ struct FriendCard: View {
     let friendship: Friendship
     let currentUserId: String
     var isFamilyMember: Bool = false
+    /// Set while the Family card is in manage mode, which is the only time a
+    /// family member's row offers a way out of the group.
+    var isManagingFamily: Bool = false
     /// Fresh profile picture URL fetched from the `users` collection, overriding the stale one in the friendship doc.
     var freshProfilePictureURL: String?
     let onMessage: () -> Void
@@ -580,8 +618,10 @@ struct FriendCard: View {
     }
 
     var body: some View {
-        // Two controls plus the badge leave little room for the name, so the
-        // avatar and buttons run a size smaller here than elsewhere.
+        // A row can carry two controls and the badge at once, which leaves the
+        // name little room, so the avatar and buttons run a size smaller here
+        // than elsewhere — and stay that size on rows showing only one control,
+        // so the list doesn't change metrics from row to row.
         HStack(spacing: 12) {
             OrganicAvatar(name: friendName, profilePictureURL: friendProfilePictureURL, size: 48)
 
@@ -621,25 +661,33 @@ struct FriendCard: View {
         .background(OrganicCardBackground(colorScheme: colorScheme))
     }
 
-    /// Filled while they're in Family, outlined while they aren't — the icon
-    /// doubles as the row's status, so tapping it is both the toggle and the
-    /// only place Family membership is set.
+    /// An outlined house on anyone who isn't in Family yet, and — only while
+    /// the Family card is being managed — a crossed-out one on those who are.
+    /// A family member's row is otherwise left alone: the FAMILY badge already
+    /// says they're in, so a button there would be status dressed as a control.
+    @ViewBuilder
     private var familyButton: some View {
-        Button(action: onToggleFamily) {
-            Image(systemName: isFamilyMember ? "house.fill" : "house")
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundColor(isFamilyMember ? .white : OrganicPalette.sageInk(colorScheme))
-                .frame(width: 40, height: 40)
-                .background(
-                    Circle().fill(
-                        isFamilyMember
-                            ? OrganicPalette.sageInk(colorScheme)
-                            : OrganicPalette.sage(colorScheme)
-                    )
-                )
+        if !isFamilyMember {
+            Button(action: onToggleFamily) {
+                Image(systemName: "house")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundColor(OrganicPalette.sageInk(colorScheme))
+                    .frame(width: 40, height: 40)
+                    .background(Circle().fill(OrganicPalette.sage(colorScheme)))
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Add \(friendName) to Family")
+        } else if isManagingFamily {
+            Button(action: onToggleFamily) {
+                Image(systemName: "house.slash.fill")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundColor(.white)
+                    .frame(width: 40, height: 40)
+                    .background(Circle().fill(OrganicPalette.sageInk(colorScheme)))
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Remove \(friendName) from Family")
         }
-        .buttonStyle(.plain)
-        .accessibilityLabel(isFamilyMember ? "Remove \(friendName) from Family" : "Add \(friendName) to Family")
     }
 
     private var messageButton: some View {
