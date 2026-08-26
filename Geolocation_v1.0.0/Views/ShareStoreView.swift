@@ -394,15 +394,15 @@ struct ShareStoreView: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 4)
-        // Tinted to the active tab, so the Family and Friends lists are
-        // distinguishable at a glance and sit apart from the sheet background.
+        // Off-white for both tabs, so the list reads as a sheet of its own
+        // against the gradient background.
         .background(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(activeRecipientTab.tint.opacity(0.08))
+                .fill(recipientListBackground)
         )
         .overlay(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(activeRecipientTab.tint.opacity(0.22), lineWidth: 1)
+                .stroke(Color.secondary.opacity(0.18), lineWidth: 1)
         )
     }
 
@@ -704,6 +704,14 @@ struct ShareStoreView: View {
         return friendsViewModel.familyMembers.isEmpty && !friendsViewModel.friends.isEmpty
             ? .friends
             : .family
+    }
+
+    /// The recipient list's panel colour. Off-white in light mode; dark mode gets
+    /// the system's equivalent so the row text stays legible.
+    private var recipientListBackground: Color {
+        colorScheme == .dark
+            ? Color(.secondarySystemBackground)
+            : Color(red: 0.98, green: 0.98, blue: 0.97)
     }
 
     /// The contacts listed under the active tab.
