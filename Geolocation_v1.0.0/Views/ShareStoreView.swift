@@ -467,35 +467,53 @@ struct ShareStoreView: View {
         )
     }
 
-    /// Permission picker plus an explanation of the selected mode.
+    /// The recipient's access level, picked from a pair of chips.
     private var permissionSection: some View {
-        sectionContainer(title: "Permission", icon: "lock.shield.fill", tint: .appAccent) {
-            VStack(alignment: .leading, spacing: 12) {
-                Picker("Permission", selection: $selectedPermission) {
-                    Text("Can Edit").tag(StorePermission.edit)
-                    Text("View Only").tag(StorePermission.view)
-                }
-                .pickerStyle(.segmented)
+        plainSection(title: "Permission", icon: "lock.shield.fill", tint: .appAccent) {
+            HStack(spacing: 10) {
+                permissionChip(.edit, title: "Can Edit", icon: "pencil", tint: .appSuccess)
+                permissionChip(.view, title: "View Only", icon: "eye", tint: .appWarning)
 
-                HStack(alignment: .top, spacing: 10) {
-                    Image(systemName: selectedPermission == .edit ? "pencil.circle.fill" : "eye.circle.fill")
-                        .foregroundStyle(selectedPermission == .edit ? Color.appSuccess : Color.appWarning)
-
-                    Text(selectedPermission == .edit
-                        ? "Can Edit: Recipient gets full ownership. Changes and deletions sync between both users."
-                        : "View Only: Recipient can view reminders but cannot edit, share, delete, or check them off.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                .padding(12)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .fill((selectedPermission == .edit ? Color.appSuccess : Color.appWarning).opacity(0.1))
-                )
+                Spacer(minLength: 0)
             }
+            .animation(.easeInOut(duration: 0.15), value: selectedPermission)
         }
+    }
+
+    /// One selectable permission chip.
+    private func permissionChip(
+        _ permission: StorePermission,
+        title: String,
+        icon: String,
+        tint: Color
+    ) -> some View {
+        let isSelected = selectedPermission == permission
+
+        return Button {
+            selectedPermission = permission
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: icon)
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                Text(title)
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+            }
+            .foregroundStyle(isSelected ? Color.white : Color.secondary)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+            .background(
+                Capsule()
+                    .fill(isSelected ? tint : Color.primary.opacity(0.06))
+            )
+            .overlay(
+                Capsule()
+                    .stroke(isSelected ? Color.clear : Color.secondary.opacity(0.3), lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(isSelected ? [.isSelected] : [])
     }
 
     // MARK: - Reusable building blocks
