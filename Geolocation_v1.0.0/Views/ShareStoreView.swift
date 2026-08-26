@@ -32,8 +32,13 @@ private struct SwipeToRemoveRow<Content: View>: View {
 
     @State private var offset: CGFloat = 0
     @State private var isOpen = false
+    /// Set once a drag proves horizontal, and cleared when it ends. While a drag is
+    /// still ambiguous the row ignores it, so a vertical pan reaches the ScrollView.
+    @State private var isSwiping = false
 
     private let actionWidth: CGFloat = 88
+    /// A drag has to be this much wider than it is tall before it counts as a swipe.
+    private let horizontalBias: CGFloat = 2
 
     var body: some View {
         ZStack(alignment: .trailing) {
@@ -66,18 +71,29 @@ private struct SwipeToRemoveRow<Content: View>: View {
 
             content
                 .offset(x: offset)
-                // Simultaneous so a vertical drag still scrolls the sheet; the
-                // handler ignores anything that isn't mostly horizontal.
+                // Simultaneous so a vertical drag still scrolls the sheet, and masked
+                // off entirely on rows that can't be removed — an always-attached drag
+                // competed with the ScrollView and made the list hard to scroll.
                 .simultaneousGesture(
-                    DragGesture(minimumDistance: 12)
+                    DragGesture(minimumDistance: 20)
                         .onChanged { value in
-                            guard isEnabled else { return }
-                            guard abs(value.translation.width) > abs(value.translation.height) else { return }
+                            let dx = value.translation.width
+                            let dy = value.translation.height
+
+                            // Commit to a swipe only once the drag is clearly sideways.
+                            // Until then leave the pan to the ScrollView.
+                            if !isSwiping {
+                                guard dx < 0, abs(dx) > abs(dy) * horizontalBias else { return }
+                                isSwiping = true
+                            }
+
                             let base: CGFloat = isOpen ? -actionWidth : 0
-                            offset = min(0, max(-actionWidth, base + value.translation.width))
+                            offset = min(0, max(-actionWidth, base + dx))
                         }
                         .onEnded { _ in
-                            guard isEnabled else { return }
+                            defer { isSwiping = false }
+                            guard isSwiping else { return }
+
                             withAnimation(.easeOut(duration: 0.2)) {
                                 if offset < -actionWidth / 2 {
                                     offset = -actionWidth
@@ -87,7 +103,8 @@ private struct SwipeToRemoveRow<Content: View>: View {
                                     isOpen = false
                                 }
                             }
-                        }
+                        },
+                    including: isEnabled ? .all : .subviews
                 )
         }
         // A row that stops being removable must not stay stuck open.
