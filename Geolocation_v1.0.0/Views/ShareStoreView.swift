@@ -58,13 +58,13 @@ struct ShareStoreView: View {
 
                 ScrollView {
                     VStack(spacing: 20) {
-                        // Store Info — hero header
-                        storeHeader
-
                         // Permission Selection — chosen before picking a recipient
                         if userStoreItem.sharedFromName == nil {
                             permissionSection
                         }
+
+                        // Store Info — hero header
+                        storeHeader
 
                         // Show who shared the store with the current user (if applicable)
                         if let sharedByName = userStoreItem.sharedFromName {
@@ -161,31 +161,20 @@ struct ShareStoreView: View {
 
     /// Hero header showing the store being shared.
     private var storeHeader: some View {
-        HStack(spacing: 16) {
+        VStack(spacing: 12) {
             storeLogoTile
 
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Sharing")
-                    .font(.caption)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(.secondary)
-                    .textCase(.uppercase)
-
+            HStack(spacing: 8) {
                 Text(userStoreItem.store.name)
                     .font(.title2)
                     .fontWeight(.bold)
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
 
-                Text("All locations")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                shareInfoButton
             }
-
-            Spacer(minLength: 0)
-
-            shareInfoButton
         }
+        .frame(maxWidth: .infinity)
     }
 
     /// Explains the share flow from a bubble next to the store name, keeping the
@@ -200,7 +189,11 @@ struct ShareStoreView: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel("About sharing")
-        .popover(isPresented: $showShareInfo) {
+        .popover(
+            isPresented: $showShareInfo,
+            attachmentAnchor: .rect(.bounds),
+            arrowEdge: .bottom
+        ) {
             Text("A share request will be sent to the recipient's messages. They must accept before the store is shared successfully for both users.")
                 .font(.callout)
                 .multilineTextAlignment(.leading)
@@ -469,15 +462,12 @@ struct ShareStoreView: View {
 
     /// The recipient's access level, picked from a pair of chips.
     private var permissionSection: some View {
-        plainSection(title: "Permission", icon: "lock.shield.fill", tint: .appAccent) {
-            HStack(spacing: 10) {
-                permissionChip(.edit, title: "Can Edit", icon: "pencil", tint: .appSuccess)
-                permissionChip(.view, title: "View Only", icon: "eye", tint: .appWarning)
-
-                Spacer(minLength: 0)
-            }
-            .animation(.easeInOut(duration: 0.15), value: selectedPermission)
+        HStack(spacing: 10) {
+            permissionChip(.edit, title: "Can Edit", icon: "pencil", tint: .appSuccess)
+            permissionChip(.view, title: "View Only", icon: "eye", tint: .appWarning)
         }
+        .frame(maxWidth: .infinity)
+        .animation(.easeInOut(duration: 0.15), value: selectedPermission)
     }
 
     /// One selectable permission chip.
