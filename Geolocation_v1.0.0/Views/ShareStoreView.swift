@@ -19,6 +19,85 @@ struct SharedUser: Identifiable {
     let mergedFromOwnStore: Bool
 }
 
+/// A row that reveals a Remove action when swiped left.
+///
+/// `List`'s `.swipeActions` needs a `List`, and the share sheet lays its recipients
+/// out in a `VStack` inside a `ScrollView`, so the gesture is done by hand. The
+/// action sits behind the row's trailing edge and is only drawn once the row has
+/// started moving, which keeps it from showing through the row's own background.
+private struct SwipeToRemoveRow<Content: View>: View {
+    let isEnabled: Bool
+    let onRemove: () -> Void
+    @ViewBuilder var content: Content
+
+    @State private var offset: CGFloat = 0
+    @State private var isOpen = false
+
+    private let actionWidth: CGFloat = 88
+
+    var body: some View {
+        ZStack(alignment: .trailing) {
+            if offset < 0 {
+                Button {
+                    close()
+                    onRemove()
+                } label: {
+                    VStack(spacing: 2) {
+                        Image(systemName: "person.badge.minus")
+                            .font(.subheadline)
+                        Text("Remove")
+                            .font(.caption2)
+                            .fontWeight(.semibold)
+                    }
+                    .foregroundStyle(.white)
+                    .frame(width: actionWidth)
+                    .frame(maxHeight: .infinity)
+                    .background(Color.appError)
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                }
+                .buttonStyle(.plain)
+            }
+
+            content
+                .offset(x: offset)
+                // Simultaneous so a vertical drag still scrolls the sheet; the
+                // handler ignores anything that isn't mostly horizontal.
+                .simultaneousGesture(
+                    DragGesture(minimumDistance: 12)
+                        .onChanged { value in
+                            guard isEnabled else { return }
+                            guard abs(value.translation.width) > abs(value.translation.height) else { return }
+                            let base: CGFloat = isOpen ? -actionWidth : 0
+                            offset = min(0, max(-actionWidth, base + value.translation.width))
+                        }
+                        .onEnded { _ in
+                            guard isEnabled else { return }
+                            withAnimation(.easeOut(duration: 0.2)) {
+                                if offset < -actionWidth / 2 {
+                                    offset = -actionWidth
+                                    isOpen = true
+                                } else {
+                                    offset = 0
+                                    isOpen = false
+                                }
+                            }
+                        }
+                )
+        }
+        // A row that stops being removable must not stay stuck open.
+        .onChange(of: isEnabled) { _, enabled in
+            if !enabled { close() }
+        }
+    }
+
+    private func close() {
+        withAnimation(.easeOut(duration: 0.2)) {
+            offset = 0
+            isOpen = false
+        }
+    }
+}
+
 struct ShareStoreView: View {
     /// Which recipient list the sheet is currently showing.
     private enum RecipientTab {
@@ -59,6 +138,8 @@ struct ShareStoreView: View {
     /// actually has people in it.
     @State private var recipientTab: RecipientTab?
     @State private var shareProgress: String = ""
+    /// The sharer's profile picture, looked up from their user document.
+    @State private var sharedByPictureURL: String?
 
     private let db = Firestore.firestore()
     private let messagingService = MessagingService.shared
@@ -84,11 +165,6 @@ struct ShareStoreView: View {
                         // Show who shared the store with the current user (if applicable)
                         if let sharedByName = userStoreItem.sharedFromName {
                             sharedBySection(sharedByName: sharedByName)
-                        }
-
-                        // Shared Users List
-                        if !sharedUsers.isEmpty {
-                            sharedWithSection
                         }
 
                         // Only show sharing UI if user is the owner (not a recipient)
@@ -155,6 +231,7 @@ struct ShareStoreView: View {
             .onAppear {
                 fetchSharedUsers()
                 fetchReminderTitles()
+                fetchSharedByPicture()
                 friendsViewModel.fetchFriendships()
             }
             .onDisappear {
@@ -244,14 +321,15 @@ struct ShareStoreView: View {
     private func sharedBySection(sharedByName: String) -> some View {
         sectionContainer(title: "Shared By", icon: "person.fill.badge.plus", tint: .appAccent) {
             HStack(spacing: 12) {
-                Circle()
-                    .fill(Color.appAccent.opacity(0.15))
-                    .frame(width: 44, height: 44)
-                    .overlay(
-                        Text(String(sharedByName.prefix(1)).uppercased())
-                            .font(.headline)
-                            .foregroundStyle(Color.appAccent)
-                    )
+                ProfilePictureView(profilePictureURL: sharedByPictureURL, size: 44) {
+                    Circle()
+                        .fill(Color.appAccent.opacity(0.15))
+                        .overlay(
+                            Text(String(sharedByName.prefix(1)).uppercased())
+                                .font(.headline)
+                                .foregroundStyle(Color.appAccent)
+                        )
+                }
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(sharedByName)
@@ -271,62 +349,6 @@ struct ShareStoreView: View {
                 permissionBadge(userStoreItem.permission)
             }
         }
-    }
-
-    /// List of users this store is currently shared with.
-    private var sharedWithSection: some View {
-        sectionContainer(title: "Shared With", icon: "person.2.fill", tint: .appSuccess) {
-            VStack(spacing: 10) {
-                ForEach(sharedUsers) { sharedUser in
-                    sharedUserRow(sharedUser)
-                }
-            }
-        }
-    }
-
-    /// A single row in the "Shared With" list.
-    private func sharedUserRow(_ sharedUser: SharedUser) -> some View {
-        let isView = sharedUser.permission == .view
-        let tint: Color = isView ? .appWarning : .appSuccess
-
-        return HStack(spacing: 12) {
-            Circle()
-                .fill(tint.opacity(0.15))
-                .frame(width: 44, height: 44)
-                .overlay(
-                    Image(systemName: isView ? "eye.fill" : "person.fill.checkmark")
-                        .foregroundStyle(tint)
-                )
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(sharedUser.userEmail)
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                    .lineLimit(1)
-
-                Text(isView ? "View Only" : "Can Edit")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            Spacer(minLength: 0)
-
-            Button(action: {
-                unshareWithUser(sharedUser)
-            }) {
-                Image(systemName: "xmark.circle.fill")
-                    .font(.title3)
-                    .foregroundStyle(Color.appError.opacity(0.8))
-            }
-            .buttonStyle(.plain)
-        }
-        .padding(12)
-        .background(
-            // Sits inside a card, which light mode lightens — the old 0.03 fill
-            // washed out against it, leaving the rows with no visible boundary.
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(Color.primary.opacity(0.06))
-        )
     }
 
     /// Family / Friends picker, the permission chips, and the matching contacts.
@@ -440,11 +462,23 @@ struct ShareStoreView: View {
         .disabled(isSharing || allFamilyAlreadyShared)
     }
 
-    /// One recipient in the list. Tapping it ticks or unticks them.
+    /// One recipient in the list. Tapping it ticks or unticks them; once the store
+    /// is shared with them, swiping left reveals Remove instead.
     private func contactRow(contact: Contact, tint: Color) -> some View {
         let isShared = isAlreadyShared(contact)
 
-        return Button {
+        return SwipeToRemoveRow(
+            isEnabled: isShared,
+            onRemove: { unshare(contact) }
+        ) {
+            contactRowButton(contact: contact, tint: tint, isShared: isShared)
+        }
+    }
+
+    /// The tappable body of a recipient row.
+    private func contactRowButton(contact: Contact, tint: Color, isShared: Bool) -> some View {
+        Button {
+            guard !isShared else { return }
             toggleSelection(of: contact)
         } label: {
             recipientRowLayout(
@@ -466,7 +500,6 @@ struct ShareStoreView: View {
             )
         }
         .buttonStyle(.plain)
-        .disabled(isShared)
     }
 
     /// The name colour for a recipient row across its three states.
@@ -673,7 +706,12 @@ struct ShareStoreView: View {
     }
 
     private func isAlreadyShared(_ contact: Contact) -> Bool {
-        sharedUsers.contains { $0.userEmail.lowercased() == contact.email.lowercased() }
+        sharedUser(for: contact) != nil
+    }
+
+    /// The share record for a contact, when the store is shared with them.
+    private func sharedUser(for contact: Contact) -> SharedUser? {
+        sharedUsers.first { $0.userEmail.lowercased() == contact.email.lowercased() }
     }
 
     /// The recipient list's panel colour. Off-white in light mode; dark mode gets
@@ -723,6 +761,31 @@ struct ShareStoreView: View {
     }
 
     // MARK: - FUNCTIONS
+
+    /// Revokes a recipient's access from their row.
+    private func unshare(_ contact: Contact) {
+        guard let sharedUser = sharedUser(for: contact) else { return }
+        unshareWithUser(sharedUser)
+    }
+
+    /// Looks up the sharer's profile picture so their avatar matches the rest of
+    /// the app rather than falling back to an initial.
+    private func fetchSharedByPicture() {
+        guard let sharerId = userStoreItem.sharedFromId, !sharerId.isEmpty else { return }
+
+        db.collection("users").document(sharerId).getDocument { snapshot, error in
+            if let error = error {
+                #if DEBUG
+                print("ShareStoreView: Error fetching sharer profile: \(error.localizedDescription)")
+                #endif
+                return
+            }
+            guard let url = snapshot?.data()?["profilePictureURL"] as? String, !url.isEmpty else {
+                return
+            }
+            self.sharedByPictureURL = url
+        }
+    }
 
     private func toggleSelection(of contact: Contact) {
         if selectedContactIDs.contains(contact.id) {
