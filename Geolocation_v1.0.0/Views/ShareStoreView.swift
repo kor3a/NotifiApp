@@ -34,11 +34,18 @@ private struct SwipeToRemoveRow<Content: View>: View {
     let onRemove: () -> Void
     @ViewBuilder var content: Content
 
-    /// Live translation of the drag in progress; folded into `offset` and reset on end.
+    /// How far the finger has moved since the swipe was recognised. Measured from the
+    /// recognition point rather than the touch-down point, so the row starts moving
+    /// from where it sits instead of jumping the distance the gesture needed to commit.
     @State private var dragTranslation: CGFloat = 0
     /// Set once a drag proves horizontal, and cleared when it ends. While a drag is
     /// still ambiguous the row ignores it, so a vertical pan reaches the ScrollView.
     @State private var isSwiping = false
+    /// The translation at the moment the swipe was recognised.
+    @State private var swipeOrigin: CGFloat = 0
+    /// The row's measured height, so the action button matches it without taking
+    /// part in the layout itself.
+    @State private var rowHeight: CGFloat = 0
 
     private let actionWidth: CGFloat = 88
     /// A drag has to be this much wider than it is tall before it counts as a swipe.
@@ -53,42 +60,27 @@ private struct SwipeToRemoveRow<Content: View>: View {
 
     var body: some View {
         ZStack(alignment: .trailing) {
-            if offset < 0 {
-                Button {
-                    close()
-                    onRemove()
-                } label: {
-                    VStack(spacing: 2) {
-                        Image(systemName: "person.badge.minus")
-                            .font(.subheadline)
-                        Text("Remove")
-                            .font(.caption2)
-                            .fontWeight(.semibold)
-                    }
-                    .foregroundStyle(Color.white.opacity(0.85))
-                    .frame(width: actionWidth)
-                    .frame(maxHeight: .infinity)
-                    .background(
-                        RoundedRectangle(cornerRadius: 10, style: .continuous)
-                            .fill(Color.appError.opacity(0.45))
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 10, style: .continuous)
-                            .stroke(Color.appError.opacity(0.35), lineWidth: 1)
-                    )
-                }
-                .buttonStyle(.plain)
-            }
+            // Always in the hierarchy — inserting it mid-drag reflowed the row and
+            // made the swipe stutter. Hidden by opacity while the row is closed.
+            removeButton
+                .frame(height: rowHeight > 0 ? rowHeight : nil)
+                .opacity(offset < 0 ? 1 : 0)
+                .allowsHitTesting(offset < 0)
 
             content
+                .background(
+                    GeometryReader { geometry in
+                        Color.clear
+                            .preference(key: RowHeightKey.self, value: geometry.size.height)
+                    }
+                )
                 // While open, a tap on the row closes it instead of reaching the
                 // button underneath.
                 .overlay {
-                    if isOpen {
-                        Color.clear
-                            .contentShape(Rectangle())
-                            .onTapGesture { close() }
-                    }
+                    Color.clear
+                        .contentShape(Rectangle())
+                        .onTapGesture { close() }
+                        .allowsHitTesting(isOpen)
                 }
                 .offset(x: offset)
                 // Simultaneous so a vertical drag still scrolls the sheet, and masked
@@ -107,9 +99,10 @@ private struct SwipeToRemoveRow<Content: View>: View {
                                 guard dx < 0 || isOpen else { return }
                                 guard abs(dx) > abs(dy) * horizontalBias else { return }
                                 isSwiping = true
+                                swipeOrigin = dx
                             }
 
-                            dragTranslation = dx
+                            dragTranslation = dx - swipeOrigin
                         }
                         .onEnded { _ in
                             guard isSwiping else {
@@ -119,8 +112,9 @@ private struct SwipeToRemoveRow<Content: View>: View {
 
                             let shouldOpen = offset < -actionWidth / 2
                             isSwiping = false
+                            swipeOrigin = 0
 
-                            withAnimation(.easeOut(duration: 0.2)) {
+                            withAnimation(.easeOut(duration: 0.22)) {
                                 dragTranslation = 0
                                 if shouldOpen {
                                     openRowID = rowID
@@ -132,17 +126,56 @@ private struct SwipeToRemoveRow<Content: View>: View {
                     including: isEnabled ? .all : .subviews
                 )
         }
+        .onPreferenceChange(RowHeightKey.self) { height in
+            rowHeight = height
+        }
         // A row that stops being removable must not stay stuck open.
         .onChange(of: isEnabled) { _, enabled in
             if !enabled && isOpen { close() }
         }
     }
 
+    private var removeButton: some View {
+        Button {
+            close()
+            onRemove()
+        } label: {
+            VStack(spacing: 2) {
+                Image(systemName: "person.badge.minus")
+                    .font(.subheadline)
+                Text("Remove")
+                    .font(.caption2)
+                    .fontWeight(.semibold)
+            }
+            .foregroundStyle(Color.white.opacity(0.85))
+            .frame(width: actionWidth)
+            .frame(maxHeight: .infinity)
+            .background(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(Color.appError.opacity(0.45))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .stroke(Color.appError.opacity(0.35), lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
     private func close() {
-        withAnimation(.easeOut(duration: 0.2)) {
+        withAnimation(.easeOut(duration: 0.22)) {
             dragTranslation = 0
             if isOpen { openRowID = nil }
         }
+    }
+}
+
+/// Carries a recipient row's measured height up to its swipe container.
+private struct RowHeightKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
     }
 }
 
