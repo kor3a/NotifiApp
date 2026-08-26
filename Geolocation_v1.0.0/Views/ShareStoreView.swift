@@ -19,7 +19,177 @@ struct SharedUser: Identifiable {
     let mergedFromOwnStore: Bool
 }
 
+/// A row that reveals a Remove action when swiped left.
+///
+/// `List`'s `.swipeActions` needs a `List`, and the share sheet lays its recipients
+/// out in a `VStack` inside a `ScrollView`, so the gesture is done by hand. The
+/// action sits behind the row's trailing edge and is only drawn once the row has
+/// started moving, which keeps it from showing through the row's own background.
+private struct SwipeToRemoveRow<Content: View>: View {
+    let rowID: String
+    let isEnabled: Bool
+    /// The one row allowed to be open, held by the parent so opening a second row
+    /// closes the first and a tap anywhere in the sheet can dismiss it.
+    @Binding var openRowID: String?
+    let onRemove: () -> Void
+    @ViewBuilder var content: Content
+
+    /// The row's actual displacement, and the only thing that positions it. It is
+    /// deliberately local and never derived from `openRowID`: a value computed from
+    /// both local and parent state settles over two update passes, which is what made
+    /// the row snap back to centre for a frame before opening.
+    @State private var offset: CGFloat = 0
+    /// Where the row sat, and how far the finger had travelled, when the swipe was
+    /// recognised. Tracking from there keeps the row under the finger instead of
+    /// jumping the distance the recogniser needed.
+    @State private var offsetAtSwipeStart: CGFloat = 0
+    @State private var translationAtSwipeStart: CGFloat = 0
+    /// Set once a drag proves horizontal, and cleared when it ends. While a drag is
+    /// still ambiguous the row ignores it, so a vertical pan reaches the ScrollView.
+    @State private var isSwiping = false
+    /// The row's measured height, so the action button matches it without taking
+    /// part in the layout itself.
+    @State private var rowHeight: CGFloat = 0
+
+    private let actionWidth: CGFloat = 60
+    /// A drag has to be this much wider than it is tall before it counts as a swipe.
+    private let horizontalBias: CGFloat = 2
+
+    private var isRevealed: Bool { offset < 0 }
+
+    var body: some View {
+        ZStack(alignment: .trailing) {
+            // Always in the hierarchy — inserting it mid-drag reflowed the row and
+            // made the swipe stutter. Hidden by opacity while the row is closed.
+            removeButton
+                .frame(height: rowHeight > 0 ? rowHeight : nil)
+                .opacity(isRevealed ? 1 : 0)
+                .allowsHitTesting(isRevealed)
+
+            content
+                .background(
+                    GeometryReader { geometry in
+                        Color.clear
+                            .preference(key: RowHeightKey.self, value: geometry.size.height)
+                    }
+                )
+                // While open, a tap on the row closes it instead of reaching the
+                // button underneath.
+                .overlay {
+                    Color.clear
+                        .contentShape(Rectangle())
+                        .onTapGesture { close() }
+                        .allowsHitTesting(isRevealed)
+                }
+                .offset(x: offset)
+                // Simultaneous so a vertical drag still scrolls the sheet, and masked
+                // off entirely on rows that can't be removed — an always-attached drag
+                // competed with the ScrollView and made the list hard to scroll.
+                .simultaneousGesture(
+                    DragGesture(minimumDistance: 20)
+                        .onChanged { value in
+                            let dx = value.translation.width
+                            let dy = value.translation.height
+
+                            // Commit to a swipe only once the drag is clearly sideways:
+                            // leftward to open, or rightward while already revealed.
+                            // Until then leave the pan to the ScrollView.
+                            if !isSwiping {
+                                guard dx < 0 || isRevealed else { return }
+                                guard abs(dx) > abs(dy) * horizontalBias else { return }
+                                isSwiping = true
+                                translationAtSwipeStart = dx
+                                offsetAtSwipeStart = offset
+                            }
+
+                            let travel = dx - translationAtSwipeStart
+                            offset = min(0, max(-actionWidth, offsetAtSwipeStart + travel))
+                        }
+                        .onEnded { _ in
+                            guard isSwiping else { return }
+                            isSwiping = false
+
+                            settle(open: offset < -actionWidth / 2)
+                        },
+                    including: isEnabled ? .all : .subviews
+                )
+        }
+        .onPreferenceChange(RowHeightKey.self) { height in
+            rowHeight = height
+        }
+        // Another row opening, or the sheet dismissing the open one, closes this row.
+        .onChange(of: openRowID) { _, newValue in
+            if newValue != rowID && offset != 0 {
+                withAnimation(.easeOut(duration: 0.22)) { offset = 0 }
+            }
+        }
+        // A row that stops being removable must not stay stuck open.
+        .onChange(of: isEnabled) { _, enabled in
+            if !enabled { close() }
+        }
+    }
+
+    private var removeButton: some View {
+        Button {
+            close()
+            onRemove()
+        } label: {
+            Circle()
+                .fill(Color.appError.opacity(0.7))
+                .frame(width: 40, height: 40)
+                .overlay(
+                    Image(systemName: "person.fill.badge.minus")
+                        .font(.system(size: 17))
+                        .foregroundStyle(Color.white.opacity(0.95))
+                )
+                .frame(width: actionWidth)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Remove")
+    }
+
+    /// Animates the row to its resting place, then records the result for the sheet.
+    /// The bookkeeping is deliberately outside the animation — `offset` is what moves.
+    private func settle(open: Bool) {
+        withAnimation(.easeOut(duration: 0.22)) {
+            offset = open ? -actionWidth : 0
+        }
+
+        if open {
+            openRowID = rowID
+        } else if openRowID == rowID {
+            openRowID = nil
+        }
+    }
+
+    private func close() {
+        settle(open: false)
+    }
+}
+
+/// Carries a recipient row's measured height up to its swipe container.
+private struct RowHeightKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
+    }
+}
+
 struct ShareStoreView: View {
+    /// Which recipient list the sheet is currently showing.
+    private enum RecipientTab {
+        case family
+        case friends
+
+        var title: String { self == .family ? "Family" : "Friends" }
+        var icon: String { self == .family ? "house.fill" : "person.2.fill" }
+        var tint: Color { self == .family ? .purple : .appAccent }
+        var emptyMessage: String {
+            self == .family ? "No family members yet." : "No friends yet."
+        }
+    }
+
     // MARK: - PROPERTIES
 
     @Environment(\.dismiss) var dismiss
@@ -29,7 +199,8 @@ struct ShareStoreView: View {
     let userStoreItem: UserStoreItem
 
     @StateObject private var friendsViewModel = FriendsViewModel()
-    @State private var recipientEmail: String = ""
+    /// Observed so the header refreshes once a logo finishes downloading.
+    @ObservedObject private var logoProvider = StoreLogoProvider.shared
     @State private var selectedPermission: StorePermission = .edit
     @State private var isSharing: Bool = false
     @State private var showAlert: Bool = false
@@ -38,9 +209,17 @@ struct ShareStoreView: View {
     @State private var sharedUsers: [SharedUser] = []
     @State private var isLoadingSharedUsers: Bool = false
     @State private var reminderTitles: [String] = []
-    @State private var selectedFriend: Contact?
-    @State private var isSharingWithAllFamily: Bool = false
-    @State private var familyShareProgress: String = ""
+    /// Every recipient ticked in the list, across both tabs.
+    @State private var selectedContactIDs: Set<String> = []
+    @State private var showShareInfo: Bool = false
+    /// Nil until the user picks a tab, so the sheet can open on whichever list
+    /// actually has people in it.
+    @State private var recipientTab: RecipientTab?
+    @State private var shareProgress: String = ""
+    /// The sharer's profile picture, looked up from their user document.
+    @State private var sharedByPictureURL: String?
+    /// The single recipient row currently swiped open, if any.
+    @State private var openSwipeRowID: String?
 
     private let db = Firestore.firestore()
     private let messagingService = MessagingService.shared
@@ -55,75 +234,46 @@ struct ShareStoreView: View {
 
                 ScrollView {
                     VStack(spacing: 20) {
-                        // Store Info — hero header
+                        // Store Info — hero header, with the info bubble on the
+                        // same row and its explainer expanding underneath.
                         storeHeader
+
+                        if showShareInfo {
+                            shareInfoBubble
+                        }
 
                         // Show who shared the store with the current user (if applicable)
                         if let sharedByName = userStoreItem.sharedFromName {
                             sharedBySection(sharedByName: sharedByName)
                         }
 
-                        // Shared Users List
-                        if !sharedUsers.isEmpty {
-                            sharedWithSection
-                        }
-
                         // Only show sharing UI if user is the owner (not a recipient)
                         if userStoreItem.sharedFromName == nil {
-                            // Family Section
-                            if !friendsViewModel.familyMembers.isEmpty {
-                                familySection
+                            // Family / Friends picker and the matching list
+                            if !friendsViewModel.familyMembers.isEmpty || !friendsViewModel.friends.isEmpty {
+                                recipientSection
                             }
 
-                            // Friends Section
-                            if !friendsViewModel.friends.isEmpty {
-                                friendsSection
-                            }
-
-                            if selectedFriend != nil {
-                                selectedFriendChip
-                            }
-
-                            if !friendsViewModel.friends.isEmpty || !friendsViewModel.familyMembers.isEmpty {
-                                HStack {
-                                    Rectangle()
-                                        .fill(Color.secondary.opacity(0.25))
-                                        .frame(height: 1)
-                                    Text("or enter email manually")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                        .fixedSize()
-                                    Rectangle()
-                                        .fill(Color.secondary.opacity(0.25))
-                                        .frame(height: 1)
-                                }
-                                .padding(.vertical, 4)
-                            }
-
-                            // Email Input
-                            emailInputSection
-
-                            // Permission Selection
-                            permissionSection
-
-                            // Info Text
-                            infoCallout(
-                                icon: "info.circle.fill",
-                                tint: .appAccent,
-                                text: "A share request will be sent to the recipient's messages. They must accept before the store appears in their list. The recipient must have an account with the email address you provide."
-                            )
-
-                            // Show reminder count
-                            if !reminderTitles.isEmpty {
+                            // Sharing is friends/family only, so say what to do when
+                            // there is nobody to share with yet.
+                            if friendsViewModel.friends.isEmpty && friendsViewModel.familyMembers.isEmpty {
                                 infoCallout(
-                                    icon: "checklist",
-                                    tint: .appSuccess,
-                                    text: "\(reminderTitles.count) active reminder\(reminderTitles.count == 1 ? "" : "s") will be included with this store."
+                                    icon: "person.crop.circle.badge.plus",
+                                    tint: .appAccent,
+                                    text: "Add friends or family in the Friends tab to share this store with them."
                                 )
                             }
                         } // End of owner-only sharing UI
                     }
                     .padding(20)
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        // Tapping anywhere else puts an open swipe action away.
+                        guard openSwipeRowID != nil else { return }
+                        withAnimation(.easeOut(duration: 0.2)) {
+                            openSwipeRowID = nil
+                        }
+                    }
                 }
             }
             .navigationTitle("Share Store")
@@ -135,19 +285,6 @@ struct ShareStoreView: View {
                     }
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(action: {
-                        inviteFriends()
-                    }) {
-                        Image(systemName: "square.and.arrow.up.badge.checkmark")
-                    }
-                    .accessibilityLabel("Invite Friends")
-                }
-                // Break the shared Liquid Glass capsule so the invite button
-                // renders in its own circle, separate from the Share button.
-                if #available(iOS 26.0, *) {
-                    ToolbarSpacer(.fixed, placement: .navigationBarTrailing)
-                }
-                ToolbarItem(placement: .navigationBarTrailing) {
                     if isSharing {
                         ProgressView()
                     } else {
@@ -155,7 +292,7 @@ struct ShareStoreView: View {
                             shareStore()
                         }
                         .fontWeight(.semibold)
-                        .disabled(recipientEmail.trimmingCharacters(in: .whitespaces).isEmpty || isSharingWithAllFamily)
+                        .disabled(selectedContacts.isEmpty)
                     }
                 }
             }
@@ -163,7 +300,7 @@ struct ShareStoreView: View {
                 Button("OK") {
                     if alertTitle == "Success" {
                         fetchSharedUsers()
-                        recipientEmail = ""
+                        selectedContactIDs.removeAll()
                         dismiss()
                     }
                 }
@@ -173,6 +310,7 @@ struct ShareStoreView: View {
             .onAppear {
                 fetchSharedUsers()
                 fetchReminderTitles()
+                fetchSharedByPicture()
                 friendsViewModel.fetchFriendships()
             }
             .onDisappear {
@@ -183,55 +321,94 @@ struct ShareStoreView: View {
 
     // MARK: - SUBVIEWS
 
-    /// Hero header showing the store being shared.
+    /// Hero header showing the store being shared, with the info toggle pinned
+    /// to the trailing edge of the same row.
     private var storeHeader: some View {
         HStack(spacing: 16) {
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(Color.iconGradient)
-                .frame(width: 60, height: 60)
-                .overlay(
-                    Image(systemName: "cart.fill")
-                        .font(.system(size: 26, weight: .semibold))
-                        .foregroundStyle(.white)
-                )
-                .shadow(color: Color.appAccent.opacity(0.35), radius: 8, x: 0, y: 4)
+            storeLogoTile
 
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Sharing")
-                    .font(.caption)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(.secondary)
-                    .textCase(.uppercase)
+            Text(userStoreItem.store.name)
+                .font(.title2)
+                .fontWeight(.bold)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
 
-                Text(userStoreItem.store.name)
-                    .font(.title2)
-                    .fontWeight(.bold)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
+            Spacer(minLength: 8)
 
-                Text("All locations")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
-
-            Spacer(minLength: 0)
+            shareInfoButton
         }
-        .padding(18)
-        .cardStyle()
+    }
+
+    /// Toggles the share explainer. An inline bubble rather than a popover, which
+    /// the sheet's edge clipped.
+    private var shareInfoButton: some View {
+        Button {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                showShareInfo.toggle()
+            }
+        } label: {
+            Image(systemName: showShareInfo ? "info.circle.fill" : "info.circle")
+                .font(.title3)
+                .foregroundStyle(Color.appAccent)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("About sharing")
+    }
+
+    /// The share explainer, shown directly below the info button.
+    private var shareInfoBubble: some View {
+        Text("A share request will be sent to the recipient's messages. They must accept before the store is shared successfully for both users.")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(14)
+            .background(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(Color.appAccent.opacity(0.1))
+            )
+            .transition(.opacity.combined(with: .move(edge: .top)))
+    }
+
+    /// Store logo shown in the hero header, matching the logos used in `StoresView`.
+    /// Falls back to the generic cart tile while a logo downloads, or permanently when
+    /// no logo can be retrieved for this store.
+    private var storeLogoTile: some View {
+        Group {
+            if let logo = logoProvider.cachedImage(for: userStoreItem.store.name) {
+                Image(uiImage: logo)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 60, height: 60)
+                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .shadow(color: .black.opacity(0.18), radius: 8, x: 0, y: 4)
+            } else {
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(Color.iconGradient)
+                    .frame(width: 60, height: 60)
+                    .overlay(
+                        Image(systemName: "cart.fill")
+                            .font(.system(size: 26, weight: .semibold))
+                            .foregroundStyle(.white)
+                    )
+                    .shadow(color: Color.appAccent.opacity(0.35), radius: 8, x: 0, y: 4)
+            }
+        }
     }
 
     /// Section shown to a recipient describing who shared the store with them.
     private func sharedBySection(sharedByName: String) -> some View {
         sectionContainer(title: "Shared By", icon: "person.fill.badge.plus", tint: .appAccent) {
             HStack(spacing: 12) {
-                Circle()
-                    .fill(Color.appAccent.opacity(0.15))
-                    .frame(width: 44, height: 44)
-                    .overlay(
-                        Text(String(sharedByName.prefix(1)).uppercased())
-                            .font(.headline)
-                            .foregroundStyle(Color.appAccent)
-                    )
+                ProfilePictureView(profilePictureURL: sharedByPictureURL, size: 44) {
+                    Circle()
+                        .fill(Color.appAccent.opacity(0.15))
+                        .overlay(
+                            Text(String(sharedByName.prefix(1)).uppercased())
+                                .font(.headline)
+                                .foregroundStyle(Color.appAccent)
+                        )
+                }
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(sharedByName)
@@ -253,159 +430,141 @@ struct ShareStoreView: View {
         }
     }
 
-    /// List of users this store is currently shared with.
-    private var sharedWithSection: some View {
-        sectionContainer(title: "Shared With", icon: "person.2.fill", tint: .appSuccess) {
-            VStack(spacing: 10) {
-                ForEach(sharedUsers) { sharedUser in
-                    sharedUserRow(sharedUser)
-                }
+    /// Family / Friends picker, the permission chips, and the matching contacts.
+    private var recipientSection: some View {
+        VStack(spacing: 14) {
+            HStack(spacing: 10) {
+                recipientTabChip(.family)
+                recipientTabChip(.friends)
             }
+            .frame(maxWidth: .infinity)
+
+            permissionSection
+
+            if isSharing && !shareProgress.isEmpty {
+                HStack(spacing: 8) {
+                    ProgressView()
+                    Text(shareProgress)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(12)
+                .frame(maxWidth: .infinity)
+                .background(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(Color.purple.opacity(0.1))
+                )
+            }
+
+            recipientList
         }
+        .animation(.easeInOut(duration: 0.15), value: activeRecipientTab)
     }
 
-    /// A single row in the "Shared With" list.
-    private func sharedUserRow(_ sharedUser: SharedUser) -> some View {
-        let isView = sharedUser.permission == .view
-        let tint: Color = isView ? .appWarning : .appSuccess
+    /// The active tab's contacts, separated by hairlines rather than cards.
+    private var recipientList: some View {
+        VStack(spacing: 0) {
+            if activeRecipientTab == .family && !friendsViewModel.familyMembers.isEmpty {
+                allFamilyRow
 
-        return HStack(spacing: 12) {
-            Circle()
-                .fill(tint.opacity(0.15))
-                .frame(width: 44, height: 44)
-                .overlay(
-                    Image(systemName: isView ? "eye.fill" : "person.fill.checkmark")
-                        .foregroundStyle(tint)
-                )
+                if !activeRecipientContacts.isEmpty {
+                    Divider()
+                }
+            }
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text(sharedUser.userEmail)
+            ForEach(Array(activeRecipientContacts.enumerated()), id: \.element.id) { item in
+                contactRow(contact: item.element, tint: activeRecipientTab.tint)
+
+                if item.offset < activeRecipientContacts.count - 1 {
+                    Divider()
+                }
+            }
+
+            if activeRecipientContacts.isEmpty {
+                Text(activeRecipientTab.emptyMessage)
                     .font(.subheadline)
-                    .fontWeight(.medium)
-                    .lineLimit(1)
-
-                Text(isView ? "View Only" : "Can Edit")
-                    .font(.caption)
                     .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.vertical, 12)
             }
-
-            Spacer(minLength: 0)
-
-            Button(action: {
-                unshareWithUser(sharedUser)
-            }) {
-                Image(systemName: "xmark.circle.fill")
-                    .font(.title3)
-                    .foregroundStyle(Color.appError.opacity(0.8))
-            }
-            .buttonStyle(.plain)
         }
-        .padding(12)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 4)
+        // Off-white for both tabs, so the list reads as a sheet of its own
+        // against the gradient background.
         .background(
-            // Sits inside a card, which light mode lightens — the old 0.03 fill
-            // washed out against it, leaving the rows with no visible boundary.
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(Color.primary.opacity(0.06))
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(recipientListBackground)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .stroke(Color.secondary.opacity(0.18), lineWidth: 1)
         )
     }
 
-    /// Horizontally scrolling family member avatars.
-    private var familySection: some View {
-        sectionContainer(title: "Share with Family", icon: "house.fill", tint: .purple) {
-            VStack(alignment: .leading, spacing: 12) {
-                if isSharingWithAllFamily {
-                    HStack(spacing: 8) {
-                        ProgressView()
-                        Text(familyShareProgress)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    }
-                    .padding(12)
-                    .frame(maxWidth: .infinity)
-                    .background(
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .fill(Color.purple.opacity(0.1))
-                    )
-                }
-
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 16) {
-                        allFamilyButton
-
-                        ForEach(friendsViewModel.familyMembers) { friendship in
-                            contactAvatarButton(
-                                contact: friendship.toContact(currentUserId: currentUserId),
-                                tint: .purple,
-                                badge: "house.fill"
-                            )
-                        }
-                    }
-                    .padding(.vertical, 4)
-                }
-            }
+    /// One tab of the Family / Friends picker.
+    private func recipientTabChip(_ tab: RecipientTab) -> some View {
+        selectionChip(
+            title: tab.title,
+            icon: tab.icon,
+            tint: tab.tint,
+            isSelected: activeRecipientTab == tab
+        ) {
+            recipientTab = tab
         }
     }
 
-    /// The "All Family" quick-share chip.
-    private var allFamilyButton: some View {
-        Button(action: {
-            shareWithAllFamily()
-        }) {
-            avatarChip(
-                name: "All Family",
-                isShared: allFamilyAlreadyShared,
-                tint: .purple,
+    /// Ticks (or unticks) every family member who hasn't been shared with yet.
+    /// It only changes the selection — Share is what sends the requests.
+    private var allFamilyRow: some View {
+        Button {
+            toggleAllFamily()
+        } label: {
+            recipientRowLayout(
                 avatar: AnyView(
                     Circle()
                         .fill(Color.purple.opacity(0.15))
+                        .frame(width: 44, height: 44)
                         .overlay(
                             Image(systemName: "person.3.fill")
-                                .font(.system(size: 18))
+                                .font(.system(size: 16))
                                 .foregroundStyle(.purple)
                         )
-                )
+                ),
+                name: "All Family",
+                isShared: allFamilyAlreadyShared,
+                isSelected: allFamilySelected,
+                tint: .purple
             )
         }
         .buttonStyle(.plain)
-        .disabled(isSharingWithAllFamily || isSharing || allFamilyAlreadyShared)
+        .disabled(isSharing || allFamilyAlreadyShared)
     }
 
-    /// Horizontally scrolling friend avatars.
-    private var friendsSection: some View {
-        sectionContainer(title: "Share with Friends", icon: "person.2.fill", tint: .appAccent) {
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 16) {
-                    ForEach(friendsViewModel.friends) { friendship in
-                        contactAvatarButton(
-                            contact: friendship.toContact(currentUserId: currentUserId),
-                            tint: .appAccent
-                        )
-                    }
-                }
-                .padding(.vertical, 4)
-            }
+    /// One recipient in the list. Tapping it ticks or unticks them; once the store
+    /// is shared with them, swiping left reveals Remove instead.
+    private func contactRow(contact: Contact, tint: Color) -> some View {
+        let isShared = isAlreadyShared(contact)
+
+        return SwipeToRemoveRow(
+            rowID: contact.id,
+            isEnabled: isShared,
+            openRowID: $openSwipeRowID,
+            onRemove: { unshare(contact) }
+        ) {
+            contactRowButton(contact: contact, tint: tint, isShared: isShared)
         }
     }
 
-    /// A tappable avatar button for a single contact, used by the family and
-    /// friends rows. Selecting it pre-fills the recipient email.
-    private func contactAvatarButton(contact: Contact, tint: Color, badge: String? = nil) -> some View {
-        let isAlreadyShared = sharedUsers.contains { $0.userEmail.lowercased() == contact.email.lowercased() }
-
-        return Button(action: {
-            if !isAlreadyShared {
-                selectedFriend = contact
-                recipientEmail = contact.email
-            }
-        }) {
-            avatarChip(
-                name: contact.name,
-                isShared: isAlreadyShared,
-                tint: tint,
-                badge: badge,
-                badgeTint: tint,
+    /// The tappable body of a recipient row.
+    private func contactRowButton(contact: Contact, tint: Color, isShared: Bool) -> some View {
+        Button {
+            guard !isShared else { return }
+            toggleSelection(of: contact)
+        } label: {
+            recipientRowLayout(
                 avatar: AnyView(
-                    ProfilePictureView(profilePictureURL: contact.profilePictureURL, size: 56) {
+                    ProfilePictureView(profilePictureURL: contact.profilePictureURL, size: 44) {
                         Circle()
                             .fill(tint.opacity(0.15))
                             .overlay(
@@ -414,101 +573,145 @@ struct ShareStoreView: View {
                                     .foregroundStyle(tint)
                             )
                     }
-                )
+                ),
+                name: contact.name,
+                isShared: isShared,
+                isSelected: selectedContactIDs.contains(contact.id),
+                tint: tint
             )
         }
         .buttonStyle(.plain)
-        .disabled(isAlreadyShared)
     }
 
-    /// Chip confirming the currently selected friend/family recipient.
-    private var selectedFriendChip: some View {
-        HStack(spacing: 10) {
-            Image(systemName: "person.fill.checkmark")
-                .foregroundStyle(Color.appAccent)
-            Text("Selected: \(selectedFriend?.name ?? "")")
+    /// The name colour for a recipient row across its three states.
+    private func rowNameColor(isShared: Bool, isSelected: Bool, tint: Color) -> Color {
+        if isShared { return .secondary }
+        return isSelected ? tint : .primary
+    }
+
+    /// The row chrome shared by the contact rows and the All Family shortcut.
+    /// `avatar` is type-erased to keep the call sites' type-checking cheap.
+    private func recipientRowLayout(
+        avatar: AnyView,
+        name: String,
+        isShared: Bool,
+        isSelected: Bool,
+        tint: Color
+    ) -> some View {
+        HStack(spacing: 12) {
+            avatar
+
+            Text(name)
                 .font(.subheadline)
-                .fontWeight(.medium)
+                .fontWeight(isSelected ? .semibold : .medium)
+                .foregroundStyle(rowNameColor(isShared: isShared, isSelected: isSelected, tint: tint))
+                .lineLimit(1)
+
             Spacer(minLength: 0)
-            Button(action: {
-                selectedFriend = nil
-                recipientEmail = ""
-            }) {
-                Image(systemName: "xmark.circle.fill")
-                    .foregroundStyle(.secondary)
+
+            if isShared {
+                Text("Shared")
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(Color.appSuccess)
+            } else if isSelected {
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundStyle(tint)
             }
-            .buttonStyle(.plain)
         }
-        .padding(14)
-        .background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(Color.appAccent.opacity(0.12))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .stroke(Color.appAccent.opacity(0.3), lineWidth: 1)
-                )
-        )
+        .padding(.vertical, 10)
+        .contentShape(Rectangle())
+        .opacity(isShared ? 0.6 : 1)
     }
 
-    /// Manual email entry.
-    private var emailInputSection: some View {
-        sectionContainer(title: "Recipient's Email", icon: "envelope.fill", tint: .appAccent) {
-            TextField("Enter email address", text: $recipientEmail)
-                .textInputAutocapitalization(.never)
-                .keyboardType(.emailAddress)
-                .autocorrectionDisabled()
-                .padding(14)
-                .background(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .fill(Color.primary.opacity(colorScheme == .dark ? 0.08 : 0.07))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                .stroke(Color.secondary.opacity(0.35), lineWidth: 1)
-                        )
-                )
-                .onChange(of: recipientEmail) { _, newValue in
-                    // Clear selected friend if email changes
-                    if selectedFriend != nil && newValue != selectedFriend?.email {
-                        selectedFriend = nil
-                    }
-                }
-        }
-    }
-
-    /// Permission picker plus an explanation of the selected mode.
+    /// The recipient's access level, as one segmented control so it reads as a
+    /// single smaller control beneath the Family / Friends tabs.
     private var permissionSection: some View {
-        sectionContainer(title: "Permission", icon: "lock.shield.fill", tint: .appAccent) {
-            VStack(alignment: .leading, spacing: 12) {
-                Picker("Permission", selection: $selectedPermission) {
-                    Text("Can Edit").tag(StorePermission.edit)
-                    Text("View Only").tag(StorePermission.view)
-                }
-                .pickerStyle(.segmented)
-
-                HStack(alignment: .top, spacing: 10) {
-                    Image(systemName: selectedPermission == .edit ? "pencil.circle.fill" : "eye.circle.fill")
-                        .foregroundStyle(selectedPermission == .edit ? Color.appSuccess : Color.appWarning)
-
-                    Text(selectedPermission == .edit
-                        ? "Can Edit: Recipient gets full ownership. Changes and deletions sync between both users."
-                        : "View Only: Recipient can view reminders but cannot edit, share, delete, or check them off.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                .padding(12)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .fill((selectedPermission == .edit ? Color.appSuccess : Color.appWarning).opacity(0.1))
-                )
-            }
+        HStack(spacing: 4) {
+            permissionSegment(.edit, title: "Can Edit", icon: "pencil", tint: .appSuccess)
+            permissionSegment(.view, title: "View Only", icon: "eye", tint: .appWarning)
         }
+        .padding(4)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(Color.primary.opacity(0.06))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(Color.secondary.opacity(0.25), lineWidth: 1)
+        )
+        .frame(maxWidth: .infinity)
+        .animation(.easeInOut(duration: 0.15), value: selectedPermission)
+    }
+
+    /// One segment of the permission control.
+    private func permissionSegment(
+        _ permission: StorePermission,
+        title: String,
+        icon: String,
+        tint: Color
+    ) -> some View {
+        let isSelected = selectedPermission == permission
+
+        return Button {
+            selectedPermission = permission
+        } label: {
+            HStack(spacing: 4) {
+                Image(systemName: icon)
+                    .font(.caption2)
+                    .fontWeight(.semibold)
+                Text(title)
+                    .font(.caption)
+                    .fontWeight(.semibold)
+            }
+            .foregroundStyle(isSelected ? Color.white : Color.secondary)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(
+                RoundedRectangle(cornerRadius: 9, style: .continuous)
+                    .fill(isSelected ? tint : Color.clear)
+            )
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(isSelected ? [.isSelected] : [])
+    }
+
+    /// The capsule used by the Family / Friends tabs.
+    private func selectionChip(
+        title: String,
+        icon: String,
+        tint: Color,
+        isSelected: Bool,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                Image(systemName: icon)
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                Text(title)
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+            }
+            .foregroundStyle(isSelected ? Color.white : Color.secondary)
+            .padding(.horizontal, 18)
+            .padding(.vertical, 11)
+            .background(
+                Capsule()
+                    .fill(isSelected ? tint : Color.primary.opacity(0.06))
+            )
+            .overlay(
+                Capsule()
+                    .stroke(isSelected ? Color.clear : Color.secondary.opacity(0.3), lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(isSelected ? [.isSelected] : [])
     }
 
     // MARK: - Reusable building blocks
 
-    /// A titled card container used by most sections.
+    /// A titled card container used by the Shared By / Shared With sections.
     private func sectionContainer<Content: View>(
         title: String,
         icon: String,
@@ -548,61 +751,6 @@ struct ShareStoreView: View {
             )
     }
 
-    /// A circular avatar chip with a name label and a shared/selectable state.
-    /// `avatar` is type-erased to keep the call sites' type-checking cheap.
-    private func avatarChip(
-        name: String,
-        isShared: Bool,
-        tint: Color,
-        badge: String? = nil,
-        badgeTint: Color = .purple,
-        avatar: AnyView
-    ) -> some View {
-        VStack(spacing: 8) {
-            ZStack(alignment: .bottomTrailing) {
-                avatarCircle(isShared: isShared, avatar: avatar)
-
-                if let badge, !isShared {
-                    Image(systemName: badge)
-                        .font(.system(size: 9))
-                        .foregroundStyle(.white)
-                        .padding(4)
-                        .background(badgeTint)
-                        .clipShape(Circle())
-                        .overlay(Circle().stroke(Color(.systemBackground), lineWidth: 1.5))
-                        .offset(x: 2, y: 2)
-                }
-            }
-
-            Text(name)
-                .font(.caption)
-                .foregroundStyle(isShared ? Color.secondary : Color.primary)
-                .lineLimit(1)
-                .frame(width: 64)
-        }
-        .opacity(isShared ? 0.7 : 1.0)
-    }
-
-    /// The 56pt circular avatar, showing a checkmark when already shared.
-    @ViewBuilder
-    private func avatarCircle(isShared: Bool, avatar: AnyView) -> some View {
-        Group {
-            if isShared {
-                Circle()
-                    .fill(Color.appSuccess.opacity(0.18))
-                    .overlay(
-                        Image(systemName: "checkmark")
-                            .font(.system(size: 18, weight: .bold))
-                            .foregroundStyle(Color.appSuccess)
-                    )
-            } else {
-                avatar
-            }
-        }
-        .frame(width: 56, height: 56)
-        .clipShape(Circle())
-    }
-
     /// A tinted informational callout row.
     private func infoCallout(icon: String, tint: Color, text: String) -> some View {
         HStack(alignment: .top, spacing: 10) {
@@ -627,24 +775,126 @@ struct ShareStoreView: View {
         viewModel.sessionManager.currentUser?.userId ?? ""
     }
 
-    private var allFamilyAlreadyShared: Bool {
-        friendsViewModel.familyMembers.allSatisfy { friendship in
-            let contact = friendship.toContact(currentUserId: currentUserId)
-            return sharedUsers.contains { $0.userEmail.lowercased() == contact.email.lowercased() }
+    /// The tab in effect. Until the user taps one, open on Friends when there is
+    /// no family to show, so the sheet never lands on an empty list.
+    private var activeRecipientTab: RecipientTab {
+        if let recipientTab {
+            return recipientTab
         }
+        return friendsViewModel.familyMembers.isEmpty && !friendsViewModel.friends.isEmpty
+            ? .friends
+            : .family
+    }
+
+    private func isAlreadyShared(_ contact: Contact) -> Bool {
+        sharedUser(for: contact) != nil
+    }
+
+    /// The share record for a contact, when the store is shared with them.
+    private func sharedUser(for contact: Contact) -> SharedUser? {
+        sharedUsers.first { $0.userEmail.lowercased() == contact.email.lowercased() }
+    }
+
+    /// The recipient list's panel colour. Off-white in light mode; dark mode gets
+    /// the system's equivalent so the row text stays legible.
+    private var recipientListBackground: Color {
+        colorScheme == .dark
+            ? Color(.secondarySystemBackground)
+            : Color(red: 0.98, green: 0.98, blue: 0.97)
+    }
+
+    /// Every contact the sheet can share with, across both tabs.
+    private var allSelectableContacts: [Contact] {
+        (friendsViewModel.familyMembers + friendsViewModel.friends)
+            .map { $0.toContact(currentUserId: currentUserId) }
+    }
+
+    /// The ticked contacts, minus anyone the store is already shared with.
+    private var selectedContacts: [Contact] {
+        allSelectableContacts.filter {
+            selectedContactIDs.contains($0.id) && !isAlreadyShared($0)
+        }
+    }
+
+    /// Family members still available to share with.
+    private var unsharedFamilyContacts: [Contact] {
+        friendsViewModel.familyMembers
+            .map { $0.toContact(currentUserId: currentUserId) }
+            .filter { !isAlreadyShared($0) }
+    }
+
+    /// True once every shareable family member is ticked.
+    private var allFamilySelected: Bool {
+        !unsharedFamilyContacts.isEmpty
+            && unsharedFamilyContacts.allSatisfy { selectedContactIDs.contains($0.id) }
+    }
+
+    /// The contacts listed under the active tab.
+    private var activeRecipientContacts: [Contact] {
+        let friendships = activeRecipientTab == .family
+            ? friendsViewModel.familyMembers
+            : friendsViewModel.friends
+        return friendships.map { $0.toContact(currentUserId: currentUserId) }
+    }
+
+    private var allFamilyAlreadyShared: Bool {
+        unsharedFamilyContacts.isEmpty
     }
 
     // MARK: - FUNCTIONS
 
-    /// Copies Allim's App Store link so the user can invite friends who don't have the app yet.
-    private func inviteFriends() {
-        AppInvite.copyLinkToClipboard()
-        alertTitle = "Invite Friends"
-        alertMessage = AppInvite.linkCopiedMessage
-        showAlert = true
+    /// Revokes a recipient's access from their row.
+    private func unshare(_ contact: Contact) {
+        openSwipeRowID = nil
+        guard let sharedUser = sharedUser(for: contact) else { return }
+        unshareWithUser(sharedUser)
     }
 
-    private func shareWithAllFamily() {
+    /// Looks up the sharer's profile picture so their avatar matches the rest of
+    /// the app rather than falling back to an initial.
+    private func fetchSharedByPicture() {
+        guard let sharerId = userStoreItem.sharedFromId, !sharerId.isEmpty else { return }
+
+        db.collection("users").document(sharerId).getDocument { snapshot, error in
+            if let error = error {
+                #if DEBUG
+                print("ShareStoreView: Error fetching sharer profile: \(error.localizedDescription)")
+                #endif
+                return
+            }
+            guard let url = snapshot?.data()?["profilePictureURL"] as? String, !url.isEmpty else {
+                return
+            }
+            self.sharedByPictureURL = url
+        }
+    }
+
+    private func toggleSelection(of contact: Contact) {
+        if openSwipeRowID != nil {
+            withAnimation(.easeOut(duration: 0.2)) {
+                openSwipeRowID = nil
+            }
+        }
+
+        if selectedContactIDs.contains(contact.id) {
+            selectedContactIDs.remove(contact.id)
+        } else {
+            selectedContactIDs.insert(contact.id)
+        }
+    }
+
+    /// Ticks every shareable family member, or clears them if all are already ticked.
+    private func toggleAllFamily() {
+        let ids = unsharedFamilyContacts.map(\.id)
+        if allFamilySelected {
+            selectedContactIDs.subtract(ids)
+        } else {
+            selectedContactIDs.formUnion(ids)
+        }
+    }
+
+    /// Sends a share request to every ticked recipient.
+    private func shareStore() {
         guard let currentUserName = viewModel.sessionManager.currentUser?.name else {
             alertTitle = "Error"
             alertMessage = "No user data available."
@@ -652,32 +902,26 @@ struct ShareStoreView: View {
             return
         }
 
-        let userId = viewModel.sessionManager.currentUser?.userId ?? ""
-        let permissionString = selectedPermission == .edit ? "edit" : "view"
+        let recipients = selectedContacts
 
-        // Get all family members who haven't been shared with yet
-        let unsahredFamily = friendsViewModel.familyMembers.compactMap { friendship -> Contact? in
-            let contact = friendship.toContact(currentUserId: userId)
-            let isAlreadyShared = sharedUsers.contains { $0.userEmail.lowercased() == contact.email.lowercased() }
-            return isAlreadyShared ? nil : contact
-        }
-
-        guard !unsahredFamily.isEmpty else {
-            alertTitle = "Already Shared"
-            alertMessage = "This store is already shared with all family members."
+        guard !recipients.isEmpty else {
+            alertTitle = "No Recipients"
+            alertMessage = "Select at least one family member or friend to share with."
             showAlert = true
             return
         }
 
-        isSharingWithAllFamily = true
-        familyShareProgress = "Sharing with 0/\(unsahredFamily.count) family members..."
+        let permissionString = selectedPermission == .edit ? "edit" : "view"
+        let total = recipients.count
+
+        isSharing = true
+        shareProgress = "Sharing with 0/\(total)..."
 
         var successCount = 0
         var failCount = 0
-        let total = unsahredFamily.count
         let group = DispatchGroup()
 
-        for contact in unsahredFamily {
+        for contact in recipients {
             group.enter()
 
             // Send the share regardless of whether the recipient already has the store —
@@ -689,130 +933,36 @@ struct ShareStoreView: View {
                 currentUserName: currentUserName,
                 reminderTitles: reminderTitles
             ) { success in
-                if success {
-                    successCount += 1
-                } else {
-                    failCount += 1
-                }
                 DispatchQueue.main.async {
-                    familyShareProgress = "Sharing with \(successCount + failCount)/\(total) family members..."
+                    if success {
+                        successCount += 1
+                    } else {
+                        failCount += 1
+                    }
+                    shareProgress = "Sharing with \(successCount + failCount)/\(total)..."
+                    group.leave()
                 }
-                group.leave()
             }
         }
 
         group.notify(queue: .main) {
-            isSharingWithAllFamily = false
-            familyShareProgress = ""
+            isSharing = false
+            shareProgress = ""
             fetchSharedUsers()
-            selectedFriend = nil
-            recipientEmail = ""
 
             if successCount == total {
                 alertTitle = "Success"
-                alertMessage = "Share requests sent to all \(total) family member(s)! They will see it in their messages."
+                alertMessage = total == 1
+                    ? "Share request sent! The recipient will see it in their messages and can accept or decline."
+                    : "Share requests sent to \(total) people! They will see it in their messages."
             } else if successCount > 0 {
                 alertTitle = "Partially Shared"
-                alertMessage = "Shared with \(successCount) of \(total) family members. \(failCount) could not be shared (may already have this store)."
+                alertMessage = "Shared with \(successCount) of \(total) recipients. \(failCount) could not be shared (they may already have this store)."
             } else {
                 alertTitle = "Error"
-                alertMessage = "Failed to share with family members. They may already have this store."
+                alertMessage = "Failed to send the share requests. Please try again."
             }
             showAlert = true
-        }
-    }
-
-    private func shareStore() {
-        #if DEBUG
-        print("ShareStoreView: shareStore() called - NEW MESSAGE-BASED FLOW")
-        #endif
-
-        // Validate email format
-        guard isValidEmail(recipientEmail) else {
-            alertTitle = "Invalid Email"
-            alertMessage = "Please enter a valid email address."
-            showAlert = true
-            return
-        }
-
-        guard let currentUserId = viewModel.sessionManager.currentUser?.userId,
-              let currentUserName = viewModel.sessionManager.currentUser?.name else {
-            alertTitle = "Error"
-            alertMessage = "No user data available."
-            showAlert = true
-            return
-        }
-
-        let cleanedEmail = recipientEmail.lowercased().trimmingCharacters(in: .whitespaces)
-
-        // Check if trying to share with self
-        if cleanedEmail == viewModel.sessionManager.currentUser?.email.lowercased() {
-            alertTitle = "Error"
-            alertMessage = "You cannot share a store with yourself."
-            showAlert = true
-            return
-        }
-
-        isSharing = true
-        #if DEBUG
-        print("ShareStoreView: Looking up user by email: \(cleanedEmail)")
-        #endif
-
-        // First, find the recipient user by email
-        messagingService.searchUserByEmail(cleanedEmail) { [self] result in
-            switch result {
-            case .success(let contact):
-                guard let contact = contact else {
-                    DispatchQueue.main.async {
-                        self.isSharing = false
-                        self.alertTitle = "Error"
-                        self.alertMessage = "No user found with this email address. Make sure the recipient has an account."
-                        self.showAlert = true
-                    }
-                    return
-                }
-
-                #if DEBUG
-                print("ShareStoreView: Found contact: \(contact.name) (\(contact.id))")
-                #endif
-
-                // Send the store share request via messaging.
-                // Even if the recipient already has this store we allow the share —
-                // they will be prompted to merge their reminder lists on acceptance.
-                let permissionString = self.selectedPermission == .edit ? "edit" : "view"
-                self.messagesViewModel.shareStore(
-                    userStoreItem: self.userStoreItem,
-                    to: contact,
-                    permission: permissionString,
-                    currentUserName: currentUserName,
-                    reminderTitles: self.reminderTitles
-                ) { success in
-                    #if DEBUG
-                    print("ShareStoreView: messagesViewModel.shareStore completed with success=\(success)")
-                    #endif
-                    DispatchQueue.main.async {
-                        self.isSharing = false
-
-                        if success {
-                            self.alertTitle = "Success"
-                            self.alertMessage = "Share request sent! The recipient will see it in their messages and can accept or decline."
-                        } else {
-                            self.alertTitle = "Error"
-                            self.alertMessage = "Failed to send share request. Please try again."
-                        }
-
-                        self.showAlert = true
-                    }
-                }
-
-            case .failure(let error):
-                DispatchQueue.main.async {
-                    self.isSharing = false
-                    self.alertTitle = "Error"
-                    self.alertMessage = "Error finding recipient: \(error.localizedDescription)"
-                    self.showAlert = true
-                }
-            }
         }
     }
 
@@ -839,12 +989,6 @@ struct ShareStoreView: View {
                     self.reminderTitles = titles
                 }
             }
-    }
-
-    private func isValidEmail(_ email: String) -> Bool {
-        let emailRegex = "[A-Z0-9a-z._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,64}"
-        let emailPredicate = NSPredicate(format: "SELF MATCHES %@", emailRegex)
-        return emailPredicate.evaluate(with: email)
     }
 
     private func fetchSharedUsers() {
