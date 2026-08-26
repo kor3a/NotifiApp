@@ -54,8 +54,8 @@ struct ConversationView: View {
                             if (index + 1) % 5 == 0 && !subscriptionManager.isSubscribed {
                                 BannerAdView(adUnitID: kBannerAdUnitID)
                                     .frame(height: 50)
-                                    .background(Color(.systemBackground).opacity(0.95))
-                                    .cornerRadius(8)
+                                    .background(OrganicPalette.surface(colorScheme))
+                                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                                     .padding(.vertical, 4)
                             }
                         }
@@ -108,14 +108,19 @@ struct ConversationView: View {
             if !subscriptionManager.isSubscribed {
                 BannerAdView(adUnitID: kBannerAdUnitID)
                     .frame(height: 50)
-                    .background(Color(.systemBackground).opacity(0.95))
+                    .background(OrganicPalette.canvas(colorScheme))
             }
 
             // Input bar
             inputBar
         }
-        .background(SurfaceBackground(surface: .conversation(id: conversation.id)))
+        .background(SurfaceBackground(
+            surface: .conversation(id: conversation.id),
+            systemDefault: OrganicPalette.canvas(colorScheme)
+        ))
         .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackground(OrganicPalette.canvas(colorScheme), for: .navigationBar)
+        .tint(OrganicPalette.terracotta(colorScheme))
         .toolbar {
             ToolbarItem(placement: .principal) {
                 Button(action: {
@@ -123,17 +128,17 @@ struct ConversationView: View {
                 }) {
                     VStack(spacing: 1) {
                         Text(conversation.displayName(currentUserId: currentUserId))
-                            .font(.headline)
-                            .foregroundColor(.primary)
+                            .font(.system(size: 17, weight: .bold, design: .serif))
+                            .foregroundColor(OrganicPalette.ink(colorScheme))
 
                         if conversation.isGroupConversation {
                             Text("\(conversation.participantIds.count) members")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
+                                .font(.system(size: 12))
+                                .foregroundColor(OrganicPalette.inkSoft(colorScheme))
                         } else if let otherId = conversation.otherParticipantId(currentUserId: currentUserId) {
                             Text("@\(otherId)")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
+                                .font(.system(size: 12))
+                                .foregroundColor(OrganicPalette.inkSoft(colorScheme))
                         }
                     }
                 }
@@ -165,7 +170,8 @@ struct ConversationView: View {
             // Keyed to this conversation, so every chat keeps its own look.
             BackgroundPickerView(
                 surface: .conversation(id: conversation.id),
-                title: conversation.displayName(currentUserId: currentUserId)
+                title: conversation.displayName(currentUserId: currentUserId),
+                systemDefault: OrganicPalette.canvas(colorScheme)
             )
         }
         .sheet(isPresented: $showGroupInfo) {
@@ -211,7 +217,7 @@ struct ConversationView: View {
                 Text(viewModel.isLoadingMore ? "Loading..." : "Load earlier messages")
                     .font(.subheadline)
             }
-            .foregroundColor(.secondary)
+            .foregroundColor(OrganicPalette.inkSoft(colorScheme))
             .padding(.vertical, 8)
             .frame(maxWidth: .infinity)
         }
@@ -248,8 +254,8 @@ struct ConversationView: View {
                     .padding(.vertical, 8)
                 }
                 .background(
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .fill(colorScheme == .dark ? Color.white.opacity(0.05) : Color.gray.opacity(0.07))
+                    RoundedRectangle(cornerRadius: 20, style: .continuous)
+                        .fill(OrganicPalette.surface(colorScheme))
                 )
                 .padding(.horizontal)
                 .padding(.top, 8)
@@ -262,40 +268,56 @@ struct ConversationView: View {
                     showImagePicker = true
                 } label: {
                     Image(systemName: "photo")
-                        .font(.system(size: 22))
-                        .foregroundColor(.appAccent)
+                        .font(.system(size: 21))
+                        .foregroundColor(OrganicPalette.terracotta(colorScheme))
                         .frame(width: 32, height: 32)
                 }
                 .disabled(isSendingPhoto)
 
-                TextField("Type a message...", text: $messageText, axis: .vertical)
-                    .textFieldStyle(.plain)
-                    .padding(.vertical, 6)
-                    .focused($isInputFocused)
-                    .lineLimit(1...5)
+                TextField(
+                    "",
+                    text: $messageText,
+                    prompt: Text("Type a message\u{2026}")
+                        .foregroundColor(OrganicPalette.inkSoft(colorScheme).opacity(0.8)),
+                    axis: .vertical
+                )
+                .textFieldStyle(.plain)
+                .font(.system(size: 17))
+                .foregroundColor(OrganicPalette.ink(colorScheme))
+                .padding(.vertical, 6)
+                .focused($isInputFocused)
+                .lineLimit(1...5)
 
                 // Send button (inside the field, on the right)
                 if isSendingPhoto {
                     ProgressView()
-                        .frame(width: 32, height: 32)
+                        .tint(OrganicPalette.terracotta(colorScheme))
+                        .frame(width: 34, height: 34)
                 } else {
                     Button(action: sendMessage) {
-                        Image(systemName: "arrow.up.circle.fill")
-                            .font(.system(size: 32))
-                            .foregroundColor(canSend ? .appAccent : .gray)
+                        Image(systemName: "arrow.up")
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundColor(.white)
+                            .frame(width: 34, height: 34)
+                            .background(
+                                Circle().fill(
+                                    canSend
+                                        ? OrganicPalette.terracotta(colorScheme)
+                                        : OrganicPalette.inkSoft(colorScheme).opacity(0.35)
+                                )
+                            )
                     }
+                    .buttonStyle(.plain)
                     .disabled(!canSend)
+                    .accessibilityLabel("Send")
                 }
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
             .background(
-                RoundedRectangle(cornerRadius: 24, style: .continuous)
-                    .fill(colorScheme == .dark ? Color.white.opacity(0.1) : Color.white)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 24, style: .continuous)
-                            .stroke(Color.gray.opacity(0.3), lineWidth: 1)
-                    )
+                Capsule()
+                    .fill(OrganicPalette.surface(colorScheme))
+                    .shadow(color: OrganicPalette.shadow(colorScheme), radius: 8, x: 0, y: 3)
             )
             .padding(.horizontal)
             .padding(.vertical, 8)
@@ -360,10 +382,9 @@ struct MessageBubble: View {
                 // Sender name label (group conversations only, incoming messages)
                 if showSenderName && !isFromCurrentUser {
                     Text(message.senderName)
-                        .font(.caption)
-                        .fontWeight(.semibold)
-                        .foregroundColor(.secondary)
-                        .padding(.horizontal, 4)
+                        .font(.system(size: 12, weight: .bold, design: .serif))
+                        .foregroundColor(OrganicPalette.inkSoft(colorScheme))
+                        .padding(.horizontal, 6)
                 }
 
                 // Linked reminder card if present
@@ -394,20 +415,32 @@ struct MessageBubble: View {
                 // Message content (only show if non-empty)
                 if !message.content.isEmpty {
                     Text(message.content)
+                        .font(.system(size: 16))
                         .textSelection(.enabled)
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 10)
+                        .padding(.horizontal, 15)
+                        .padding(.vertical, 11)
                         .background(
-                            RoundedRectangle(cornerRadius: 18)
-                                .fill(isFromCurrentUser ? Color.appAccent : (colorScheme == .dark ? Color.white.opacity(0.15) : Color.white))
+                            // Bubbles carry their own fill because the chat
+                            // backdrop is the user's to choose — it can be any
+                            // palette color, or a photo.
+                            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                                .fill(
+                                    isFromCurrentUser
+                                        ? OrganicPalette.terracotta(colorScheme)
+                                        : OrganicPalette.surface(colorScheme)
+                                )
+                                .shadow(color: OrganicPalette.shadow(colorScheme), radius: 6, x: 0, y: 2)
                         )
-                        .foregroundColor(isFromCurrentUser ? .white : .primary)
+                        .foregroundColor(
+                            isFromCurrentUser ? .white : OrganicPalette.ink(colorScheme)
+                        )
                 }
 
                 // Timestamp
                 Text(formatTime(message.createdAt))
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
+                    .font(.system(size: 11))
+                    .foregroundColor(OrganicPalette.inkSoft(colorScheme))
+                    .padding(.horizontal, 6)
             }
 
             if !isFromCurrentUser { Spacer(minLength: 60) }
@@ -419,6 +452,107 @@ struct MessageBubble: View {
         let formatter = DateFormatter()
         formatter.dateFormat = "h:mm a"
         return formatter.string(from: date)
+    }
+}
+
+// MARK: - Shared Item Card Chrome
+
+/// The Accepted / Declined badge on a shared reminder or store. Both outcomes
+/// stay quiet — the card has already been dealt with, so neither needs the
+/// weight of a saturated status color.
+private struct ShareStatusBadge: View {
+    let text: String
+    let isAccepted: Bool
+
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        Text(text)
+            .font(.system(size: 11, weight: .bold))
+            .foregroundColor(
+                isAccepted
+                    ? OrganicPalette.sageInk(colorScheme)
+                    : OrganicPalette.inkSoft(colorScheme)
+            )
+            .padding(.horizontal, 9)
+            .padding(.vertical, 3)
+            .background(
+                Capsule().fill(
+                    isAccepted
+                        ? OrganicPalette.sage(colorScheme)
+                        : OrganicPalette.outline(colorScheme).opacity(0.4)
+                )
+            )
+    }
+}
+
+/// The Accept / Decline pair shared by the reminder and store cards. Accept is
+/// the solid one because it's the answer the sender is hoping for; declining
+/// stays an outline so it never reads as the recommended move.
+private struct ShareActionButtons: View {
+    let isProcessing: Bool
+    let onAccept: () -> Void
+    let onDecline: () -> Void
+
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Button(action: onAccept) {
+                HStack(spacing: 5) {
+                    if isProcessing {
+                        ProgressView()
+                            .tint(.white)
+                            .scaleEffect(0.7)
+                    } else {
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 11, weight: .bold))
+                    }
+                    Text("Accept")
+                        .font(.system(size: 14, weight: .bold, design: .serif))
+                }
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .frame(height: 36)
+                .background(Capsule().fill(OrganicPalette.sageInk(colorScheme)))
+            }
+            .buttonStyle(.plain)
+            .disabled(isProcessing)
+
+            Button(action: onDecline) {
+                Text("Decline")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(OrganicPalette.inkSoft(colorScheme))
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 36)
+                    .overlay(
+                        Capsule().stroke(OrganicPalette.outline(colorScheme), lineWidth: 1.5)
+                    )
+            }
+            .buttonStyle(.plain)
+            .disabled(isProcessing)
+        }
+        .padding(.top, 4)
+    }
+}
+
+/// One "storefront · Trader Joe's" style detail line inside a shared card.
+private struct ShareDetailRow: View {
+    let systemImage: String
+    let text: String
+    var tint: Color?
+
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        HStack(spacing: 5) {
+            Image(systemName: systemImage)
+                .font(.system(size: 11))
+            Text(text)
+                .font(.system(size: 13))
+                .lineLimit(1)
+        }
+        .foregroundColor(tint ?? OrganicPalette.inkSoft(colorScheme))
     }
 }
 
@@ -457,127 +591,50 @@ struct ReminderCard: View {
         }
     }
 
-    private var statusColor: Color {
-        guard let status = reminder.status else { return .gray }
-        switch status {
-        case .accepted:
-            return .green
-        case .rejected:
-            return .red
-        case .pending:
-            return .gray
-        }
+    private var isAccepted: Bool {
+        reminder.status == .accepted
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack {
+            HStack(spacing: 6) {
                 Image(systemName: "list.bullet.clipboard")
-                    .foregroundColor(.appAccent)
-                Text("Shared Reminder")
-                    .font(.caption)
-                    .fontWeight(.semibold)
-                    .foregroundColor(.appAccent)
+                    .font(.system(size: 12, weight: .semibold))
+                Text("Shared reminder")
+                    .font(.system(size: 12, weight: .bold, design: .serif))
+                    .kerning(0.3)
 
-                Spacer()
+                Spacer(minLength: 6)
 
                 // Show status badge if not pending
                 if let status = statusText {
-                    Text(status)
-                        .font(.caption2)
-                        .fontWeight(.medium)
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 3)
-                        .background(
-                            Capsule()
-                                .fill(statusColor)
-                        )
+                    ShareStatusBadge(text: status, isAccepted: isAccepted)
                 }
             }
+            .foregroundColor(OrganicPalette.terracotta(colorScheme))
 
             Text(reminder.reminderTitle)
-                .font(.subheadline)
-                .fontWeight(.medium)
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundColor(OrganicPalette.ink(colorScheme))
 
-            HStack {
-                Image(systemName: "storefront")
-                    .font(.caption)
-                Text(reminder.storeName)
-                    .font(.caption)
-            }
-            .foregroundColor(.secondary)
+            ShareDetailRow(systemImage: "storefront", text: reminder.storeName)
 
             if let address = reminder.storeAddress, !address.isEmpty {
-                HStack {
-                    Image(systemName: "mappin")
-                        .font(.caption)
-                    Text(address)
-                        .font(.caption)
-                        .lineLimit(1)
-                }
-                .foregroundColor(.secondary)
+                ShareDetailRow(systemImage: "mappin", text: address)
             }
 
             // Accept/Reject buttons for pending shared reminders
             if showActionButtons {
-                HStack(spacing: 12) {
-                    Button {
-                        acceptReminder()
-                    } label: {
-                        HStack {
-                            if isProcessing {
-                                ProgressView()
-                                    .scaleEffect(0.8)
-                            } else {
-                                Image(systemName: "checkmark")
-                            }
-                            Text("Accept")
-                        }
-                        .font(.caption)
-                        .fontWeight(.medium)
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 8)
-                        .background(
-                            RoundedRectangle(cornerRadius: 8)
-                                .fill(Color.green)
-                        )
-                    }
-                    .disabled(isProcessing)
-
-                    Button {
-                        rejectReminder()
-                    } label: {
-                        HStack {
-                            Image(systemName: "xmark")
-                            Text("Decline")
-                        }
-                        .font(.caption)
-                        .fontWeight(.medium)
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 8)
-                        .background(
-                            RoundedRectangle(cornerRadius: 8)
-                                .fill(Color.red.opacity(0.8))
-                        )
-                    }
-                    .disabled(isProcessing)
-                }
-                .padding(.top, 4)
+                ShareActionButtons(
+                    isProcessing: isProcessing,
+                    onAccept: acceptReminder,
+                    onDecline: rejectReminder
+                )
             }
         }
-        .padding(12)
+        .padding(14)
         .frame(maxWidth: 250, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(colorScheme == .dark ? Color.white.opacity(0.1) : Color.gray.opacity(0.1))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(Color.appAccent.opacity(0.3), lineWidth: 1)
-                )
-        )
+        .background(OrganicCardBackground(colorScheme: colorScheme, cornerRadius: 20))
     }
 
     private func acceptReminder() {
@@ -643,147 +700,75 @@ struct StoreCard: View {
         }
     }
 
-    private var statusColor: Color {
-        guard let status = store.status else { return .gray }
-        switch status {
-        case .accepted:
-            return .green
-        case .rejected:
-            return .red
-        case .pending:
-            return .gray
-        }
+    private var isAccepted: Bool {
+        store.status == .accepted
     }
 
     private var permissionText: String {
-        store.permission == "edit" ? "Can Edit" : "View Only"
+        store.permission == "edit" ? "Can edit" : "View only"
     }
 
+    /// Edit access is the notable one — it says the recipient can change a list
+    /// the sender also owns — so it carries the sage. View-only stays quiet.
     private var permissionColor: Color {
-        store.permission == "edit" ? .green : .orange
+        store.permission == "edit"
+            ? OrganicPalette.sageInk(colorScheme)
+            : OrganicPalette.inkSoft(colorScheme)
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack {
+            HStack(spacing: 6) {
                 Image(systemName: "storefront.fill")
-                    .foregroundColor(.blue)
-                Text("Shared Store")
-                    .font(.caption)
-                    .fontWeight(.semibold)
-                    .foregroundColor(.blue)
+                    .font(.system(size: 12, weight: .semibold))
+                Text("Shared store")
+                    .font(.system(size: 12, weight: .bold, design: .serif))
+                    .kerning(0.3)
 
-                Spacer()
+                Spacer(minLength: 6)
 
                 // Show status badge if not pending
                 if let status = statusText {
-                    Text(status)
-                        .font(.caption2)
-                        .fontWeight(.medium)
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 3)
-                        .background(
-                            Capsule()
-                                .fill(statusColor)
-                        )
+                    ShareStatusBadge(text: status, isAccepted: isAccepted)
                 }
             }
+            .foregroundColor(OrganicPalette.sageInk(colorScheme))
 
             Text(store.storeName)
-                .font(.subheadline)
-                .fontWeight(.medium)
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundColor(OrganicPalette.ink(colorScheme))
 
             if let address = store.storeAddress, !address.isEmpty {
-                HStack {
-                    Image(systemName: "mappin")
-                        .font(.caption)
-                    Text(address)
-                        .font(.caption)
-                        .lineLimit(1)
-                }
-                .foregroundColor(.secondary)
+                ShareDetailRow(systemImage: "mappin", text: address)
             }
 
             // Permission badge
-            HStack {
-                Image(systemName: store.permission == "edit" ? "pencil.circle.fill" : "eye.circle.fill")
-                    .font(.caption)
-                Text(permissionText)
-                    .font(.caption)
-            }
-            .foregroundColor(permissionColor)
+            ShareDetailRow(
+                systemImage: store.permission == "edit" ? "pencil.circle.fill" : "eye.circle.fill",
+                text: permissionText,
+                tint: permissionColor
+            )
 
             // Show reminder count if available
             if let reminderTitles = store.reminderTitles, !reminderTitles.isEmpty {
-                HStack {
-                    Image(systemName: "list.bullet")
-                        .font(.caption)
-                    Text("\(reminderTitles.count) reminder(s)")
-                        .font(.caption)
-                }
-                .foregroundColor(.secondary)
+                ShareDetailRow(
+                    systemImage: "list.bullet",
+                    text: reminderTitles.count == 1 ? "1 reminder" : "\(reminderTitles.count) reminders"
+                )
             }
 
             // Accept/Reject buttons for pending shared stores
             if showActionButtons {
-                HStack(spacing: 12) {
-                    Button {
-                        acceptStore()
-                    } label: {
-                        HStack {
-                            if isProcessing {
-                                ProgressView()
-                                    .scaleEffect(0.8)
-                            } else {
-                                Image(systemName: "checkmark")
-                            }
-                            Text("Accept")
-                        }
-                        .font(.caption)
-                        .fontWeight(.medium)
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 8)
-                        .background(
-                            RoundedRectangle(cornerRadius: 8)
-                                .fill(Color.green)
-                        )
-                    }
-                    .disabled(isProcessing)
-
-                    Button {
-                        rejectStore()
-                    } label: {
-                        HStack {
-                            Image(systemName: "xmark")
-                            Text("Decline")
-                        }
-                        .font(.caption)
-                        .fontWeight(.medium)
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 8)
-                        .background(
-                            RoundedRectangle(cornerRadius: 8)
-                                .fill(Color.red.opacity(0.8))
-                        )
-                    }
-                    .disabled(isProcessing)
-                }
-                .padding(.top, 4)
+                ShareActionButtons(
+                    isProcessing: isProcessing,
+                    onAccept: acceptStore,
+                    onDecline: rejectStore
+                )
             }
         }
-        .padding(12)
+        .padding(14)
         .frame(maxWidth: 250, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(colorScheme == .dark ? Color.white.opacity(0.1) : Color.gray.opacity(0.1))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(Color.blue.opacity(0.3), lineWidth: 1)
-                )
-        )
+        .background(OrganicCardBackground(colorScheme: colorScheme, cornerRadius: 20))
         .alert("Merge Lists?", isPresented: $showMergeAlert) {
             Button("Merge", role: .none) {
                 performAccept()
@@ -842,6 +827,7 @@ struct StoreCard: View {
 struct PhotoAttachmentsView: View {
     let photoURLs: [String]
     @State private var selectedPhotoURL: String?
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         let columns = photoURLs.count == 1
@@ -856,20 +842,23 @@ struct PhotoAttachmentsView: View {
                         image
                             .resizable()
                             .scaledToFit()
-                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                             .onTapGesture {
                                 selectedPhotoURL = urlString
                             }
                     case .failure:
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(Color.gray.opacity(0.3))
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .fill(OrganicPalette.field(colorScheme))
                             .frame(height: 100)
-                            .overlay(Image(systemName: "photo").foregroundColor(.secondary))
+                            .overlay(
+                                Image(systemName: "photo")
+                                    .foregroundColor(OrganicPalette.inkSoft(colorScheme))
+                            )
                     case .empty:
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(Color.gray.opacity(0.2))
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .fill(OrganicPalette.field(colorScheme))
                             .frame(height: 100)
-                            .overlay(ProgressView())
+                            .overlay(ProgressView().tint(OrganicPalette.terracotta(colorScheme)))
                     @unknown default:
                         EmptyView()
                     }

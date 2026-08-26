@@ -19,6 +19,11 @@ struct BackgroundPickerView: View {
     /// it's filtered out. Empty (a conversation, or a caller that doesn't know
     /// the store list) hides the Apply to All Stores row.
     var storeIds: [String] = []
+    /// What the "Default" entry looks like on the screen being edited. Passed
+    /// through so its swatch and the preview show what the user will actually
+    /// get — Conversations resolve Default to the organic canvas, not the app
+    /// gradient. Nil keeps the gradient.
+    var systemDefault: Color?
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
@@ -135,7 +140,11 @@ struct BackgroundPickerView: View {
                     )
                 } else {
                     Rectangle()
-                        .fill(selection.background(for: colorScheme, shade: shade))
+                        .fill(selection.background(
+                            for: colorScheme,
+                            shade: shade,
+                            systemDefault: systemDefault
+                        ))
                 }
 
                 VStack(spacing: 10) {
@@ -442,7 +451,11 @@ struct BackgroundPickerView: View {
             VStack(spacing: 6) {
                 ZStack {
                     Rectangle()
-                        .fill(color.background(for: colorScheme, shade: shade))
+                        .fill(color.background(
+                            for: colorScheme,
+                            shade: shade,
+                            systemDefault: systemDefault
+                        ))
                         .clipShape(RoundedRectangle(cornerRadius: 12))
                         .overlay(
                             RoundedRectangle(cornerRadius: 12)

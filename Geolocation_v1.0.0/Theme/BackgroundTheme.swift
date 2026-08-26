@@ -146,9 +146,19 @@ enum AppBackgroundColor: String, CaseIterable, Identifiable {
     ///
     /// Returns `AnyShapeStyle` because the two cases are different types, and
     /// every call site wants one thing it can drop into `Rectangle().fill(_:)`.
-    func background(for colorScheme: ColorScheme, shade: Double = 0) -> AnyShapeStyle {
+    /// `systemDefault` replaces the app gradient for the `.system` entry, so a
+    /// screen with its own default look (Conversations, on the organic canvas)
+    /// can say what "System" means there. Ignored for every other color.
+    func background(
+        for colorScheme: ColorScheme,
+        shade: Double = 0,
+        systemDefault: Color? = nil
+    ) -> AnyShapeStyle {
         guard self == .system else {
             return AnyShapeStyle(fill(for: colorScheme, shade: shade))
+        }
+        if let systemDefault {
+            return AnyShapeStyle(systemDefault.shaded(by: shade))
         }
         return AnyShapeStyle(Color.backgroundGradient(for: colorScheme, shade: shade))
     }
@@ -577,6 +587,12 @@ final class BackgroundPreferences: ObservableObject {
 /// resubscribing brings it straight back.
 struct SurfaceBackground: View {
     let surface: BackgroundSurface
+    /// What "System" resolves to for this surface. `AppBackgroundColor.system`
+    /// means "whatever this screen looks like by default", and not every screen
+    /// wants the app gradient any more — Conversations run on the organic
+    /// canvas. Leave it nil to keep the gradient. A color the user picked
+    /// explicitly always wins over this.
+    var systemDefault: Color?
 
     @Environment(\.colorScheme) private var colorScheme
     @ObservedObject private var preferences = BackgroundPreferences.shared
@@ -603,7 +619,8 @@ struct SurfaceBackground: View {
                 Rectangle()
                     .fill(selection.background(
                         for: colorScheme,
-                        shade: preferences.shadeLevel(for: surface)
+                        shade: preferences.shadeLevel(for: surface),
+                        systemDefault: systemDefault
                     ))
             }
         }
@@ -639,7 +656,7 @@ struct BackgroundPhoto: View {
 
 extension View {
     /// Places the surface's background behind this view.
-    func surfaceBackground(_ surface: BackgroundSurface) -> some View {
-        background(SurfaceBackground(surface: surface))
+    func surfaceBackground(_ surface: BackgroundSurface, systemDefault: Color? = nil) -> some View {
+        background(SurfaceBackground(surface: surface, systemDefault: systemDefault))
     }
 }

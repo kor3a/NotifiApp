@@ -7,6 +7,8 @@
 
 import SwiftUI
 
+// MARK: - Friends View
+
 struct FriendsView: View {
     @StateObject private var viewModel = FriendsViewModel()
     @ObservedObject var messagesViewModel: MessagesViewModel
@@ -21,15 +23,22 @@ struct FriendsView: View {
     @State private var friendshipToCancel: Friendship?
     @State private var showingCancelAlert = false
     @State private var showInviteAlert = false
+    /// While on, family members show a control to take them back out. Adding is
+    /// always one tap; removing sits behind Manage so it can't happen by
+    /// accident on a list the user is only scrolling through.
+    @State private var isManagingFamily = false
+    @FocusState private var isSearchFocused: Bool
     @Environment(\.colorScheme) var colorScheme
 
     var body: some View {
         ZStack {
-            Color.backgroundGradient(for: colorScheme)
+            OrganicPalette.canvas(colorScheme)
                 .ignoresSafeArea()
 
             if viewModel.isLoading && viewModel.friends.isEmpty && viewModel.pendingRequests.isEmpty {
                 ProgressView("Loading friends...")
+                    .tint(OrganicPalette.terracotta(colorScheme))
+                    .foregroundColor(OrganicPalette.inkSoft(colorScheme))
             } else {
                 mainContent
             }
@@ -40,20 +49,14 @@ struct FriendsView: View {
                     Spacer()
                     BannerAdView(adUnitID: kBannerAdUnitID)
                         .frame(height: 50)
-                        .background(Color(.systemBackground).opacity(0.95))
+                        .background(OrganicPalette.canvas(colorScheme))
                 }
             }
         }
-        .navigationTitle("Friends")
-        .searchable(text: $viewModel.searchText, prompt: "Search friends")
-        .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Button(action: { showAddFriend = true }) {
-                    Image(systemName: "person.badge.plus")
-                }
-                .tutorialHighlight(id: "tutorial_addFriend")
-            }
-        }
+        // The screen draws its own oversized serif title, so the system bar
+        // would only stack a second "Friends" above it.
+        .toolbar(.hidden, for: .navigationBar)
+        .tint(OrganicPalette.terracotta(colorScheme))
         .sheet(isPresented: $showAddFriend) {
             AddFriendView(viewModel: viewModel)
         }
@@ -66,6 +69,11 @@ struct FriendsView: View {
         }
         .onDisappear {
             viewModel.stopListening()
+        }
+        .onChange(of: viewModel.familyMembers.isEmpty) { _, isEmpty in
+            // Manage lives on the Family card; once the last member is removed
+            // that card goes away and nothing could switch it back off.
+            if isEmpty { isManagingFamily = false }
         }
         .alert("Success", isPresented: .init(
             get: { viewModel.successMessage != nil },
@@ -128,37 +136,39 @@ struct FriendsView: View {
 
     private var mainContent: some View {
         List {
-            // Pending requests sit at the top — received first, then the ones
-            // we sent and are still waiting on.
-            if !viewModel.filteredPendingRequests.isEmpty || !viewModel.filteredSentRequests.isEmpty {
-                pendingSection
+            headerSection
+
+            // Received requests sit above everything else — they're the only
+            // rows on the screen waiting on the user to do something.
+            if !viewModel.filteredPendingRequests.isEmpty {
+                requestsSection
             }
 
-            if !viewModel.filteredFamilyMembers.isEmpty {
-                familySection
+            if !viewModel.filteredSentRequests.isEmpty {
+                sentSection
             }
 
-            if !viewModel.filteredFriends.isEmpty {
-                friendsSection
+            if !viewModel.filteredFamilyMembers.isEmpty || !viewModel.filteredFriends.isEmpty {
+                allFriendsSection
             }
 
             if viewModel.hasNoSearchResults {
                 noSearchResultsState
-                    .listRowBackground(Color.clear)
-                    .listRowSeparator(.hidden)
+                    .organicRow()
             }
 
             if hasNoConnections && !viewModel.isFilteringFriends {
                 emptyState
-                    .padding(.top, 40)
-                    .listRowBackground(Color.clear)
-                    .listRowSeparator(.hidden)
+                    .padding(.top, 24)
+                    .organicRow()
             }
         }
         .listStyle(.plain)
+        .listSectionSpacing(20)
         .scrollContentBackground(.hidden)
+        .scrollDismissesKeyboard(.immediately)
         .safeAreaInset(edge: .bottom) {
-            Color.clear.frame(height: 50)
+            Color.clear.frame(height: subscriptionManager.isSubscribed ? 0 : 50)
         }
     }
 
@@ -174,25 +184,202 @@ struct FriendsView: View {
         sessionManager.currentUser?.userId ?? ""
     }
 
-    // MARK: - Pending Section
+    // MARK: - Header
 
-    private var pendingSection: some View {
+    private var headerSection: some View {
         Section {
+            VStack(alignment: .leading, spacing: 18) {
+                HStack(alignment: .center) {
+                    Text("Friends")
+                        .font(OrganicPalette.display(40))
+                        .foregroundColor(OrganicPalette.ink(colorScheme))
+
+                    Spacer()
+
+                    Button(action: { showAddFriend = true }) {
+                        Image(systemName: "person.badge.plus")
+                            .font(.system(size: 22, weight: .semibold))
+                            .foregroundColor(.white)
+                            .frame(width: 54, height: 54)
+                            .background(Circle().fill(OrganicPalette.terracotta(colorScheme)))
+                            .shadow(color: OrganicPalette.terracotta(colorScheme).opacity(0.35), radius: 10, x: 0, y: 5)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Add friend")
+                    .tutorialHighlight(id: "tutorial_addFriend")
+                }
+                .padding(.top, 8)
+
+                searchField
+
+                if !viewModel.familyMembers.isEmpty && !viewModel.isFilteringFriends {
+                    familyCard
+                }
+            }
+            .organicRow()
+        }
+    }
+
+    private var searchField: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundColor(OrganicPalette.inkSoft(colorScheme))
+
+            TextField(
+                "",
+                text: $viewModel.searchText,
+                prompt: Text("Search friends")
+                    .foregroundColor(OrganicPalette.inkSoft(colorScheme).opacity(0.8))
+            )
+            .font(.system(size: 17))
+            .foregroundColor(OrganicPalette.ink(colorScheme))
+            .textInputAutocapitalization(.never)
+            .autocorrectionDisabled()
+            .submitLabel(.search)
+            .focused($isSearchFocused)
+
+            if !viewModel.searchText.isEmpty {
+                Button {
+                    viewModel.searchText = ""
+                    isSearchFocused = false
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 16))
+                        .foregroundColor(OrganicPalette.inkSoft(colorScheme).opacity(0.7))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Clear search")
+            }
+        }
+        .padding(.horizontal, 18)
+        .frame(height: 54)
+        .background(Capsule().fill(OrganicPalette.field(colorScheme)))
+    }
+
+    // MARK: - Family Card
+
+    /// The sage summary card. Family is otherwise invisible — it only shows up
+    /// as a sort order inside the share sheets — so this states what the group
+    /// is for and points at the house button that edits it.
+    private var familyCard: some View {
+        let members = viewModel.familyMembers
+        let count = members.count
+
+        return VStack(alignment: .leading, spacing: 16) {
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Family")
+                        .font(OrganicPalette.display(26))
+                        .foregroundColor(OrganicPalette.sageInk(colorScheme))
+
+                    Text(count == 1 ? "1 person you share with first" : "\(count) people you share with first")
+                        .font(.system(size: 15))
+                        .foregroundColor(OrganicPalette.sageInk(colorScheme).opacity(0.75))
+                }
+
+                Spacer(minLength: 12)
+
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        isManagingFamily.toggle()
+                    }
+                } label: {
+                    Text(isManagingFamily ? "Done" : "Manage")
+                        .font(.system(size: 15, weight: .bold, design: .serif))
+                        .foregroundColor(OrganicPalette.sageInk(colorScheme))
+                        .padding(.horizontal, 18)
+                        .padding(.vertical, 10)
+                        .background(
+                            Capsule()
+                                .fill(isManagingFamily ? OrganicPalette.sageInk(colorScheme).opacity(0.15) : .clear)
+                        )
+                        .overlay(
+                            Capsule().stroke(OrganicPalette.sageInk(colorScheme).opacity(0.35), lineWidth: 1.5)
+                        )
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(isManagingFamily ? "Finish managing Family" : "Manage Family")
+            }
+
+            HStack(spacing: 14) {
+                avatarStack(for: members)
+
+                Text(isManagingFamily
+                     ? "Tap the house on a member to take them out."
+                     : "Shared stores and reminders reach them first.")
+                    .font(.system(size: 15))
+                    .foregroundColor(OrganicPalette.sageInk(colorScheme).opacity(0.8))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .padding(22)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
+                .fill(OrganicPalette.sage(colorScheme))
+        )
+    }
+
+    /// Overlapping avatars for the Family card. Four circles wide at most,
+    /// counting the "+n" disc, so a large family takes no more room than a
+    /// small one and the caption beside it keeps its width.
+    private func avatarStack(for members: [Friendship]) -> some View {
+        let shown = Array(members.prefix(members.count > 4 ? 3 : 4))
+        let overflow = members.count - shown.count
+
+        return HStack(spacing: -16) {
+            ForEach(shown) { friendship in
+                let name = friendship.friendName(currentUserId: currentUserId)
+                OrganicAvatar(
+                    name: name,
+                    profilePictureURL: profilePictureURL(for: friendship),
+                    size: 46,
+                    ringColor: OrganicPalette.sage(colorScheme)
+                )
+            }
+
+            if overflow > 0 {
+                Text("+\(overflow)")
+                    .font(.system(size: 15, weight: .bold, design: .serif))
+                    .foregroundColor(OrganicPalette.sageInk(colorScheme))
+                    .frame(width: 46, height: 46)
+                    .background(Circle().fill(OrganicPalette.sageInk(colorScheme).opacity(0.18)))
+                    .overlay(Circle().strokeBorder(OrganicPalette.sage(colorScheme), lineWidth: 3))
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(members.count) family members")
+    }
+
+    // MARK: - Requests
+
+    private var requestsSection: some View {
+        Section {
+            sectionLabel(
+                "Requests",
+                count: viewModel.filteredPendingRequests.count,
+                highlighted: true
+            )
+
             ForEach(viewModel.filteredPendingRequests) { friendship in
-                PendingRequestRow(
+                RequestCard(
                     friendship: friendship,
                     freshProfilePictureURL: viewModel.friendProfilePictures[friendship.requesterId],
                     onAccept: { viewModel.acceptRequest(friendship) },
                     onReject: { viewModel.rejectRequest(friendship) }
                 )
-                .modifier(FriendListRowStyle(
-                    colorScheme: colorScheme,
-                    borderStyle: AnyShapeStyle(Color.appWarning.opacity(0.3))
-                ))
+                .organicRow()
             }
+        }
+    }
+
+    private var sentSection: some View {
+        Section {
+            sectionLabel("Waiting on them", count: viewModel.filteredSentRequests.count)
 
             ForEach(viewModel.filteredSentRequests) { friendship in
-                SentRequestRow(
+                SentRequestCard(
                     friendship: friendship,
                     freshProfilePictureURL: viewModel.friendProfilePictures[friendship.receiverId],
                     onCancel: {
@@ -200,7 +387,7 @@ struct FriendsView: View {
                         showingCancelAlert = true
                     }
                 )
-                .modifier(FriendListRowStyle(colorScheme: colorScheme))
+                .organicRow()
                 .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                     Button(role: .destructive) {
                         friendshipToCancel = friendship
@@ -210,76 +397,57 @@ struct FriendsView: View {
                     }
                 }
             }
-        } header: {
-            sectionHeader(
-                title: "Pending",
-                systemImage: "clock.fill",
-                tint: .appWarning,
-                count: viewModel.filteredPendingRequests.count + viewModel.filteredSentRequests.count,
-                highlightCount: !viewModel.filteredPendingRequests.isEmpty
-            )
         }
     }
 
-    // MARK: - Family Section
+    // MARK: - All Friends
 
-    private var familySection: some View {
+    /// Family and friends share one list. Family members keep their own badge
+    /// rather than a separate section, so the list reads as the whole address
+    /// book instead of the same names split across two places.
+    private var allFriendsSection: some View {
         Section {
+            sectionLabel(
+                "All friends",
+                count: viewModel.filteredFamilyMembers.count + viewModel.filteredFriends.count
+            )
+
             ForEach(viewModel.filteredFamilyMembers) { friendship in
-                friendRow(for: friendship, isFamilyMember: true)
+                friendRow(for: friendship, isFamilyMember: true, tutorialId: nil)
             }
-        } header: {
-            sectionHeader(
-                title: "Family",
-                systemImage: "house.fill",
-                tint: .purple,
-                count: viewModel.filteredFamilyMembers.count
-            )
-        }
-    }
 
-    // MARK: - Friends Section
-
-    private var friendsSection: some View {
-        Section {
             ForEach(Array(viewModel.filteredFriends.enumerated()), id: \.element.id) { index, friendship in
-                friendRow(for: friendship, isFamilyMember: false)
-                    .tutorialHighlight(id: index == 0 ? "tutorial_friendCard" : "noop_friend_\(index)")
+                friendRow(
+                    for: friendship,
+                    isFamilyMember: false,
+                    tutorialId: index == 0 ? "tutorial_friendCard" : nil
+                )
             }
-        } header: {
-            sectionHeader(
-                title: "Friends",
-                systemImage: "person.2.fill",
-                tint: .blue,
-                count: viewModel.filteredFriends.count
-            )
         }
     }
 
-    // MARK: - Friend Row
-
-    private func friendRow(for friendship: Friendship, isFamilyMember: Bool) -> some View {
-        let friendId = friendship.friendId(currentUserId: currentUserId)
-
-        return FriendRow(
+    private func friendRow(
+        for friendship: Friendship,
+        isFamilyMember: Bool,
+        tutorialId: String?
+    ) -> some View {
+        FriendCard(
             friendship: friendship,
             currentUserId: currentUserId,
             isFamilyMember: isFamilyMember,
-            freshProfilePictureURL: viewModel.friendProfilePictures[friendId],
+            isManagingFamily: isManagingFamily,
+            freshProfilePictureURL: profilePictureURL(for: friendship),
             onMessage: { startConversation(with: friendship) },
-            onAddToFamily: { viewModel.addToFamily(friendship) },
-            onRemoveFromFamily: { viewModel.removeFromFamily(friendship) }
+            onToggleFamily: {
+                if isFamilyMember {
+                    viewModel.removeFromFamily(friendship)
+                } else {
+                    viewModel.addToFamily(friendship)
+                }
+            }
         )
-        .modifier(FriendListRowStyle(
-            colorScheme: colorScheme,
-            borderStyle: isFamilyMember
-                ? AnyShapeStyle(LinearGradient(
-                    colors: [Color.purple.opacity(0.4), Color.purple.opacity(0.15)],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                ))
-                : nil
-        ))
+        .organicRow()
+        .tutorialHighlight(id: tutorialId ?? "noop_friend_\(friendship.id)")
         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
             Button(role: .destructive) {
                 friendshipToRemove = friendship
@@ -288,27 +456,9 @@ struct FriendsView: View {
                 Label("Remove", systemImage: "person.badge.minus")
             }
         }
+        // Messaging and Family both have their own button on the row, so the
+        // long-press menu is left with the one action that doesn't.
         .contextMenu {
-            Button {
-                startConversation(with: friendship)
-            } label: {
-                Label("Message", systemImage: "message.fill")
-            }
-
-            if isFamilyMember {
-                Button {
-                    viewModel.removeFromFamily(friendship)
-                } label: {
-                    Label("Remove from Family", systemImage: "house.slash.fill")
-                }
-            } else {
-                Button {
-                    viewModel.addToFamily(friendship)
-                } label: {
-                    Label("Add to Family", systemImage: "house.fill")
-                }
-            }
-
             Button(role: .destructive) {
                 friendshipToRemove = friendship
                 showingRemoveAlert = true
@@ -318,94 +468,102 @@ struct FriendsView: View {
         }
     }
 
-    // MARK: - Section Header
+    /// The freshly fetched picture for whoever the other party is, falling back
+    /// to the copy stored on the friendship document. The stored copy goes
+    /// stale when someone changes their photo, but it's what keeps avatars from
+    /// flashing initials while the `users` lookup is still in flight.
+    private func profilePictureURL(for friendship: Friendship) -> String? {
+        let friendId = friendship.friendId(currentUserId: currentUserId)
+        return viewModel.friendProfilePictures[friendId]
+            ?? friendship.friendProfilePictureURL(currentUserId: currentUserId)
+    }
 
-    private func sectionHeader(
-        title: String,
-        systemImage: String,
-        tint: Color,
-        count: Int,
-        highlightCount: Bool = false
-    ) -> some View {
-        HStack(spacing: 6) {
-            Image(systemName: systemImage)
-                .font(.caption)
-                .foregroundColor(tint)
+    // MARK: - Section Label
 
+    private func sectionLabel(_ title: String, count: Int, highlighted: Bool = false) -> some View {
+        HStack(spacing: 10) {
             Text(title)
-                .font(.headline)
-                .foregroundStyle(.primary)
+                .font(OrganicPalette.display(22))
+                .foregroundColor(OrganicPalette.ink(colorScheme))
 
-            if highlightCount {
+            if highlighted {
                 Text("\(count)")
-                    .font(.caption.bold())
+                    .font(.system(size: 14, weight: .bold, design: .serif))
                     .foregroundColor(.white)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 2)
-                    .background(Color.appAccent)
-                    .clipShape(Capsule())
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 3)
+                    .background(Capsule().fill(OrganicPalette.terracotta(colorScheme)))
             } else {
                 Text("\(count)")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundColor(OrganicPalette.inkSoft(colorScheme))
             }
 
             Spacer()
         }
-        .textCase(nil)
-        .padding(.vertical, 4)
-        .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 4, trailing: 16))
+        .organicSectionLabelRow()
     }
 
     // MARK: - Empty States
 
     private var emptyState: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: 14) {
             Image(systemName: "person.2")
-                .resizable()
-                .scaledToFit()
-                .frame(width: 60, height: 60)
-                .foregroundStyle(.gray)
+                .font(.system(size: 44, weight: .light))
+                .foregroundColor(OrganicPalette.terracotta(colorScheme).opacity(0.55))
+                .frame(width: 96, height: 96)
+                .background(Circle().fill(OrganicPalette.blush(colorScheme)))
 
-            Text("No Friends Yet")
-                .font(.title2)
-                .bold()
+            Text("No friends yet")
+                .font(OrganicPalette.display(26))
+                .foregroundColor(OrganicPalette.ink(colorScheme))
 
-            Text("Add friends to easily share stores and reminders")
-                .foregroundStyle(.gray)
+            Text("Add friends to share stores and reminders with the people you shop for.")
+                .font(.system(size: 16))
+                .foregroundColor(OrganicPalette.inkSoft(colorScheme))
                 .multilineTextAlignment(.center)
+                .padding(.horizontal, 24)
 
             Button(action: { showAddFriend = true }) {
-                Label("Add Friend", systemImage: "person.badge.plus")
+                Text("Add a friend")
+                    .font(.system(size: 17, weight: .bold, design: .serif))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 32)
+                    .frame(height: 52)
+                    .background(Capsule().fill(OrganicPalette.terracotta(colorScheme)))
             }
-            .buttonStyle(PrimaryButtonStyle())
-            .padding(.horizontal, 40)
+            .buttonStyle(.plain)
+            .padding(.top, 4)
 
             Button(action: inviteFriends) {
-                Label("Invite Friends", systemImage: "envelope.open.fill")
-                    .font(.subheadline.weight(.medium))
-                    .foregroundColor(.appAccent)
+                Text("Invite friends to Allim")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundColor(OrganicPalette.terracotta(colorScheme))
             }
+            .buttonStyle(.plain)
         }
-        .padding()
+        .padding(.vertical, 8)
         .frame(maxWidth: .infinity)
     }
 
     private var noSearchResultsState: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 10) {
             Image(systemName: "magnifyingglass")
-                .font(.system(size: 36))
-                .foregroundStyle(.gray)
+                .font(.system(size: 30, weight: .light))
+                .foregroundColor(OrganicPalette.terracotta(colorScheme).opacity(0.55))
+                .frame(width: 72, height: 72)
+                .background(Circle().fill(OrganicPalette.blush(colorScheme)))
 
-            Text("No Matches")
-                .font(.headline)
+            Text("No matches")
+                .font(OrganicPalette.display(22))
+                .foregroundColor(OrganicPalette.ink(colorScheme))
 
-            Text("No friends match \u{201C}\(viewModel.searchText)\u{201D}")
-                .font(.subheadline)
-                .foregroundStyle(.gray)
+            Text("Nobody matches \u{201C}\(viewModel.searchText)\u{201D}")
+                .font(.system(size: 15))
+                .foregroundColor(OrganicPalette.inkSoft(colorScheme))
                 .multilineTextAlignment(.center)
         }
-        .padding(.top, 60)
+        .padding(.top, 40)
         .frame(maxWidth: .infinity)
     }
 
@@ -431,62 +589,28 @@ struct FriendsView: View {
     }
 }
 
-// MARK: - List Row Style
+// MARK: - Friend Card
 
-/// Shared card styling for the rows of the Friends list.
-private struct FriendListRowStyle: ViewModifier {
-    let colorScheme: ColorScheme
-    /// Border stroke; falls back to the standard card border when nil.
-    var borderStyle: AnyShapeStyle?
-
-    func body(content: Content) -> some View {
-        content
-            .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
-            .listRowSeparator(.hidden)
-            .listRowBackground(
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(.ultraThinMaterial)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 16)
-                            .stroke(
-                                borderStyle ?? AnyShapeStyle(Color.cardBorder(for: colorScheme)),
-                                lineWidth: 1.5
-                            )
-                    )
-                    .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.3 : 0.08), radius: 8, x: 0, y: 4)
-                    .padding(.vertical, 4)
-            )
-    }
-}
-
-// MARK: - Friend Row
-
-struct FriendRow: View {
+struct FriendCard: View {
     let friendship: Friendship
     let currentUserId: String
     var isFamilyMember: Bool = false
+    /// Set while the Family card is in manage mode, which is the only time a
+    /// family member's row offers a way out of the group.
+    var isManagingFamily: Bool = false
     /// Fresh profile picture URL fetched from the `users` collection, overriding the stale one in the friendship doc.
     var freshProfilePictureURL: String?
     let onMessage: () -> Void
-    var onAddToFamily: (() -> Void)?
-    var onRemoveFromFamily: (() -> Void)?
+    let onToggleFamily: () -> Void
+
+    @Environment(\.colorScheme) private var colorScheme
 
     private var friendName: String {
         friendship.friendName(currentUserId: currentUserId)
     }
 
-    private var friendUserId: String {
+    private var handle: String {
         "@\(friendship.friendId(currentUserId: currentUserId))"
-    }
-
-    private var avatarInitial: String {
-        String(friendName.prefix(1)).uppercased()
-    }
-
-    private var avatarColor: Color {
-        let colors: [Color] = [.blue, .purple, .pink, .orange, .teal, .indigo, .mint, .cyan]
-        let index = abs(friendName.hashValue) % colors.count
-        return colors[index]
     }
 
     private var friendProfilePictureURL: String? {
@@ -494,200 +618,220 @@ struct FriendRow: View {
     }
 
     var body: some View {
+        // A row can carry two controls and the badge at once, which leaves the
+        // name little room, so the avatar and buttons run a size smaller here
+        // than elsewhere — and stay that size on rows showing only one control,
+        // so the list doesn't change metrics from row to row.
         HStack(spacing: 12) {
-            ProfilePictureView(profilePictureURL: friendProfilePictureURL, size: 48) {
-                Circle()
-                    .fill(
-                        LinearGradient(
-                            colors: [avatarColor.opacity(0.7), avatarColor],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .frame(width: 48, height: 48)
-                    .overlay(
-                        Text(avatarInitial)
-                            .font(.headline)
-                            .foregroundColor(.white)
-                    )
-            }
-            .shadow(color: avatarColor.opacity(0.3), radius: 4, x: 0, y: 2)
+            OrganicAvatar(name: friendName, profilePictureURL: friendProfilePictureURL, size: 48)
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text(friendName)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(spacing: 8) {
+                    Text(friendName)
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundColor(OrganicPalette.ink(colorScheme))
+                        .lineLimit(1)
 
-                Text(friendUserId)
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
+                    if isFamilyMember {
+                        Text("FAMILY")
+                            .font(.system(size: 10, weight: .bold))
+                            .kerning(0.6)
+                            .foregroundColor(OrganicPalette.sageInk(colorScheme))
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 3)
+                            .background(Capsule().fill(OrganicPalette.sage(colorScheme)))
+                    }
+                }
+
+                Text(handle)
+                    .font(.system(size: 14))
+                    .foregroundColor(OrganicPalette.inkSoft(colorScheme))
                     .lineLimit(1)
             }
 
-            Spacer(minLength: 8)
+            Spacer(minLength: 6)
 
             HStack(spacing: 8) {
-                // Family toggle — filled while they're in Family, outlined otherwise.
-                Button {
-                    if isFamilyMember {
-                        onRemoveFromFamily?()
-                    } else {
-                        onAddToFamily?()
-                    }
-                } label: {
-                    Image(systemName: isFamilyMember ? "house.fill" : "house")
-                        .font(.caption)
-                        .foregroundColor(isFamilyMember ? .white : .purple)
-                        .frame(width: 32, height: 32)
-                        .background(isFamilyMember ? Color.purple : Color.purple.opacity(0.12))
-                        .clipShape(Circle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(isFamilyMember ? "Remove \(friendName) from Family" : "Add \(friendName) to Family")
-
-                Button(action: onMessage) {
-                    Image(systemName: "message.fill")
-                        .font(.caption)
-                        .foregroundColor(.white)
-                        .frame(width: 32, height: 32)
-                        .background(Color.appAccent)
-                        .clipShape(Circle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Message \(friendName)")
+                familyButton
+                messageButton
             }
         }
-        .padding(.vertical, 10)
-        .padding(.horizontal, 12)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .background(OrganicCardBackground(colorScheme: colorScheme))
+    }
+
+    /// An outlined house on anyone who isn't in Family yet, and — only while
+    /// the Family card is being managed — a crossed-out one on those who are.
+    /// A family member's row is otherwise left alone: the FAMILY badge already
+    /// says they're in, so a button there would be status dressed as a control.
+    @ViewBuilder
+    private var familyButton: some View {
+        if !isFamilyMember {
+            Button(action: onToggleFamily) {
+                Image(systemName: "house")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundColor(OrganicPalette.sageInk(colorScheme))
+                    .frame(width: 40, height: 40)
+                    .background(Circle().fill(OrganicPalette.sage(colorScheme)))
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Add \(friendName) to Family")
+        } else if isManagingFamily {
+            Button(action: onToggleFamily) {
+                Image(systemName: "house.slash.fill")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundColor(.white)
+                    .frame(width: 40, height: 40)
+                    .background(Circle().fill(OrganicPalette.sageInk(colorScheme)))
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Remove \(friendName) from Family")
+        }
+    }
+
+    private var messageButton: some View {
+        Button(action: onMessage) {
+            Image(systemName: "message.fill")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundColor(OrganicPalette.terracotta(colorScheme))
+                .frame(width: 40, height: 40)
+                .background(Circle().fill(OrganicPalette.blush(colorScheme)))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Message \(friendName)")
     }
 }
 
-// MARK: - Pending Request Row
+// MARK: - Request Card
 
-struct PendingRequestRow: View {
+/// An incoming friend request. It sits on the blush tint rather than the plain
+/// paper surface so the rows that need an answer stand out from the ones that
+/// don't, and it leads with a full Accept pill because that's the likely answer.
+struct RequestCard: View {
     let friendship: Friendship
     var freshProfilePictureURL: String?
     let onAccept: () -> Void
     let onReject: () -> Void
+
+    @Environment(\.colorScheme) private var colorScheme
 
     private var requesterPictureURL: String? {
         freshProfilePictureURL ?? friendship.requesterProfilePictureURL
     }
 
     var body: some View {
-        HStack(spacing: 12) {
-            ProfilePictureView(profilePictureURL: requesterPictureURL, size: 48) {
-                Circle()
-                    .fill(
-                        LinearGradient(
-                            colors: [Color.appWarning.opacity(0.6), Color.appWarning],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .frame(width: 48, height: 48)
-                    .overlay(
-                        Text(String(friendship.requesterName.prefix(1)).uppercased())
-                            .font(.headline)
-                            .foregroundColor(.white)
-                    )
-            }
+        HStack(spacing: 14) {
+            OrganicAvatar(
+                name: friendship.requesterName,
+                profilePictureURL: requesterPictureURL
+            )
 
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 3) {
                 Text(friendship.requesterName)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.primary)
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundColor(OrganicPalette.ink(colorScheme))
                     .lineLimit(1)
 
-                Text("wants to be friends")
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
-                    .lineLimit(1)
+                Text("wants to share lists")
+                    .font(.system(size: 14))
+                    .foregroundColor(OrganicPalette.inkSoft(colorScheme))
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
             }
+            .layoutPriority(1)
 
-            Spacer(minLength: 8)
+            Spacer(minLength: 6)
 
-            HStack(spacing: 8) {
+            HStack(spacing: 6) {
+                Button(action: onAccept) {
+                    Text("Accept")
+                        .font(.system(size: 15, weight: .bold, design: .serif))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 16)
+                        .frame(height: 42)
+                        .background(Capsule().fill(OrganicPalette.terracotta(colorScheme)))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Accept request from \(friendship.requesterName)")
+
                 Button(action: onReject) {
                     Image(systemName: "xmark")
-                        .font(.caption.bold())
-                        .foregroundColor(.white)
-                        .frame(width: 32, height: 32)
-                        .background(Color.appError.opacity(0.85))
-                        .clipShape(Circle())
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundColor(OrganicPalette.inkSoft(colorScheme))
+                        .frame(width: 40, height: 40)
+                        .overlay(
+                            Circle().stroke(OrganicPalette.outline(colorScheme), lineWidth: 1.5)
+                        )
                 }
                 .buttonStyle(.plain)
-
-                Button(action: onAccept) {
-                    Image(systemName: "checkmark")
-                        .font(.caption.bold())
-                        .foregroundColor(.white)
-                        .frame(width: 32, height: 32)
-                        .background(Color.appSuccess)
-                        .clipShape(Circle())
-                }
-                .buttonStyle(.plain)
+                .accessibilityLabel("Decline request from \(friendship.requesterName)")
             }
         }
-        .padding(.vertical, 10)
-        .padding(.horizontal, 12)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
+        .background(
+            OrganicCardBackground(colorScheme: colorScheme, fill: OrganicPalette.blush(colorScheme))
+        )
     }
 }
 
-// MARK: - Sent Request Row
+// MARK: - Sent Request Card
 
-struct SentRequestRow: View {
+/// A request the user sent that hasn't been answered. Nothing to act on, so it
+/// stays quiet: no card fill, just an outline and the cancel affordance.
+struct SentRequestCard: View {
     let friendship: Friendship
     var freshProfilePictureURL: String?
     let onCancel: () -> Void
+
+    @Environment(\.colorScheme) private var colorScheme
 
     private var receiverPictureURL: String? {
         freshProfilePictureURL ?? friendship.receiverProfilePictureURL
     }
 
     var body: some View {
-        HStack(spacing: 12) {
-            ProfilePictureView(profilePictureURL: receiverPictureURL, size: 48) {
-                Circle()
-                    .fill(Color.secondary.opacity(0.2))
-                    .frame(width: 48, height: 48)
-                    .overlay(
-                        Text(String(friendship.receiverName.prefix(1)).uppercased())
-                            .font(.headline)
-                            .foregroundColor(.secondary)
-                    )
-            }
+        HStack(spacing: 14) {
+            OrganicAvatar(
+                name: friendship.receiverName,
+                profilePictureURL: receiverPictureURL,
+                size: 46
+            )
+            .opacity(0.6)
 
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 3) {
                 Text(friendship.receiverName)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.primary)
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundColor(OrganicPalette.ink(colorScheme).opacity(0.8))
                     .lineLimit(1)
 
-                HStack(spacing: 3) {
-                    Image(systemName: "clock")
-                        .font(.system(size: 9))
-                    Text("Request sent")
-                        .font(.caption2)
-                }
-                .foregroundColor(.secondary)
+                Text("Request sent")
+                    .font(.system(size: 14))
+                    .foregroundColor(OrganicPalette.inkSoft(colorScheme))
+                    .lineLimit(1)
             }
 
             Spacer(minLength: 8)
 
             Button(action: onCancel) {
                 Image(systemName: "xmark")
-                    .font(.caption2.bold())
-                    .foregroundColor(.appError)
-                    .frame(width: 32, height: 32)
-                    .background(Color.appError.opacity(0.1))
-                    .clipShape(Circle())
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundColor(OrganicPalette.inkSoft(colorScheme))
+                    .frame(width: 38, height: 38)
+                    .overlay(
+                        Circle().stroke(OrganicPalette.outline(colorScheme), lineWidth: 1.5)
+                    )
             }
             .buttonStyle(.plain)
+            .accessibilityLabel("Cancel request to \(friendship.receiverName)")
         }
-        .padding(.vertical, 10)
-        .padding(.horizontal, 12)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .stroke(OrganicPalette.outline(colorScheme).opacity(0.7), lineWidth: 1.5)
+        )
     }
 }
 
@@ -697,60 +841,56 @@ struct AddFriendView: View {
     @ObservedObject var viewModel: FriendsViewModel
     @ObservedObject private var sessionManager = UserSessionManager.shared
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var colorScheme
     @State private var searchQuery = ""
+    @FocusState private var isQueryFocused: Bool
 
     var body: some View {
         NavigationStack {
-            List {
-                Section {
-                    HStack {
-                        TextField("Enter email or username", text: $searchQuery)
-                            .textInputAutocapitalization(.never)
-                            .autocorrectionDisabled()
+            ZStack {
+                OrganicPalette.canvas(colorScheme)
+                    .ignoresSafeArea()
 
-                        if viewModel.isSearching {
-                            ProgressView()
-                        } else {
-                            Button("Search") {
-                                viewModel.searchUser(query: searchQuery)
-                            }
-                            .disabled(searchQuery.isEmpty)
-                        }
-                    }
-                } header: {
-                    Text("Find Friends")
-                } footer: {
-                    Text("Search by email address or username")
-                }
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 20) {
+                        Text("Add a friend")
+                            .font(OrganicPalette.display(32))
+                            .foregroundColor(OrganicPalette.ink(colorScheme))
+                            .padding(.top, 8)
 
-                if let contact = viewModel.searchedUser {
-                    Section("Search Result") {
-                        SearchResultRow(
-                            contact: contact,
-                            viewModel: viewModel,
-                            onAdd: {
-                                viewModel.sendFriendRequest(to: contact)
-                            }
-                        )
-                    }
-                } else if !searchQuery.isEmpty && !viewModel.isSearching {
-                    Section {
-                        HStack {
-                            Image(systemName: "person.slash")
-                                .foregroundColor(.secondary)
+                        Text("Search by email address or username to send them a request.")
+                            .font(.system(size: 16))
+                            .foregroundColor(OrganicPalette.inkSoft(colorScheme))
+
+                        queryField
+
+                        if let contact = viewModel.searchedUser {
+                            SearchResultCard(
+                                contact: contact,
+                                viewModel: viewModel,
+                                onAdd: { viewModel.sendFriendRequest(to: contact) }
+                            )
+                        } else if !searchQuery.isEmpty && !viewModel.isSearching {
                             Text("No user found")
-                                .foregroundColor(.secondary)
+                                .font(.system(size: 15))
+                                .foregroundColor(OrganicPalette.inkSoft(colorScheme))
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 24)
                         }
                     }
+                    .padding(.horizontal, 20)
                 }
+                .scrollDismissesKeyboard(.immediately)
             }
-            .navigationTitle("Add Friend")
+            .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(OrganicPalette.canvas(colorScheme), for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button("Cancel") {
                         dismiss()
                     }
+                    .foregroundColor(OrganicPalette.terracotta(colorScheme))
                 }
             }
             .alert("Success", isPresented: .init(
@@ -774,44 +914,89 @@ struct AddFriendView: View {
             }
         }
     }
+
+    private var queryField: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundColor(OrganicPalette.inkSoft(colorScheme))
+
+            TextField(
+                "",
+                text: $searchQuery,
+                prompt: Text("Email or username")
+                    .foregroundColor(OrganicPalette.inkSoft(colorScheme).opacity(0.8))
+            )
+            .font(.system(size: 17))
+            .foregroundColor(OrganicPalette.ink(colorScheme))
+            .textInputAutocapitalization(.never)
+            .autocorrectionDisabled()
+            .submitLabel(.search)
+            .focused($isQueryFocused)
+            .onSubmit { runSearch() }
+
+            if viewModel.isSearching {
+                ProgressView()
+                    .tint(OrganicPalette.terracotta(colorScheme))
+            } else {
+                Button(action: runSearch) {
+                    Text("Search")
+                        .font(.system(size: 15, weight: .bold, design: .serif))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 16)
+                        .frame(height: 38)
+                        .background(Capsule().fill(OrganicPalette.terracotta(colorScheme)))
+                }
+                .buttonStyle(.plain)
+                .disabled(searchQuery.isEmpty)
+                .opacity(searchQuery.isEmpty ? 0.4 : 1)
+            }
+        }
+        .padding(.leading, 18)
+        .padding(.trailing, 8)
+        .frame(height: 56)
+        .background(Capsule().fill(OrganicPalette.field(colorScheme)))
+    }
+
+    private func runSearch() {
+        guard !searchQuery.isEmpty else { return }
+        isQueryFocused = false
+        viewModel.searchUser(query: searchQuery)
+    }
 }
 
-// MARK: - Search Result Row
+// MARK: - Search Result Card
 
-struct SearchResultRow: View {
+struct SearchResultCard: View {
     let contact: Contact
     @ObservedObject var viewModel: FriendsViewModel
     let onAdd: () -> Void
 
-    var body: some View {
-        HStack(spacing: 12) {
-            ProfilePictureView(profilePictureURL: contact.profilePictureURL, size: 50) {
-                Circle()
-                    .fill(Color.appAccent.opacity(0.2))
-                    .frame(width: 50, height: 50)
-                    .overlay(
-                        Text(String(contact.name.prefix(1)).uppercased())
-                            .font(.headline)
-                            .foregroundColor(.appAccent)
-                    )
-            }
+    @Environment(\.colorScheme) private var colorScheme
 
-            VStack(alignment: .leading, spacing: 4) {
+    var body: some View {
+        HStack(spacing: 14) {
+            OrganicAvatar(name: contact.name, profilePictureURL: contact.profilePictureURL)
+
+            VStack(alignment: .leading, spacing: 3) {
                 Text(contact.name)
-                    .font(.headline)
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundColor(OrganicPalette.ink(colorScheme))
                     .lineLimit(1)
 
                 Text(contact.email)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                    .font(.system(size: 14))
+                    .foregroundColor(OrganicPalette.inkSoft(colorScheme))
                     .lineLimit(1)
             }
 
-            Spacer()
+            Spacer(minLength: 8)
 
             addButton
         }
-        .padding(.vertical, 4)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
+        .background(OrganicCardBackground(colorScheme: colorScheme))
     }
 
     @ViewBuilder
@@ -821,29 +1006,20 @@ struct SearchResultRow: View {
         if relationship.exists {
             switch relationship.status {
             case .accepted:
-                HStack(spacing: 4) {
-                    Image(systemName: "checkmark.circle.fill")
-                    Text("Friends")
-                }
-                .font(.caption)
-                .foregroundColor(.appSuccess)
+                statusPill("Friends", tint: OrganicPalette.sageInk(colorScheme), fill: OrganicPalette.sage(colorScheme))
             case .pending:
                 if relationship.isSentByMe {
-                    Text("Pending")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(Color.secondary.opacity(0.1))
-                        .clipShape(Capsule())
+                    statusPill(
+                        "Pending",
+                        tint: OrganicPalette.inkSoft(colorScheme),
+                        fill: OrganicPalette.field(colorScheme)
+                    )
                 } else {
-                    Text("Respond")
-                        .font(.caption)
-                        .foregroundColor(.appWarning)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(Color.appWarning.opacity(0.1))
-                        .clipShape(Capsule())
+                    statusPill(
+                        "Respond",
+                        tint: OrganicPalette.terracotta(colorScheme),
+                        fill: OrganicPalette.blush(colorScheme)
+                    )
                 }
             case .rejected, .none:
                 addFriendButton
@@ -853,18 +1029,23 @@ struct SearchResultRow: View {
         }
     }
 
+    private func statusPill(_ title: String, tint: Color, fill: Color) -> some View {
+        Text(title)
+            .font(.system(size: 14, weight: .semibold))
+            .foregroundColor(tint)
+            .padding(.horizontal, 14)
+            .frame(height: 38)
+            .background(Capsule().fill(fill))
+    }
+
     private var addFriendButton: some View {
         Button(action: onAdd) {
-            HStack(spacing: 4) {
-                Image(systemName: "person.badge.plus")
-                Text("Add")
-            }
-            .font(.caption)
-            .foregroundColor(.white)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
-            .background(Color.appAccent)
-            .clipShape(Capsule())
+            Text("Add")
+                .font(.system(size: 15, weight: .bold, design: .serif))
+                .foregroundColor(.white)
+                .padding(.horizontal, 20)
+                .frame(height: 38)
+                .background(Capsule().fill(OrganicPalette.terracotta(colorScheme)))
         }
         .buttonStyle(.plain)
         .disabled(viewModel.isLoading)
