@@ -21,8 +21,8 @@ struct BackgroundPickerView: View {
     var storeIds: [String] = []
     /// What the "Default" entry looks like on the screen being edited. Passed
     /// through so its swatch and the preview show what the user will actually
-    /// get — Conversations resolve Default to the organic canvas, not the app
-    /// gradient. Nil keeps the gradient.
+    /// get — Stores, Reminders and Conversations resolve Default to the organic
+    /// canvas, not the app gradient. Nil keeps the gradient.
     var systemDefault: Color?
 
     @Environment(\.dismiss) private var dismiss

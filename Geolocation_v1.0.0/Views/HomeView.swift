@@ -46,22 +46,15 @@ struct HomeView: View {
     var body: some View {
         ZStack {
             TabView(selection: $selectedTab) {
+                // Stores draws its own greeting, title and profile button in
+                // the content, so this stack is here only to push from — the
+                // screen hides its navigation bar.
                 NavigationStack {
                     StoresView(pendingStoreName: $pendingStoreName)
-                        .navigationTitle("Hi, \(sessionManager.currentUser?.name ?? "there")")
-                        .navigationBarTitleDisplayMode(.large)
                         .onAppear {
                             // Fetch user data if not already loaded
                             if sessionManager.currentUser == nil && !sessionManager.isLoading {
                                 sessionManager.fetchUser()
-                            }
-                        }
-                        .toolbar {
-                            ToolbarItem(placement: .navigationBarLeading) {
-                                NavigationLink(destination: ProfileView(), label: {
-                                    Image(systemName: "person")
-                                        .imageScale(.large)
-                                })
                             }
                         }
                 }//:NAVIGATIONSTACK

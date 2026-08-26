@@ -9,14 +9,13 @@ import SwiftUI
 
 // MARK: - Organic Palette
 
-/// The palette behind Friends, Messages and Conversations.
+/// The palette behind Friends, Messages, Conversations, Stores and Reminders.
 ///
-/// These screens are about people rather than data, so they run on paper and
-/// clay instead of the app's cool default gradient: a cream canvas, a terracotta
-/// accent, and a sage green kept for the one idea that isn't terracotta —
-/// Family in Friends, a store share in a chat. The system blue and the frosted
-/// material cards read as clinical beside the soft, rounded shapes these screens
-/// are built from.
+/// The app runs on paper and clay rather than its old cool gradient: a cream
+/// canvas, a terracotta accent, and a sage green kept for the one idea that
+/// isn't terracotta — Family in Friends, a store share in a chat, a shared
+/// store in the list. The system blue and the frosted material cards read as
+/// clinical beside the soft, rounded shapes these screens are built from.
 enum OrganicPalette {
     /// Full-bleed paper backdrop behind a whole screen.
     static func canvas(_ scheme: ColorScheme) -> Color {
@@ -78,6 +77,15 @@ enum OrganicPalette {
         scheme == .dark
             ? Color(red: 0.78, green: 0.86, blue: 0.68)
             : Color(red: 0.18, green: 0.29, blue: 0.13)
+    }
+
+    /// A deep brick, kept for the destructive and out-of-stock states that
+    /// would otherwise reach for the system red — a siren tone that pulls the
+    /// eye far harder than these states deserve on a paper background.
+    static func rust(_ scheme: ColorScheme) -> Color {
+        scheme == .dark
+            ? Color(red: 0.85, green: 0.38, blue: 0.31)
+            : Color(red: 0.69, green: 0.22, blue: 0.16)
     }
 
     /// Hairline used to outline ghost buttons and quiet rows.
@@ -230,6 +238,127 @@ extension View {
             .listRowInsets(EdgeInsets(top: 6, leading: 20, bottom: 2, trailing: 20))
             .listRowSeparator(.hidden)
             .listRowBackground(Color.clear)
+    }
+}
+
+// MARK: - Header Button
+
+/// The quiet round icon button these screens set beside a title.
+///
+/// Blush rather than filled terracotta: every one of these screens already has
+/// a single loud primary action (the compose disc, the add-store FAB), and a
+/// second filled circle next to it would just split the user's attention.
+struct OrganicCircleButton<Glyph: View>: View {
+    var size: CGFloat = 54
+    let action: () -> Void
+    @ViewBuilder let glyph: () -> Glyph
+
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        Button(action: action) {
+            glyph()
+                .foregroundColor(OrganicPalette.terracotta(colorScheme))
+                .frame(width: size, height: size)
+                .background(Circle().fill(OrganicPalette.blush(colorScheme)))
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+extension OrganicCircleButton where Glyph == Image {
+    /// The common case: an SF Symbol on the disc.
+    init(
+        systemImage: String,
+        size: CGFloat = 54,
+        glyphSize: CGFloat = 20,
+        action: @escaping () -> Void
+    ) {
+        self.init(size: size, action: action) {
+            Image(systemName: systemImage)
+                .font(.system(size: glyphSize, weight: .semibold))
+        }
+    }
+}
+
+// MARK: - Count Badge
+
+/// The small filled capsule carrying a number — unread messages, items waiting
+/// in a store, the size of a category.
+struct OrganicCountBadge: View {
+    let count: Int
+    var fontSize: CGFloat = 13
+
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        Text("\(count)")
+            .font(.system(size: fontSize, weight: .bold, design: .serif))
+            .foregroundColor(.white)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 2)
+            .background(Capsule().fill(OrganicPalette.terracotta(colorScheme)))
+    }
+}
+
+// MARK: - Empty State
+
+/// The shape an empty screen takes here: a glyph inside a blush disc, a serif
+/// line naming what is missing, a sentence of context, and — when there is
+/// something to do about it — one terracotta pill.
+struct OrganicEmptyState: View {
+    let systemImage: String
+    let title: String
+    let message: String
+    var actionTitle: String?
+    var action: (() -> Void)?
+    /// A quieter line under everything else, for a state the user can't act on
+    /// (a list they only have view access to).
+    var footnote: String?
+
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        VStack(spacing: 14) {
+            Image(systemName: systemImage)
+                .font(.system(size: 44, weight: .light))
+                .foregroundColor(OrganicPalette.terracotta(colorScheme).opacity(0.55))
+                .frame(width: 96, height: 96)
+                .background(Circle().fill(OrganicPalette.blush(colorScheme)))
+
+            Text(title)
+                .font(OrganicPalette.display(26))
+                .foregroundColor(OrganicPalette.ink(colorScheme))
+                .multilineTextAlignment(.center)
+
+            Text(message)
+                .font(.system(size: 16))
+                .foregroundColor(OrganicPalette.inkSoft(colorScheme))
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 32)
+
+            if let actionTitle, let action {
+                Button(action: action) {
+                    Text(actionTitle)
+                        .font(.system(size: 17, weight: .bold, design: .serif))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 32)
+                        .frame(height: 52)
+                        .background(Capsule().fill(OrganicPalette.terracotta(colorScheme)))
+                }
+                .buttonStyle(.plain)
+                .padding(.top, 4)
+            }
+
+            if let footnote {
+                Text(footnote)
+                    .font(.system(size: 14))
+                    .foregroundColor(OrganicPalette.inkSoft(colorScheme).opacity(0.8))
+                    .multilineTextAlignment(.center)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding()
     }
 }
 

@@ -44,6 +44,7 @@ struct ReminderItemView: View {
     @State private var editQuantityText: String = ""
     @FocusState private var isTextFieldFocused: Bool
     @FocusState private var isQuantityFieldFocused: Bool
+    @Environment(\.colorScheme) private var colorScheme
 
     // Get current user's info to determine if they created the reminder
     private var currentUserName: String? {
@@ -77,13 +78,25 @@ struct ReminderItemView: View {
         }
     }
 
+    /// Rust for out of stock, the soft ink for a checked item, full ink for one
+    /// still waiting — so the three states read at a glance without the system
+    /// red the rest of the screen has left behind.
+    private var checkboxColor: Color {
+        if item.isOutOfStock == true {
+            return OrganicPalette.rust(colorScheme)
+        }
+        return item.isDone
+            ? OrganicPalette.inkSoft(colorScheme)
+            : OrganicPalette.ink(colorScheme)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 if autoDeleteEnabled {
                     Image(systemName: "trash")
-                        .font(.caption)
-                        .foregroundStyle(.red.opacity(0.7))
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(OrganicPalette.rust(colorScheme).opacity(0.8))
                         .frame(width: 20, height: 30)
                         // Visual affordance only. The AutoDeleteSwipeRail overlay
                         // in ReminderView owns the gesture at the ZStack level so
@@ -92,7 +105,7 @@ struct ReminderItemView: View {
 
                 Image(systemName: item.isOutOfStock == true ? "xmark.square" : (item.isDone ? "checkmark.square" : "square"))
                     .font(.system(size: 24))
-                    .foregroundStyle(item.isOutOfStock == true ? .red : .primary)
+                    .foregroundColor(checkboxColor)
                     // Animate the symbol swap and add a little pop when the
                     // checkbox is checked/unchecked or toggled out of stock.
                     .contentTransition(.symbolEffect(.replace))
@@ -109,7 +122,8 @@ struct ReminderItemView: View {
 
                 if isEditing {
                     TextField("Reminder", text: $editText)
-                        .font(.system(size: 17))
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundColor(OrganicPalette.ink(colorScheme))
                         .focused($isTextFieldFocused)
                         .onSubmit {
                             commitEdit()
@@ -128,9 +142,13 @@ struct ReminderItemView: View {
                         }
                 } else {
                     Text(item.title)
-                        .font(.system(size: 17))
-                        .strikethrough(item.isDone, color: .secondary)
-                        .foregroundStyle(item.isDone ? .secondary : .primary)
+                        .font(.system(size: 17, weight: .semibold))
+                        .strikethrough(item.isDone, color: OrganicPalette.inkSoft(colorScheme))
+                        .foregroundColor(
+                            item.isDone
+                                ? OrganicPalette.inkSoft(colorScheme)
+                                : OrganicPalette.ink(colorScheme)
+                        )
                         .animation(.easeInOut(duration: 0.2), value: item.isDone)
                         .contentShape(Rectangle())
                         .onTapGesture {
@@ -144,12 +162,11 @@ struct ReminderItemView: View {
                 if isEditingQuantity {
                     HStack(spacing: 2) {
                         Text("Qty:")
-                            .font(.caption)
-                            .fontWeight(.medium)
-                            .foregroundColor(.secondary)
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundColor(OrganicPalette.inkSoft(colorScheme))
                         TextField("", text: $editQuantityText)
-                            .font(.caption)
-                            .fontWeight(.medium)
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundColor(OrganicPalette.ink(colorScheme))
                             .keyboardType(.numberPad)
                             .frame(width: 40)
                             .focused($isQuantityFieldFocused)
@@ -177,9 +194,11 @@ struct ReminderItemView: View {
                     }
                 } else if let quantity = item.quantity, quantity > 0 {
                     Text("Qty: \(quantity)")
-                        .font(.caption)
-                        .fontWeight(.medium)
-                        .foregroundColor(.secondary)
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(OrganicPalette.inkSoft(colorScheme))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(Capsule().fill(OrganicPalette.field(colorScheme)))
                         .contentShape(Rectangle())
                         .onTapGesture {
                             onQuantityTap?()
@@ -204,7 +223,12 @@ struct ReminderItemView: View {
                 // Star icon for toggling favorite
                 if onAddToFavorites != nil {
                     Image(systemName: isFavorited ? "star.fill" : "star")
-                        .foregroundStyle(isFavorited ? .yellow : .secondary)
+                        .font(.system(size: 15))
+                        .foregroundColor(
+                            isFavorited
+                                ? OrganicPalette.terracotta(colorScheme)
+                                : OrganicPalette.inkSoft(colorScheme).opacity(0.7)
+                        )
                         .frame(width: 30, height: 30)
                         .contentShape(Rectangle())
                         .onTapGesture {
@@ -216,7 +240,7 @@ struct ReminderItemView: View {
                 if !isReorderMode, onReorderTap != nil {
                     Image(systemName: "ellipsis")
                         .rotationEffect(.degrees(90))
-                        .foregroundStyle(.secondary)
+                        .foregroundColor(OrganicPalette.inkSoft(colorScheme).opacity(0.7))
                         .frame(width: 30, height: 30)
                         .contentShape(Rectangle())
                         .onTapGesture {
@@ -239,20 +263,23 @@ struct ReminderItemView: View {
                                         .scaledToFill()
                                         .frame(width: 60, height: 60)
                                         .clipped()
-                                        .cornerRadius(8)
+                                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                                 case .failure:
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .fill(Color.gray.opacity(0.3))
+                                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                        .fill(OrganicPalette.field(colorScheme))
                                         .frame(width: 60, height: 60)
                                         .overlay(
                                             Image(systemName: "photo")
-                                                .foregroundColor(.gray)
+                                                .foregroundColor(OrganicPalette.inkSoft(colorScheme))
                                         )
                                 case .empty:
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .fill(Color.gray.opacity(0.2))
+                                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                        .fill(OrganicPalette.field(colorScheme))
                                         .frame(width: 60, height: 60)
-                                        .overlay(ProgressView())
+                                        .overlay(
+                                            ProgressView()
+                                                .tint(OrganicPalette.terracotta(colorScheme))
+                                        )
                                 @unknown default:
                                     EmptyView()
                                 }
@@ -362,6 +389,8 @@ struct SharedBadge: View {
     /// id but no name.
     var memberNames: [String: String] = [:]
 
+    @Environment(\.colorScheme) private var colorScheme
+
     // Check if current user is the one who shared/created this reminder
     // Uses userId for reliable comparison, falls back to name for old data
     private var isCurrentUserTheSharer: Bool {
@@ -462,8 +491,8 @@ struct SharedBadge: View {
                     .font(.system(size: 11, weight: .bold))
                     .foregroundColor(.white)
                     .frame(width: 22, height: 22)
-                    .background(Circle().fill(Color.appAccent))
-                    .overlay(Circle().stroke(Color(.systemBackground), lineWidth: 1.5))
+                    .background(Circle().fill(OrganicPalette.terracotta(colorScheme)))
+                    .overlay(Circle().stroke(OrganicPalette.surface(colorScheme), lineWidth: 1.5))
             }
         }
         .help(tooltipText)
@@ -539,6 +568,8 @@ struct InitialAvatar: View {
     /// authored by other members of the shared store.
     var isCurrentUser: Bool = false
 
+    @Environment(\.colorScheme) private var colorScheme
+
     private var initial: String {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         return String(trimmed.first ?? "?").uppercased()
@@ -550,17 +581,18 @@ struct InitialAvatar: View {
 
     var body: some View {
         Text(initial)
-            .font(.system(size: size * 0.5, weight: .bold))
+            .font(.system(size: size * 0.5, weight: .bold, design: .serif))
             .foregroundColor(.white)
             .frame(width: size, height: size)
             .background(Circle().fill(fillColor))
-            // Neutral separator ring for every avatar (drawn inside the bounds).
-            .overlay(Circle().strokeBorder(Color(.systemBackground), lineWidth: 1.5))
+            // Separator ring in the card's own paper, so the avatar reads as
+            // punched out of the row rather than outlined against it.
+            .overlay(Circle().strokeBorder(OrganicPalette.surface(colorScheme), lineWidth: 1.5))
             // The viewer's own items get a bold accent "story" ring around the
             // avatar so they stand out at a glance from other members' items.
             .overlay {
                 if isCurrentUser {
-                    Circle().stroke(Color.appAccent, lineWidth: 2.5)
+                    Circle().stroke(OrganicPalette.terracotta(colorScheme), lineWidth: 2.5)
                         .padding(-2.5)
                 }
             }
@@ -574,9 +606,21 @@ struct InitialAvatar: View {
 /// djb2 hash (not `String.hashValue`, which is randomized per launch) so a
 /// given name maps to the same color across app launches and devices.
 enum SharedAvatarPalette {
+    /// Ten muted, earthy fills rather than the system's saturated set — these
+    /// avatars sit on paper cards, and a full-strength `.cyan` next to a
+    /// terracotta badge reads as a different app. Kept in the same order as
+    /// `colorFamilies` below, which the collision solver indexes into.
     static let colors: [Color] = [
-        .blue, .green, .orange, .purple, .pink,
-        .teal, .indigo, .red, .cyan, .mint
+        Color(red: 0.35, green: 0.47, blue: 0.60), // dusty blue
+        Color(red: 0.40, green: 0.51, blue: 0.33), // olive
+        Color(red: 0.76, green: 0.42, blue: 0.21), // terracotta
+        Color(red: 0.47, green: 0.36, blue: 0.53), // plum
+        Color(red: 0.72, green: 0.44, blue: 0.43), // clay rose
+        Color(red: 0.26, green: 0.49, blue: 0.48), // deep teal
+        Color(red: 0.35, green: 0.36, blue: 0.55), // slate indigo
+        Color(red: 0.66, green: 0.26, blue: 0.20), // brick
+        Color(red: 0.38, green: 0.54, blue: 0.62), // steel blue
+        Color(red: 0.47, green: 0.60, blue: 0.44), // moss
     ]
 
     /// Perceptual family for each palette color, parallel to `colors`. Colors in
@@ -585,16 +629,16 @@ enum SharedAvatarPalette {
     /// families — otherwise "James" in red and "John" in pink still read as the
     /// same avatar. Families: 0 = cool, 1 = green, 2 = warm, 3 = purple.
     private static let colorFamilies: [Int] = [
-        0, // blue   → cool
-        1, // green  → green
-        2, // orange → warm
-        3, // purple → purple
-        2, // pink   → warm
-        0, // teal   → cool
-        0, // indigo → cool
-        2, // red    → warm
-        0, // cyan   → cool
-        1  // mint   → green
+        0, // dusty blue   → cool
+        1, // olive        → green
+        2, // terracotta   → warm
+        3, // plum         → purple
+        2, // clay rose    → warm
+        0, // deep teal    → cool
+        0, // slate indigo → cool
+        2, // brick        → warm
+        0, // steel blue   → cool
+        1  // moss         → green
     ]
 
     /// Normalized lookup key for a display name.

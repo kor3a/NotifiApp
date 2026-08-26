@@ -23,6 +23,7 @@ struct MembershipBarcodeTopSheet: View {
     let onDismiss: () -> Void
 
     @ObservedObject private var cardStore = MembershipCardStore.shared
+    @Environment(\.colorScheme) private var colorScheme
 
     @State private var showingEditor = false
     @State private var showingPhotoPicker = false
@@ -67,10 +68,13 @@ struct MembershipBarcodeTopSheet: View {
 
             grabber
         }
+        // Paper rather than frosted glass — this panel slides down over the
+        // reminder list, so it has to be made of the same stuff as the cards
+        // underneath it.
         .background(
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .fill(.regularMaterial)
-                .shadow(color: .black.opacity(0.22), radius: 18, x: 0, y: 8)
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .fill(OrganicPalette.surface(colorScheme))
+                .shadow(color: OrganicPalette.shadow(colorScheme), radius: 18, x: 0, y: 8)
         )
         .padding(.horizontal, 12)
         .offset(y: min(dragOffset, 0))
@@ -123,16 +127,16 @@ struct MembershipBarcodeTopSheet: View {
         HStack(spacing: 10) {
             Image(systemName: "barcode.viewfinder")
                 .font(.body)
-                .foregroundStyle(Color.appAccent)
+                .foregroundColor(OrganicPalette.terracotta(colorScheme))
 
             VStack(alignment: .leading, spacing: 1) {
                 Text(storeName)
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
+                    .font(.system(size: 15, weight: .bold, design: .serif))
+                    .foregroundColor(OrganicPalette.ink(colorScheme))
                     .lineLimit(1)
                 Text("Membership")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
+                    .font(.system(size: 11))
+                    .foregroundColor(OrganicPalette.inkSoft(colorScheme))
             }
 
             Spacer(minLength: 8)
@@ -167,7 +171,7 @@ struct MembershipBarcodeTopSheet: View {
                 } label: {
                     Image(systemName: "ellipsis.circle")
                         .font(.body)
-                        .foregroundStyle(.secondary)
+                        .foregroundColor(OrganicPalette.inkSoft(colorScheme))
                         .frame(width: 32, height: 32)
                         .contentShape(Rectangle())
                 }
@@ -178,7 +182,7 @@ struct MembershipBarcodeTopSheet: View {
             } label: {
                 Image(systemName: "xmark.circle.fill")
                     .font(.body)
-                    .foregroundStyle(.tertiary)
+                    .foregroundColor(OrganicPalette.inkSoft(colorScheme).opacity(0.6))
                     .frame(width: 32, height: 32)
                     .contentShape(Rectangle())
             }
@@ -192,7 +196,7 @@ struct MembershipBarcodeTopSheet: View {
     private func barcodeCard(image: UIImage) -> some View {
         VStack(spacing: 8) {
             // Always on white: scanners read a dark-on-light code, and the panel
-            // itself is translucent material that follows the system theme.
+            // behind it is cream in light mode and near-black in dark.
             // `.high` interpolation, not `.none` — the image is generated wider
             // than it's shown, and nearest-neighbour downscaling drops whole
             // columns, which can merge adjacent bars and break the scan.
@@ -261,8 +265,8 @@ struct MembershipBarcodeTopSheet: View {
                         .font(.caption.weight(.semibold))
                         .padding(.horizontal, 14)
                         .padding(.vertical, 8)
-                        .background(Capsule().fill(Color.appAccent.opacity(0.15)))
-                        .foregroundStyle(Color.appAccent)
+                        .background(Capsule().fill(OrganicPalette.blush(colorScheme)))
+                        .foregroundColor(OrganicPalette.terracotta(colorScheme))
                 }
                 .buttonStyle(.plain)
 
@@ -273,8 +277,8 @@ struct MembershipBarcodeTopSheet: View {
                         .font(.caption.weight(.semibold))
                         .padding(.horizontal, 14)
                         .padding(.vertical, 8)
-                        .background(Capsule().fill(Color.appAccent.opacity(0.15)))
-                        .foregroundStyle(Color.appAccent)
+                        .background(Capsule().fill(OrganicPalette.blush(colorScheme)))
+                        .foregroundColor(OrganicPalette.terracotta(colorScheme))
                 }
                 .buttonStyle(.plain)
             }
@@ -286,7 +290,7 @@ struct MembershipBarcodeTopSheet: View {
 
     private var grabber: some View {
         Capsule()
-            .fill(Color.secondary.opacity(0.35))
+            .fill(OrganicPalette.inkSoft(colorScheme).opacity(0.35))
             .frame(width: 36, height: 4)
             .padding(.bottom, 8)
     }

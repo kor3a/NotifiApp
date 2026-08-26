@@ -90,11 +90,16 @@ struct TutorialReminderScene: View {
     // MARK: - Colors
 
     private var backgroundColor: Color {
-        colorScheme == .dark ? Color(white: 0.08) : Color(white: 0.95)
+        OrganicPalette.canvas(colorScheme)
     }
 
     private var cardFill: Color {
-        colorScheme == .dark ? Color(white: 0.16) : Color.white
+        OrganicPalette.surface(colorScheme)
+    }
+
+    /// The accent the mock draws its highlights in, matching the real screen.
+    private var accent: Color {
+        OrganicPalette.terracotta(colorScheme)
     }
 
     /// Approximate top safe-area inset — the parent overlay ignores the safe
@@ -111,13 +116,18 @@ struct TutorialReminderScene: View {
                 Text("Stores")
                     .font(.system(size: 17))
             }
-            .foregroundColor(.appAccent)
+            .foregroundColor(accent)
 
             Spacer()
 
-            Text("Whole Foods")
-                .font(.system(size: 17, weight: .semibold))
-                .foregroundStyle(.primary)
+            VStack(spacing: 1) {
+                Text("Whole Foods")
+                    .font(.system(size: 17, weight: .bold, design: .serif))
+                    .foregroundColor(OrganicPalette.ink(colorScheme))
+                Text("6 items")
+                    .font(.system(size: 12))
+                    .foregroundColor(OrganicPalette.inkSoft(colorScheme))
+            }
 
             Spacer()
 
@@ -125,13 +135,13 @@ struct TutorialReminderScene: View {
             ZStack {
                 if step == .remindersInfoMenu {
                     Circle()
-                        .fill(Color.appAccent.opacity(0.18))
+                        .fill(OrganicPalette.blush(colorScheme))
                         .frame(width: 40, height: 40)
                         .scaleEffect(pulse ? 1.15 : 0.9)
                 }
                 Image(systemName: step == .remindersInfoMenu ? "info.circle.fill" : "info.circle")
                     .font(.system(size: 20))
-                    .foregroundColor(.appAccent)
+                    .foregroundColor(accent)
             }
             .frame(width: 44, height: 44)
         }
@@ -141,7 +151,9 @@ struct TutorialReminderScene: View {
         .background(
             backgroundColor
                 .overlay(alignment: .bottom) {
-                    Divider().opacity(0.5)
+                    Rectangle()
+                        .fill(OrganicPalette.outline(colorScheme).opacity(0.5))
+                        .frame(height: 1)
                 }
         )
     }
@@ -166,41 +178,34 @@ struct TutorialReminderScene: View {
     }
 
     private func categoryHeader(for category: MockCategory) -> some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 10) {
             Image(systemName: category.icon)
-                .font(.caption)
-                .foregroundColor(.appAccent)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundColor(accent)
                 .frame(width: 20)
 
             Text(category.name)
-                .font(.subheadline)
-                .fontWeight(.semibold)
-                .foregroundStyle(.primary)
+                .font(OrganicPalette.display(20))
+                .foregroundColor(OrganicPalette.ink(colorScheme))
 
-            Text("\(category.items.count)")
-                .font(.caption2)
-                .fontWeight(.medium)
-                .foregroundStyle(.white)
-                .padding(.horizontal, 6)
-                .padding(.vertical, 2)
-                .background(Capsule().fill(Color.appAccent.opacity(0.7)))
+            OrganicCountBadge(count: category.items.count, fontSize: 12)
 
             Spacer()
 
             Image(systemName: "chevron.down")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundColor(OrganicPalette.inkSoft(colorScheme))
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 6)
         .background(
-            RoundedRectangle(cornerRadius: 10)
-                .fill(Color.appAccent.opacity(step == .remindersCategories ? (pulse ? 0.16 : 0.06) : 0))
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(accent.opacity(step == .remindersCategories ? (pulse ? 0.16 : 0.06) : 0))
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 10)
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
                 .strokeBorder(
-                    Color.appAccent.opacity(step == .remindersCategories ? (pulse ? 0.7 : 0.25) : 0),
+                    accent.opacity(step == .remindersCategories ? (pulse ? 0.7 : 0.25) : 0),
                     lineWidth: 1.5
                 )
         )
@@ -211,41 +216,48 @@ struct TutorialReminderScene: View {
         return HStack(spacing: 12) {
             Image(systemName: item.isDone ? "checkmark.square" : "square")
                 .font(.system(size: 20))
-                .foregroundStyle(item.isDone ? Color.appAccent : Color.primary)
+                .foregroundColor(
+                    item.isDone
+                        ? OrganicPalette.inkSoft(colorScheme)
+                        : OrganicPalette.ink(colorScheme)
+                )
 
             Text(item.title)
-                .font(.system(size: 17))
-                .foregroundStyle(item.isDone ? .secondary : .primary)
-                .strikethrough(item.isDone, color: .secondary)
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundColor(
+                    item.isDone
+                        ? OrganicPalette.inkSoft(colorScheme)
+                        : OrganicPalette.ink(colorScheme)
+                )
+                .strikethrough(item.isDone, color: OrganicPalette.inkSoft(colorScheme))
 
             Spacer()
 
             if let quantity = item.quantity {
                 Text("Qty: \(quantity)")
-                    .font(.caption)
-                    .fontWeight(.medium)
-                    .foregroundStyle(.white)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(OrganicPalette.inkSoft(colorScheme))
                     .padding(.horizontal, 8)
                     .padding(.vertical, 3)
-                    .background(Capsule().fill(Color.appAccent.opacity(0.9)))
+                    .background(Capsule().fill(OrganicPalette.field(colorScheme)))
             }
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 14)
         .background(
-            RoundedRectangle(cornerRadius: 16)
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
                 .fill(cardFill)
-                .shadow(color: .black.opacity(colorScheme == .dark ? 0.3 : 0.08), radius: 6, x: 0, y: 3)
+                .shadow(color: OrganicPalette.shadow(colorScheme), radius: 10, x: 0, y: 4)
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 16)
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
                 .strokeBorder(
-                    Color.appAccent.opacity(isAnchor ? (pulse ? 0.85 : 0.4) : 0),
+                    accent.opacity(isAnchor ? (pulse ? 0.85 : 0.4) : 0),
                     lineWidth: 2
                 )
         )
         .scaleEffect(isAnchor ? 1.02 : 1.0)
-        .shadow(color: .appAccent.opacity(isAnchor ? 0.35 : 0), radius: isAnchor ? 16 : 0)
+        .shadow(color: accent.opacity(isAnchor ? 0.35 : 0), radius: isAnchor ? 16 : 0)
         .zIndex(isAnchor ? 5 : 0)
     }
 
@@ -255,31 +267,27 @@ struct TutorialReminderScene: View {
         VStack(spacing: 0) {
             infoMenuRow(
                 icon: "trash",
-                iconColor: .primary,
                 title: "Auto Delete",
                 subtitle: "Delete checked items automatically",
                 trailing: .toggle(isOn: false)
             )
-            Divider().padding(.horizontal, 16)
+            menuDivider
             infoMenuRow(
                 icon: "sparkles",
-                iconColor: .appAccent,
                 title: "Smart Category",
                 subtitle: "AI auto-categorizes new items",
                 trailing: .toggle(isOn: true)
             )
-            Divider().padding(.horizontal, 16)
+            menuDivider
             infoMenuRow(
                 icon: "fork.knife",
-                iconColor: .appAccent,
                 title: "Recipes",
                 subtitle: "Add ingredients from a saved recipe",
                 trailing: .chevron
             )
-            Divider().padding(.horizontal, 16)
+            menuDivider
             infoMenuRow(
                 icon: "safari",
-                iconColor: .appAccent,
                 title: "Visit store",
                 subtitle: "Open the store's app or website",
                 trailing: .arrow
@@ -287,14 +295,21 @@ struct TutorialReminderScene: View {
         }
         .frame(width: 300)
         .background(
-            RoundedRectangle(cornerRadius: 16)
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
                 .fill(cardFill)
-                .shadow(color: .black.opacity(0.25), radius: 20, x: 0, y: 8)
+                .shadow(color: OrganicPalette.shadow(colorScheme), radius: 20, x: 0, y: 8)
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .strokeBorder(Color.appAccent.opacity(pulse ? 0.6 : 0.2), lineWidth: 1.5)
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .strokeBorder(accent.opacity(pulse ? 0.6 : 0.2), lineWidth: 1.5)
         )
+    }
+
+    private var menuDivider: some View {
+        Rectangle()
+            .fill(OrganicPalette.outline(colorScheme).opacity(0.5))
+            .frame(height: 1)
+            .padding(.horizontal, 16)
     }
 
     private enum InfoTrailing {
@@ -303,27 +318,27 @@ struct TutorialReminderScene: View {
         case arrow
     }
 
-    private func infoMenuRow(icon: String, iconColor: Color, title: String, subtitle: String, trailing: InfoTrailing) -> some View {
+    private func infoMenuRow(icon: String, title: String, subtitle: String, trailing: InfoTrailing) -> some View {
         HStack(spacing: 12) {
             Image(systemName: icon)
-                .font(.body)
-                .foregroundColor(iconColor)
-                .frame(width: 24)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundColor(accent)
+                .frame(width: 30, height: 30)
+                .background(Circle().fill(OrganicPalette.blush(colorScheme)))
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                    .foregroundStyle(.primary)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundColor(OrganicPalette.ink(colorScheme))
                 Text(subtitle)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .font(.system(size: 12))
+                    .foregroundColor(OrganicPalette.inkSoft(colorScheme))
             }
-            Spacer()
+            Spacer(minLength: 8)
             switch trailing {
             case .toggle(let isOn):
                 // Static toggle mock (non-interactive).
                 Capsule()
-                    .fill(isOn ? Color.green : Color(white: 0.6))
+                    .fill(isOn ? accent : OrganicPalette.field(colorScheme))
                     .frame(width: 44, height: 28)
                     .overlay(alignment: isOn ? .trailing : .leading) {
                         Circle()
@@ -333,12 +348,12 @@ struct TutorialReminderScene: View {
                     }
             case .chevron:
                 Image(systemName: "chevron.right")
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(OrganicPalette.inkSoft(colorScheme).opacity(0.7))
             case .arrow:
                 Image(systemName: "arrow.up.right")
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(OrganicPalette.inkSoft(colorScheme).opacity(0.7))
             }
         }
         .padding(.horizontal, 16)
@@ -353,20 +368,20 @@ struct TutorialReminderScene: View {
 
             VStack(spacing: 0) {
                 shortcutRow(title: "Out of Stock", icon: "xmark.circle")
-                Divider()
+                menuDivider
                 shortcutRow(title: "Move to Store", icon: "arrow.right.square", showsSubmenuChevron: true)
-                Divider()
+                menuDivider
                 shortcutRow(title: "Add Photos", icon: "photo.on.rectangle.angled")
-                Divider()
+                menuDivider
                 shortcutRow(title: "Add Quantity", icon: "number")
-                Divider()
+                menuDivider
                 shortcutRow(title: "Change Category", icon: "tag")
             }
             .frame(width: 240)
             .background(
-                RoundedRectangle(cornerRadius: 14)
-                    .fill(colorScheme == .dark ? Color(white: 0.2) : Color(white: 0.97))
-                    .shadow(color: .black.opacity(0.3), radius: 24, x: 0, y: 10)
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .fill(cardFill)
+                    .shadow(color: OrganicPalette.shadow(colorScheme), radius: 24, x: 0, y: 10)
             )
 
             Spacer()
@@ -377,17 +392,17 @@ struct TutorialReminderScene: View {
         HStack {
             Text(title)
                 .font(.system(size: 16))
-                .foregroundStyle(.primary)
+                .foregroundColor(OrganicPalette.ink(colorScheme))
             Spacer()
             if showsSubmenuChevron {
                 Image(systemName: "chevron.right")
                     .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(.secondary)
+                    .foregroundColor(OrganicPalette.inkSoft(colorScheme))
                     .padding(.trailing, 4)
             }
             Image(systemName: icon)
                 .font(.system(size: 16))
-                .foregroundStyle(.primary)
+                .foregroundColor(OrganicPalette.ink(colorScheme))
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 13)

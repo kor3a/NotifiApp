@@ -22,6 +22,7 @@ struct StoreFloatView: View {
     @State private var dragOffset: CGSize = .zero
     @State private var dragStartTargetPos: CGPoint = .zero
     @State private var containerSize: CGSize = .zero
+    @Environment(\.colorScheme) private var colorScheme
 
     private let circleSize: CGFloat = 58
     private let hSpacing: CGFloat = 14
@@ -118,7 +119,7 @@ struct StoreFloatView: View {
                 } label: {
                     ZStack {
                         Circle()
-                            .fill(Color.red)
+                            .fill(OrganicPalette.rust(colorScheme))
                             .frame(width: 22, height: 22)
                         Image(systemName: "minus")
                             .font(.system(size: 13, weight: .bold))
@@ -336,18 +337,18 @@ struct StoreFloatView: View {
             CachedLogoImage(storeName: item.store.name, size: circleSize)
                 .overlay(
                     Circle()
-                        .stroke(Color.white.opacity(0.35), lineWidth: 1.5)
+                        .stroke(OrganicPalette.surface(colorScheme).opacity(0.6), lineWidth: 1.5)
                 )
-                .shadow(color: .black.opacity(0.22), radius: 7, x: 0, y: 3)
+                .shadow(color: OrganicPalette.shadow(colorScheme), radius: 8, x: 0, y: 4)
 
             // Reminder count badge
             if item.store.reminderCount > 0 {
                 ZStack {
                     Circle()
-                        .fill(.red)
+                        .fill(OrganicPalette.terracotta(colorScheme))
                         .frame(width: 19, height: 19)
                     Text("\(item.store.reminderCount)")
-                        .font(.system(size: 10, weight: .bold))
+                        .font(.system(size: 10, weight: .bold, design: .serif))
                         .foregroundColor(.white)
                 }
                 .offset(x: 5, y: -5)

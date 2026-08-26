@@ -275,7 +275,8 @@ struct ReminderView: View {
                     title: userStoreItem.store.name,
                     // Lets the picker offer this look to every other store's
                     // list; this store is filtered out on the other side.
-                    storeIds: [userStoreItem.id] + availableStores.map(\.id)
+                    storeIds: [userStoreItem.id] + availableStores.map(\.id),
+                    systemDefault: OrganicPalette.canvas(colorScheme)
                 )
             }
             .sheet(item: $reminderForPhoto) { reminder in
@@ -387,8 +388,18 @@ struct ReminderView: View {
 
     private var coreView: some View {
         ZStack {
+            // The user's chosen background for this store, falling back to the
+            // paper canvas. It sits here rather than on the list so the empty
+            // and loading states stand on the same ground.
+            SurfaceBackground(
+                surface: .reminders(storeId: userStoreItem.id),
+                systemDefault: OrganicPalette.canvas(colorScheme)
+            )
+
             if viewModel.isLoading {
                 ProgressView("Loading reminders...")
+                    .tint(OrganicPalette.terracotta(colorScheme))
+                    .foregroundColor(OrganicPalette.inkSoft(colorScheme))
             } else if viewModel.displayedReminders.isEmpty && !isAddingNewReminder {
                 emptyStateView
             } else {
@@ -485,12 +496,13 @@ struct ReminderView: View {
                     Spacer()
                     BannerAdView(adUnitID: kBannerAdUnitID)
                         .frame(height: 50)
-                        .background(Color(.systemBackground).opacity(0.95))
+                        .background(OrganicPalette.canvas(colorScheme))
                 }
             }
         }
-        .navigationTitle(userStoreItem.store.name)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackground(OrganicPalette.canvas(colorScheme), for: .navigationBar)
+        .tint(OrganicPalette.terracotta(colorScheme))
         .toolbar { toolbarContent }
         .onAppear {
             viewModel.fetchReminders(for: userStoreItem.reminderStoreId, sharedFromName: userStoreItem.sharedFromName)
@@ -655,34 +667,20 @@ struct ReminderView: View {
     // MARK: - Extracted Sub-Views
 
     private var emptyStateView: some View {
-        VStack(spacing: 20) {
-            Image(systemName: "list.bullet.clipboard")
-                .resizable()
-                .frame(width: 60, height: 60)
-                .foregroundStyle(.gray)
-
-            Text("No Reminders")
-                .font(.title2)
-                .bold()
-
-            Text("Add reminders for this store")
-                .foregroundStyle(.gray)
-
-            if userStoreItem.permission != .view {
-                Button {
-                    isAddingNewReminder = true
-                } label: {
-                    Label("Add Reminder", systemImage: "plus")
-                }
-                .buttonStyle(PrimaryButtonStyle())
-                .padding(.horizontal)
-            } else {
-                Text("View only - cannot add reminders")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
+        let canAdd = userStoreItem.permission != .view
+        var addItem: (() -> Void)?
+        if canAdd {
+            addItem = { isAddingNewReminder = true }
         }
-        .padding()
+
+        return OrganicEmptyState(
+            systemImage: "checklist",
+            title: "Nothing on the list",
+            message: "Add what you need at \(userStoreItem.store.name) and it will be waiting for you when you get there.",
+            actionTitle: canAdd ? "Add an item" : nil,
+            action: addItem,
+            footnote: canAdd ? nil : "You have view-only access to this list."
+        )
     }
 
     private var reminderListView: some View {
@@ -701,9 +699,7 @@ struct ReminderView: View {
                 // Favorite tags section
                 if !viewModel.favoriteTags.isEmpty {
                     favoriteTagsSection
-                        .listRowBackground(Color.clear)
-                        .listRowSeparator(.hidden)
-                        .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
+                        .organicRow()
                 }
 
                 if !isReorderMode {
@@ -714,6 +710,15 @@ struct ReminderView: View {
                     // gets torn down, dropping the keyboard.
                     ForEach(viewModel.displayedCategoryOrder, id: \.self) { category in
                         Section {
+                            // The title is a row rather than a section header: a
+                            // `.plain` list pins its headers and draws its own
+                            // backing behind them, which puts a grey bar across
+                            // the paper canvas as soon as the list scrolls.
+                            if showsCategoryHeaders {
+                                categoryHeader(for: category)
+                                    .organicSectionLabelRow()
+                            }
+
                             if !collapsedCategories.contains(category) {
                                 ForEach(viewModel.displayedReminders(for: category)) { reminder in
                                     reminderRow(
@@ -722,10 +727,6 @@ struct ReminderView: View {
                                         memberNames: memberNames
                                     )
                                 }
-                            }
-                        } header: {
-                            if showsCategoryHeaders {
-                                categoryHeader(for: category)
                             }
                         }
                     }
@@ -750,12 +751,12 @@ struct ReminderView: View {
                 }
             }
             .listStyle(.plain)
+            .listSectionSpacing(10)
             .scrollContentBackground(.hidden)
             .safeAreaInset(edge: .bottom) {
                 Color.clear.frame(height: 50)
             }
             .environment(\.editMode, editMode)
-            .background(SurfaceBackground(surface: .reminders(storeId: userStoreItem.id)))
             .onChange(of: isAddingNewReminder) { _, newValue in
                 if newValue {
                     withAnimation {
@@ -806,32 +807,28 @@ struct ReminderView: View {
                 }
             }
         } label: {
-            HStack(spacing: 8) {
+            HStack(spacing: 10) {
                 Image(systemName: categoryIcon(for: category))
-                    .font(.caption)
-                    .foregroundColor(Color.appAccent)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(OrganicPalette.terracotta(colorScheme))
                     .frame(width: 20)
 
                 Text(category)
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(.primary)
+                    .font(OrganicPalette.display(20))
+                    .foregroundColor(OrganicPalette.ink(colorScheme))
 
-                Text("\(viewModel.displayedReminders(for: category).count)")
-                    .font(.caption2)
-                    .fontWeight(.medium)
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(Capsule().fill(Color.appAccent.opacity(0.7)))
+                OrganicCountBadge(
+                    count: viewModel.displayedReminders(for: category).count,
+                    fontSize: 12
+                )
 
                 Spacer()
 
                 Image(systemName: collapsedCategories.contains(category) ? "chevron.right" : "chevron.down")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(OrganicPalette.inkSoft(colorScheme))
             }
-            .padding(.vertical, 4)
+            .padding(.vertical, 6)
         }
         .buttonStyle(.plain)
     }
@@ -937,9 +934,11 @@ struct ReminderView: View {
             avatarColorMap: avatarColors,
             memberNames: memberNames
         )
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
+        .background(OrganicCardBackground(colorScheme: colorScheme, cornerRadius: 20))
         .contentShape(Rectangle())
-        .listRowBackground(cardRowBackground)
-        .listRowSeparator(.hidden)
+        .organicRow()
         .opacity(fadingReminderIds.contains(reminder.id) ? 0 : 1)
         .scaleEffect(fadingReminderIds.contains(reminder.id) ? 0.8 : 1.0)
         .animation(.easeOut(duration: 0.5), value: fadingReminderIds)
@@ -961,26 +960,8 @@ struct ReminderView: View {
             } label: {
                 Image(systemName: "square.and.arrow.up")
             }
-            .tint(.blue)
+            .tint(OrganicPalette.terracotta(colorScheme))
         }
-    }
-
-    private var cardRowBackground: some View {
-        RoundedRectangle(cornerRadius: 16)
-            .fill(.ultraThinMaterial)
-            .overlay(
-                RoundedRectangle(cornerRadius: 16)
-                    .stroke(
-                        Color.cardBorder(for: colorScheme),
-                        lineWidth: 1.5
-                    )
-            )
-            // Flatten fill + stroke before the shadow so it is computed once per
-            // row; the second decorative shadow cost an extra offscreen pass per
-            // row while scrolling. Matches the StoresView card fix.
-            .compositingGroup()
-            .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.3 : 0.1), radius: 8, x: 0, y: 4)
-            .padding(.vertical, 4)
     }
 
     // MARK: - Favorite Tags
@@ -988,9 +969,9 @@ struct ReminderView: View {
     private var favoriteTagsSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Favorites")
-                .font(.caption)
-                .fontWeight(.semibold)
-                .foregroundStyle(.secondary)
+                .font(.system(size: 11, weight: .bold))
+                .kerning(0.8)
+                .foregroundColor(OrganicPalette.inkSoft(colorScheme))
                 .textCase(.uppercase)
 
             ScrollView(.horizontal, showsIndicators: false) {
@@ -1039,20 +1020,28 @@ struct ReminderView: View {
             HStack {
                 Image(systemName: "square")
                     .font(.system(size: 24))
-                    .foregroundStyle(.gray.opacity(0.4))
+                    .foregroundColor(OrganicPalette.inkSoft(colorScheme).opacity(0.5))
                     // Match the checkbox footprint in ReminderItemView so the
                     // text field lines up with the reminder titles below it.
                     .frame(width: 32, height: 32)
-                TextField("What do you need?", text: $newReminderText)
-                    .font(.headline)
-                    .focused($isNewReminderFocused)
-                    .onSubmit {
-                        submitNewReminder()
-                    }
-                    .textInputAutocapitalization(.sentences)
+                TextField(
+                    "",
+                    text: $newReminderText,
+                    prompt: Text("What do you need?")
+                        .foregroundColor(OrganicPalette.inkSoft(colorScheme).opacity(0.8))
+                )
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundColor(OrganicPalette.ink(colorScheme))
+                .focused($isNewReminderFocused)
+                .onSubmit {
+                    submitNewReminder()
+                }
+                .textInputAutocapitalization(.sentences)
             }
-            .listRowBackground(cardRowBackground)
-            .listRowSeparator(.hidden)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
+            .background(OrganicCardBackground(colorScheme: colorScheme, cornerRadius: 20))
+            .organicRow()
             .id("inlineAddRow")
             .onAppear {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
@@ -1063,21 +1052,30 @@ struct ReminderView: View {
             Button {
                 isAddingNewReminder = true
             } label: {
-                HStack {
+                HStack(spacing: 10) {
                     Image(systemName: "plus")
-                        .foregroundStyle(.gray)
+                        .font(.system(size: 15, weight: .bold))
+                        .foregroundColor(OrganicPalette.terracotta(colorScheme))
                     Text("Add item")
-                        .font(.headline)
-                        .foregroundStyle(.gray)
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundColor(OrganicPalette.terracotta(colorScheme))
                     Spacer()
                 }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 16)
+                // Outlined rather than filled: this is the one row that isn't an
+                // item yet, so it stays a hollow slot at the end of the list.
+                .background(
+                    RoundedRectangle(cornerRadius: 20, style: .continuous)
+                        .strokeBorder(
+                            OrganicPalette.terracotta(colorScheme).opacity(0.35),
+                            style: StrokeStyle(lineWidth: 1.5, dash: [6, 5])
+                        )
+                )
+                .contentShape(Rectangle())
             }
-            .listRowBackground(
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(.ultraThinMaterial.opacity(0.5))
-                    .padding(.vertical, 4)
-            )
-            .listRowSeparator(.hidden)
+            .buttonStyle(.plain)
+            .organicRow()
             .id("inlineAddRow")
         }
     }
@@ -1174,7 +1172,28 @@ struct ReminderView: View {
                 }
                 .toggleStyle(.button)
                 .labelStyle(.iconOnly)
-                .tint(autoDeleteEnabled ? .red : .gray)
+                .tint(
+                    autoDeleteEnabled
+                        ? OrganicPalette.rust(colorScheme)
+                        : OrganicPalette.inkSoft(colorScheme)
+                )
+            }
+        }
+
+        // The store name in the screen's own serif, with the item count under
+        // it — the list itself no longer carries a count anywhere else.
+        ToolbarItem(placement: .principal) {
+            VStack(spacing: 1) {
+                Text(userStoreItem.store.name)
+                    .font(.system(size: 17, weight: .bold, design: .serif))
+                    .foregroundColor(OrganicPalette.ink(colorScheme))
+                    .lineLimit(1)
+
+                if !viewModel.displayedReminders.isEmpty {
+                    Text(itemCountSubtitle)
+                        .font(.system(size: 12))
+                        .foregroundColor(OrganicPalette.inkSoft(colorScheme))
+                }
             }
         }
 
@@ -1185,9 +1204,11 @@ struct ReminderView: View {
                         isReorderMode = false
                     }
                 }
+                .font(.system(size: 16, weight: .bold, design: .serif))
+                .foregroundColor(OrganicPalette.terracotta(colorScheme))
             } else if userStoreItem.permission == .view {
                 Image(systemName: "eye.fill")
-                    .foregroundStyle(.secondary)
+                    .foregroundColor(OrganicPalette.inkSoft(colorScheme))
                     .frame(width: 22, height: 22)
             }
         }
@@ -1202,6 +1223,7 @@ struct ReminderView: View {
                     }
                 } label: {
                     Image(systemName: hasMembershipCard ? "barcode.viewfinder" : "barcode")
+                        .foregroundColor(OrganicPalette.terracotta(colorScheme))
                         .frame(width: 22, height: 22)
                 }
                 .frame(width: 44, height: 44)
@@ -1224,11 +1246,20 @@ struct ReminderView: View {
                     }
                 } label: {
                     Image(systemName: showInfoPanel ? "info.circle.fill" : "info.circle")
+                        .foregroundColor(OrganicPalette.terracotta(colorScheme))
                         .frame(width: 22, height: 22)
                 }
                 .frame(width: 44, height: 44)
             }
         }
+    }
+
+    /// "6 items", or "6 items · 2 done" once anything has been checked off.
+    private var itemCountSubtitle: String {
+        let total = viewModel.displayedReminders.count
+        let done = viewModel.displayedReminders.filter(\.isDone).count
+        let items = "\(total) item\(total == 1 ? "" : "s")"
+        return done > 0 ? "\(items) \u{00B7} \(done) done" : items
     }
 
     /// Whether a membership card is saved for this store, used to fill in the
@@ -1468,16 +1499,19 @@ struct ReminderView: View {
     // MARK: - Undo Toast View
 
     private func undoToastView(message: String, onUndo: @escaping () -> Void) -> some View {
-        VStack {
+        // The toast is inverted paper — ink where the screen is canvas — so its
+        // accent has to come from the opposite appearance to stay legible.
+        let inverted: ColorScheme = colorScheme == .dark ? .light : .dark
+        return VStack {
             Spacer()
             HStack(spacing: 12) {
                 Image(systemName: "trash.fill")
-                    .foregroundStyle(.white.opacity(0.75))
-                    .font(.subheadline)
+                    .font(.system(size: 14))
+                    .foregroundColor(OrganicPalette.canvas(colorScheme).opacity(0.7))
 
                 Text(message)
-                    .foregroundStyle(.white)
-                    .font(.subheadline)
+                    .font(.system(size: 15))
+                    .foregroundColor(OrganicPalette.canvas(colorScheme))
                     .lineLimit(1)
                     .truncationMode(.tail)
 
@@ -1487,17 +1521,18 @@ struct ReminderView: View {
                     onUndo()
                 } label: {
                     Text("Undo")
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
-                        .foregroundStyle(.yellow)
+                        .font(.system(size: 15, weight: .bold, design: .serif))
+                        .foregroundColor(OrganicPalette.terracotta(inverted))
                 }
             }
             .padding(.horizontal, 18)
             .padding(.vertical, 14)
+            // Inverted paper: ink for the fill, canvas for the type, so the
+            // toast reads as part of the same palette rather than a grey slab.
             .background(
                 Capsule()
-                    .fill(Color(.systemGray2).opacity(colorScheme == .dark ? 0.95 : 0.85))
-                    .shadow(color: .black.opacity(0.25), radius: 12, x: 0, y: 4)
+                    .fill(OrganicPalette.ink(colorScheme))
+                    .shadow(color: OrganicPalette.shadow(colorScheme), radius: 12, x: 0, y: 4)
             )
             .padding(.horizontal, 20)
             .padding(.bottom, 24)
@@ -1513,100 +1548,44 @@ struct ReminderView: View {
                 Spacer()
                 VStack(alignment: .leading, spacing: 0) {
                     // Auto Delete row
-                    HStack(spacing: 12) {
-                        Image(systemName: autoDeleteEnabled ? "trash.fill" : "trash")
-                            .font(.body)
-                            .foregroundColor(autoDeleteEnabled ? .red : .primary)
-                            .frame(width: 24)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Auto Delete")
-                                .font(.subheadline)
-                                .fontWeight(.medium)
-                            Text("Delete checked items automatically")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        Spacer()
-                        Toggle("", isOn: $autoDeleteEnabled)
-                            .labelsHidden()
-                            .disabled(userStoreItem.permission == .view)
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 12)
-
-                    Divider()
-                        .padding(.horizontal, 16)
+                    infoRow(
+                        icon: autoDeleteEnabled ? "trash.fill" : "trash",
+                        iconTint: autoDeleteEnabled ? OrganicPalette.rust(colorScheme) : nil,
+                        title: "Auto Delete",
+                        subtitle: "Delete checked items automatically",
+                        accessory: userStoreItem.permission == .view
+                            ? .readOnlyToggle($autoDeleteEnabled)
+                            : .toggle($autoDeleteEnabled),
+                        showsDivider: false
+                    )
 
                     // Smart Category row
-                    HStack(spacing: 12) {
-                        Image(systemName: "sparkles")
-                            .font(.body)
-                            .foregroundColor(isSubscribed ? Color.appAccent : .secondary)
-                            .frame(width: 24)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Smart Category")
-                                .font(.subheadline)
-                                .fontWeight(.medium)
-                                .foregroundStyle(isSubscribed ? Color.primary : Color.secondary)
-                            Text(smartCategorySubtitle)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        Spacer()
-                        if isSubscribed {
-                            Toggle("", isOn: $smartCategoryEnabled)
-                                .labelsHidden()
-                        } else {
-                            Image(systemName: "lock.fill")
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 12)
+                    infoRow(
+                        icon: "sparkles",
+                        title: "Smart Category",
+                        subtitle: smartCategorySubtitle,
+                        isDimmed: !isSubscribed,
+                        accessory: isSubscribed ? .toggle($smartCategoryEnabled) : .locked
+                    )
 
                     if userStoreItem.permission != .view {
-                        Divider()
-                            .padding(.horizontal, 16)
-
                         // Recipes row
-                        Button {
-                            withAnimation(.easeInOut(duration: 0.18)) {
-                                showInfoPanel = false
-                            }
+                        infoRow(
+                            icon: "fork.knife",
+                            title: "Recipes",
+                            subtitle: "Add ingredients from a saved recipe",
+                            accessory: .chevron
+                        ) {
                             showingRecipePicker = true
-                        } label: {
-                            HStack(spacing: 12) {
-                                Image(systemName: "fork.knife")
-                                    .font(.body)
-                                    .foregroundColor(Color.appAccent)
-                                    .frame(width: 24)
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text("Recipes")
-                                        .font(.subheadline)
-                                        .fontWeight(.medium)
-                                        .foregroundStyle(Color.primary)
-                                    Text("Add ingredients from a saved recipe")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-                                Spacer()
-                                Image(systemName: "chevron.right")
-                                    .font(.caption)
-                                    .foregroundStyle(.tertiary)
-                            }
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 12)
                         }
-                        .buttonStyle(.plain)
                     }
 
                     infoPanelSecondaryRows
                 }
                 .background(
-                    RoundedRectangle(cornerRadius: 16)
-                        .fill(.regularMaterial)
-                        .shadow(color: .black.opacity(0.2), radius: 16, x: 0, y: 8)
+                    RoundedRectangle(cornerRadius: 24, style: .continuous)
+                        .fill(OrganicPalette.surface(colorScheme))
+                        .shadow(color: OrganicPalette.shadow(colorScheme), radius: 18, x: 0, y: 8)
                 )
                 .frame(width: 290)
                 .padding(.trailing, 12)
@@ -1623,186 +1602,160 @@ struct ReminderView: View {
     /// limit — the panel's rows had outgrown the ten a single stack allows.
     private var infoPanelSecondaryRows: some View {
         Group {
-            Divider()
-                .padding(.horizontal, 16)
-
             // History row — checked-off items no longer in the list
-            Button {
-                withAnimation(.easeInOut(duration: 0.18)) {
-                    showInfoPanel = false
-                }
+            infoRow(
+                icon: "clock.arrow.circlepath",
+                title: "History",
+                subtitle: "Checked-off items no longer in the list",
+                accessory: .chevron
+            ) {
                 showingHistory = true
-            } label: {
-                HStack(spacing: 12) {
-                    Image(systemName: "clock.arrow.circlepath")
-                        .font(.body)
-                        .foregroundColor(Color.appAccent)
-                        .frame(width: 24)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("History")
-                            .font(.subheadline)
-                            .fontWeight(.medium)
-                            .foregroundStyle(Color.primary)
-                        Text("Checked-off items no longer in the list")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    Spacer()
-                    Image(systemName: "chevron.right")
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
-                }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
             }
-            .buttonStyle(.plain)
-
-            Divider()
-                .padding(.horizontal, 16)
 
             // Analytics row — premium shopping insights for this store.
             // The view itself shows an upgrade pitch for free users.
-            Button {
-                withAnimation(.easeInOut(duration: 0.18)) {
-                    showInfoPanel = false
-                }
+            infoRow(
+                icon: "chart.bar.xaxis",
+                title: "Analytics",
+                subtitle: isSubscribed ? "Shopping trends and item insights" : "Available for subscribers",
+                isDimmed: !isSubscribed,
+                accessory: isSubscribed ? .chevron : .locked
+            ) {
                 showingAnalytics = true
-            } label: {
-                HStack(spacing: 12) {
-                    Image(systemName: "chart.bar.xaxis")
-                        .font(.body)
-                        .foregroundColor(isSubscribed ? Color.appAccent : .secondary)
-                        .frame(width: 24)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Analytics")
-                            .font(.subheadline)
-                            .fontWeight(.medium)
-                            .foregroundStyle(isSubscribed ? Color.primary : Color.secondary)
-                        Text(isSubscribed ? "Shopping trends and item insights" : "Available for subscribers")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    Spacer()
-                    Image(systemName: isSubscribed ? "chevron.right" : "lock.fill")
-                        .font(isSubscribed ? .caption : .subheadline)
-                        .foregroundStyle(isSubscribed ? AnyShapeStyle(.tertiary) : AnyShapeStyle(.secondary))
-                }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
             }
-            .buttonStyle(.plain)
-
-            Divider()
-                .padding(.horizontal, 16)
 
             // Background row — colors are free, so this is never locked. The
             // picker itself pitches the upgrade for photos.
-            Button {
-                withAnimation(.easeInOut(duration: 0.18)) {
-                    showInfoPanel = false
-                }
+            infoRow(
+                icon: "photo.on.rectangle.angled",
+                title: "Change Background",
+                subtitle: isSubscribed ? "A photo or color just for this store" : "A color just for this store",
+                accessory: .chevron
+            ) {
                 showingBackgroundPicker = true
-            } label: {
-                HStack(spacing: 12) {
-                    Image(systemName: "photo.on.rectangle.angled")
-                        .font(.body)
-                        .foregroundColor(Color.appAccent)
-                        .frame(width: 24)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Change Background")
-                            .font(.subheadline)
-                            .fontWeight(.medium)
-                            .foregroundStyle(Color.primary)
-                        Text(isSubscribed ? "A photo or color just for this store" : "A color just for this store")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    Spacer()
-                    Image(systemName: "chevron.right")
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
-                }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
             }
-            .buttonStyle(.plain)
 
             // Store app / website row. The URL is derived from the store name
             // (no per-store data to maintain); iOS opens the store's app via
             // universal links when installed, otherwise falls back to Safari.
             if let storeURL = storeWebsiteURL {
-                Divider()
-                    .padding(.horizontal, 16)
-
-                Button {
-                    withAnimation(.easeInOut(duration: 0.18)) {
-                        showInfoPanel = false
-                    }
+                infoRow(
+                    icon: "safari",
+                    title: "Visit store",
+                    subtitle: "Open the store's app or website",
+                    accessory: .arrow
+                ) {
                     openURL(storeURL)
-                } label: {
-                    HStack(spacing: 12) {
-                        Image(systemName: "safari")
-                            .font(.body)
-                            .foregroundColor(Color.appAccent)
-                            .frame(width: 24)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Visit store")
-                                .font(.subheadline)
-                                .fontWeight(.medium)
-                                .foregroundStyle(Color.primary)
-                            Text("Open the store's app or website")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        Spacer()
-                        Image(systemName: "arrow.up.right")
-                            .font(.caption)
-                            .foregroundStyle(.tertiary)
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 12)
                 }
-                .buttonStyle(.plain)
             }
 
             // Set / edit store website (admin only). Writes a shared override to
             // the store_websites collection so it applies for everyone with this
             // store, so it is restricted to the app owner's account.
             if isStoreAdmin {
-                Divider()
-                    .padding(.horizontal, 16)
-
-                Button {
+                infoRow(
+                    icon: "link",
+                    title: storeWebsiteURL == nil ? "Set store website" : "Edit store website",
+                    subtitle: "Add a link to this store's website or app",
+                    accessory: .chevron
+                ) {
                     websiteInputText = storeWebsiteURL?.absoluteString ?? ""
+                    showingEditWebsite = true
+                }
+            }
+        }
+    }
+
+    /// One row of the info panel: a terracotta glyph on blush, a title, the line
+    /// of explanation under it, and whatever the row does on the right.
+    ///
+    /// `action` closes the panel before it runs — every row that has one either
+    /// pushes a sheet or leaves the app, so the panel would otherwise still be
+    /// sitting there on the way back.
+    @ViewBuilder
+    private func infoRow(
+        icon: String,
+        iconTint: Color? = nil,
+        title: String,
+        subtitle: String,
+        isDimmed: Bool = false,
+        accessory: InfoRowAccessory,
+        showsDivider: Bool = true,
+        action: (() -> Void)? = nil
+    ) -> some View {
+        VStack(spacing: 0) {
+            if showsDivider {
+                Rectangle()
+                    .fill(OrganicPalette.outline(colorScheme).opacity(0.5))
+                    .frame(height: 1)
+                    .padding(.horizontal, 16)
+            }
+
+            let content = HStack(spacing: 12) {
+                Image(systemName: icon)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(iconTint ?? OrganicPalette.terracotta(colorScheme))
+                    .frame(width: 30, height: 30)
+                    .background(Circle().fill(OrganicPalette.blush(colorScheme)))
+                    .opacity(isDimmed ? 0.5 : 1)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundColor(OrganicPalette.ink(colorScheme).opacity(isDimmed ? 0.5 : 1))
+                    Text(subtitle)
+                        .font(.system(size: 12))
+                        .foregroundColor(OrganicPalette.inkSoft(colorScheme))
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                Spacer(minLength: 8)
+
+                infoRowAccessory(accessory)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+
+            if let action {
+                Button {
                     withAnimation(.easeInOut(duration: 0.18)) {
                         showInfoPanel = false
                     }
-                    showingEditWebsite = true
+                    action()
                 } label: {
-                    HStack(spacing: 12) {
-                        Image(systemName: "link")
-                            .font(.body)
-                            .foregroundColor(Color.appAccent)
-                            .frame(width: 24)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(storeWebsiteURL == nil ? "Set store website" : "Edit store website")
-                                .font(.subheadline)
-                                .fontWeight(.medium)
-                                .foregroundStyle(Color.primary)
-                            Text("Add a link to this store's website or app")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        Spacer()
-                        Image(systemName: "chevron.right")
-                            .font(.caption)
-                            .foregroundStyle(.tertiary)
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 12)
+                    content.contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+            } else {
+                content
             }
+        }
+    }
+
+    @ViewBuilder
+    private func infoRowAccessory(_ accessory: InfoRowAccessory) -> some View {
+        switch accessory {
+        case .toggle(let isOn):
+            Toggle("", isOn: isOn)
+                .labelsHidden()
+                .tint(OrganicPalette.terracotta(colorScheme))
+        case .readOnlyToggle(let isOn):
+            Toggle("", isOn: isOn)
+                .labelsHidden()
+                .tint(OrganicPalette.terracotta(colorScheme))
+                .disabled(true)
+        case .chevron:
+            Image(systemName: "chevron.right")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundColor(OrganicPalette.inkSoft(colorScheme).opacity(0.7))
+        case .arrow:
+            Image(systemName: "arrow.up.right")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundColor(OrganicPalette.inkSoft(colorScheme).opacity(0.7))
+        case .locked:
+            Image(systemName: "lock.fill")
+                .font(.system(size: 13))
+                .foregroundColor(OrganicPalette.inkSoft(colorScheme))
         }
     }
 
@@ -1863,27 +1816,45 @@ struct ReminderView: View {
     }
 }
 
+// MARK: - Info Panel Accessory
+
+/// What sits at the trailing edge of an info-panel row.
+enum InfoRowAccessory {
+    case toggle(Binding<Bool>)
+    /// A toggle the user can see the state of but not change — a list they
+    /// only have view access to.
+    case readOnlyToggle(Binding<Bool>)
+    case chevron
+    case arrow
+    /// A subscriber-only row, which shows what it would do and why it can't.
+    case locked
+}
+
 // MARK: - Favorite Tag View
 
 struct FavoriteTagView: View {
     let title: String
+    /// False once the item is already on the list, when tapping the tag would
+    /// do nothing.
     var isActive: Bool = true
+
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         Text(title)
-            .font(.caption)
-            .fontWeight(.medium)
+            .font(.system(size: 13, weight: .semibold))
             .lineLimit(1)
-            .foregroundColor(.white)
+            .foregroundColor(
+                isActive ? .white : OrganicPalette.inkSoft(colorScheme)
+            )
             .padding(.horizontal, 14)
             .padding(.vertical, 8)
             .background(
-                Capsule()
-                    .fill(Color.appAccent.opacity(isActive ? 1.0 : 0.4))
-            )
-            .overlay(
-                Capsule()
-                    .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                Capsule().fill(
+                    isActive
+                        ? OrganicPalette.terracotta(colorScheme)
+                        : OrganicPalette.field(colorScheme)
+                )
             )
     }
 }

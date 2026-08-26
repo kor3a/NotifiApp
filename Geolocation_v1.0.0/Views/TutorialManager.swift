@@ -82,9 +82,9 @@ enum TutorialStep: Int, CaseIterable {
         case .welcome:
             return "Let's take a quick tour of the key features so you can get the most out of your shopping experience."
         case .storesFAB:
-            return "Tap the blue + button to add your favorite grocery stores and start managing shopping reminders."
+            return "Tap the + button to add your favorite grocery stores and start managing shopping reminders."
         case .storesToolbar:
-            return "Sort your stores by reminder count, or switch between list and grid view using these toolbar icons."
+            return "Sort your stores by reminder count, or switch between list and grid view using these buttons."
         case .remindersCategories:
             return "Open a store to see its reminders. As you add items, Smart Category automatically groups them into sections like Produce, Dairy, and Bakery — no sorting needed."
         case .remindersInfoMenu:
