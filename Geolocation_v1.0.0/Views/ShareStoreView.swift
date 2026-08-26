@@ -44,7 +44,6 @@ struct ShareStoreView: View {
     @StateObject private var friendsViewModel = FriendsViewModel()
     /// Observed so the header refreshes once a logo finishes downloading.
     @ObservedObject private var logoProvider = StoreLogoProvider.shared
-    @State private var recipientEmail: String = ""
     @State private var selectedPermission: StorePermission = .edit
     @State private var isSharing: Bool = false
     @State private var showAlert: Bool = false
@@ -53,13 +52,13 @@ struct ShareStoreView: View {
     @State private var sharedUsers: [SharedUser] = []
     @State private var isLoadingSharedUsers: Bool = false
     @State private var reminderTitles: [String] = []
-    @State private var selectedFriend: Contact?
-    @State private var isSharingWithAllFamily: Bool = false
+    /// Every recipient ticked in the list, across both tabs.
+    @State private var selectedContactIDs: Set<String> = []
     @State private var showShareInfo: Bool = false
     /// Nil until the user picks a tab, so the sheet can open on whichever list
     /// actually has people in it.
     @State private var recipientTab: RecipientTab?
-    @State private var familyShareProgress: String = ""
+    @State private var shareProgress: String = ""
 
     private let db = Firestore.firestore()
     private let messagingService = MessagingService.shared
@@ -97,10 +96,6 @@ struct ShareStoreView: View {
                             // Family / Friends picker and the matching list
                             if !friendsViewModel.familyMembers.isEmpty || !friendsViewModel.friends.isEmpty {
                                 recipientSection
-                            }
-
-                            if selectedFriend != nil {
-                                selectedFriendChip
                             }
 
                             // Sharing is friends/family only, so say what to do when
@@ -142,7 +137,7 @@ struct ShareStoreView: View {
                             shareStore()
                         }
                         .fontWeight(.semibold)
-                        .disabled(recipientEmail.trimmingCharacters(in: .whitespaces).isEmpty || isSharingWithAllFamily)
+                        .disabled(selectedContacts.isEmpty)
                     }
                 }
             }
@@ -150,7 +145,7 @@ struct ShareStoreView: View {
                 Button("OK") {
                     if alertTitle == "Success" {
                         fetchSharedUsers()
-                        recipientEmail = ""
+                        selectedContactIDs.removeAll()
                         dismiss()
                     }
                 }
@@ -345,10 +340,10 @@ struct ShareStoreView: View {
 
             permissionSection
 
-            if isSharingWithAllFamily {
+            if isSharing && !shareProgress.isEmpty {
                 HStack(spacing: 8) {
                     ProgressView()
-                    Text(familyShareProgress)
+                    Text(shareProgress)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
@@ -418,10 +413,11 @@ struct ShareStoreView: View {
         }
     }
 
-    /// Quick action that shares with every family member at once.
+    /// Ticks (or unticks) every family member who hasn't been shared with yet.
+    /// It only changes the selection — Share is what sends the requests.
     private var allFamilyRow: some View {
         Button {
-            shareWithAllFamily()
+            toggleAllFamily()
         } label: {
             recipientRowLayout(
                 avatar: AnyView(
@@ -436,21 +432,20 @@ struct ShareStoreView: View {
                 ),
                 name: "All Family",
                 isShared: allFamilyAlreadyShared,
-                isSelected: false,
+                isSelected: allFamilySelected,
                 tint: .purple
             )
         }
         .buttonStyle(.plain)
-        .disabled(isSharingWithAllFamily || isSharing || allFamilyAlreadyShared)
+        .disabled(isSharing || allFamilyAlreadyShared)
     }
 
-    /// One recipient in the list. Tapping it pre-fills the share recipient.
+    /// One recipient in the list. Tapping it ticks or unticks them.
     private func contactRow(contact: Contact, tint: Color) -> some View {
-        let isAlreadyShared = sharedUsers.contains { $0.userEmail.lowercased() == contact.email.lowercased() }
+        let isShared = isAlreadyShared(contact)
 
         return Button {
-            selectedFriend = contact
-            recipientEmail = contact.email
+            toggleSelection(of: contact)
         } label: {
             recipientRowLayout(
                 avatar: AnyView(
@@ -465,13 +460,13 @@ struct ShareStoreView: View {
                     }
                 ),
                 name: contact.name,
-                isShared: isAlreadyShared,
-                isSelected: selectedFriend == contact,
+                isShared: isShared,
+                isSelected: selectedContactIDs.contains(contact.id),
                 tint: tint
             )
         }
         .buttonStyle(.plain)
-        .disabled(isAlreadyShared)
+        .disabled(isShared)
     }
 
     /// The name colour for a recipient row across its three states.
@@ -513,35 +508,6 @@ struct ShareStoreView: View {
         .padding(.vertical, 10)
         .contentShape(Rectangle())
         .opacity(isShared ? 0.6 : 1)
-    }
-
-    /// Chip confirming the currently selected friend/family recipient.
-    private var selectedFriendChip: some View {
-        HStack(spacing: 10) {
-            Image(systemName: "person.fill.checkmark")
-                .foregroundStyle(Color.appAccent)
-            Text("Selected: \(selectedFriend?.name ?? "")")
-                .font(.subheadline)
-                .fontWeight(.medium)
-            Spacer(minLength: 0)
-            Button(action: {
-                selectedFriend = nil
-                recipientEmail = ""
-            }) {
-                Image(systemName: "xmark.circle.fill")
-                    .foregroundStyle(.secondary)
-            }
-            .buttonStyle(.plain)
-        }
-        .padding(14)
-        .background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(Color.appAccent.opacity(0.12))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .stroke(Color.appAccent.opacity(0.3), lineWidth: 1)
-                )
-        )
     }
 
     /// The recipient's access level, as one segmented control so it reads as a
@@ -706,12 +672,42 @@ struct ShareStoreView: View {
             : .family
     }
 
+    private func isAlreadyShared(_ contact: Contact) -> Bool {
+        sharedUsers.contains { $0.userEmail.lowercased() == contact.email.lowercased() }
+    }
+
     /// The recipient list's panel colour. Off-white in light mode; dark mode gets
     /// the system's equivalent so the row text stays legible.
     private var recipientListBackground: Color {
         colorScheme == .dark
             ? Color(.secondarySystemBackground)
             : Color(red: 0.98, green: 0.98, blue: 0.97)
+    }
+
+    /// Every contact the sheet can share with, across both tabs.
+    private var allSelectableContacts: [Contact] {
+        (friendsViewModel.familyMembers + friendsViewModel.friends)
+            .map { $0.toContact(currentUserId: currentUserId) }
+    }
+
+    /// The ticked contacts, minus anyone the store is already shared with.
+    private var selectedContacts: [Contact] {
+        allSelectableContacts.filter {
+            selectedContactIDs.contains($0.id) && !isAlreadyShared($0)
+        }
+    }
+
+    /// Family members still available to share with.
+    private var unsharedFamilyContacts: [Contact] {
+        friendsViewModel.familyMembers
+            .map { $0.toContact(currentUserId: currentUserId) }
+            .filter { !isAlreadyShared($0) }
+    }
+
+    /// True once every shareable family member is ticked.
+    private var allFamilySelected: Bool {
+        !unsharedFamilyContacts.isEmpty
+            && unsharedFamilyContacts.allSatisfy { selectedContactIDs.contains($0.id) }
     }
 
     /// The contacts listed under the active tab.
@@ -723,15 +719,31 @@ struct ShareStoreView: View {
     }
 
     private var allFamilyAlreadyShared: Bool {
-        friendsViewModel.familyMembers.allSatisfy { friendship in
-            let contact = friendship.toContact(currentUserId: currentUserId)
-            return sharedUsers.contains { $0.userEmail.lowercased() == contact.email.lowercased() }
-        }
+        unsharedFamilyContacts.isEmpty
     }
 
     // MARK: - FUNCTIONS
 
-    private func shareWithAllFamily() {
+    private func toggleSelection(of contact: Contact) {
+        if selectedContactIDs.contains(contact.id) {
+            selectedContactIDs.remove(contact.id)
+        } else {
+            selectedContactIDs.insert(contact.id)
+        }
+    }
+
+    /// Ticks every shareable family member, or clears them if all are already ticked.
+    private func toggleAllFamily() {
+        let ids = unsharedFamilyContacts.map(\.id)
+        if allFamilySelected {
+            selectedContactIDs.subtract(ids)
+        } else {
+            selectedContactIDs.formUnion(ids)
+        }
+    }
+
+    /// Sends a share request to every ticked recipient.
+    private func shareStore() {
         guard let currentUserName = viewModel.sessionManager.currentUser?.name else {
             alertTitle = "Error"
             alertMessage = "No user data available."
@@ -739,32 +751,26 @@ struct ShareStoreView: View {
             return
         }
 
-        let userId = viewModel.sessionManager.currentUser?.userId ?? ""
-        let permissionString = selectedPermission == .edit ? "edit" : "view"
+        let recipients = selectedContacts
 
-        // Get all family members who haven't been shared with yet
-        let unsahredFamily = friendsViewModel.familyMembers.compactMap { friendship -> Contact? in
-            let contact = friendship.toContact(currentUserId: userId)
-            let isAlreadyShared = sharedUsers.contains { $0.userEmail.lowercased() == contact.email.lowercased() }
-            return isAlreadyShared ? nil : contact
-        }
-
-        guard !unsahredFamily.isEmpty else {
-            alertTitle = "Already Shared"
-            alertMessage = "This store is already shared with all family members."
+        guard !recipients.isEmpty else {
+            alertTitle = "No Recipients"
+            alertMessage = "Select at least one family member or friend to share with."
             showAlert = true
             return
         }
 
-        isSharingWithAllFamily = true
-        familyShareProgress = "Sharing with 0/\(unsahredFamily.count) family members..."
+        let permissionString = selectedPermission == .edit ? "edit" : "view"
+        let total = recipients.count
+
+        isSharing = true
+        shareProgress = "Sharing with 0/\(total)..."
 
         var successCount = 0
         var failCount = 0
-        let total = unsahredFamily.count
         let group = DispatchGroup()
 
-        for contact in unsahredFamily {
+        for contact in recipients {
             group.enter()
 
             // Send the share regardless of whether the recipient already has the store —
@@ -776,130 +782,36 @@ struct ShareStoreView: View {
                 currentUserName: currentUserName,
                 reminderTitles: reminderTitles
             ) { success in
-                if success {
-                    successCount += 1
-                } else {
-                    failCount += 1
-                }
                 DispatchQueue.main.async {
-                    familyShareProgress = "Sharing with \(successCount + failCount)/\(total) family members..."
+                    if success {
+                        successCount += 1
+                    } else {
+                        failCount += 1
+                    }
+                    shareProgress = "Sharing with \(successCount + failCount)/\(total)..."
+                    group.leave()
                 }
-                group.leave()
             }
         }
 
         group.notify(queue: .main) {
-            isSharingWithAllFamily = false
-            familyShareProgress = ""
+            isSharing = false
+            shareProgress = ""
             fetchSharedUsers()
-            selectedFriend = nil
-            recipientEmail = ""
 
             if successCount == total {
                 alertTitle = "Success"
-                alertMessage = "Share requests sent to all \(total) family member(s)! They will see it in their messages."
+                alertMessage = total == 1
+                    ? "Share request sent! The recipient will see it in their messages and can accept or decline."
+                    : "Share requests sent to \(total) people! They will see it in their messages."
             } else if successCount > 0 {
                 alertTitle = "Partially Shared"
-                alertMessage = "Shared with \(successCount) of \(total) family members. \(failCount) could not be shared (may already have this store)."
+                alertMessage = "Shared with \(successCount) of \(total) recipients. \(failCount) could not be shared (they may already have this store)."
             } else {
                 alertTitle = "Error"
-                alertMessage = "Failed to share with family members. They may already have this store."
+                alertMessage = "Failed to send the share requests. Please try again."
             }
             showAlert = true
-        }
-    }
-
-    private func shareStore() {
-        #if DEBUG
-        print("ShareStoreView: shareStore() called - NEW MESSAGE-BASED FLOW")
-        #endif
-
-        // Validate email format
-        guard isValidEmail(recipientEmail) else {
-            alertTitle = "Invalid Email"
-            alertMessage = "Please enter a valid email address."
-            showAlert = true
-            return
-        }
-
-        guard let currentUserId = viewModel.sessionManager.currentUser?.userId,
-              let currentUserName = viewModel.sessionManager.currentUser?.name else {
-            alertTitle = "Error"
-            alertMessage = "No user data available."
-            showAlert = true
-            return
-        }
-
-        let cleanedEmail = recipientEmail.lowercased().trimmingCharacters(in: .whitespaces)
-
-        // Check if trying to share with self
-        if cleanedEmail == viewModel.sessionManager.currentUser?.email.lowercased() {
-            alertTitle = "Error"
-            alertMessage = "You cannot share a store with yourself."
-            showAlert = true
-            return
-        }
-
-        isSharing = true
-        #if DEBUG
-        print("ShareStoreView: Looking up user by email: \(cleanedEmail)")
-        #endif
-
-        // First, find the recipient user by email
-        messagingService.searchUserByEmail(cleanedEmail) { [self] result in
-            switch result {
-            case .success(let contact):
-                guard let contact = contact else {
-                    DispatchQueue.main.async {
-                        self.isSharing = false
-                        self.alertTitle = "Error"
-                        self.alertMessage = "No user found with this email address. Make sure the recipient has an account."
-                        self.showAlert = true
-                    }
-                    return
-                }
-
-                #if DEBUG
-                print("ShareStoreView: Found contact: \(contact.name) (\(contact.id))")
-                #endif
-
-                // Send the store share request via messaging.
-                // Even if the recipient already has this store we allow the share —
-                // they will be prompted to merge their reminder lists on acceptance.
-                let permissionString = self.selectedPermission == .edit ? "edit" : "view"
-                self.messagesViewModel.shareStore(
-                    userStoreItem: self.userStoreItem,
-                    to: contact,
-                    permission: permissionString,
-                    currentUserName: currentUserName,
-                    reminderTitles: self.reminderTitles
-                ) { success in
-                    #if DEBUG
-                    print("ShareStoreView: messagesViewModel.shareStore completed with success=\(success)")
-                    #endif
-                    DispatchQueue.main.async {
-                        self.isSharing = false
-
-                        if success {
-                            self.alertTitle = "Success"
-                            self.alertMessage = "Share request sent! The recipient will see it in their messages and can accept or decline."
-                        } else {
-                            self.alertTitle = "Error"
-                            self.alertMessage = "Failed to send share request. Please try again."
-                        }
-
-                        self.showAlert = true
-                    }
-                }
-
-            case .failure(let error):
-                DispatchQueue.main.async {
-                    self.isSharing = false
-                    self.alertTitle = "Error"
-                    self.alertMessage = "Error finding recipient: \(error.localizedDescription)"
-                    self.showAlert = true
-                }
-            }
         }
     }
 
@@ -926,12 +838,6 @@ struct ShareStoreView: View {
                     self.reminderTitles = titles
                 }
             }
-    }
-
-    private func isValidEmail(_ email: String) -> Bool {
-        let emailRegex = "[A-Z0-9a-z._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,64}"
-        let emailPredicate = NSPredicate(format: "SELF MATCHES %@", emailRegex)
-        return emailPredicate.evaluate(with: email)
     }
 
     private func fetchSharedUsers() {
