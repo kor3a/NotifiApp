@@ -181,11 +181,9 @@ struct ShareStoreView: View {
                 .fontWeight(.bold)
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
-        }
-        // Keeps a long store name clear of the info button it shares the row with.
-        .padding(.horizontal, 32)
-        .frame(maxWidth: .infinity)
-        .overlay(alignment: .trailing) {
+
+            Spacer(minLength: 8)
+
             shareInfoButton
         }
     }
@@ -534,56 +532,78 @@ struct ShareStoreView: View {
         )
     }
 
-    /// The recipient's access level, picked from a pair of chips.
+    /// The recipient's access level, as one segmented control so it reads as a
+    /// single smaller control beneath the Family / Friends tabs.
     private var permissionSection: some View {
-        HStack(spacing: 10) {
-            permissionChip(.edit, title: "Can Edit", icon: "pencil", tint: .appSuccess)
-            permissionChip(.view, title: "View Only", icon: "eye", tint: .appWarning)
+        HStack(spacing: 4) {
+            permissionSegment(.edit, title: "Can Edit", icon: "pencil", tint: .appSuccess)
+            permissionSegment(.view, title: "View Only", icon: "eye", tint: .appWarning)
         }
+        .padding(4)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(Color.primary.opacity(0.06))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(Color.secondary.opacity(0.25), lineWidth: 1)
+        )
         .frame(maxWidth: .infinity)
         .animation(.easeInOut(duration: 0.15), value: selectedPermission)
     }
 
-    /// One selectable permission chip.
-    private func permissionChip(
+    /// One segment of the permission control.
+    private func permissionSegment(
         _ permission: StorePermission,
         title: String,
         icon: String,
         tint: Color
     ) -> some View {
-        selectionChip(
-            title: title,
-            icon: icon,
-            tint: tint,
-            isSelected: selectedPermission == permission,
-            isCompact: true
-        ) {
+        let isSelected = selectedPermission == permission
+
+        return Button {
             selectedPermission = permission
+        } label: {
+            HStack(spacing: 4) {
+                Image(systemName: icon)
+                    .font(.caption2)
+                    .fontWeight(.semibold)
+                Text(title)
+                    .font(.caption)
+                    .fontWeight(.semibold)
+            }
+            .foregroundStyle(isSelected ? Color.white : Color.secondary)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(
+                RoundedRectangle(cornerRadius: 9, style: .continuous)
+                    .fill(isSelected ? tint : Color.clear)
+            )
         }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(isSelected ? [.isSelected] : [])
     }
 
-    /// The capsule used by both the recipient tabs and, at `isCompact`, the
-    /// permission chips that sit under them.
+    /// The capsule used by the Family / Friends tabs.
     private func selectionChip(
         title: String,
         icon: String,
         tint: Color,
         isSelected: Bool,
-        isCompact: Bool = false,
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
-            HStack(spacing: isCompact ? 4 : 6) {
+            HStack(spacing: 6) {
                 Image(systemName: icon)
-                    .font(isCompact ? .caption2 : .caption)
+                    .font(.caption)
                     .fontWeight(.semibold)
                 Text(title)
-                    .font(isCompact ? .caption : .subheadline)
+                    .font(.subheadline)
                     .fontWeight(.semibold)
             }
             .foregroundStyle(isSelected ? Color.white : Color.secondary)
-            .padding(.horizontal, isCompact ? 12 : 18)
-            .padding(.vertical, isCompact ? 6 : 11)
+            .padding(.horizontal, 18)
+            .padding(.vertical, 11)
             .background(
                 Capsule()
                     .fill(isSelected ? tint : Color.primary.opacity(0.06))
