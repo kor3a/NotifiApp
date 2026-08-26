@@ -137,19 +137,6 @@ struct ShareStoreView: View {
                     }
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(action: {
-                        inviteFriends()
-                    }) {
-                        Image(systemName: "square.and.arrow.up.badge.checkmark")
-                    }
-                    .accessibilityLabel("Invite Friends")
-                }
-                // Break the shared Liquid Glass capsule so the invite button
-                // renders in its own circle, separate from the Share button.
-                if #available(iOS 26.0, *) {
-                    ToolbarSpacer(.fixed, placement: .navigationBarTrailing)
-                }
-                ToolbarItem(placement: .navigationBarTrailing) {
                     if isSharing {
                         ProgressView()
                     } else {
@@ -210,8 +197,6 @@ struct ShareStoreView: View {
 
             Spacer(minLength: 0)
         }
-        .padding(18)
-        .cardStyle()
     }
 
     /// Store logo shown in the hero header, matching the logos used in `StoresView`.
@@ -331,7 +316,7 @@ struct ShareStoreView: View {
 
     /// Horizontally scrolling family member avatars.
     private var familySection: some View {
-        sectionContainer(title: "Share with Family", icon: "house.fill", tint: .purple) {
+        plainSection(title: "Share with Family", icon: "house.fill", tint: .purple) {
             VStack(alignment: .leading, spacing: 12) {
                 if isSharingWithAllFamily {
                     HStack(spacing: 8) {
@@ -392,7 +377,7 @@ struct ShareStoreView: View {
 
     /// Horizontally scrolling friend avatars.
     private var friendsSection: some View {
-        sectionContainer(title: "Share with Friends", icon: "person.2.fill", tint: .appAccent) {
+        plainSection(title: "Share with Friends", icon: "person.2.fill", tint: .appAccent) {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 16) {
                     ForEach(friendsViewModel.friends) { friendship in
@@ -528,6 +513,18 @@ struct ShareStoreView: View {
 
     // MARK: - Reusable building blocks
 
+    /// The title row shared by the boxed and card-less section containers.
+    private func sectionHeader(title: String, icon: String, tint: Color) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: icon)
+                .font(.subheadline)
+                .foregroundStyle(tint)
+            Text(title)
+                .font(.subheadline)
+                .fontWeight(.semibold)
+        }
+    }
+
     /// A titled card container used by most sections.
     private func sectionContainer<Content: View>(
         title: String,
@@ -536,20 +533,29 @@ struct ShareStoreView: View {
         @ViewBuilder content: () -> Content
     ) -> some View {
         VStack(alignment: .leading, spacing: 14) {
-            HStack(spacing: 8) {
-                Image(systemName: icon)
-                    .font(.subheadline)
-                    .foregroundStyle(tint)
-                Text(title)
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
-            }
+            sectionHeader(title: title, icon: icon, tint: tint)
 
             content()
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(18)
         .cardStyle()
+    }
+
+    /// A titled section without the card chrome, for the avatar rows that read
+    /// better sitting flush against the background.
+    private func plainSection<Content: View>(
+        title: String,
+        icon: String,
+        tint: Color,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            sectionHeader(title: title, icon: icon, tint: tint)
+
+            content()
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     /// A small pill describing a permission level.
@@ -655,14 +661,6 @@ struct ShareStoreView: View {
     }
 
     // MARK: - FUNCTIONS
-
-    /// Copies Allim's App Store link so the user can invite friends who don't have the app yet.
-    private func inviteFriends() {
-        AppInvite.copyLinkToClipboard()
-        alertTitle = "Invite Friends"
-        alertMessage = AppInvite.linkCopiedMessage
-        showAlert = true
-    }
 
     private func shareWithAllFamily() {
         guard let currentUserName = viewModel.sessionManager.currentUser?.name else {
