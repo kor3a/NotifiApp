@@ -20,6 +20,19 @@ struct SharedUser: Identifiable {
 }
 
 struct ShareStoreView: View {
+    /// Which recipient list the sheet is currently showing.
+    private enum RecipientTab {
+        case family
+        case friends
+
+        var title: String { self == .family ? "Family" : "Friends" }
+        var icon: String { self == .family ? "house.fill" : "person.2.fill" }
+        var tint: Color { self == .family ? .purple : .appAccent }
+        var emptyMessage: String {
+            self == .family ? "No family members yet." : "No friends yet."
+        }
+    }
+
     // MARK: - PROPERTIES
 
     @Environment(\.dismiss) var dismiss
@@ -43,6 +56,9 @@ struct ShareStoreView: View {
     @State private var selectedFriend: Contact?
     @State private var isSharingWithAllFamily: Bool = false
     @State private var showShareInfo: Bool = false
+    /// Nil until the user picks a tab, so the sheet can open on whichever list
+    /// actually has people in it.
+    @State private var recipientTab: RecipientTab?
     @State private var familyShareProgress: String = ""
 
     private let db = Firestore.firestore()
@@ -58,6 +74,12 @@ struct ShareStoreView: View {
 
                 ScrollView {
                     VStack(spacing: 20) {
+                        // Sharing explainer, tucked under the Share button
+                        HStack {
+                            Spacer(minLength: 0)
+                            shareInfoButton
+                        }
+
                         // Permission Selection — chosen before picking a recipient
                         if userStoreItem.sharedFromName == nil {
                             permissionSection
@@ -78,14 +100,9 @@ struct ShareStoreView: View {
 
                         // Only show sharing UI if user is the owner (not a recipient)
                         if userStoreItem.sharedFromName == nil {
-                            // Family Section
-                            if !friendsViewModel.familyMembers.isEmpty {
-                                familySection
-                            }
-
-                            // Friends Section
-                            if !friendsViewModel.friends.isEmpty {
-                                friendsSection
+                            // Family / Friends picker and the matching list
+                            if !friendsViewModel.familyMembers.isEmpty || !friendsViewModel.friends.isEmpty {
+                                recipientSection
                             }
 
                             if selectedFriend != nil {
@@ -161,24 +178,20 @@ struct ShareStoreView: View {
 
     /// Hero header showing the store being shared.
     private var storeHeader: some View {
-        VStack(spacing: 12) {
+        HStack(spacing: 16) {
             storeLogoTile
 
-            HStack(spacing: 8) {
-                Text(userStoreItem.store.name)
-                    .font(.title2)
-                    .fontWeight(.bold)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
-
-                shareInfoButton
-            }
+            Text(userStoreItem.store.name)
+                .font(.title2)
+                .fontWeight(.bold)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
         }
         .frame(maxWidth: .infinity)
     }
 
-    /// Explains the share flow from a bubble next to the store name, keeping the
-    /// detail out of the way until it's asked for.
+    /// Explains the share flow from a bubble in the sheet's top-right corner,
+    /// keeping the detail out of the way until it's asked for.
     private var shareInfoButton: some View {
         Button {
             showShareInfo = true
@@ -319,103 +332,100 @@ struct ShareStoreView: View {
         )
     }
 
-    /// Horizontally scrolling family member avatars.
-    private var familySection: some View {
-        plainSection(title: "Share with Family", icon: "house.fill", tint: .purple) {
-            VStack(alignment: .leading, spacing: 12) {
-                if isSharingWithAllFamily {
-                    HStack(spacing: 8) {
-                        ProgressView()
-                        Text(familyShareProgress)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    }
-                    .padding(12)
-                    .frame(maxWidth: .infinity)
-                    .background(
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .fill(Color.purple.opacity(0.1))
-                    )
+    /// Family / Friends picker with the matching contacts listed underneath.
+    private var recipientSection: some View {
+        VStack(spacing: 16) {
+            HStack(spacing: 10) {
+                recipientTabChip(.family)
+                recipientTabChip(.friends)
+            }
+            .frame(maxWidth: .infinity)
+
+            if isSharingWithAllFamily {
+                HStack(spacing: 8) {
+                    ProgressView()
+                    Text(familyShareProgress)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(12)
+                .frame(maxWidth: .infinity)
+                .background(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(Color.purple.opacity(0.1))
+                )
+            }
+
+            VStack(spacing: 10) {
+                if activeRecipientTab == .family && !friendsViewModel.familyMembers.isEmpty {
+                    allFamilyRow
                 }
 
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 16) {
-                        allFamilyButton
+                ForEach(activeRecipientContacts) { contact in
+                    contactRow(contact: contact, tint: activeRecipientTab.tint)
+                }
 
-                        ForEach(friendsViewModel.familyMembers) { friendship in
-                            contactAvatarButton(
-                                contact: friendship.toContact(currentUserId: currentUserId),
-                                tint: .purple,
-                                badge: "house.fill"
-                            )
-                        }
-                    }
-                    .padding(.vertical, 4)
+                if activeRecipientContacts.isEmpty {
+                    Text(activeRecipientTab.emptyMessage)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.vertical, 8)
                 }
             }
         }
+        .animation(.easeInOut(duration: 0.15), value: activeRecipientTab)
     }
 
-    /// The "All Family" quick-share chip.
-    private var allFamilyButton: some View {
-        Button(action: {
+    /// One tab of the Family / Friends picker.
+    private func recipientTabChip(_ tab: RecipientTab) -> some View {
+        selectionChip(
+            title: tab.title,
+            icon: tab.icon,
+            tint: tab.tint,
+            isSelected: activeRecipientTab == tab
+        ) {
+            recipientTab = tab
+        }
+    }
+
+    /// Quick action that shares with every family member at once.
+    private var allFamilyRow: some View {
+        Button {
             shareWithAllFamily()
-        }) {
-            avatarChip(
-                name: "All Family",
-                isShared: allFamilyAlreadyShared,
-                tint: .purple,
+        } label: {
+            recipientRowLayout(
                 avatar: AnyView(
                     Circle()
                         .fill(Color.purple.opacity(0.15))
+                        .frame(width: 44, height: 44)
                         .overlay(
                             Image(systemName: "person.3.fill")
-                                .font(.system(size: 18))
+                                .font(.system(size: 16))
                                 .foregroundStyle(.purple)
                         )
-                )
+                ),
+                name: "All Family",
+                isShared: allFamilyAlreadyShared,
+                isSelected: false,
+                tint: .purple
             )
         }
         .buttonStyle(.plain)
         .disabled(isSharingWithAllFamily || isSharing || allFamilyAlreadyShared)
     }
 
-    /// Horizontally scrolling friend avatars.
-    private var friendsSection: some View {
-        plainSection(title: "Share with Friends", icon: "person.2.fill", tint: .appAccent) {
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 16) {
-                    ForEach(friendsViewModel.friends) { friendship in
-                        contactAvatarButton(
-                            contact: friendship.toContact(currentUserId: currentUserId),
-                            tint: .appAccent
-                        )
-                    }
-                }
-                .padding(.vertical, 4)
-            }
-        }
-    }
-
-    /// A tappable avatar button for a single contact, used by the family and
-    /// friends rows. Selecting it pre-fills the recipient email.
-    private func contactAvatarButton(contact: Contact, tint: Color, badge: String? = nil) -> some View {
+    /// One recipient in the list. Tapping it pre-fills the share recipient.
+    private func contactRow(contact: Contact, tint: Color) -> some View {
         let isAlreadyShared = sharedUsers.contains { $0.userEmail.lowercased() == contact.email.lowercased() }
 
-        return Button(action: {
-            if !isAlreadyShared {
-                selectedFriend = contact
-                recipientEmail = contact.email
-            }
-        }) {
-            avatarChip(
-                name: contact.name,
-                isShared: isAlreadyShared,
-                tint: tint,
-                badge: badge,
-                badgeTint: tint,
+        return Button {
+            selectedFriend = contact
+            recipientEmail = contact.email
+        } label: {
+            recipientRowLayout(
                 avatar: AnyView(
-                    ProfilePictureView(profilePictureURL: contact.profilePictureURL, size: 56) {
+                    ProfilePictureView(profilePictureURL: contact.profilePictureURL, size: 44) {
                         Circle()
                             .fill(tint.opacity(0.15))
                             .overlay(
@@ -424,11 +434,57 @@ struct ShareStoreView: View {
                                     .foregroundStyle(tint)
                             )
                     }
-                )
+                ),
+                name: contact.name,
+                isShared: isAlreadyShared,
+                isSelected: selectedFriend == contact,
+                tint: tint
             )
         }
         .buttonStyle(.plain)
         .disabled(isAlreadyShared)
+    }
+
+    /// The row chrome shared by the contact rows and the All Family shortcut.
+    /// `avatar` is type-erased to keep the call sites' type-checking cheap.
+    private func recipientRowLayout(
+        avatar: AnyView,
+        name: String,
+        isShared: Bool,
+        isSelected: Bool,
+        tint: Color
+    ) -> some View {
+        HStack(spacing: 12) {
+            avatar
+
+            Text(name)
+                .font(.subheadline)
+                .fontWeight(.medium)
+                .foregroundStyle(isShared ? Color.secondary : Color.primary)
+                .lineLimit(1)
+
+            Spacer(minLength: 0)
+
+            if isShared {
+                Text("Shared")
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(Color.appSuccess)
+            } else if isSelected {
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundStyle(tint)
+            }
+        }
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(isSelected ? tint.opacity(0.12) : Color.primary.opacity(0.05))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(isSelected ? tint.opacity(0.45) : Color.clear, lineWidth: 1)
+        )
+        .opacity(isShared ? 0.6 : 1)
     }
 
     /// Chip confirming the currently selected friend/family recipient.
@@ -477,11 +533,25 @@ struct ShareStoreView: View {
         icon: String,
         tint: Color
     ) -> some View {
-        let isSelected = selectedPermission == permission
-
-        return Button {
+        selectionChip(
+            title: title,
+            icon: icon,
+            tint: tint,
+            isSelected: selectedPermission == permission
+        ) {
             selectedPermission = permission
-        } label: {
+        }
+    }
+
+    /// The capsule used by both the permission and recipient selectors.
+    private func selectionChip(
+        title: String,
+        icon: String,
+        tint: Color,
+        isSelected: Bool,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
             HStack(spacing: 6) {
                 Image(systemName: icon)
                     .font(.caption)
@@ -508,19 +578,7 @@ struct ShareStoreView: View {
 
     // MARK: - Reusable building blocks
 
-    /// The title row shared by the boxed and card-less section containers.
-    private func sectionHeader(title: String, icon: String, tint: Color) -> some View {
-        HStack(spacing: 8) {
-            Image(systemName: icon)
-                .font(.subheadline)
-                .foregroundStyle(tint)
-            Text(title)
-                .font(.subheadline)
-                .fontWeight(.semibold)
-        }
-    }
-
-    /// A titled card container used by most sections.
+    /// A titled card container used by the Shared By / Shared With sections.
     private func sectionContainer<Content: View>(
         title: String,
         icon: String,
@@ -528,29 +586,20 @@ struct ShareStoreView: View {
         @ViewBuilder content: () -> Content
     ) -> some View {
         VStack(alignment: .leading, spacing: 14) {
-            sectionHeader(title: title, icon: icon, tint: tint)
+            HStack(spacing: 8) {
+                Image(systemName: icon)
+                    .font(.subheadline)
+                    .foregroundStyle(tint)
+                Text(title)
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+            }
 
             content()
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(18)
         .cardStyle()
-    }
-
-    /// A titled section without the card chrome, for the avatar rows that read
-    /// better sitting flush against the background.
-    private func plainSection<Content: View>(
-        title: String,
-        icon: String,
-        tint: Color,
-        @ViewBuilder content: () -> Content
-    ) -> some View {
-        VStack(alignment: .leading, spacing: 14) {
-            sectionHeader(title: title, icon: icon, tint: tint)
-
-            content()
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     /// A small pill describing a permission level.
@@ -567,61 +616,6 @@ struct ShareStoreView: View {
                 Capsule()
                     .fill((isEdit ? Color.appSuccess : Color.appWarning).opacity(0.15))
             )
-    }
-
-    /// A circular avatar chip with a name label and a shared/selectable state.
-    /// `avatar` is type-erased to keep the call sites' type-checking cheap.
-    private func avatarChip(
-        name: String,
-        isShared: Bool,
-        tint: Color,
-        badge: String? = nil,
-        badgeTint: Color = .purple,
-        avatar: AnyView
-    ) -> some View {
-        VStack(spacing: 8) {
-            ZStack(alignment: .bottomTrailing) {
-                avatarCircle(isShared: isShared, avatar: avatar)
-
-                if let badge, !isShared {
-                    Image(systemName: badge)
-                        .font(.system(size: 9))
-                        .foregroundStyle(.white)
-                        .padding(4)
-                        .background(badgeTint)
-                        .clipShape(Circle())
-                        .overlay(Circle().stroke(Color(.systemBackground), lineWidth: 1.5))
-                        .offset(x: 2, y: 2)
-                }
-            }
-
-            Text(name)
-                .font(.caption)
-                .foregroundStyle(isShared ? Color.secondary : Color.primary)
-                .lineLimit(1)
-                .frame(width: 64)
-        }
-        .opacity(isShared ? 0.7 : 1.0)
-    }
-
-    /// The 56pt circular avatar, showing a checkmark when already shared.
-    @ViewBuilder
-    private func avatarCircle(isShared: Bool, avatar: AnyView) -> some View {
-        Group {
-            if isShared {
-                Circle()
-                    .fill(Color.appSuccess.opacity(0.18))
-                    .overlay(
-                        Image(systemName: "checkmark")
-                            .font(.system(size: 18, weight: .bold))
-                            .foregroundStyle(Color.appSuccess)
-                    )
-            } else {
-                avatar
-            }
-        }
-        .frame(width: 56, height: 56)
-        .clipShape(Circle())
     }
 
     /// A tinted informational callout row.
@@ -646,6 +640,25 @@ struct ShareStoreView: View {
 
     private var currentUserId: String {
         viewModel.sessionManager.currentUser?.userId ?? ""
+    }
+
+    /// The tab in effect. Until the user taps one, open on Friends when there is
+    /// no family to show, so the sheet never lands on an empty list.
+    private var activeRecipientTab: RecipientTab {
+        if let recipientTab {
+            return recipientTab
+        }
+        return friendsViewModel.familyMembers.isEmpty && !friendsViewModel.friends.isEmpty
+            ? .friends
+            : .family
+    }
+
+    /// The contacts listed under the active tab.
+    private var activeRecipientContacts: [Contact] {
+        let friendships = activeRecipientTab == .family
+            ? friendsViewModel.familyMembers
+            : friendsViewModel.friends
+        return friendships.map { $0.toContact(currentUserId: currentUserId) }
     }
 
     private var allFamilyAlreadyShared: Bool {
