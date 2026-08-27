@@ -28,129 +28,76 @@ struct LoginView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: 24) {
+                VStack(spacing: 22) {
                     Spacer()
-                        .frame(height: 40)
+                        .frame(height: 32)
 
-                    Text("Allim")
-                        .font(.system(size: 40, weight: .bold, design: .rounded))
-                        .foregroundStyle(
-                            LinearGradient(
-                                colors: [.blue, .purple],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
-                        .padding(.bottom, 8)
+                    wordmark
 
                     if showSignupConfirmation {
-                        VStack(spacing: 8) {
+                        VStack(spacing: 10) {
                             Image(systemName: "envelope.badge.shield.half.filled")
-                                .font(.system(size: 36))
-                                .foregroundStyle(
-                                    LinearGradient(
-                                        colors: [.blue, .purple],
-                                        startPoint: .leading,
-                                        endPoint: .trailing
-                                    )
-                                )
+                                .font(.system(size: 30, weight: .semibold))
+                                .foregroundColor(OrganicPalette.sageInk(colorScheme))
 
                             Text("A confirmation email has been sent to \(signupConfirmationEmail). Please click on the link to complete the sign up.")
-                                .font(.subheadline)
+                                .font(OrganicPalette.body(15))
+                                .foregroundColor(OrganicPalette.sageInk(colorScheme))
                                 .multilineTextAlignment(.center)
-                                .foregroundColor(.secondary)
 
                             Text("Can't find it? Be sure to check your spam or junk folder.")
-                                .font(.caption)
+                                .font(OrganicPalette.body(13))
+                                .foregroundColor(OrganicPalette.sageInk(colorScheme).opacity(0.8))
                                 .multilineTextAlignment(.center)
-                                .foregroundColor(.secondary)
                         }
-                        .padding()
+                        .padding(20)
+                        .frame(maxWidth: .infinity)
                         .background(
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(.ultraThinMaterial)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 12)
-                                        .stroke(
-                                            LinearGradient(
-                                                colors: [.blue, .purple],
-                                                startPoint: .leading,
-                                                endPoint: .trailing
-                                            ),
-                                            lineWidth: 1
-                                        )
-                                )
+                            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                                .fill(OrganicPalette.sage(colorScheme))
                         )
                         .padding(.horizontal, 20)
                     }
 
                     if !viewModel.errorMessage.isEmpty {
                         Text(viewModel.errorMessage)
-                            .foregroundStyle(.red)
-                            .font(.caption)
-                            .padding(.horizontal)
+                            .font(OrganicPalette.body(13))
+                            .foregroundColor(OrganicPalette.rust(colorScheme))
                             .multilineTextAlignment(.center)
+                            .padding(.horizontal, 24)
                     }
 
-                    VStack(spacing: 16) {
-                        TextField("Email", text: $viewModel.email)
-                            .textFieldStyle(.plain)
-                            .padding()
-                            .background(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .fill(.ultraThinMaterial)
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 12)
-                                            .stroke(Color.cardBorder(for: colorScheme), lineWidth: 1.5)
-                                    )
-                            )
+                    VStack(spacing: 12) {
+                        TextField(
+                            "",
+                            text: $viewModel.email,
+                            prompt: OrganicPalette.prompt("Email", colorScheme)
+                        )
+                        .font(OrganicPalette.body(17))
+                        .foregroundColor(OrganicPalette.ink(colorScheme))
+                        .textContentType(.emailAddress)
+                        .keyboardType(.emailAddress)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        .organicField(colorScheme)
 
-                        SecureField("Password", text: $viewModel.password)
-                            .textFieldStyle(.plain)
-                            .padding()
-                            .background(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .fill(.ultraThinMaterial)
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 12)
-                                            .stroke(Color.cardBorder(for: colorScheme), lineWidth: 1.5)
-                                    )
-                            )
+                        SecureField(
+                            "",
+                            text: $viewModel.password,
+                            prompt: OrganicPalette.prompt("Password", colorScheme)
+                        )
+                        .font(OrganicPalette.body(17))
+                        .foregroundColor(OrganicPalette.ink(colorScheme))
+                        .textContentType(.password)
+                        .organicField(colorScheme)
                     }
                     .padding(.horizontal, 20)
 
-                    Button(action: {
+                    OrganicPillButton(title: "Login", fillsWidth: true) {
                         viewModel.login()
-                    }) {
-                        Text("Login")
-                            .font(.headline)
-                            .foregroundStyle(
-                                LinearGradient(
-                                    colors: [.blue, .purple],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                )
-                            )
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 50)
-                            .background(
-                                RoundedRectangle(cornerRadius: 10)
-                                    .fill(.ultraThinMaterial)
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 10)
-                                            .stroke(
-                                                LinearGradient(
-                                                    colors: [.blue, .purple],
-                                                    startPoint: .leading,
-                                                    endPoint: .trailing
-                                                ),
-                                                lineWidth: 1.5
-                                            )
-                                    )
-                            )
                     }
                     .padding(.horizontal, 20)
-                    .padding(.top, 8)
+                    .padding(.top, 4)
 
                     socialSignInSection
 
@@ -158,44 +105,49 @@ struct LoginView: View {
                         Button(action: {
                             viewModel.resendVerificationEmail()
                         }) {
-                            Text(viewModel.isResendingVerification ? "Sending..." : "Resend Verification Email")
-                                .font(.system(size: 14, weight: .medium))
-                                .foregroundColor(.blue)
-                                .underline()
+                            Text(viewModel.isResendingVerification ? "Sending\u{2026}" : "Resend verification email")
+                                .font(OrganicPalette.title(14))
+                                .foregroundColor(OrganicPalette.terracotta(colorScheme))
                         }
+                        .buttonStyle(.plain)
                         .disabled(viewModel.isResendingVerification)
                         .padding(.top, 4)
                     }
 
-                    Button(action: {
-                        isSignup.toggle()
-                    }) {
-                        Text("Don't have an account? Sign up here.")
-                            .font(.system(size: 12))
-                            .underline()
-                    }
-                    .padding(.top, 12)
-
-                    HStack(spacing: 4) {
-                        Text("Forgot password?")
-                            .font(.system(size: 12))
-
-                        Text("Click here")
-                            .font(.system(size: 12))
-                            .foregroundColor(.blue)
-                            .underline()
-                            .onTapGesture {
-                                forgotPasswordTapped()
+                    // The two ways off this screen, as quiet text rather than a
+                    // second and third pill — Login is the only thing here that
+                    // should read as a button.
+                    VStack(spacing: 12) {
+                        Button(action: {
+                            isSignup.toggle()
+                        }) {
+                            HStack(spacing: 5) {
+                                Text("Don't have an account?")
+                                    .font(OrganicPalette.body(14))
+                                    .foregroundColor(OrganicPalette.inkSoft(colorScheme))
+                                Text("Sign up")
+                                    .font(OrganicPalette.title(14))
+                                    .foregroundColor(OrganicPalette.terracotta(colorScheme))
                             }
+                        }
+                        .buttonStyle(.plain)
+
+                        Button(action: forgotPasswordTapped) {
+                            Text("Forgot password?")
+                                .font(OrganicPalette.body(14))
+                                .foregroundColor(OrganicPalette.inkSoft(colorScheme))
+                                .underline()
+                        }
+                        .buttonStyle(.plain)
                     }
-                    .padding(.top, 8)
+                    .padding(.top, 10)
 
                     Spacer()
 
                 }//:VSTACK
             }//:SCROLLVIEW
             .background(
-                Color.backgroundGradient(for: colorScheme)
+                OrganicPalette.canvas(colorScheme)
                     .ignoresSafeArea()
             )
             .alert(isPresented: $showAlert) {
@@ -219,10 +171,11 @@ struct LoginView: View {
             .overlay {
                 if authManager.isLoading {
                     ZStack {
-                        Color.black.opacity(0.25).ignoresSafeArea()
+                        OrganicPalette.canvas(colorScheme).opacity(0.7).ignoresSafeArea()
                         ProgressView()
-                            .padding(24)
-                            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
+                            .tint(OrganicPalette.terracotta(colorScheme))
+                            .padding(28)
+                            .background(OrganicCardBackground(colorScheme: colorScheme))
                     }
                 }
             }
@@ -258,20 +211,38 @@ struct LoginView: View {
 
     }//:BODY
 
+    /// The app's mark, in the same shape the About screen gives it — a
+    /// terracotta glyph on a blush disc with the name below — so the first
+    /// screen of the app and the one describing it agree on what Allim is.
+    private var wordmark: some View {
+        VStack(spacing: 14) {
+            Image(systemName: "cart.fill")
+                .font(.system(size: 40))
+                .foregroundColor(OrganicPalette.terracotta(colorScheme))
+                .frame(width: 96, height: 96)
+                .background(Circle().fill(OrganicPalette.blush(colorScheme)))
+
+            Text("Allim")
+                .font(OrganicPalette.display(40))
+                .foregroundColor(OrganicPalette.ink(colorScheme))
+        }
+        .padding(.bottom, 4)
+    }
+
     /// "or" divider plus the Google and Apple sign-in buttons, shown beneath the
     /// email/password Login button. Both routes flow through AuthenticationManager,
     /// which dedupes against existing Firebase Auth and Firestore accounts.
     private var socialSignInSection: some View {
-        VStack(spacing: 14) {
+        VStack(spacing: 12) {
             HStack(spacing: 12) {
                 Rectangle()
-                    .fill(Color.secondary.opacity(0.3))
+                    .fill(OrganicPalette.outline(colorScheme))
                     .frame(height: 1)
                 Text("or")
-                    .font(.footnote)
-                    .foregroundColor(.secondary)
+                    .font(OrganicPalette.body(14))
+                    .foregroundColor(OrganicPalette.inkSoft(colorScheme))
                 Rectangle()
-                    .fill(Color.secondary.opacity(0.3))
+                    .fill(OrganicPalette.outline(colorScheme))
                     .frame(height: 1)
             }
             .padding(.horizontal, 20)
@@ -282,6 +253,8 @@ struct LoginView: View {
                 authManager.signInWithGoogle()
             }) {
                 HStack(spacing: 10) {
+                    // Google's own four colours, left alone: it is their mark,
+                    // not ours to repaint in terracotta.
                     Text("G")
                         .font(.system(size: 18, weight: .bold, design: .rounded))
                         .foregroundStyle(
@@ -292,19 +265,13 @@ struct LoginView: View {
                             )
                         )
                     Text("Continue with Google")
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(.primary)
+                        .font(OrganicPalette.title(16))
+                        .foregroundColor(OrganicPalette.ink(colorScheme))
                 }
                 .frame(maxWidth: .infinity)
-                .frame(height: 50)
-                .background(
-                    RoundedRectangle(cornerRadius: 10)
-                        .fill(.ultraThinMaterial)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 10)
-                                .stroke(Color.cardBorder(for: colorScheme), lineWidth: 1.5)
-                        )
-                )
+                .frame(height: 54)
+                .background(Capsule().fill(OrganicPalette.surface(colorScheme)))
+                .overlay(Capsule().stroke(OrganicPalette.outline(colorScheme), lineWidth: 1.5))
             }
             .disabled(authManager.isLoading)
             .padding(.horizontal, 20)
@@ -316,8 +283,10 @@ struct LoginView: View {
                 authManager.handleAppleCompletion(result)
             }
             .signInWithAppleButtonStyle(colorScheme == .dark ? .white : .black)
-            .frame(height: 50)
-            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .frame(height: 54)
+            // Apple draws this button itself, so only its shape is ours to set —
+            // a capsule, to sit level with the pills above it.
+            .clipShape(Capsule())
             .disabled(authManager.isLoading)
             .padding(.horizontal, 20)
         }
@@ -342,77 +311,71 @@ private struct LinkAccountSheet: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 20) {
-                Image(systemName: "link.circle.fill")
-                    .font(.system(size: 48))
-                    .foregroundStyle(
-                        LinearGradient(colors: [.blue, .purple], startPoint: .leading, endPoint: .trailing)
-                    )
-                    .padding(.top, 24)
+            ZStack {
+                OrganicPalette.canvas(colorScheme)
+                    .ignoresSafeArea()
 
-                Text("Link your account")
-                    .font(.title3.bold())
+                VStack(spacing: 20) {
+                    Image(systemName: "link")
+                        .font(.system(size: 34, weight: .semibold))
+                        .foregroundColor(OrganicPalette.terracotta(colorScheme))
+                        .frame(width: 88, height: 88)
+                        .background(Circle().fill(OrganicPalette.blush(colorScheme)))
+                        .padding(.top, 24)
 
-                Text("You already have an account for \(link.email). Enter your password to connect \(link.providerLabel) to it — no duplicate account will be created.")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal)
+                    Text("Link your account")
+                        .font(OrganicPalette.display(26))
+                        .foregroundColor(OrganicPalette.ink(colorScheme))
 
-                SecureField("Password", text: $password)
-                    .textFieldStyle(.plain)
-                    .padding()
-                    .background(
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(.ultraThinMaterial)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .stroke(Color.cardBorder(for: colorScheme), lineWidth: 1.5)
-                            )
-                    )
-                    .padding(.horizontal)
-
-                if !authManager.linkErrorMessage.isEmpty {
-                    Text(authManager.linkErrorMessage)
-                        .font(.caption)
-                        .foregroundColor(.red)
+                    Text("You already have an account for \(link.email). Enter your password to connect \(link.providerLabel) to it — no duplicate account will be created.")
+                        .font(OrganicPalette.body(15))
+                        .foregroundColor(OrganicPalette.inkSoft(colorScheme))
                         .multilineTextAlignment(.center)
-                        .padding(.horizontal)
-                }
+                        .padding(.horizontal, 24)
 
-                Button(action: {
-                    authManager.completeLinkWithPassword(password)
-                }) {
-                    ZStack {
-                        Text("Link & Continue")
-                            .font(.headline)
-                            .foregroundColor(.white)
-                            .opacity(authManager.isLoading ? 0 : 1)
-                        if authManager.isLoading {
-                            ProgressView().tint(.white)
-                        }
-                    }
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 50)
-                    .background(
-                        RoundedRectangle(cornerRadius: 10)
-                            .fill(
-                                LinearGradient(colors: [.blue, .purple], startPoint: .leading, endPoint: .trailing)
-                            )
+                    SecureField(
+                        "",
+                        text: $password,
+                        prompt: Text("Password")
+                            .foregroundColor(OrganicPalette.inkSoft(colorScheme).opacity(0.8))
                     )
-                }
-                .disabled(password.isEmpty || authManager.isLoading)
-                .padding(.horizontal)
+                    .font(OrganicPalette.body(17))
+                    .foregroundColor(OrganicPalette.ink(colorScheme))
+                    .textContentType(.password)
+                    .organicField(colorScheme)
+                    .padding(.horizontal, 24)
 
-                Spacer()
+                    if !authManager.linkErrorMessage.isEmpty {
+                        Text(authManager.linkErrorMessage)
+                            .font(OrganicPalette.body(13))
+                            .foregroundColor(OrganicPalette.rust(colorScheme))
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 24)
+                    }
+
+                    OrganicPillButton(
+                        title: "Link & Continue",
+                        isLoading: authManager.isLoading,
+                        fillsWidth: true
+                    ) {
+                        authManager.completeLinkWithPassword(password)
+                    }
+                    .disabled(password.isEmpty || authManager.isLoading)
+                    .padding(.horizontal, 24)
+
+                    Spacer()
+                }
             }
             .interactiveDismissDisabled(authManager.isLoading)
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(OrganicPalette.canvas(colorScheme), for: .navigationBar)
+            .tint(OrganicPalette.terracotta(colorScheme))
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {
                         authManager.cancelPendingLink()
                     }
+                    .foregroundColor(OrganicPalette.terracotta(colorScheme))
                     .disabled(authManager.isLoading)
                 }
             }

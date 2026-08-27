@@ -142,6 +142,13 @@ enum OrganicPalette {
         .custom(commissioner(weight), fixedSize: size)
     }
 
+    /// Placeholder text for `organicField`. Set as a field's `prompt:` rather
+    /// than its title, so the placeholder takes the palette's own soft ink
+    /// instead of the system grey a bare title string would give it.
+    static func prompt(_ text: String, _ scheme: ColorScheme) -> Text {
+        Text(text).foregroundColor(inkSoft(scheme).opacity(0.8))
+    }
+
     /// The tab bar is UIKit's, and a `.font` applied inside `.tabItem` is
     /// dropped on the way down, so the labels can only be reached through the
     /// appearance proxy. Only the title attributes are set — the bar keeps the
