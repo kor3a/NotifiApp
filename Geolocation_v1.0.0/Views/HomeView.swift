@@ -35,12 +35,59 @@ struct HomeView: View {
         NavigationStack {
             NotificationDebugTab()
         }
+        .toolbar(.hidden, for: .tabBar)
         .tabItem {
             Image(systemName: "bell.badge")
             Text("Debug")
         }
         .tag(4)
         #endif
+    }
+
+    /// The destinations OrganicTabBar draws, in the order the TabView declares
+    /// them. The `.tabItem` labels below still exist because a TabView needs
+    /// them to tell its tabs apart, but nothing renders them — the system bar
+    /// they would have filled is hidden on every tab.
+    private var organicTabs: [OrganicTab] {
+        var tabs: [OrganicTab] = [
+            OrganicTab(
+                tag: 0,
+                title: "Stores",
+                systemImage: "storefront",
+                selectedImage: "storefront.fill"
+            ),
+            OrganicTab(
+                tag: 1,
+                title: "Messages",
+                systemImage: "message",
+                selectedImage: "message.fill",
+                badge: messagesViewModel.totalUnreadCount
+            ),
+            OrganicTab(
+                tag: 2,
+                title: "Friends",
+                systemImage: "person.2",
+                selectedImage: "person.2.fill",
+                badge: friendsViewModel.pendingRequestCount
+            ),
+            OrganicTab(
+                tag: 3,
+                title: "Search",
+                systemImage: "map",
+                selectedImage: "map.fill"
+            ),
+        ]
+        #if DEBUG
+        tabs.append(
+            OrganicTab(
+                tag: 4,
+                title: "Debug",
+                systemImage: "bell.badge",
+                selectedImage: "bell.badge.fill"
+            )
+        )
+        #endif
+        return tabs
     }
 
     var body: some View {
@@ -58,6 +105,7 @@ struct HomeView: View {
                             }
                         }
                 }//:NAVIGATIONSTACK
+                .toolbar(.hidden, for: .tabBar)
                 .tabItem {
                     Image(systemName: "storefront")
                     Text("Stores")
@@ -68,6 +116,7 @@ struct HomeView: View {
                     MessagesView(viewModel: messagesViewModel, pendingConversationId: $pendingConversationId)
                         .navigationBarTitleDisplayMode(.large)
                 }//:NAVIGATIONSTACK
+                .toolbar(.hidden, for: .tabBar)
                 .tabItem {
                     Image(systemName: "message")
                     Text("Messages")
@@ -85,6 +134,7 @@ struct HomeView: View {
                     FriendsView(messagesViewModel: messagesViewModel)
                         .navigationBarTitleDisplayMode(.large)
                 }//:NAVIGATIONSTACK
+                .toolbar(.hidden, for: .tabBar)
                 .tabItem {
                     Image(systemName: "person.2")
                     Text("Friends")
@@ -109,6 +159,21 @@ struct HomeView: View {
 
                 debugTab
             }//:TABVIEW
+            // Inset rather than overlaid, so a list, a banner ad and the FAB
+            // all end above the bar instead of sliding under it — the room the
+            // system bar used to take out of the safe area.
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                // Search floats its own bar over the map, with the search field
+                // living in it, so this one steps aside there.
+                if selectedTab != 3 {
+                    OrganicTabBar(tabs: organicTabs, selection: $selectedTab)
+                        // Pinned to the bottom while a keyboard is up, the way
+                        // the system bar was. An inset view otherwise rides the
+                        // keyboard's safe area and lands the bar on top of it,
+                        // stacked over a conversation's message field.
+                        .ignoresSafeArea(.keyboard, edges: .bottom)
+                }
+            }
 
             // Tutorial overlay — rendered above the TabView (including tab bar)
             if tutorialManager.isActive {

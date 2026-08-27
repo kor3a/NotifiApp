@@ -160,16 +160,17 @@ enum OrganicPalette {
         }
     }
 
-    /// Dresses the tab bar in the same paper the screens above it are drawn on:
-    /// a canvas background under a warm hairline, terracotta for the selected
-    /// tab, soft ink for the rest, and terracotta badges in place of the system
-    /// red siren.
+    /// Dresses UIKit's tab bar in the same paper the screens above it are drawn
+    /// on: a canvas background under a warm hairline, terracotta for the
+    /// selected tab, soft ink for the rest, and terracotta badges in place of
+    /// the system red siren.
     ///
-    /// The bar is UIKit's, and neither a `.font` inside `.tabItem` nor the
-    /// palette's own colors survive the trip down, so all of it goes through the
-    /// appearance proxy. `tintColor` is set alongside the item appearance
-    /// because SwiftUI pushes its accent color onto the bar's tint, which would
-    /// otherwise win over the selected icon color set here.
+    /// A backstop rather than the bar the user navigates from. `OrganicTabBar`
+    /// is what they see and HomeView hides this one under it — built against
+    /// the current SDK it renders as system glass, and the appearance proxy can
+    /// only tint that glass, never turn it into paper. What this still buys is
+    /// the frame or two before the hide takes effect, and anywhere a tab bar
+    /// slips out from under the SwiftUI modifier.
     ///
     /// Call once before the first `TabView` is built; a proxy read after that
     /// leaves already-created bars alone.
