@@ -21,145 +21,121 @@ struct ProfileSetupView: View {
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 24) {
+            VStack(spacing: 22) {
                 Spacer()
-                    .frame(height: 40)
+                    .frame(height: 32)
 
-                VStack(spacing: 8) {
+                VStack(spacing: 10) {
                     Text("Almost there")
-                        .font(.system(size: 34, weight: .bold, design: .rounded))
-                        .foregroundStyle(
-                            LinearGradient(
-                                colors: [.blue, .purple],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
+                        .font(OrganicPalette.display(34))
+                        .foregroundColor(OrganicPalette.ink(colorScheme))
 
                     Text("Choose how you'll appear in Allim.")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .font(OrganicPalette.body(16))
+                        .foregroundColor(OrganicPalette.inkSoft(colorScheme))
                         .multilineTextAlignment(.center)
                 }
-                .padding(.bottom, 8)
+                .padding(.horizontal, 20)
+                .padding(.bottom, 4)
 
                 if !viewModel.errorMessage.isEmpty {
                     Text(viewModel.errorMessage)
-                        .foregroundStyle(.red)
-                        .font(.caption)
-                        .padding(.horizontal)
+                        .font(OrganicPalette.body(13))
+                        .foregroundColor(OrganicPalette.rust(colorScheme))
                         .multilineTextAlignment(.center)
+                        .padding(.horizontal, 24)
                 }
 
                 VStack(spacing: 16) {
-                    VStack(alignment: .leading, spacing: 6) {
-                        TextField("User ID", text: $viewModel.username)
-                            .textFieldStyle(.plain)
-                            .textInputAutocapitalization(.never)
-                            .disableAutocorrection(true)
-                            .focused($focusedField, equals: .username)
-                            .submitLabel(.next)
-                            .onSubmit { focusedField = .name }
-                            .padding()
-                            .background(fieldBackground)
+                    VStack(alignment: .leading, spacing: 8) {
+                        TextField(
+                            "",
+                            text: $viewModel.username,
+                            prompt: OrganicPalette.prompt("User ID", colorScheme)
+                        )
+                        .font(OrganicPalette.body(17))
+                        .foregroundColor(OrganicPalette.ink(colorScheme))
+                        .textContentType(.username)
+                        .textInputAutocapitalization(.never)
+                        .disableAutocorrection(true)
+                        .focused($focusedField, equals: .username)
+                        .submitLabel(.next)
+                        .onSubmit { focusedField = .name }
+                        .organicField(colorScheme)
 
-                        Text("3-20 letters and numbers. This is how friends find you.")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                            .padding(.leading, 4)
+                        fieldNote("3-20 letters and numbers. This is how friends find you.")
                     }
 
-                    TextField("Name", text: $viewModel.name)
-                        .textFieldStyle(.plain)
-                        .textInputAutocapitalization(.words)
-                        .disableAutocorrection(true)
-                        .focused($focusedField, equals: .name)
-                        .submitLabel(.done)
-                        .onSubmit { viewModel.createProfile() }
-                        .padding()
-                        .background(fieldBackground)
+                    TextField(
+                        "",
+                        text: $viewModel.name,
+                        prompt: OrganicPalette.prompt("Name", colorScheme)
+                    )
+                    .font(OrganicPalette.body(17))
+                    .foregroundColor(OrganicPalette.ink(colorScheme))
+                    .textContentType(.name)
+                    .textInputAutocapitalization(.words)
+                    .disableAutocorrection(true)
+                    .focused($focusedField, equals: .name)
+                    .submitLabel(.done)
+                    .onSubmit { viewModel.createProfile() }
+                    .organicField(colorScheme)
 
                     // Provider-supplied and fixed — shown so the user knows which
-                    // account they're setting up, but not editable.
-                    VStack(alignment: .leading, spacing: 6) {
-                        HStack {
+                    // account they're setting up, but not editable. It keeps the
+                    // capsule so the three rows line up, and states in soft ink
+                    // rather than full ink that it is a fact, not a field.
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack(spacing: 10) {
                             Text(viewModel.email)
-                                .foregroundStyle(.secondary)
+                                .font(OrganicPalette.body(17))
+                                .foregroundColor(OrganicPalette.inkSoft(colorScheme))
                                 .lineLimit(1)
                                 .truncationMode(.middle)
 
-                            Spacer()
+                            Spacer(minLength: 0)
 
                             Image(systemName: "lock.fill")
-                                .font(.footnote)
-                                .foregroundStyle(.secondary)
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundColor(OrganicPalette.inkSoft(colorScheme).opacity(0.7))
                         }
-                        .padding()
-                        .background(fieldBackground)
+                        .organicField(colorScheme)
 
-                        Text("From your \(viewModel.providerLabel) account. This can't be changed.")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                            .padding(.leading, 4)
+                        fieldNote("From your \(viewModel.providerLabel) account. This can't be changed.")
                     }
                 }
                 .padding(.horizontal, 20)
 
-                Button(action: {
+                OrganicPillButton(
+                    title: "Continue",
+                    isLoading: viewModel.isLoading,
+                    fillsWidth: true
+                ) {
                     focusedField = nil
                     viewModel.createProfile()
-                }) {
-                    ZStack {
-                        Text("Continue")
-                            .font(.headline)
-                            .foregroundStyle(
-                                LinearGradient(
-                                    colors: [.blue, .purple],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                )
-                            )
-                            .opacity(viewModel.isLoading ? 0 : 1)
-
-                        if viewModel.isLoading {
-                            ProgressView()
-                        }
-                    }
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 50)
-                    .background(
-                        RoundedRectangle(cornerRadius: 10)
-                            .fill(.ultraThinMaterial)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 10)
-                                    .stroke(
-                                        LinearGradient(
-                                            colors: [.blue, .purple],
-                                            startPoint: .leading,
-                                            endPoint: .trailing
-                                        ),
-                                        lineWidth: 1.5
-                                    )
-                            )
-                    )
                 }
                 .disabled(viewModel.isLoading)
                 .padding(.horizontal, 20)
-                .padding(.top, 8)
+                .padding(.top, 4)
 
+                // The way back out of a half-finished account. Quiet ink, well
+                // clear of Continue — it is the escape hatch, not the choice
+                // this screen is asking anyone to make.
                 Button("Sign Out") {
                     viewModel.signOut()
                 }
-                .font(.footnote)
-                .foregroundStyle(.secondary)
+                .font(OrganicPalette.body(14))
+                .foregroundColor(OrganicPalette.inkSoft(colorScheme))
+                .buttonStyle(.plain)
                 .disabled(viewModel.isLoading)
+                .padding(.top, 6)
 
                 Spacer()
             }//:VSTACK
         }//:SCROLLVIEW
         .scrollDismissesKeyboard(.interactively)
         .background(
-            Color.backgroundGradient(for: colorScheme)
+            OrganicPalette.canvas(colorScheme)
                 .ignoresSafeArea()
         )
         .onAppear {
@@ -167,13 +143,14 @@ struct ProfileSetupView: View {
         }
     }
 
-    private var fieldBackground: some View {
-        RoundedRectangle(cornerRadius: 12)
-            .fill(.ultraThinMaterial)
-            .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(Color.cardBorder(for: colorScheme), lineWidth: 1.5)
-            )
+    /// The line of explanation under a field, inset to sit under the capsule's
+    /// own text rather than against its edge.
+    private func fieldNote(_ text: String) -> some View {
+        Text(text)
+            .font(OrganicPalette.body(13))
+            .foregroundColor(OrganicPalette.inkSoft(colorScheme).opacity(0.85))
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(.horizontal, 18)
     }
 }
 
