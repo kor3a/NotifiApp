@@ -53,7 +53,7 @@ struct FriendsView: View {
                 }
             }
         }
-        // The screen draws its own oversized serif title, so the system bar
+        // The screen draws its own oversized display title, so the system bar
         // would only stack a second "Friends" above it.
         .toolbar(.hidden, for: .navigationBar)
         .tint(OrganicPalette.terracotta(colorScheme))
@@ -286,7 +286,7 @@ struct FriendsView: View {
                     }
                 } label: {
                     Text(isManagingFamily ? "Done" : "Manage")
-                        .font(.system(size: 15, weight: .bold, design: .serif))
+                        .font(OrganicPalette.title(15))
                         .foregroundColor(OrganicPalette.sageInk(colorScheme))
                         .padding(.horizontal, 18)
                         .padding(.vertical, 10)
@@ -341,7 +341,7 @@ struct FriendsView: View {
 
             if overflow > 0 {
                 Text("+\(overflow)")
-                    .font(.system(size: 15, weight: .bold, design: .serif))
+                    .font(OrganicPalette.title(15))
                     .foregroundColor(OrganicPalette.sageInk(colorScheme))
                     .frame(width: 46, height: 46)
                     .background(Circle().fill(OrganicPalette.sageInk(colorScheme).opacity(0.18)))
@@ -488,7 +488,7 @@ struct FriendsView: View {
 
             if highlighted {
                 Text("\(count)")
-                    .font(.system(size: 14, weight: .bold, design: .serif))
+                    .font(OrganicPalette.title(14))
                     .foregroundColor(.white)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 3)
@@ -526,7 +526,7 @@ struct FriendsView: View {
 
             Button(action: { showAddFriend = true }) {
                 Text("Add a friend")
-                    .font(.system(size: 17, weight: .bold, design: .serif))
+                    .font(OrganicPalette.title(17))
                     .foregroundColor(.white)
                     .padding(.horizontal, 32)
                     .frame(height: 52)
@@ -746,7 +746,7 @@ struct RequestCard: View {
             HStack(spacing: 6) {
                 Button(action: onAccept) {
                     Text("Accept")
-                        .font(.system(size: 15, weight: .bold, design: .serif))
+                        .font(OrganicPalette.title(15))
                         .foregroundColor(.white)
                         .padding(.horizontal, 16)
                         .frame(height: 42)
@@ -941,7 +941,7 @@ struct AddFriendView: View {
             } else {
                 Button(action: runSearch) {
                     Text("Search")
-                        .font(.system(size: 15, weight: .bold, design: .serif))
+                        .font(OrganicPalette.title(15))
                         .foregroundColor(.white)
                         .padding(.horizontal, 16)
                         .frame(height: 38)
@@ -1041,7 +1041,7 @@ struct SearchResultCard: View {
     private var addFriendButton: some View {
         Button(action: onAdd) {
             Text("Add")
-                .font(.system(size: 15, weight: .bold, design: .serif))
+                .font(OrganicPalette.title(15))
                 .foregroundColor(.white)
                 .padding(.horizontal, 20)
                 .frame(height: 38)

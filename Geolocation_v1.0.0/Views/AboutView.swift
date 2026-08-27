@@ -64,7 +64,7 @@ struct AboutView: View {
         .toolbar {
             ToolbarItem(placement: .principal) {
                 Text("About")
-                    .font(.system(size: 17, weight: .bold, design: .serif))
+                    .font(OrganicPalette.title(17))
                     .foregroundColor(OrganicPalette.ink(colorScheme))
             }
         }

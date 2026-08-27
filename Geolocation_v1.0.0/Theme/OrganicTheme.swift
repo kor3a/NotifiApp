@@ -100,10 +100,37 @@ enum OrganicPalette {
             : Color(red: 0.35, green: 0.22, blue: 0.10).opacity(0.10)
     }
 
-    /// Display type for titles and section labels. The serif is what makes these
-    /// screens read as organic rather than as another system list.
-    static func display(_ size: CGFloat) -> Font {
-        .system(size: size, weight: .heavy, design: .serif)
+    /// The face behind every organic title — Commissioner, bundled in `Fonts/`
+    /// and registered under `UIAppFonts`. Its low-contrast, slightly condensed
+    /// letterforms are what make these screens read as organic rather than as
+    /// another system list.
+    ///
+    /// A bundled family carries no weight axis of its own, so each weight we
+    /// use names the face that actually ships rather than letting the renderer
+    /// synthesize one. Weights lighter than regular round up to it; anything
+    /// unrecognized lands on regular rather than silently falling back to the
+    /// system font.
+    private static func commissioner(_ weight: Font.Weight) -> String {
+        switch weight {
+        case .medium: return "Commissioner-Medium"
+        case .semibold: return "Commissioner-SemiBold"
+        case .bold: return "Commissioner-Bold"
+        case .heavy: return "Commissioner-ExtraBold"
+        case .black: return "Commissioner-Black"
+        default: return "Commissioner-Regular"
+        }
+    }
+
+    /// Screen headings — the name in Stores, "Messages", "Friends", empty-state
+    /// and sheet titles. The heaviest tier of the type scale.
+    static func display(_ size: CGFloat, weight: Font.Weight = .heavy) -> Font {
+        .custom(commissioner(weight), fixedSize: size)
+    }
+
+    /// The quieter title tier that sits under `display` — navigation bar titles,
+    /// row names, section labels, chips and badges.
+    static func title(_ size: CGFloat, weight: Font.Weight = .bold) -> Font {
+        .custom(commissioner(weight), fixedSize: size)
     }
 }
 
@@ -196,7 +223,7 @@ struct OrganicAvatar: View {
                 .foregroundColor(tint.glyph)
         } else {
             Text(initial)
-                .font(.system(size: size * 0.42, weight: .bold, design: .serif))
+                .font(OrganicPalette.title(size * 0.42))
                 .foregroundColor(tint.glyph)
         }
     }
@@ -300,7 +327,7 @@ struct OrganicPillButton: View {
                 }
 
                 Text(title)
-                    .font(.system(size: 17, weight: .bold, design: .serif))
+                    .font(OrganicPalette.title(17))
             }
             .foregroundColor(.white)
             .padding(.horizontal, 32)
@@ -375,7 +402,7 @@ struct OrganicNavRow: View {
 
 // MARK: - Section Label
 
-/// The serif heading above a group of cards.
+/// The display heading above a group of cards.
 struct OrganicSectionLabel: View {
     let title: String
 
@@ -414,7 +441,7 @@ struct OrganicCountBadge: View {
 
     var body: some View {
         Text("\(count)")
-            .font(.system(size: fontSize, weight: .bold, design: .serif))
+            .font(OrganicPalette.title(fontSize))
             .foregroundColor(.white)
             .padding(.horizontal, 8)
             .padding(.vertical, 2)
@@ -424,7 +451,7 @@ struct OrganicCountBadge: View {
 
 // MARK: - Empty State
 
-/// The shape an empty screen takes here: a glyph inside a blush disc, a serif
+/// The shape an empty screen takes here: a glyph inside a blush disc, a display
 /// line naming what is missing, a sentence of context, and — when there is
 /// something to do about it — one terracotta pill.
 struct OrganicEmptyState: View {
@@ -461,7 +488,7 @@ struct OrganicEmptyState: View {
             if let actionTitle, let action {
                 Button(action: action) {
                     Text(actionTitle)
-                        .font(.system(size: 17, weight: .bold, design: .serif))
+                        .font(OrganicPalette.title(17))
                         .foregroundColor(.white)
                         .padding(.horizontal, 32)
                         .frame(height: 52)

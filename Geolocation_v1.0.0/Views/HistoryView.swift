@@ -68,7 +68,7 @@ struct HistoryView: View {
 
                 ToolbarItem(placement: .principal) {
                     Text("History")
-                        .font(.system(size: 17, weight: .bold, design: .serif))
+                        .font(OrganicPalette.title(17))
                         .foregroundColor(OrganicPalette.ink(colorScheme))
                 }
             }
@@ -120,7 +120,7 @@ struct HistoryView: View {
                 .frame(height: 1)
 
             Text(dayLabel(for: day))
-                .font(.system(size: 13, weight: .bold, design: .serif))
+                .font(OrganicPalette.title(13))
                 .foregroundColor(OrganicPalette.inkSoft(colorScheme))
                 .fixedSize()
 

@@ -164,7 +164,7 @@ struct LocationDetailsView: View {
                     .tint(storeTint.glyph)
             } else {
                 Text(firstLetter)
-                    .font(.system(size: 27, weight: .bold, design: .serif))
+                    .font(OrganicPalette.title(27))
                     .foregroundColor(storeTint.glyph)
             }
         }
@@ -305,7 +305,7 @@ private struct OrganicActionButtonStyle: ButtonStyle {
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.system(size: 17, weight: .bold, design: .serif))
+            .font(OrganicPalette.title(17))
             .foregroundStyle(.white)
             .frame(maxWidth: .infinity)
             .frame(height: 52)

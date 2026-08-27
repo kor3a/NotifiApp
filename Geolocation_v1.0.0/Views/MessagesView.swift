@@ -54,7 +54,7 @@ struct MessagesView: View {
                 }
             }
         }
-        // The screen draws its own oversized serif title, so the system bar
+        // The screen draws its own oversized display title, so the system bar
         // would only stack a second "Messages" above it.
         .toolbar(.hidden, for: .navigationBar)
         .tint(OrganicPalette.terracotta(colorScheme))
@@ -149,7 +149,7 @@ struct MessagesView: View {
 
             Button(action: { showNewMessage = true }) {
                 Text("New message")
-                    .font(.system(size: 17, weight: .bold, design: .serif))
+                    .font(OrganicPalette.title(17))
                     .foregroundColor(.white)
                     .padding(.horizontal, 32)
                     .frame(height: 52)
@@ -301,7 +301,7 @@ struct ConversationRow: View {
 
                     if isUnread {
                         Text("\(unreadCount)")
-                            .font(.system(size: 13, weight: .bold, design: .serif))
+                            .font(OrganicPalette.title(13))
                             .foregroundColor(.white)
                             .padding(.horizontal, 8)
                             .padding(.vertical, 2)
@@ -447,7 +447,7 @@ struct NewMessageView: View {
             } else {
                 Button(action: runSearch) {
                     Text("Search")
-                        .font(.system(size: 15, weight: .bold, design: .serif))
+                        .font(OrganicPalette.title(15))
                         .foregroundColor(.white)
                         .padding(.horizontal, 16)
                         .frame(height: 38)

@@ -473,7 +473,7 @@ struct RecipePickerView: View {
 
                 ToolbarItem(placement: .principal) {
                     Text("Choose a Recipe")
-                        .font(.system(size: 17, weight: .bold, design: .serif))
+                        .font(OrganicPalette.title(17))
                         .foregroundColor(OrganicPalette.ink(colorScheme))
                 }
             }

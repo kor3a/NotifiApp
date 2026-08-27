@@ -348,7 +348,7 @@ struct StoreFloatView: View {
                         .fill(OrganicPalette.terracotta(colorScheme))
                         .frame(width: 19, height: 19)
                     Text("\(item.store.reminderCount)")
-                        .font(.system(size: 10, weight: .bold, design: .serif))
+                        .font(OrganicPalette.title(10))
                         .foregroundColor(.white)
                 }
                 .offset(x: 5, y: -5)

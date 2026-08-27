@@ -1169,13 +1169,13 @@ struct ReminderView: View {
             }
         }
 
-        // The store name in the screen's own serif, with the number of
+        // The store name in the screen's own display face, with the number of
         // still-unchecked reminders under it — the list itself no longer
         // carries a count anywhere else.
         ToolbarItem(placement: .principal) {
             VStack(spacing: 1) {
                 Text(userStoreItem.store.name)
-                    .font(.system(size: 17, weight: .bold, design: .serif))
+                    .font(OrganicPalette.title(17))
                     .foregroundColor(OrganicPalette.ink(colorScheme))
                     .lineLimit(1)
 
@@ -1194,7 +1194,7 @@ struct ReminderView: View {
                         isReorderMode = false
                     }
                 }
-                .font(.system(size: 16, weight: .bold, design: .serif))
+                .font(OrganicPalette.title(16))
                 .foregroundColor(OrganicPalette.terracotta(colorScheme))
             } else if userStoreItem.permission == .view {
                 Image(systemName: "eye.fill")
@@ -1511,7 +1511,7 @@ struct ReminderView: View {
                     onUndo()
                 } label: {
                     Text("Undo")
-                        .font(.system(size: 15, weight: .bold, design: .serif))
+                        .font(OrganicPalette.title(15))
                         .foregroundColor(OrganicPalette.terracotta(inverted))
                 }
             }
@@ -1598,7 +1598,7 @@ struct ReminderView: View {
                     Button("Done") {
                         showSettingsSheet = false
                     }
-                    .font(.system(size: 16, weight: .bold, design: .serif))
+                    .font(OrganicPalette.title(16))
                     .foregroundColor(OrganicPalette.terracotta(colorScheme))
                 }
             }

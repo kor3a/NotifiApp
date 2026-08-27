@@ -581,7 +581,7 @@ struct InitialAvatar: View {
 
     var body: some View {
         Text(initial)
-            .font(.system(size: size * 0.5, weight: .bold, design: .serif))
+            .font(OrganicPalette.title(size * 0.5))
             .foregroundColor(.white)
             .frame(width: size, height: size)
             .background(Circle().fill(fillColor))
