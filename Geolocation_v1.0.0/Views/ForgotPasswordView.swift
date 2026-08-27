@@ -16,87 +16,81 @@ struct ForgotPasswordView: View {
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 24) {
+            VStack(spacing: 22) {
                 Spacer()
-                    .frame(height: 40)
+                    .frame(height: 28)
 
-                Text("Forgot Password")
-                    .font(.largeTitle)
-                    .fontWeight(.bold)
-                    .padding(.bottom, 8)
-
-                Text("Enter your email address and we'll send you instructions to reset your password.")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 20)
-
-                if !viewModel.errorMessage.isEmpty {
-                    Text(viewModel.errorMessage)
-                        .foregroundStyle(.red)
-                        .font(.caption)
-                        .padding(.horizontal)
+                VStack(spacing: 10) {
+                    Text("Forgot Password")
+                        .font(OrganicPalette.display(32))
+                        .foregroundColor(OrganicPalette.ink(colorScheme))
                         .multilineTextAlignment(.center)
-                }
 
-                if !viewModel.successMessage.isEmpty {
-                    Text(viewModel.successMessage)
-                        .foregroundStyle(.green)
-                        .font(.caption)
-                        .padding(.horizontal)
+                    Text("Enter your email address and we'll send you instructions to reset your password.")
+                        .font(OrganicPalette.body(16))
+                        .foregroundColor(OrganicPalette.inkSoft(colorScheme))
                         .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(.horizontal, 24)
+                .padding(.bottom, 4)
+
+                if !viewModel.errorMessage.isEmpty || !viewModel.successMessage.isEmpty {
+                    statusCard
+                        .padding(.horizontal, 20)
                 }
 
-                VStack(spacing: 16) {
-                    TextField("Email", text: $viewModel.email)
-                        .textFieldStyle(.plain)
-                        .padding()
-                        .background(
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(.ultraThinMaterial)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 12)
-                                        .stroke(Color.cardBorder(for: colorScheme), lineWidth: 1.5)
-                                )
-                        )
-                        .autocapitalization(.none)
-                        .keyboardType(.emailAddress)
-                }
+                TextField(
+                    "",
+                    text: $viewModel.email,
+                    prompt: OrganicPalette.prompt("Email", colorScheme)
+                )
+                .font(OrganicPalette.body(17))
+                .foregroundColor(OrganicPalette.ink(colorScheme))
+                .textContentType(.emailAddress)
+                .keyboardType(.emailAddress)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .submitLabel(.send)
+                .onSubmit { viewModel.sendPasswordReset() }
+                .organicField(colorScheme)
                 .padding(.horizontal, 20)
 
-                Button(action: {
+                OrganicPillButton(
+                    title: "Send Reset Email",
+                    isLoading: viewModel.isLoading,
+                    fillsWidth: true
+                ) {
                     viewModel.sendPasswordReset()
-                }) {
-                    if viewModel.isLoading {
-                        ProgressView()
-                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                            .frame(maxWidth: .infinity)
-                    } else {
-                        Text("Send Reset Email")
-                    }
                 }
-                .buttonStyle(PrimaryButtonStyle(color: .green))
                 .disabled(viewModel.isLoading)
                 .padding(.horizontal, 20)
-                .padding(.top, 8)
+                .padding(.top, 4)
 
                 Button(action: {
                     dismiss()
                 }) {
                     Text("Back to Login")
-                        .font(.system(size: 12))
+                        .font(OrganicPalette.body(14))
+                        .foregroundColor(OrganicPalette.inkSoft(colorScheme))
                         .underline()
                 }
-                .padding(.top, 12)
+                .buttonStyle(.plain)
+                .padding(.top, 6)
 
                 Spacer()
 
             }//:VSTACK
         }//:SCROLLVIEW
+        .scrollDismissesKeyboard(.interactively)
         .background(
-            Color.backgroundGradient(for: colorScheme)
+            OrganicPalette.canvas(colorScheme)
                 .ignoresSafeArea()
         )
+        // Pushed onto LoginView's stack, so the back chevron is this screen's
+        // to tint.
+        .toolbarBackground(OrganicPalette.canvas(colorScheme), for: .navigationBar)
+        .tint(OrganicPalette.terracotta(colorScheme))
         .alert(isPresented: $showAlert) {
             Alert(title: Text("Note"), message: Text(alertMsg), dismissButton: .default(Text("OK")))
         }
@@ -113,6 +107,38 @@ struct ForgotPasswordView: View {
             }
         })
     }//:BODY
+
+    /// Success in sage, failure in rust — the same two answers the rest of the
+    /// app gives, rather than the system's green and red.
+    private var statusCard: some View {
+        let isSuccess = !viewModel.successMessage.isEmpty
+        let tint = isSuccess
+            ? OrganicPalette.sageInk(colorScheme)
+            : OrganicPalette.rust(colorScheme)
+
+        return HStack(spacing: 12) {
+            Image(systemName: isSuccess ? "checkmark.circle.fill" : "exclamationmark.circle.fill")
+                .font(.system(size: 18))
+                .foregroundColor(tint)
+
+            Text(isSuccess ? viewModel.successMessage : viewModel.errorMessage)
+                .font(OrganicPalette.body(15))
+                .foregroundColor(OrganicPalette.ink(colorScheme))
+                .fixedSize(horizontal: false, vertical: true)
+
+            Spacer(minLength: 0)
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            OrganicCardBackground(
+                colorScheme: colorScheme,
+                fill: isSuccess
+                    ? OrganicPalette.sage(colorScheme)
+                    : OrganicPalette.blush(colorScheme)
+            )
+        )
+    }
 }
 
 #Preview {
