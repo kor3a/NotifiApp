@@ -19,7 +19,7 @@ struct StoreItemView: View {
             CachedLogoImage(storeName: store.name, size: 48)
 
             Text(store.name)
-                .font(.system(size: 17, weight: .semibold))
+                .font(OrganicPalette.body(17, weight: .semibold))
                 .foregroundColor(OrganicPalette.ink(colorScheme))
                 .lineLimit(1)
 

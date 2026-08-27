@@ -152,7 +152,7 @@ struct AddStoreView: View {
                 locationSearchManager.requestLocationPermission()
             } label: {
                 Text("Enable Location")
-                    .font(.system(size: 15, weight: .bold, design: .serif))
+                    .font(OrganicPalette.title(15))
                     .foregroundColor(.white)
                     .padding(.horizontal, 22)
                     .frame(height: 44)

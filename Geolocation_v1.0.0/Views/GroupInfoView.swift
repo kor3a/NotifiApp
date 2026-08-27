@@ -59,7 +59,7 @@ struct GroupInfoView: View {
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Done") { dismiss() }
-                        .font(.system(size: 16, weight: .bold, design: .serif))
+                        .font(OrganicPalette.title(16))
                         .foregroundColor(OrganicPalette.terracotta(colorScheme))
                 }
             }
@@ -218,7 +218,7 @@ struct GroupInfoView: View {
                 } else {
                     Button(action: searchForMember) {
                         Text("Search")
-                            .font(.system(size: 15, weight: .bold, design: .serif))
+                            .font(OrganicPalette.title(15))
                             .foregroundColor(.white)
                             .padding(.horizontal, 16)
                             .frame(height: 38)

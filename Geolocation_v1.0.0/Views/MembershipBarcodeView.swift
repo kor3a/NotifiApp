@@ -131,7 +131,7 @@ struct MembershipBarcodeTopSheet: View {
 
             VStack(alignment: .leading, spacing: 1) {
                 Text(storeName)
-                    .font(.system(size: 15, weight: .bold, design: .serif))
+                    .font(OrganicPalette.title(15))
                     .foregroundColor(OrganicPalette.ink(colorScheme))
                     .lineLimit(1)
                 Text("Membership")

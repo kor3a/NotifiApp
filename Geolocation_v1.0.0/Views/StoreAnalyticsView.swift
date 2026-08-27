@@ -57,7 +57,7 @@ struct StoreAnalyticsView: View {
 
                 ToolbarItem(placement: .principal) {
                     Text("Analytics")
-                        .font(.system(size: 17, weight: .bold, design: .serif))
+                        .font(OrganicPalette.title(17))
                         .foregroundColor(OrganicPalette.ink(colorScheme))
                 }
             }
@@ -320,7 +320,7 @@ struct StoreAnalyticsView: View {
             ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
                 HStack(spacing: 12) {
                     Text("\(index + 1)")
-                        .font(.system(size: 12, weight: .bold, design: .serif))
+                        .font(OrganicPalette.title(12))
                         .foregroundColor(
                             index < 3 ? .white : OrganicPalette.inkSoft(colorScheme)
                         )

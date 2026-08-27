@@ -269,7 +269,7 @@ struct SubscriptionPaywallView: View {
                 } else {
                     VStack(spacing: 2) {
                         Text("Start Free Trial")
-                            .font(.system(size: 17, weight: .bold, design: .serif))
+                            .font(OrganicPalette.title(17))
                         Text("7 days free, then auto-renews")
                             .font(.system(size: 12))
                             .opacity(0.85)

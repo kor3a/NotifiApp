@@ -25,7 +25,7 @@ struct PermissionOnboardingView: View {
 
     var body: some View {
         ZStack {
-            Color.backgroundGradient(for: colorScheme)
+            OrganicPalette.canvas(colorScheme)
                 .ignoresSafeArea()
 
             if case .active(let step) = manager.state {
@@ -61,7 +61,7 @@ private struct LocationPermissionPrimerView: View {
             step: .location,
             symbol: "location.fill",
             title: "Enable Location Services",
-            subtitle: "Allim uses your location while you're using the app to spot the stores you're already standing next to.",
+            subtitle: "Allim uses your location while you're using the app to spot the stores nearby. Choose \"Allow While Using App\" when iOS asks.",
             bullets: [
                 PermissionPrimerBullet(
                     symbol: "bell.badge",
@@ -72,14 +72,9 @@ private struct LocationPermissionPrimerView: View {
                     symbol: "storefront",
                     title: "Stores around you",
                     detail: "See the supermarkets and shops nearby on the map without typing in an address."
-                ),
-                PermissionPrimerBullet(
-                    symbol: "hand.raised",
-                    title: "You stay in control",
-                    detail: "Allim only watches for the stores you saved, and you can turn this off any time in Settings."
                 )
             ],
-            footnote: "Choose \"Allow While Using App\" when iOS asks. You can change this any time in Settings.",
+            footnote: "You can change this any time in Settings.",
             buttonTitle: "Enable Location",
             isRequesting: isRequesting,
             action: requestLocation
@@ -212,32 +207,26 @@ private struct PermissionPrimerScaffold: View {
                 VStack(spacing: 28) {
                     icon
 
-                    VStack(spacing: 10) {
+                    VStack(spacing: 12) {
                         Text(title)
-                            .font(.system(size: 30, weight: .bold, design: .rounded))
+                            .font(OrganicPalette.display(30))
+                            .foregroundColor(OrganicPalette.ink(colorScheme))
                             .multilineTextAlignment(.center)
-                            .foregroundStyle(
-                                LinearGradient(
-                                    colors: [.blue, .purple],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                )
-                            )
 
                         Text(subtitle)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
+                            .font(OrganicPalette.body(16))
+                            .foregroundColor(OrganicPalette.inkSoft(colorScheme))
                             .multilineTextAlignment(.center)
                             .fixedSize(horizontal: false, vertical: true)
                     }
 
-                    VStack(alignment: .leading, spacing: 18) {
+                    VStack(alignment: .leading, spacing: 20) {
                         ForEach(bullets) { bullet in
                             bulletRow(bullet)
                         }
                     }
-                    .padding(20)
-                    .cardStyle()
+                    .padding(22)
+                    .background(OrganicCardBackground(colorScheme: colorScheme))
                 }
                 .padding(.horizontal, 24)
                 .padding(.top, 44)
@@ -250,36 +239,17 @@ private struct PermissionPrimerScaffold: View {
                     stepIndicator
                 }
 
-                Button(action: action) {
-                    ZStack {
-                        Text(buttonTitle)
-                            .font(.headline)
-                            .foregroundStyle(.white)
-                            .opacity(isRequesting ? 0 : 1)
-
-                        if isRequesting {
-                            ProgressView()
-                                .tint(.white)
-                        }
-                    }
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 52)
-                    .background(
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(
-                                LinearGradient(
-                                    colors: [.blue, .purple],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                )
-                            )
-                    )
-                }
+                OrganicPillButton(
+                    title: buttonTitle,
+                    isLoading: isRequesting,
+                    fillsWidth: true,
+                    action: action
+                )
                 .disabled(isRequesting)
 
                 Text(footnote)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
+                    .font(OrganicPalette.body(12))
+                    .foregroundColor(OrganicPalette.inkSoft(colorScheme).opacity(0.85))
                     .multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -288,38 +258,33 @@ private struct PermissionPrimerScaffold: View {
         }//:VSTACK
     }
 
+    /// The same shape the About screen gives the app itself — a terracotta
+    /// glyph resting on a blush disc — so the first screens a new account sees
+    /// are already speaking the app's language.
     private var icon: some View {
-        ZStack {
-            Circle()
-                .fill(
-                    LinearGradient(
-                        colors: [.blue.opacity(0.2), .purple.opacity(0.2)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-                .frame(width: 120, height: 120)
-
-            Image(systemName: symbol)
-                .font(.system(size: 50, weight: .semibold))
-                .foregroundStyle(Color.iconGradient)
-        }
+        Image(systemName: symbol)
+            .font(.system(size: 48, weight: .semibold))
+            .foregroundColor(OrganicPalette.terracotta(colorScheme))
+            .frame(width: 120, height: 120)
+            .background(Circle().fill(OrganicPalette.blush(colorScheme)))
     }
 
     private func bulletRow(_ bullet: PermissionPrimerBullet) -> some View {
         HStack(alignment: .top, spacing: 14) {
             Image(systemName: bullet.symbol)
-                .font(.system(size: 18, weight: .semibold))
-                .foregroundStyle(Color.iconGradient)
-                .frame(width: 28)
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundColor(OrganicPalette.terracotta(colorScheme))
+                .frame(width: 38, height: 38)
+                .background(Circle().fill(OrganicPalette.blush(colorScheme)))
 
-            VStack(alignment: .leading, spacing: 3) {
+            VStack(alignment: .leading, spacing: 4) {
                 Text(bullet.title)
-                    .font(.subheadline.weight(.semibold))
+                    .font(OrganicPalette.body(16, weight: .semibold))
+                    .foregroundColor(OrganicPalette.ink(colorScheme))
 
                 Text(bullet.detail)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .font(OrganicPalette.body(14))
+                    .foregroundColor(OrganicPalette.inkSoft(colorScheme))
                     .fixedSize(horizontal: false, vertical: true)
             }
 
@@ -332,8 +297,8 @@ private struct PermissionPrimerScaffold: View {
             ForEach(Array(0..<manager.stepCount), id: \.self) { index in
                 Capsule()
                     .fill(index + 1 == manager.position(of: step)
-                          ? AnyShapeStyle(Color.iconGradient)
-                          : AnyShapeStyle(Color.secondary.opacity(0.3)))
+                          ? OrganicPalette.terracotta(colorScheme)
+                          : OrganicPalette.outline(colorScheme))
                     .frame(width: index + 1 == manager.position(of: step) ? 20 : 7, height: 7)
             }
         }
@@ -347,11 +312,11 @@ private struct PermissionPrimerScaffold: View {
 // manager is on, and the manager has no signed-in account in a preview.
 #Preview("Location") {
     LocationPermissionPrimerView()
-        .background(Color.backgroundGradient(for: .light).ignoresSafeArea())
+        .background(OrganicPalette.canvas(.light).ignoresSafeArea())
 }
 
 #Preview("Notifications") {
     NotificationPermissionPrimerView()
-        .background(Color.backgroundGradient(for: .dark).ignoresSafeArea())
+        .background(OrganicPalette.canvas(.dark).ignoresSafeArea())
         .preferredColorScheme(.dark)
 }

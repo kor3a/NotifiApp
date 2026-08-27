@@ -74,7 +74,7 @@ struct ReportFeedbackView: View {
         .toolbar {
             ToolbarItem(placement: .principal) {
                 Text("Report & Feedback")
-                    .font(.system(size: 17, weight: .bold, design: .serif))
+                    .font(OrganicPalette.title(17))
                     .foregroundColor(OrganicPalette.ink(colorScheme))
             }
         }

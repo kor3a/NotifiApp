@@ -61,7 +61,7 @@ struct NewGroupView: View {
                             .tint(OrganicPalette.terracotta(colorScheme))
                     } else {
                         Button("Create") { createGroup() }
-                            .font(.system(size: 16, weight: .bold, design: .serif))
+                            .font(OrganicPalette.title(16))
                             .foregroundColor(OrganicPalette.terracotta(colorScheme))
                             .disabled(!canCreate)
                             .opacity(canCreate ? 1 : 0.4)
@@ -131,7 +131,7 @@ struct NewGroupView: View {
                 } else {
                     Button(action: search) {
                         Text("Search")
-                            .font(.system(size: 15, weight: .bold, design: .serif))
+                            .font(OrganicPalette.title(15))
                             .foregroundColor(.white)
                             .padding(.horizontal, 16)
                             .frame(height: 38)

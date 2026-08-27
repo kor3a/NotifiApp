@@ -141,6 +141,12 @@
 		D0A1000000000000000000F4 /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = D0A1000000000000000000F2 /* GoogleSignIn */; };
 		DF66A9982E24C86100C15DA9 /* User_Store.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF66A9972E24C86100C15DA9 /* User_Store.swift */; };
 		FF0200000001AABB00CC0001 /* SpecialElite-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FF0100000001AABB00CC0001 /* SpecialElite-Regular.ttf */; };
+		FF0200000002AABB00CC0001 /* Commissioner-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FF0100000002AABB00CC0001 /* Commissioner-Regular.ttf */; };
+		FF0200000003AABB00CC0001 /* Commissioner-Medium.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FF0100000003AABB00CC0001 /* Commissioner-Medium.ttf */; };
+		FF0200000004AABB00CC0001 /* Commissioner-SemiBold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FF0100000004AABB00CC0001 /* Commissioner-SemiBold.ttf */; };
+		FF0200000005AABB00CC0001 /* Commissioner-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FF0100000005AABB00CC0001 /* Commissioner-Bold.ttf */; };
+		FF0200000006AABB00CC0001 /* Commissioner-ExtraBold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FF0100000006AABB00CC0001 /* Commissioner-ExtraBold.ttf */; };
+		FF0200000007AABB00CC0001 /* Commissioner-Black.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FF0100000007AABB00CC0001 /* Commissioner-Black.ttf */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -323,6 +329,12 @@
 		DF66A9972E24C86100C15DA9 /* User_Store.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = User_Store.swift; sourceTree = "<group>"; };
 		DF66A9992E24C86100C15DA9 /* Geolocation_v1.0.0.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Geolocation_v1.0.0.entitlements; sourceTree = "<group>"; };
 		FF0100000001AABB00CC0001 /* SpecialElite-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "SpecialElite-Regular.ttf"; sourceTree = "<group>"; };
+		FF0100000002AABB00CC0001 /* Commissioner-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Commissioner-Regular.ttf"; sourceTree = "<group>"; };
+		FF0100000003AABB00CC0001 /* Commissioner-Medium.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Commissioner-Medium.ttf"; sourceTree = "<group>"; };
+		FF0100000004AABB00CC0001 /* Commissioner-SemiBold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Commissioner-SemiBold.ttf"; sourceTree = "<group>"; };
+		FF0100000005AABB00CC0001 /* Commissioner-Bold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Commissioner-Bold.ttf"; sourceTree = "<group>"; };
+		FF0100000006AABB00CC0001 /* Commissioner-ExtraBold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Commissioner-ExtraBold.ttf"; sourceTree = "<group>"; };
+		FF0100000007AABB00CC0001 /* Commissioner-Black.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Commissioner-Black.ttf"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -636,6 +648,12 @@
 			isa = PBXGroup;
 			children = (
 				FF0100000001AABB00CC0001 /* SpecialElite-Regular.ttf */,
+				FF0100000002AABB00CC0001 /* Commissioner-Regular.ttf */,
+				FF0100000003AABB00CC0001 /* Commissioner-Medium.ttf */,
+				FF0100000004AABB00CC0001 /* Commissioner-SemiBold.ttf */,
+				FF0100000005AABB00CC0001 /* Commissioner-Bold.ttf */,
+				FF0100000006AABB00CC0001 /* Commissioner-ExtraBold.ttf */,
+				FF0100000007AABB00CC0001 /* Commissioner-Black.ttf */,
 			);
 			path = Fonts;
 			sourceTree = "<group>";
@@ -852,6 +870,12 @@
 				011CF60D2ED63A69009A31A6 /* NotifiApp.icon in Resources */,
 				011CF6092ED63945009A31A6 /* Notifi.icon in Resources */,
 				FF0200000001AABB00CC0001 /* SpecialElite-Regular.ttf in Resources */,
+				FF0200000002AABB00CC0001 /* Commissioner-Regular.ttf in Resources */,
+				FF0200000003AABB00CC0001 /* Commissioner-Medium.ttf in Resources */,
+				FF0200000004AABB00CC0001 /* Commissioner-SemiBold.ttf in Resources */,
+				FF0200000005AABB00CC0001 /* Commissioner-Bold.ttf in Resources */,
+				FF0200000006AABB00CC0001 /* Commissioner-ExtraBold.ttf in Resources */,
+				FF0200000007AABB00CC0001 /* Commissioner-Black.ttf in Resources */,
 				01A339A52FE1A86E00207C36 /* AppIntentVocabulary.plist in Resources */,
 				011574932F69FD9700963138 /* GoogleService-Info.plist in Resources */,
 			);

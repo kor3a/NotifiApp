@@ -277,7 +277,7 @@ struct StoresView: View {
     /// bar above this screen's own header.
     ///
     /// The tab bar already says Stores, so the title is the greeting instead:
-    /// a quiet "Hi," with the name under it in the screen's serif. The name
+    /// a quiet "Hi," with the name under it in the display face. The name
     /// shrinks rather than wraps — a long one would otherwise take a third line
     /// and shift the list below it.
     ///
@@ -320,7 +320,7 @@ struct StoresView: View {
                     }
                 } label: {
                     Text("Done")
-                        .font(.system(size: 16, weight: .bold, design: .serif))
+                        .font(OrganicPalette.title(16))
                         .foregroundColor(.white)
                         .padding(.horizontal, 22)
                         .frame(height: 48)
@@ -769,7 +769,7 @@ private struct EmptyStateStep: View {
     var body: some View {
         HStack(alignment: .center, spacing: 14) {
             Text("\(number)")
-                .font(.system(size: 14, weight: .bold, design: .serif))
+                .font(OrganicPalette.title(14))
                 .foregroundColor(OrganicPalette.terracotta(colorScheme))
                 .frame(width: 30, height: 30)
                 .background(Circle().fill(OrganicPalette.blush(colorScheme)))

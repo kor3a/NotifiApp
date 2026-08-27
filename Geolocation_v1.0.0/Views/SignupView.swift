@@ -19,141 +19,111 @@ struct SignupView: View {
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 24) {
+            VStack(spacing: 22) {
                 Spacer()
-                    .frame(height: 40)
+                    .frame(height: 24)
 
-                Text("Allim")
-                    .font(.system(size: 40, weight: .bold, design: .rounded))
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [.blue, .purple],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
-                    .padding(.bottom, 8)
+                // The wordmark belongs to the screen this was pushed from; the
+                // title here names the job, the way the app's other form sheets
+                // do.
+                Text("Create your account")
+                    .font(OrganicPalette.display(32))
+                    .foregroundColor(OrganicPalette.ink(colorScheme))
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 4)
 
                 if !viewModel.errorMessage.isEmpty {
                     Text(viewModel.errorMessage)
-                        .foregroundStyle(.red)
-                        .font(.caption)
-                        .padding(.horizontal)
+                        .font(OrganicPalette.body(13))
+                        .foregroundColor(OrganicPalette.rust(colorScheme))
                         .multilineTextAlignment(.center)
+                        .padding(.horizontal, 24)
                 }
 
-                VStack(spacing: 16) {
-                    TextField("User ID", text: $viewModel.userId)
-                        .textFieldStyle(.plain)
-                        .padding()
-                        .background(
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(.ultraThinMaterial)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 12)
-                                        .stroke(Color.cardBorder(for: colorScheme), lineWidth: 1.5)
-                                )
-                        )
+                VStack(spacing: 12) {
+                    TextField(
+                        "",
+                        text: $viewModel.userId,
+                        prompt: OrganicPalette.prompt("User ID", colorScheme)
+                    )
+                    .font(OrganicPalette.body(17))
+                    .foregroundColor(OrganicPalette.ink(colorScheme))
+                    .textContentType(.username)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .organicField(colorScheme)
 
-                    TextField("Email", text: $viewModel.email)
-                        .textFieldStyle(.plain)
-                        .padding()
-                        .background(
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(.ultraThinMaterial)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 12)
-                                        .stroke(Color.cardBorder(for: colorScheme), lineWidth: 1.5)
-                                )
-                        )
+                    TextField(
+                        "",
+                        text: $viewModel.email,
+                        prompt: OrganicPalette.prompt("Email", colorScheme)
+                    )
+                    .font(OrganicPalette.body(17))
+                    .foregroundColor(OrganicPalette.ink(colorScheme))
+                    .textContentType(.emailAddress)
+                    .keyboardType(.emailAddress)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .organicField(colorScheme)
 
-                    TextField("Name", text: $viewModel.name)
-                        .textFieldStyle(.plain)
-                        .padding()
-                        .background(
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(.ultraThinMaterial)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 12)
-                                        .stroke(Color.cardBorder(for: colorScheme), lineWidth: 1.5)
-                                )
-                        )
+                    TextField(
+                        "",
+                        text: $viewModel.name,
+                        prompt: OrganicPalette.prompt("Name", colorScheme)
+                    )
+                    .font(OrganicPalette.body(17))
+                    .foregroundColor(OrganicPalette.ink(colorScheme))
+                    .textContentType(.name)
+                    .textInputAutocapitalization(.words)
+                    .autocorrectionDisabled()
+                    .organicField(colorScheme)
 
-                    SecureField("Password", text: $viewModel.password)
-                        .textFieldStyle(.plain)
-                        .padding()
-                        .background(
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(.ultraThinMaterial)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 12)
-                                        .stroke(Color.cardBorder(for: colorScheme), lineWidth: 1.5)
-                                )
-                        )
+                    SecureField(
+                        "",
+                        text: $viewModel.password,
+                        prompt: OrganicPalette.prompt("Password", colorScheme)
+                    )
+                    .font(OrganicPalette.body(17))
+                    .foregroundColor(OrganicPalette.ink(colorScheme))
+                    .textContentType(.newPassword)
+                    .organicField(colorScheme)
 
-                    SecureField("Confirm Password", text: $viewModel.confirmPassword)
-                        .textFieldStyle(.plain)
-                        .padding()
-                        .background(
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(.ultraThinMaterial)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 12)
-                                        .stroke(Color.cardBorder(for: colorScheme), lineWidth: 1.5)
-                                )
-                        )
+                    SecureField(
+                        "",
+                        text: $viewModel.confirmPassword,
+                        prompt: OrganicPalette.prompt("Confirm Password", colorScheme)
+                    )
+                    .font(OrganicPalette.body(17))
+                    .foregroundColor(OrganicPalette.ink(colorScheme))
+                    .textContentType(.newPassword)
+                    .organicField(colorScheme)
                 }
                 .padding(.horizontal, 20)
 
-                Button(action: {
+                OrganicPillButton(
+                    title: "Sign Up",
+                    isLoading: viewModel.isLoading,
+                    fillsWidth: true
+                ) {
                     viewModel.register()
-                }) {
-                    ZStack {
-                        Text("Sign Up")
-                            .font(.headline)
-                            .foregroundStyle(
-                                LinearGradient(
-                                    colors: [.blue, .purple],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                )
-                            )
-                            .opacity(viewModel.isLoading ? 0 : 1)
-
-                        if viewModel.isLoading {
-                            ProgressView()
-                        }
-                    }
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 50)
-                    .background(
-                        RoundedRectangle(cornerRadius: 10)
-                            .fill(.ultraThinMaterial)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 10)
-                                    .stroke(
-                                        LinearGradient(
-                                            colors: [.blue, .purple],
-                                            startPoint: .leading,
-                                            endPoint: .trailing
-                                        ),
-                                        lineWidth: 1.5
-                                    )
-                            )
-                    )
                 }
                 .disabled(viewModel.isLoading)
                 .padding(.horizontal, 20)
-                .padding(.top, 8)
+                .padding(.top, 4)
 
                 Spacer()
 
             }//:VSTACK
         }//:SCROLLVIEW
         .background(
-            Color.backgroundGradient(for: colorScheme)
+            OrganicPalette.canvas(colorScheme)
                 .ignoresSafeArea()
         )
+        // Pushed onto LoginView's stack, so the back chevron is this screen's
+        // to tint.
+        .toolbarBackground(OrganicPalette.canvas(colorScheme), for: .navigationBar)
+        .tint(OrganicPalette.terracotta(colorScheme))
         .alert(isPresented: $showAlert) {
             Alert(title: Text("Note"), message: Text(alertMsg), dismissButton: .default(Text("OK")))
         }

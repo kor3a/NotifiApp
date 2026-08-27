@@ -122,7 +122,7 @@ struct TutorialReminderScene: View {
 
             VStack(spacing: 1) {
                 Text("Whole Foods")
-                    .font(.system(size: 17, weight: .bold, design: .serif))
+                    .font(OrganicPalette.title(17))
                     .foregroundColor(OrganicPalette.ink(colorScheme))
                 Text("6 items")
                     .font(.system(size: 12))

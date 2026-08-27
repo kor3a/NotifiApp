@@ -106,13 +106,13 @@ struct BackgroundPickerView: View {
                 }
                 ToolbarItem(placement: .principal) {
                     Text("\(title ?? surface.displayName) Background")
-                        .font(.system(size: 17, weight: .bold, design: .serif))
+                        .font(OrganicPalette.title(17))
                         .foregroundColor(OrganicPalette.ink(colorScheme))
                         .lineLimit(1)
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Done") { dismiss() }
-                        .font(.system(size: 16, weight: .bold, design: .serif))
+                        .font(OrganicPalette.title(16))
                         .foregroundColor(OrganicPalette.terracotta(colorScheme))
                 }
             }

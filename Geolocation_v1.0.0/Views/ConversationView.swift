@@ -128,7 +128,7 @@ struct ConversationView: View {
                 }) {
                     VStack(spacing: 1) {
                         Text(conversation.displayName(currentUserId: currentUserId))
-                            .font(.system(size: 17, weight: .bold, design: .serif))
+                            .font(OrganicPalette.title(17))
                             .foregroundColor(OrganicPalette.ink(colorScheme))
 
                         if conversation.isGroupConversation {
@@ -282,7 +282,7 @@ struct ConversationView: View {
                     axis: .vertical
                 )
                 .textFieldStyle(.plain)
-                .font(.system(size: 17))
+                .font(OrganicPalette.body(17))
                 .foregroundColor(OrganicPalette.ink(colorScheme))
                 .padding(.vertical, 6)
                 .focused($isInputFocused)
@@ -382,7 +382,7 @@ struct MessageBubble: View {
                 // Sender name label (group conversations only, incoming messages)
                 if showSenderName && !isFromCurrentUser {
                     Text(message.senderName)
-                        .font(.system(size: 12, weight: .bold, design: .serif))
+                        .font(OrganicPalette.title(12))
                         .foregroundColor(OrganicPalette.inkSoft(colorScheme))
                         .padding(.horizontal, 6)
                 }
@@ -415,7 +415,7 @@ struct MessageBubble: View {
                 // Message content (only show if non-empty)
                 if !message.content.isEmpty {
                     Text(message.content)
-                        .font(.system(size: 16))
+                        .font(OrganicPalette.body(16))
                         .textSelection(.enabled)
                         .padding(.horizontal, 15)
                         .padding(.vertical, 11)
@@ -509,7 +509,7 @@ private struct ShareActionButtons: View {
                             .font(.system(size: 11, weight: .bold))
                     }
                     Text("Accept")
-                        .font(.system(size: 14, weight: .bold, design: .serif))
+                        .font(OrganicPalette.title(14))
                 }
                 .foregroundColor(.white)
                 .frame(maxWidth: .infinity)
@@ -601,7 +601,7 @@ struct ReminderCard: View {
                 Image(systemName: "list.bullet.clipboard")
                     .font(.system(size: 12, weight: .semibold))
                 Text("Shared reminder")
-                    .font(.system(size: 12, weight: .bold, design: .serif))
+                    .font(OrganicPalette.title(12))
                     .kerning(0.3)
 
                 Spacer(minLength: 6)
@@ -722,7 +722,7 @@ struct StoreCard: View {
                 Image(systemName: "storefront.fill")
                     .font(.system(size: 12, weight: .semibold))
                 Text("Shared store")
-                    .font(.system(size: 12, weight: .bold, design: .serif))
+                    .font(OrganicPalette.title(12))
                     .kerning(0.3)
 
                 Spacer(minLength: 6)

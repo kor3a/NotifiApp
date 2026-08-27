@@ -346,7 +346,7 @@ struct MapView: View {
                                 // Unread badge
                                 if messagesViewModel.totalUnreadCount > 0 {
                                     Text("\(messagesViewModel.totalUnreadCount)")
-                                        .font(.system(size: 10, weight: .bold, design: .serif))
+                                        .font(OrganicPalette.title(10))
                                         .foregroundColor(.white)
                                         .padding(.horizontal, 5)
                                         .padding(.vertical, 2)
@@ -719,7 +719,7 @@ struct StoreIconView: View {
                         .frame(width: 30, height: 30)
                         .overlay(
                             Text(firstLetter)
-                                .font(.system(size: 14, weight: .bold, design: .serif))
+                                .font(OrganicPalette.title(14))
                                 .foregroundColor(OrganicAvatarTint.forName(storeName).glyph)
                         )
                 }
@@ -730,7 +730,7 @@ struct StoreIconView: View {
             // Reminder count badge
             if reminderCount > 0 {
                 Text("\(reminderCount)")
-                    .font(.system(size: 10, weight: .bold, design: .serif))
+                    .font(OrganicPalette.title(10))
                     .foregroundColor(.white)
                     .padding(.horizontal, 4)
                     .padding(.vertical, 1)
