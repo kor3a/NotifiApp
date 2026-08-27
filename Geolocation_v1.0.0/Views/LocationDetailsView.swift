@@ -56,19 +56,15 @@ struct LocationDetailsView: View {
         return letter.isEmpty ? "?" : letter
     }
 
-    /// A stable per-store accent color so each place gets its own personality.
-    private var accentColor: Color {
-        let palette: [Color] = [.blue, .green, .orange, .purple, .pink, .teal, .indigo, .cyan]
-        let hash = abs(storeName.hashValue)
-        return palette[hash % palette.count]
-    }
-
-    private var accentGradient: LinearGradient {
-        LinearGradient(
-            colors: [accentColor, accentColor.opacity(0.65)],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
+    /// The store's own tint, from the palette the avatars share. Keyed off the
+    /// name the same way they are — `hashValue` is seeded per launch, so the
+    /// old hash gave a place a different colour every time the app opened.
+    ///
+    /// It dresses the logo badge only. The screen's accent is terracotta like
+    /// everywhere else; a sheet whose buttons change colour per store reads as
+    /// a different sheet each time.
+    private var storeTint: OrganicAvatarTint {
+        OrganicAvatarTint.forName(storeName)
     }
 
     /// Friendly (icon, label) for the place's point-of-interest category.
@@ -100,6 +96,9 @@ struct LocationDetailsView: View {
         .padding(.horizontal, 20)
         .padding(.top, 20)
         .padding(.bottom, 22)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(OrganicPalette.canvas(colorScheme))
+        .presentationBackground(OrganicPalette.canvas(colorScheme))
         .overlay(alignment: .topTrailing) {
             closeButton
                 .padding(.top, 12)
@@ -124,18 +123,18 @@ struct LocationDetailsView: View {
 
             VStack(alignment: .leading, spacing: 6) {
                 Text(storeName)
-                    .font(.system(.title3, design: .rounded).weight(.bold))
-                    .foregroundStyle(.primary)
+                    .font(OrganicPalette.display(22))
+                    .foregroundColor(OrganicPalette.ink(colorScheme))
                     .lineLimit(1)
 
                 HStack(alignment: .top, spacing: 5) {
                     Image(systemName: "mappin.and.ellipse")
-                        .font(.caption2)
-                        .foregroundStyle(accentColor)
+                        .font(.system(size: 11))
+                        .foregroundColor(OrganicPalette.terracotta(colorScheme))
                         .padding(.top, 1)
                     Text(address)
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
+                        .font(.system(size: 13))
+                        .foregroundColor(OrganicPalette.inkSoft(colorScheme))
                         .lineLimit(2)
                 }
             }
@@ -145,51 +144,28 @@ struct LocationDetailsView: View {
         .padding(16)
         // Leave room on the right so the long name never slides under the close button.
         .padding(.trailing, 24)
-        .background(
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .fill(.ultraThinMaterial)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 22, style: .continuous)
-                        .fill(accentColor.opacity(colorScheme == .dark ? 0.10 : 0.06))
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 22, style: .continuous)
-                        .stroke(accentColor.opacity(0.18), lineWidth: 1)
-                )
-        )
+        .background(OrganicCardBackground(colorScheme: colorScheme, cornerRadius: 24))
     }
 
     private var logoBadge: some View {
         ZStack {
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .fill(accentGradient)
-                .frame(width: 68, height: 68)
-                .shadow(color: accentColor.opacity(0.45), radius: 10, x: 0, y: 6)
-
-            // Glossy top highlight for a little depth.
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: [.white.opacity(0.35), .clear],
-                        startPoint: .top,
-                        endPoint: .center
-                    )
-                )
-                .frame(width: 68, height: 68)
+            Circle()
+                .fill(storeTint.fill)
+                .frame(width: 64, height: 64)
 
             if let image = logoProvider.cachedImage(for: storeName) {
                 Image(uiImage: image)
                     .resizable()
                     .scaledToFill()
-                    .frame(width: 50, height: 50)
-                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .frame(width: 64, height: 64)
+                    .clipShape(Circle())
             } else if logoProvider.logoURL(for: storeName) != nil {
                 ProgressView()
-                    .tint(.white)
+                    .tint(storeTint.glyph)
             } else {
                 Text(firstLetter)
-                    .font(.system(size: 30, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white)
+                    .font(.system(size: 27, weight: .bold, design: .serif))
+                    .foregroundColor(storeTint.glyph)
             }
         }
     }
@@ -199,17 +175,30 @@ struct LocationDetailsView: View {
     private var chipRow: some View {
         HStack(spacing: 8) {
             if let categoryInfo {
-                chip(icon: categoryInfo.icon, text: categoryInfo.label, tint: accentColor)
+                chip(
+                    icon: categoryInfo.icon,
+                    text: categoryInfo.label,
+                    tint: OrganicPalette.terracotta(colorScheme),
+                    fill: OrganicPalette.blush(colorScheme)
+                )
             }
 
             if isStoreAlreadyAdded {
-                chip(icon: "checkmark.seal.fill", text: "Saved", tint: .green)
+                // Sage is this palette's one non-terracotta idea, and here it is
+                // "you already have this".
+                chip(
+                    icon: "checkmark.seal.fill",
+                    text: "Saved",
+                    tint: OrganicPalette.sageInk(colorScheme),
+                    fill: OrganicPalette.sage(colorScheme)
+                )
 
                 if let count = matchingUserStoreItem?.store.reminderCount, count > 0 {
                     chip(
                         icon: "bell.fill",
                         text: "\(count) reminder\(count == 1 ? "" : "s")",
-                        tint: .orange
+                        tint: OrganicPalette.terracotta(colorScheme),
+                        fill: OrganicPalette.blush(colorScheme)
                     )
                 }
             }
@@ -218,19 +207,17 @@ struct LocationDetailsView: View {
         }
     }
 
-    private func chip(icon: String, text: String, tint: Color) -> some View {
+    private func chip(icon: String, text: String, tint: Color, fill: Color) -> some View {
         HStack(spacing: 5) {
             Image(systemName: icon)
                 .font(.system(size: 11, weight: .semibold))
             Text(text)
                 .font(.system(size: 12, weight: .semibold))
         }
-        .foregroundStyle(tint)
+        .foregroundColor(tint)
         .padding(.horizontal, 11)
         .padding(.vertical, 6)
-        .background(
-            Capsule().fill(tint.opacity(colorScheme == .dark ? 0.20 : 0.13))
-        )
+        .background(Capsule().fill(fill))
     }
 
     // MARK: - Actions
@@ -245,7 +232,7 @@ struct LocationDetailsView: View {
                 } label: {
                     Label("View Reminders", systemImage: "bell.badge.fill")
                 }
-                .buttonStyle(GradientActionButtonStyle(gradient: accentGradient))
+                .buttonStyle(OrganicActionButtonStyle(colorScheme: colorScheme))
             } else {
                 Button {
                     guard let selectedItem = mapSelection else { return }
@@ -277,7 +264,7 @@ struct LocationDetailsView: View {
                 } label: {
                     Label("Add to My Stores", systemImage: "plus.circle.fill")
                 }
-                .buttonStyle(GradientActionButtonStyle(gradient: accentGradient))
+                .buttonStyle(OrganicActionButtonStyle(colorScheme: colorScheme))
                 .sheet(isPresented: $showingPaywall) {
                     SubscriptionPaywallView()
                 }
@@ -288,7 +275,7 @@ struct LocationDetailsView: View {
             } label: {
                 Label("Open in Apple Maps", systemImage: "map.fill")
             }
-            .buttonStyle(GhostActionButtonStyle(tint: accentColor))
+            .buttonStyle(OrganicGhostButtonStyle(colorScheme: colorScheme))
         }
     }
 
@@ -301,49 +288,44 @@ struct LocationDetailsView: View {
         } label: {
             Image(systemName: "xmark")
                 .font(.system(size: 13, weight: .bold))
-                .foregroundStyle(.secondary)
+                .foregroundColor(OrganicPalette.inkSoft(colorScheme))
                 .frame(width: 30, height: 30)
-                .background(.ultraThinMaterial, in: Circle())
-                .overlay(Circle().stroke(Color.primary.opacity(0.08), lineWidth: 1))
+                .background(Circle().fill(OrganicPalette.field(colorScheme)))
         }
     }
 }
 
 // MARK: - Button Styles
 
-private struct GradientActionButtonStyle: ButtonStyle {
-    let gradient: LinearGradient
+/// The sheet's primary action: the same terracotta pill the rest of the app
+/// commits with. A `ButtonStyle` rather than `OrganicPillButton` because these
+/// buttons carry a `Label`, not a bare title.
+private struct OrganicActionButtonStyle: ButtonStyle {
+    let colorScheme: ColorScheme
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.system(size: 17, weight: .semibold, design: .rounded))
+            .font(.system(size: 17, weight: .bold, design: .serif))
             .foregroundStyle(.white)
             .frame(maxWidth: .infinity)
             .frame(height: 52)
-            .background(
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(gradient)
-            )
-            .shadow(color: .black.opacity(0.18), radius: 8, x: 0, y: 4)
+            .background(Capsule().fill(OrganicPalette.terracotta(colorScheme)))
             .opacity(configuration.isPressed ? 0.85 : 1.0)
             .scaleEffect(configuration.isPressed ? 0.98 : 1.0)
             .animation(.spring(response: 0.3, dampingFraction: 0.7), value: configuration.isPressed)
     }
 }
 
-private struct GhostActionButtonStyle: ButtonStyle {
-    let tint: Color
+private struct OrganicGhostButtonStyle: ButtonStyle {
+    let colorScheme: ColorScheme
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.system(size: 15, weight: .medium, design: .rounded))
-            .foregroundStyle(tint)
+            .font(.system(size: 15, weight: .semibold))
+            .foregroundColor(OrganicPalette.terracotta(colorScheme))
             .frame(maxWidth: .infinity)
-            .frame(height: 44)
-            .background(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(tint.opacity(0.12))
-            )
+            .frame(height: 46)
+            .background(Capsule().fill(OrganicPalette.blush(colorScheme)))
             .opacity(configuration.isPressed ? 0.7 : 1.0)
             .scaleEffect(configuration.isPressed ? 0.98 : 1.0)
             .animation(.spring(response: 0.3, dampingFraction: 0.7), value: configuration.isPressed)
