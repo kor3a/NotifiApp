@@ -44,6 +44,17 @@ struct OrganicTabBar: View {
     @Environment(\.colorScheme) private var colorScheme
     @Namespace private var indicator
 
+    /// The three numbers the bar is built from. Named because `reservedHeight`
+    /// has to add up to exactly what the bar draws — a screen that reserves the
+    /// wrong amount lands its own chrome under the capsule.
+    private static let itemHeight: CGFloat = 52
+    private static let capsuleInset: CGFloat = 6
+    private static let bottomGap: CGFloat = 6
+
+    /// The room a screen has to leave at its bottom edge for the bar floating
+    /// over it — the space the system tab bar used to take out of the safe area.
+    static let reservedHeight: CGFloat = itemHeight + capsuleInset * 2 + bottomGap
+
     var body: some View {
         HStack(spacing: 2) {
             ForEach(tabs) { tab in
@@ -62,8 +73,8 @@ struct OrganicTabBar: View {
                 )
             }
         }
-        .padding(.horizontal, 6)
-        .padding(.vertical, 6)
+        .padding(.horizontal, Self.capsuleInset)
+        .padding(.vertical, Self.capsuleInset)
         // Paper with a shadow rather than a blur: the bar floats over a list
         // that scrolls under it, and what separates the two is the same warm
         // shadow every card on these screens sits on.
@@ -73,7 +84,7 @@ struct OrganicTabBar: View {
                 .shadow(color: OrganicPalette.shadow(colorScheme), radius: 12, x: 0, y: 4)
         )
         .padding(.horizontal, 16)
-        .padding(.bottom, 6)
+        .padding(.bottom, Self.bottomGap)
     }
 
     // MARK: - Item
@@ -106,7 +117,7 @@ struct OrganicTabBar: View {
                 : OrganicPalette.inkSoft(colorScheme)
         )
         .frame(maxWidth: .infinity)
-        .frame(height: 52)
+        .frame(height: Self.itemHeight)
         .background {
             if isSelected {
                 Capsule()
@@ -135,6 +146,29 @@ struct OrganicTabBar: View {
 
     private func accessibilityLabel(for tab: OrganicTab) -> String {
         tab.badge > 0 ? "\(tab.title), \(tab.badge) new" : tab.title
+    }
+}
+
+// MARK: - Screen Inset
+
+extension View {
+    /// Reserves the bar's room at a screen's bottom edge.
+    ///
+    /// Applied inside each tab rather than around the `TabView`: an inset put
+    /// on the TabView itself never reaches the screens, which are hosted per
+    /// tab, so a list would run to the bottom of the window and anything the
+    /// screen pins there — a banner ad, the Stores FAB — would come out from
+    /// under the bar. Inside the tab it is ordinary SwiftUI layout, and every
+    /// one of those lands above the bar for the same reason it used to land
+    /// above the system one.
+    func organicTabBarInset() -> some View {
+        safeAreaInset(edge: .bottom, spacing: 0) {
+            Color.clear
+                .frame(height: OrganicTabBar.reservedHeight)
+                // Spacing only. `Color` takes taps, and this strip sits under
+                // the gap below the capsule.
+                .allowsHitTesting(false)
+        }
     }
 }
 

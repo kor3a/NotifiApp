@@ -36,6 +36,7 @@ struct HomeView: View {
             NotificationDebugTab()
         }
         .toolbar(.hidden, for: .tabBar)
+        .organicTabBarInset()
         .tabItem {
             Image(systemName: "bell.badge")
             Text("Debug")
@@ -106,6 +107,7 @@ struct HomeView: View {
                         }
                 }//:NAVIGATIONSTACK
                 .toolbar(.hidden, for: .tabBar)
+                .organicTabBarInset()
                 .tabItem {
                     Image(systemName: "storefront")
                     Text("Stores")
@@ -117,6 +119,7 @@ struct HomeView: View {
                         .navigationBarTitleDisplayMode(.large)
                 }//:NAVIGATIONSTACK
                 .toolbar(.hidden, for: .tabBar)
+                .organicTabBarInset()
                 .tabItem {
                     Image(systemName: "message")
                     Text("Messages")
@@ -135,6 +138,7 @@ struct HomeView: View {
                         .navigationBarTitleDisplayMode(.large)
                 }//:NAVIGATIONSTACK
                 .toolbar(.hidden, for: .tabBar)
+                .organicTabBarInset()
                 .tabItem {
                     Image(systemName: "person.2")
                     Text("Friends")
@@ -159,18 +163,14 @@ struct HomeView: View {
 
                 debugTab
             }//:TABVIEW
-            // Inset rather than overlaid, so a list, a banner ad and the FAB
-            // all end above the bar instead of sliding under it — the room the
-            // system bar used to take out of the safe area.
-            .safeAreaInset(edge: .bottom, spacing: 0) {
+            .overlay(alignment: .bottom) {
                 // Search floats its own bar over the map, with the search field
                 // living in it, so this one steps aside there.
                 if selectedTab != 3 {
                     OrganicTabBar(tabs: organicTabs, selection: $selectedTab)
                         // Pinned to the bottom while a keyboard is up, the way
-                        // the system bar was. An inset view otherwise rides the
-                        // keyboard's safe area and lands the bar on top of it,
-                        // stacked over a conversation's message field.
+                        // the system bar was, rather than riding up on top of a
+                        // conversation's message field.
                         .ignoresSafeArea(.keyboard, edges: .bottom)
                 }
             }
