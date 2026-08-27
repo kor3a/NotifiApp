@@ -376,7 +376,7 @@ struct MapView: View {
                         VStack(spacing: 4) {
                             Image(systemName: "fork.knife.circle")
                                 .font(.system(size: 20))
-                            Text("Recipe")
+                            Text("AI Recipe")
                                 .font(.system(size: 11))
                         }
                         .foregroundColor(

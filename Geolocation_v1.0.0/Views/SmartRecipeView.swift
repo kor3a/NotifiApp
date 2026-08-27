@@ -118,7 +118,7 @@ struct SmartRecipeView: View {
             }
         }
         .tint(RecipePalette.paprika)
-        .navigationTitle("Smart Recipe")
+        .navigationTitle("Your AI Chef")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {

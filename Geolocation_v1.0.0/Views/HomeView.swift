@@ -52,7 +52,7 @@ struct HomeView: View {
         #endif
     }
 
-    /// The Recipe tab's content. Smart Recipe is a premium feature, so anyone
+    /// The AI Recipe tab's content. The chef is a premium feature, so anyone
     /// without a subscription lands on what it does and the way to get it
     /// rather than on a chat that would refuse them at the first message.
     @ViewBuilder
@@ -71,13 +71,13 @@ struct HomeView: View {
 
                 OrganicEmptyState(
                     systemImage: "fork.knife.circle",
-                    title: "Smart Recipe",
+                    title: "Your AI Chef",
                     message: "Ask for any recipe and Allim turns it into a shopping list — the ingredients sorted straight into the store you pick.",
                     actionTitle: "Get Allim Premium",
                     action: { showRecipePaywall = true }
                 )
             }
-            .navigationTitle("Smart Recipe")
+            .navigationTitle("Your AI Chef")
             .navigationBarTitleDisplayMode(.inline)
         }
     }
@@ -103,7 +103,7 @@ struct HomeView: View {
             ),
             OrganicTab(
                 tag: 2,
-                title: "Recipe",
+                title: "AI Recipe",
                 systemImage: "fork.knife.circle",
                 selectedImage: "fork.knife.circle.fill"
             ),
@@ -179,7 +179,7 @@ struct HomeView: View {
                 .toolbar(.hidden, for: .tabBar)
                 .tabItem {
                     Image(systemName: "fork.knife.circle")
-                    Text("Recipe")
+                    Text("AI Recipe")
                 }
                 .tag(2)
 
