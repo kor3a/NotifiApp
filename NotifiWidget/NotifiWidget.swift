@@ -4,13 +4,15 @@
 //
 //  Shows stores and their reminder counts on the home screen.
 //  Reads data written by WidgetDataStore in the main app via the
-//  shared App Group "group.com.kor3a.nearbuy".
+//  shared App Group "group.com.kor3a.nearbuy" — the store list from
+//  the group's UserDefaults, the store logos from a directory beside it.
 //  Refreshes every 15 minutes; also refreshes immediately when the
 //  main app calls WidgetCenter.shared.reloadAllTimelines() on open.
 //
 
 import WidgetKit
 import SwiftUI
+import UIKit
 
 // MARK: - Shared Data Model
 // Must match the WidgetStoreData struct in WidgetDataStore.swift (main app).
@@ -19,6 +21,43 @@ struct WidgetStoreData: Codable {
     let storeName: String
     let reminderCount: Int
     let imageURL: String?
+    /// The store's logo inside the shared logo directory. Optional, and often
+    /// nil early on: the app only names a file once it has that logo cached,
+    /// so a row falls back to its initial disc until then.
+    let logoFileName: String?
+}
+
+// MARK: - Shared Container
+
+/// The App Group the main app publishes into. The widget only reads.
+enum SharedContainer {
+    static let appGroup = "group.com.kor3a.nearbuy"
+    static let storesKey = "widgetStoreData"
+    static let logoDirectoryName = "StoreLogos"
+
+    static var defaults: UserDefaults? { UserDefaults(suiteName: appGroup) }
+
+    /// A logo as the app last exported it — already downscaled for the widget,
+    /// so this is a small read rather than a full-size decode under the
+    /// extension's memory budget.
+    static func logo(named fileName: String) -> UIImage? {
+        // The name comes from our own payload, but it addresses a container the
+        // app writes too, so it never gets to climb out of the directory.
+        guard
+            !fileName.isEmpty,
+            !fileName.contains("/"),
+            !fileName.contains(".."),
+            let container = FileManager.default
+                .containerURL(forSecurityApplicationGroupIdentifier: appGroup)
+        else { return nil }
+
+        let url = container
+            .appendingPathComponent(logoDirectoryName, isDirectory: true)
+            .appendingPathComponent(fileName)
+
+        guard let data = try? Data(contentsOf: url) else { return nil }
+        return UIImage(data: data)
+    }
 }
 
 // MARK: - Timeline Entry
@@ -32,16 +71,13 @@ struct StoreWidgetEntry: TimelineEntry {
 
 struct StoreWidgetProvider: TimelineProvider {
 
-    private let suiteName = "group.com.kor3a.nearbuy"
-    private let storesKey = "widgetStoreData"
-
     func placeholder(in context: Context) -> StoreWidgetEntry {
         StoreWidgetEntry(
             date: Date(),
             stores: [
-                WidgetStoreData(storeName: "Walmart", reminderCount: 3, imageURL: nil),
-                WidgetStoreData(storeName: "Target", reminderCount: 1, imageURL: nil),
-                WidgetStoreData(storeName: "Costco", reminderCount: 5, imageURL: nil)
+                WidgetStoreData(storeName: "Walmart", reminderCount: 3, imageURL: nil, logoFileName: nil),
+                WidgetStoreData(storeName: "Target", reminderCount: 1, imageURL: nil, logoFileName: nil),
+                WidgetStoreData(storeName: "Costco", reminderCount: 5, imageURL: nil, logoFileName: nil)
             ]
         )
     }
@@ -67,8 +103,8 @@ struct StoreWidgetProvider: TimelineProvider {
 
     private func loadStores() -> [WidgetStoreData] {
         guard
-            let defaults = UserDefaults(suiteName: suiteName),
-            let data = defaults.data(forKey: storesKey),
+            let defaults = SharedContainer.defaults,
+            let data = defaults.data(forKey: SharedContainer.storesKey),
             let stores = try? JSONDecoder().decode([WidgetStoreData].self, from: data)
         else {
             return []
@@ -84,12 +120,16 @@ struct NotifiWidget: Widget {
 
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: kind, provider: StoreWidgetProvider()) { entry in
+            // The paper canvas is the entry view's own containerBackground, so
+            // it can read the color scheme; and the system's content margins
+            // are off so the widget's padding is the padding you see rather
+            // than a second inset on top of Apple's.
             NotifiWidgetEntryView(entry: entry)
-                .containerBackground(.fill.tertiary, for: .widget)
         }
         .configurationDisplayName("My Stores")
         .description("See your stores and reminder counts at a glance.")
         .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
+        .contentMarginsDisabled()
     }
 }
 
@@ -99,9 +139,9 @@ struct NotifiWidget: Widget {
     NotifiWidget()
 } timeline: {
     StoreWidgetEntry(date: .now, stores: [
-        WidgetStoreData(storeName: "Walmart", reminderCount: 3, imageURL: nil),
-        WidgetStoreData(storeName: "Target", reminderCount: 0, imageURL: nil),
-        WidgetStoreData(storeName: "Costco", reminderCount: 5, imageURL: nil)
+        WidgetStoreData(storeName: "Walmart", reminderCount: 3, imageURL: nil, logoFileName: nil),
+        WidgetStoreData(storeName: "Target", reminderCount: 0, imageURL: nil, logoFileName: nil),
+        WidgetStoreData(storeName: "Costco", reminderCount: 5, imageURL: nil, logoFileName: nil)
     ])
 }
 
@@ -109,10 +149,10 @@ struct NotifiWidget: Widget {
     NotifiWidget()
 } timeline: {
     StoreWidgetEntry(date: .now, stores: [
-        WidgetStoreData(storeName: "Walmart", reminderCount: 3, imageURL: nil),
-        WidgetStoreData(storeName: "Target", reminderCount: 1, imageURL: nil),
-        WidgetStoreData(storeName: "Costco", reminderCount: 5, imageURL: nil),
-        WidgetStoreData(storeName: "Whole Foods", reminderCount: 2, imageURL: nil)
+        WidgetStoreData(storeName: "Walmart", reminderCount: 3, imageURL: nil, logoFileName: nil),
+        WidgetStoreData(storeName: "Target", reminderCount: 1, imageURL: nil, logoFileName: nil),
+        WidgetStoreData(storeName: "Costco", reminderCount: 5, imageURL: nil, logoFileName: nil),
+        WidgetStoreData(storeName: "Whole Foods", reminderCount: 2, imageURL: nil, logoFileName: nil)
     ])
 }
 
@@ -120,10 +160,16 @@ struct NotifiWidget: Widget {
     NotifiWidget()
 } timeline: {
     StoreWidgetEntry(date: .now, stores: [
-        WidgetStoreData(storeName: "Walmart", reminderCount: 3, imageURL: nil),
-        WidgetStoreData(storeName: "Target", reminderCount: 1, imageURL: nil),
-        WidgetStoreData(storeName: "Costco", reminderCount: 5, imageURL: nil),
-        WidgetStoreData(storeName: "Whole Foods", reminderCount: 2, imageURL: nil),
-        WidgetStoreData(storeName: "Trader Joe's", reminderCount: 0, imageURL: nil)
+        WidgetStoreData(storeName: "Walmart", reminderCount: 3, imageURL: nil, logoFileName: nil),
+        WidgetStoreData(storeName: "Target", reminderCount: 1, imageURL: nil, logoFileName: nil),
+        WidgetStoreData(storeName: "Costco", reminderCount: 5, imageURL: nil, logoFileName: nil),
+        WidgetStoreData(storeName: "Whole Foods", reminderCount: 2, imageURL: nil, logoFileName: nil),
+        WidgetStoreData(storeName: "Trader Joe's", reminderCount: 0, imageURL: nil, logoFileName: nil)
     ])
+}
+
+#Preview("Empty", as: .systemMedium) {
+    NotifiWidget()
+} timeline: {
+    StoreWidgetEntry(date: .now, stores: [])
 }
