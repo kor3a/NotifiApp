@@ -114,7 +114,6 @@
 		AA1234560001AABB00CC0026 /* NotificationLogStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0016 /* NotificationLogStore.swift */; };
 		AA1234560001AABB00CC0027 /* NotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0017 /* NotificationManager.swift */; };
 		AA1234560001AABB00CC0028 /* StoreLogoProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0018 /* StoreLogoProvider.swift */; };
-		AA1234560001AABB00CC0512 /* ProfileImageCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0511 /* ProfileImageCache.swift */; };
 		AA1234560001AABB00CC0029 /* UserSessionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0019 /* UserSessionManager.swift */; };
 		AA1234560001AABB00CC0031 /* SubscriptionPaywallView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0030 /* SubscriptionPaywallView.swift */; };
 		AA1234560001AABB00CC0302 /* ReminderHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0301 /* ReminderHistory.swift */; };
@@ -127,6 +126,7 @@
 		AA1234560001AABB00CC0506 /* VoiceCommandViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0505 /* VoiceCommandViewModel.swift */; };
 		AA1234560001AABB00CC0508 /* VoiceCommandView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0507 /* VoiceCommandView.swift */; };
 		AA1234560001AABB00CC0510 /* FeatureFlags.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0509 /* FeatureFlags.swift */; };
+		AA1234560001AABB00CC0512 /* ProfileImageCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0511 /* ProfileImageCache.swift */; };
 		BC0200000001AABB00CC0001 /* MembershipCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC0100000001AABB00CC0001 /* MembershipCard.swift */; };
 		BC0200000001AABB00CC0002 /* BarcodeGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC0100000001AABB00CC0002 /* BarcodeGenerator.swift */; };
 		BC0200000001AABB00CC0003 /* MembershipBarcodeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC0100000001AABB00CC0003 /* MembershipBarcodeView.swift */; };
@@ -137,6 +137,7 @@
 		CC0200000000000000000002 /* NotifiWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC0100000000000000000002 /* NotifiWidget.swift */; };
 		CC0200000000000000000003 /* NotifiWidgetViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC0100000000000000000003 /* NotifiWidgetViews.swift */; };
 		CC0200000000000000000004 /* WidgetDataStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC0100000000000000000004 /* WidgetDataStore.swift */; };
+		CC0200000000000000000005 /* NotifiWidget.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = CC0100000000000000000005 /* NotifiWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		CC0200000000000000000008 /* WidgetOrganicTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC0100000000000000000008 /* WidgetOrganicTheme.swift */; };
 		CC0200000000000000000011 /* Commissioner-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FF0100000002AABB00CC0001 /* Commissioner-Regular.ttf */; };
 		CC0200000000000000000012 /* Commissioner-Medium.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FF0100000003AABB00CC0001 /* Commissioner-Medium.ttf */; };
@@ -144,7 +145,6 @@
 		CC0200000000000000000014 /* Commissioner-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FF0100000005AABB00CC0001 /* Commissioner-Bold.ttf */; };
 		CC0200000000000000000015 /* Commissioner-ExtraBold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FF0100000006AABB00CC0001 /* Commissioner-ExtraBold.ttf */; };
 		CC0200000000000000000016 /* Commissioner-Black.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FF0100000007AABB00CC0001 /* Commissioner-Black.ttf */; };
-		CC0200000000000000000005 /* NotifiWidget.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = CC0100000000000000000005 /* NotifiWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		D0A1000000000000000000A2 /* AuthenticationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0A1000000000000000000A1 /* AuthenticationManager.swift */; };
 		D0A1000000000000000000F4 /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = D0A1000000000000000000F2 /* GoogleSignIn */; };
 		DF66A9982E24C86100C15DA9 /* User_Store.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF66A9972E24C86100C15DA9 /* User_Store.swift */; };
@@ -308,7 +308,6 @@
 		AA1234560001AABB00CC0016 /* NotificationLogStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationLogStore.swift; sourceTree = "<group>"; };
 		AA1234560001AABB00CC0017 /* NotificationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationManager.swift; sourceTree = "<group>"; };
 		AA1234560001AABB00CC0018 /* StoreLogoProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoreLogoProvider.swift; sourceTree = "<group>"; };
-		AA1234560001AABB00CC0511 /* ProfileImageCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileImageCache.swift; sourceTree = "<group>"; };
 		AA1234560001AABB00CC0019 /* UserSessionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserSessionManager.swift; sourceTree = "<group>"; };
 		AA1234560001AABB00CC0030 /* SubscriptionPaywallView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionPaywallView.swift; sourceTree = "<group>"; };
 		AA1234560001AABB00CC0301 /* ReminderHistory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderHistory.swift; sourceTree = "<group>"; };
@@ -321,6 +320,7 @@
 		AA1234560001AABB00CC0505 /* VoiceCommandViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceCommandViewModel.swift; sourceTree = "<group>"; };
 		AA1234560001AABB00CC0507 /* VoiceCommandView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceCommandView.swift; sourceTree = "<group>"; };
 		AA1234560001AABB00CC0509 /* FeatureFlags.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeatureFlags.swift; sourceTree = "<group>"; };
+		AA1234560001AABB00CC0511 /* ProfileImageCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileImageCache.swift; sourceTree = "<group>"; };
 		BC0100000001AABB00CC0001 /* MembershipCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MembershipCard.swift; sourceTree = "<group>"; };
 		BC0100000001AABB00CC0002 /* BarcodeGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BarcodeGenerator.swift; sourceTree = "<group>"; };
 		BC0100000001AABB00CC0003 /* MembershipBarcodeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MembershipBarcodeView.swift; sourceTree = "<group>"; };
@@ -331,10 +331,10 @@
 		CC0100000000000000000002 /* NotifiWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotifiWidget.swift; sourceTree = "<group>"; };
 		CC0100000000000000000003 /* NotifiWidgetViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotifiWidgetViews.swift; sourceTree = "<group>"; };
 		CC0100000000000000000004 /* WidgetDataStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetDataStore.swift; sourceTree = "<group>"; };
-		CC0100000000000000000008 /* WidgetOrganicTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetOrganicTheme.swift; sourceTree = "<group>"; };
 		CC0100000000000000000005 /* NotifiWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = NotifiWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		CC0100000000000000000006 /* NotifiWidget.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = NotifiWidget.entitlements; sourceTree = "<group>"; };
 		CC0100000000000000000007 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		CC0100000000000000000008 /* WidgetOrganicTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetOrganicTheme.swift; sourceTree = "<group>"; };
 		D0A1000000000000000000A1 /* AuthenticationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthenticationManager.swift; sourceTree = "<group>"; };
 		DF66A9972E24C86100C15DA9 /* User_Store.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = User_Store.swift; sourceTree = "<group>"; };
 		DF66A9992E24C86100C15DA9 /* Geolocation_v1.0.0.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Geolocation_v1.0.0.entitlements; sourceTree = "<group>"; };
@@ -1397,7 +1397,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.3.14;
+				MARKETING_VERSION = 1.4;
 				PRODUCT_BUNDLE_IDENTIFIER = com.kor3a.nearbuy;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -1429,7 +1429,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.3.14;
+				MARKETING_VERSION = 1.4;
 				PRODUCT_BUNDLE_IDENTIFIER = com.kor3a.nearbuy;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
