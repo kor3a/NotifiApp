@@ -84,12 +84,16 @@ struct NotifiWidget: Widget {
 
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: kind, provider: StoreWidgetProvider()) { entry in
+            // The paper canvas is the entry view's own containerBackground, so
+            // it can read the color scheme; and the system's content margins
+            // are off so the widget's padding is the padding you see rather
+            // than a second inset on top of Apple's.
             NotifiWidgetEntryView(entry: entry)
-                .containerBackground(.fill.tertiary, for: .widget)
         }
         .configurationDisplayName("My Stores")
         .description("See your stores and reminder counts at a glance.")
         .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
+        .contentMarginsDisabled()
     }
 }
 
@@ -126,4 +130,10 @@ struct NotifiWidget: Widget {
         WidgetStoreData(storeName: "Whole Foods", reminderCount: 2, imageURL: nil),
         WidgetStoreData(storeName: "Trader Joe's", reminderCount: 0, imageURL: nil)
     ])
+}
+
+#Preview("Empty", as: .systemMedium) {
+    NotifiWidget()
+} timeline: {
+    StoreWidgetEntry(date: .now, stores: [])
 }

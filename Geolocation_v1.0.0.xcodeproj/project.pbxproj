@@ -137,6 +137,13 @@
 		CC0200000000000000000002 /* NotifiWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC0100000000000000000002 /* NotifiWidget.swift */; };
 		CC0200000000000000000003 /* NotifiWidgetViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC0100000000000000000003 /* NotifiWidgetViews.swift */; };
 		CC0200000000000000000004 /* WidgetDataStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC0100000000000000000004 /* WidgetDataStore.swift */; };
+		CC0200000000000000000008 /* WidgetOrganicTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC0100000000000000000008 /* WidgetOrganicTheme.swift */; };
+		CC0200000000000000000011 /* Commissioner-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FF0100000002AABB00CC0001 /* Commissioner-Regular.ttf */; };
+		CC0200000000000000000012 /* Commissioner-Medium.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FF0100000003AABB00CC0001 /* Commissioner-Medium.ttf */; };
+		CC0200000000000000000013 /* Commissioner-SemiBold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FF0100000004AABB00CC0001 /* Commissioner-SemiBold.ttf */; };
+		CC0200000000000000000014 /* Commissioner-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FF0100000005AABB00CC0001 /* Commissioner-Bold.ttf */; };
+		CC0200000000000000000015 /* Commissioner-ExtraBold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FF0100000006AABB00CC0001 /* Commissioner-ExtraBold.ttf */; };
+		CC0200000000000000000016 /* Commissioner-Black.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FF0100000007AABB00CC0001 /* Commissioner-Black.ttf */; };
 		CC0200000000000000000005 /* NotifiWidget.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = CC0100000000000000000005 /* NotifiWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		D0A1000000000000000000A2 /* AuthenticationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0A1000000000000000000A1 /* AuthenticationManager.swift */; };
 		D0A1000000000000000000F4 /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = D0A1000000000000000000F2 /* GoogleSignIn */; };
@@ -324,6 +331,7 @@
 		CC0100000000000000000002 /* NotifiWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotifiWidget.swift; sourceTree = "<group>"; };
 		CC0100000000000000000003 /* NotifiWidgetViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotifiWidgetViews.swift; sourceTree = "<group>"; };
 		CC0100000000000000000004 /* WidgetDataStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetDataStore.swift; sourceTree = "<group>"; };
+		CC0100000000000000000008 /* WidgetOrganicTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetOrganicTheme.swift; sourceTree = "<group>"; };
 		CC0100000000000000000005 /* NotifiWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = NotifiWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		CC0100000000000000000006 /* NotifiWidget.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = NotifiWidget.entitlements; sourceTree = "<group>"; };
 		CC0100000000000000000007 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
@@ -643,6 +651,7 @@
 				CC0100000000000000000001 /* NotifiWidgetBundle.swift */,
 				CC0100000000000000000002 /* NotifiWidget.swift */,
 				CC0100000000000000000003 /* NotifiWidgetViews.swift */,
+				CC0100000000000000000008 /* WidgetOrganicTheme.swift */,
 			);
 			path = NotifiWidget;
 			sourceTree = "<group>";
@@ -888,6 +897,12 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				CC0200000000000000000011 /* Commissioner-Regular.ttf in Resources */,
+				CC0200000000000000000012 /* Commissioner-Medium.ttf in Resources */,
+				CC0200000000000000000013 /* Commissioner-SemiBold.ttf in Resources */,
+				CC0200000000000000000014 /* Commissioner-Bold.ttf in Resources */,
+				CC0200000000000000000015 /* Commissioner-ExtraBold.ttf in Resources */,
+				CC0200000000000000000016 /* Commissioner-Black.ttf in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1039,6 +1054,7 @@
 				CC0200000000000000000001 /* NotifiWidgetBundle.swift in Sources */,
 				CC0200000000000000000002 /* NotifiWidget.swift in Sources */,
 				CC0200000000000000000003 /* NotifiWidgetViews.swift in Sources */,
+				CC0200000000000000000008 /* WidgetOrganicTheme.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
