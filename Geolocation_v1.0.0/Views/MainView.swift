@@ -16,8 +16,10 @@ struct MainView: View {
 
     var body: some View {
         if viewModel.isLoading {
-            Color(.systemBackground)
-                .ignoresSafeArea()
+            // The auth listener hasn't answered yet, so the app doesn't know
+            // whether this launch ends in the app or at the login screen — the
+            // mark alone, with nothing promised either way.
+            LaunchLoadingView(namesStores: false)
         } else if viewModel.isSignedIn, !viewModel.currentUserId.isEmpty {
             switch sessionManager.profileStatus {
             case .ready:
@@ -28,7 +30,19 @@ struct MainView: View {
                 // `.finished` and go straight to HomeView.
                 switch permissionOnboarding.state {
                 case .finished:
-                    HomeView()
+                    // A returning account routes here from the cached status
+                    // before its profile has come back, and HomeView opens on
+                    // Stores — which drew its greeting from a user that wasn't
+                    // there yet ("Hi, there" over an empty list) and only then
+                    // started fetching stores. Hold the launch screen until the
+                    // profile lands so the app opens on one honest loading
+                    // state instead. Gated on `isLoading` as well so a lookup
+                    // that fails still lets the user in.
+                    if sessionManager.currentUser == nil && sessionManager.isLoading {
+                        LaunchLoadingView()
+                    } else {
+                        HomeView()
+                    }
                 case .active:
                     PermissionOnboardingView()
                 case .evaluating:
@@ -51,16 +65,13 @@ struct MainView: View {
         }
     }
 
-    /// Neutral hold used whenever the app knows the user is signed in but not yet
-    /// where they belong — during the profile lookup, and while the permission
-    /// walkthrough works out whether it has anything to show.
+    /// Hold used whenever the app knows the user is signed in but not yet where
+    /// they belong — during the profile lookup, and while the permission
+    /// walkthrough works out whether it has anything to show. The same screen
+    /// the app opens on, so these steps read as the app still loading rather
+    /// than as a blank frame between screens.
     private var loadingScreen: some View {
-        ZStack {
-            Color(.systemBackground)
-                .ignoresSafeArea()
-            ProgressView()
-                .scaleEffect(1.5)
-        }
+        LaunchLoadingView()
     }
 }
 

@@ -64,34 +64,41 @@ struct StoresView: View {
 
             // Main content
             VStack(spacing: 0) {
-                header
-
-                if sessionManager.isLoading || viewModel.isLoading {
-                    Spacer()
-                    ProgressView("Loading your stores...")
-                        .tint(OrganicPalette.terracotta(colorScheme))
-                        .foregroundColor(OrganicPalette.inkSoft(colorScheme))
-                    Spacer()
-                } else if viewModel.userStoreItems.isEmpty {
-                    emptyStateView
-                } else if storeViewMode == .list {
-                    listContent
+                // The greeting needs a name, and on a cold launch the profile
+                // hasn't arrived yet — drawing the header here is what put
+                // "Hi, there" over an empty list for the first half second.
+                // While anything is still loading the whole screen is the
+                // loading screen, header included; it comes in with the stores.
+                if isLoadingContent {
+                    LaunchLoadingView(drawsBackground: false)
+                        .transition(.opacity)
                 } else {
-                    StoreFloatView(
-                        stores: viewModel.userStoreItems,
-                        onStoreTap: { item in
-                            notificationDestination = item
-                        },
-                        onStoreDelete: { item in
-                            storeToDelete = item
-                        },
-                        onReorder: { newOrder in
-                            viewModel.reorderStores(newOrder: newOrder)
-                        },
-                        isEditMode: $isFloatEditMode
-                    )
+                    header
+
+                    if viewModel.userStoreItems.isEmpty {
+                        emptyStateView
+                    } else if storeViewMode == .list {
+                        listContent
+                    } else {
+                        StoreFloatView(
+                            stores: viewModel.userStoreItems,
+                            onStoreTap: { item in
+                                notificationDestination = item
+                            },
+                            onStoreDelete: { item in
+                                storeToDelete = item
+                            },
+                            onReorder: { newOrder in
+                                viewModel.reorderStores(newOrder: newOrder)
+                            },
+                            isEditMode: $isFloatEditMode
+                        )
+                    }
                 }
             }
+            // The stores fade up in place of the skeletons rather than
+            // replacing them in a single frame.
+            .animation(.easeInOut(duration: 0.25), value: isLoadingContent)
 
             // Transparent overlay to close FAB menu when tapped outside
             if isMenuExpanded {
@@ -113,8 +120,12 @@ struct StoresView: View {
                 bannerAdOverlay
             }
 
-            // Floating action button (both list and float modes)
-            fabOverlay
+            // Floating action button (both list and float modes). Held back
+            // while the stores load — there is nothing to add to yet, and it
+            // would be the one live control on an otherwise waiting screen.
+            if !isLoadingContent {
+                fabOverlay
+            }
         }
         .toolbar(.hidden, for: .navigationBar)
         .tint(OrganicPalette.terracotta(colorScheme))
@@ -268,6 +279,25 @@ struct StoresView: View {
             }
         }
     }//:BODY
+
+    // MARK: - Loading
+
+    /// True while the screen has nothing of the user's to draw yet — no name
+    /// for the greeting, no stores for the list. Everything above the launch
+    /// screen waits on this rather than each piece appearing as it arrives.
+    ///
+    /// A profile lookup that failed (no user, nothing in flight) deliberately
+    /// reads as *not* loading: the screen comes up and surfaces its own state
+    /// instead of holding the user on a spinner that will never resolve.
+    private var isLoadingContent: Bool {
+        // Stores already on screen stay on screen. A later refetch (a listener
+        // that errored and rebuilt, say) keeps the list the user is looking at
+        // rather than pulling the whole screen back to a loading state.
+        guard viewModel.userStoreItems.isEmpty else { return false }
+        if viewModel.isLoading { return true }
+        guard sessionManager.currentUser != nil else { return sessionManager.isLoading }
+        return !viewModel.hasLoadedStores
+    }
 
     // MARK: - Header
 

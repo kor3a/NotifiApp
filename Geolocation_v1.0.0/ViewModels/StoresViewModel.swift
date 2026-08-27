@@ -14,6 +14,11 @@ class StoresViewModel: ObservableObject {
     @Published var allStores: [Store] = [] // All available stores for adding
     @Published var isLoading: Bool = false
     @Published var isLoadingAllStores: Bool = false
+    /// False until the store listener has answered for the first time — the
+    /// gap between this view model being created and `isLoading` being set,
+    /// which is a frame the screen would otherwise draw as "No stores yet".
+    /// Stores are only ever empty for real once this is true.
+    @Published var hasLoadedStores: Bool = false
     @Published var errorMessage: String = ""
 
     // Store the listener registration so we can remove it later
@@ -65,6 +70,7 @@ class StoresViewModel: ObservableObject {
         removeAllSharedStatusListeners()
         removeAllSourceStoreListeners()
         isLoading = false
+        hasLoadedStores = true
         userStoreItems = TutorialMockData.stores
     }
 
@@ -133,6 +139,10 @@ class StoresViewModel: ObservableObject {
                 guard let self = self else { return }
 
                 self.isLoading = false
+                // Set on every outcome, errors included: a failed read should
+                // land the user on the screen with its error, not hold them on
+                // the loading screen forever.
+                self.hasLoadedStores = true
 
                 if let error = error {
                     #if DEBUG
