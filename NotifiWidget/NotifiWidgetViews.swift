@@ -21,6 +21,7 @@
 
 import WidgetKit
 import SwiftUI
+import UIKit
 
 // MARK: - Entry View (size dispatcher)
 
@@ -234,7 +235,7 @@ struct StoreRow: View {
 
     var body: some View {
         HStack(spacing: metrics.rowSpacing) {
-            StoreInitialDisc(name: store.storeName, size: metrics.avatarSize)
+            StoreLogoDisc(store: store, size: metrics.avatarSize)
 
             Text(store.storeName)
                 .font(OrganicPalette.body(metrics.nameSize, weight: .semibold))
@@ -299,29 +300,48 @@ struct OverflowRow: View {
     }
 }
 
-// MARK: - Store Initial Disc
+// MARK: - Store Logo Disc
 
-/// The app's avatar circle, keyed off the store name so a store wears the same
-/// tint here as it does everywhere else.
-struct StoreInitialDisc: View {
-    let name: String
+/// The store's logo in a circle, as the app's rows draw it — falling back to
+/// the tinted initial the avatars use when the app hasn't cached a logo for
+/// this store, or hasn't exported it into the group container yet.
+///
+/// The file was downscaled on the way in, so reading it here is cheap enough to
+/// do while the view builds; WidgetKit renders a timeline entry once.
+struct StoreLogoDisc: View {
+    let store: WidgetStoreData
     let size: CGFloat
 
-    private var tint: OrganicAvatarTint { OrganicAvatarTint.forName(name) }
+    private var logo: UIImage? {
+        store.logoFileName.flatMap(SharedContainer.logo(named:))
+    }
+
+    private var tint: OrganicAvatarTint {
+        OrganicAvatarTint.forName(store.storeName)
+    }
 
     private var initial: String {
-        String(name.trimmingCharacters(in: .whitespaces).prefix(1)).uppercased()
+        String(store.storeName.trimmingCharacters(in: .whitespaces).prefix(1))
+            .uppercased()
     }
 
     var body: some View {
-        Circle()
-            .fill(tint.fill)
-            .frame(width: size, height: size)
-            .overlay(
-                Text(initial)
-                    .font(OrganicPalette.title(size * 0.46))
-                    .foregroundColor(tint.glyph)
-            )
+        if let logo {
+            Image(uiImage: logo)
+                .resizable()
+                .scaledToFill()
+                .frame(width: size, height: size)
+                .clipShape(Circle())
+        } else {
+            Circle()
+                .fill(tint.fill)
+                .frame(width: size, height: size)
+                .overlay(
+                    Text(initial)
+                        .font(OrganicPalette.title(size * 0.46))
+                        .foregroundColor(tint.glyph)
+                )
+        }
     }
 }
 

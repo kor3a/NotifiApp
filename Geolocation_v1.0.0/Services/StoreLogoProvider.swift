@@ -68,6 +68,8 @@ class StoreLogoProvider: ObservableObject {
     private var downloadingLogos: Set<String> = []
     /// Tracks disk reads in flight so scrolling doesn't enqueue duplicate background loads.
     private var diskLoadsInFlight: Set<String> = []
+    /// The pending widget logo export, cancelled and rescheduled as downloads land.
+    private var widgetLogoExport: DispatchWorkItem?
     /// Serial background queue for disk reads + image decoding (keeps the main thread free).
     private static let ioQueue = DispatchQueue(label: "StoreLogoProvider.io", qos: .userInitiated)
 
@@ -633,6 +635,18 @@ class StoreLogoProvider: ObservableObject {
         return nil
     }
 
+    /// The on-disk logo for a store, if one has already been cached.
+    ///
+    /// The widget extension can't call this — it reaches the app's Caches directory,
+    /// and resolving the logo ID needs the Firestore mapping — so `WidgetDataStore`
+    /// uses it to export a widget-sized copy into the shared App Group instead.
+    /// Returns nil when nothing is cached yet; the widget then draws its initial disc.
+    func cachedLogoFile(for storeName: String) -> URL? {
+        let logoId = resolvedLogoId(for: storeName) ?? Store.normalizedId(from: storeName)
+        let file = cacheDirectory.appendingPathComponent("\(logoId).jpg")
+        return FileManager.default.fileExists(atPath: file.path) ? file : nil
+    }
+
     /// Loads a logo image from disk on a background queue, decodes it, stores it in the
     /// in-memory cache, and notifies observers. Falls back to a network download or
     /// Logo.dev name search when no disk copy exists. Must be called on the main thread.
@@ -707,12 +721,25 @@ class StoreLogoProvider: ObservableObject {
 
             DispatchQueue.main.async {
                 self.objectWillChange.send()
+                self.scheduleWidgetLogoExport()
             }
 
             #if DEBUG
             print("StoreLogoProvider: Cached logo to disk for '\(id)'")
             #endif
         }.resume()
+    }
+
+    /// Asks the widget to re-export its logos once the downloads settle.
+    ///
+    /// A first launch pulls a dozen logos at once and the widget only needs telling
+    /// after the last of them, so the work is coalesced rather than run per download.
+    /// Main thread only — it touches `widgetLogoExport` without a lock.
+    private func scheduleWidgetLogoExport() {
+        widgetLogoExport?.cancel()
+        let work = DispatchWorkItem { WidgetDataStore.shared.refreshLogos() }
+        widgetLogoExport = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2, execute: work)
     }
 
     /// Drops cached logo images for stores whose website override was added or changed,
