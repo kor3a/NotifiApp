@@ -328,3 +328,43 @@ class SubscriptionManager: ObservableObject {
         }
     }
 }
+
+// MARK: - Premium Feature List
+
+/// The one list of Premium features, shared by the paywall and the management
+/// sheet. Both screens render from it so what we advertise to a free user and
+/// what we confirm a subscriber owns can't drift apart.
+///
+/// It lives here rather than in its own file so it shares this file's target
+/// membership — and sits next to `freeStoreLimit`, which it quotes.
+struct PremiumFeature: Identifiable {
+    let icon: String
+    let title: String
+    let description: String
+
+    var id: String { title }
+
+    @MainActor
+    static let all: [PremiumFeature] = [
+        PremiumFeature(
+            icon: "infinity",
+            title: "Unlimited Stores",
+            description: "Free accounts are limited to \(SubscriptionManager.freeStoreLimit) stores of your own — go unlimited with Premium"
+        ),
+        PremiumFeature(
+            icon: "fork.knife",
+            title: "Smart Recipe",
+            description: "Ask for any recipe and add ingredients directly to your stores"
+        ),
+        PremiumFeature(
+            icon: "sparkles",
+            title: "Smart Category",
+            description: "AI auto-categorizes every item you add to your shopping list"
+        ),
+        PremiumFeature(
+            icon: "hand.thumbsup.fill",
+            title: "Ad-Free Experience",
+            description: "Enjoy the app without any banner advertisements"
+        )
+    ]
+}

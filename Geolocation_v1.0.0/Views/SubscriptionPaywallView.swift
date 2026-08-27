@@ -102,30 +102,11 @@ struct SubscriptionPaywallView: View {
 
     private var featureCard: some View {
         VStack(alignment: .leading, spacing: 18) {
-            featureRow(icon: "infinity",
-                       title: "Unlimited Stores",
-                       description: "Free accounts are limited to \(SubscriptionManager.freeStoreLimit) stores of your own — go unlimited with Premium")
-            // Don't advertise what a release build can't deliver.
-            if FeatureFlags.voiceCommands {
-                featureRow(icon: "mic.fill",
-                           title: "Voice Commands",
-                           description: "Swipe any store and just say it — add items, check them off, or remove them, with a confirmation before anything changes")
+            ForEach(PremiumFeature.all) { feature in
+                featureRow(icon: feature.icon,
+                           title: feature.title,
+                           description: feature.description)
             }
-            featureRow(icon: "fork.knife",
-                       title: "Smart Recipe",
-                       description: "Ask for any recipe and add ingredients directly to your stores")
-            featureRow(icon: "sparkles",
-                       title: "Smart Category",
-                       description: "AI auto-categorizes every item you add to your shopping list")
-            featureRow(icon: "chart.bar.xaxis",
-                       title: "Store Analytics",
-                       description: "Shopping trends, category breakdowns, and your most-gotten items for every store")
-            featureRow(icon: "photo.on.rectangle.angled",
-                       title: "Photo Backgrounds",
-                       description: "Use your own photos as the backdrop for any screen — colors are free for everyone")
-            featureRow(icon: "hand.thumbsup.fill",
-                       title: "Ad-Free Experience",
-                       description: "Enjoy the app without any banner advertisements")
         }
         .padding(20)
         .background(OrganicCardBackground(colorScheme: colorScheme, cornerRadius: 28))
@@ -133,7 +114,7 @@ struct SubscriptionPaywallView: View {
     }
 
     /// One thing Premium gets you. Every glyph is terracotta on blush rather
-    /// than a colour per feature — a seven-colour list reads as a toybox, and
+    /// than a colour per feature — a colour per row reads as a toybox, and
     /// the point is the words beside them.
     private func featureRow(icon: String, title: String, description: String) -> some View {
         HStack(alignment: .top, spacing: 14) {
