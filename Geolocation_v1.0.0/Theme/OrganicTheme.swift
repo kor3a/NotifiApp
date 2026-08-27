@@ -149,20 +149,74 @@ enum OrganicPalette {
         Text(text).foregroundColor(inkSoft(scheme).opacity(0.8))
     }
 
-    /// The tab bar is UIKit's, and a `.font` applied inside `.tabItem` is
-    /// dropped on the way down, so the labels can only be reached through the
-    /// appearance proxy. Only the title attributes are set — the bar keeps the
-    /// background and tint UIKit gives it, and the color still comes from the
-    /// bar's tint rather than from here.
+    /// The palette handed to UIKit, which resolves light and dark from the
+    /// trait collection it is drawn in rather than from a `ColorScheme` passed
+    /// down the view tree. Wrapping the resolver — instead of baking in one
+    /// scheme at launch — is what lets a bar set up here follow the user
+    /// flipping appearance mid-session.
+    private static func uiColor(_ resolve: @escaping (ColorScheme) -> Color) -> UIColor {
+        UIColor { traits in
+            UIColor(resolve(traits.userInterfaceStyle == .dark ? .dark : .light))
+        }
+    }
+
+    /// Dresses UIKit's tab bar in the same paper the screens above it are drawn
+    /// on: a canvas background under a warm hairline, terracotta for the
+    /// selected tab, soft ink for the rest, and terracotta badges in place of
+    /// the system red siren.
+    ///
+    /// A backstop rather than the bar the user navigates from. `OrganicTabBar`
+    /// is what they see and HomeView hides this one under it — built against
+    /// the current SDK it renders as system glass, and the appearance proxy can
+    /// only tint that glass, never turn it into paper. What this still buys is
+    /// the frame or two before the hide takes effect, and anywhere a tab bar
+    /// slips out from under the SwiftUI modifier.
     ///
     /// Call once before the first `TabView` is built; a proxy read after that
     /// leaves already-created bars alone.
-    static func applyTabBarFont() {
-        guard let font = UIFont(name: commissioner(.medium), size: 10) else { return }
+    static func applyTabBarAppearance() {
+        let selected = uiColor(terracotta)
+        let unselected = uiColor(inkSoft)
 
-        for state in [UIControl.State.normal, .selected] {
-            UITabBarItem.appearance().setTitleTextAttributes([.font: font], for: state)
+        let appearance = UITabBarAppearance()
+        // Opaque rather than the default blur: these screens are paper, and a
+        // frosted bar smearing the list underneath is the one piece of glass the
+        // rest of the app dropped.
+        appearance.configureWithOpaqueBackground()
+        appearance.backgroundColor = uiColor(canvas)
+        appearance.shadowColor = uiColor(outline)
+
+        let titleFont = UIFont(name: commissioner(.medium), size: 10)
+        let badgeFont = UIFont(name: commissioner(.bold), size: 12)
+
+        for layout in [
+            appearance.stackedLayoutAppearance,
+            appearance.inlineLayoutAppearance,
+            appearance.compactInlineLayoutAppearance,
+        ] {
+            for (state, color) in [(layout.normal, unselected), (layout.selected, selected)] {
+                state.iconColor = color
+
+                var title: [NSAttributedString.Key: Any] = [.foregroundColor: color]
+                if let titleFont {
+                    title[.font] = titleFont
+                }
+                state.titleTextAttributes = title
+
+                state.badgeBackgroundColor = selected
+                if let badgeFont {
+                    state.badgeTextAttributes = [
+                        .font: badgeFont,
+                        .foregroundColor: UIColor.white,
+                    ]
+                }
+            }
         }
+
+        UITabBar.appearance().standardAppearance = appearance
+        UITabBar.appearance().scrollEdgeAppearance = appearance
+        UITabBar.appearance().tintColor = selected
+        UITabBar.appearance().unselectedItemTintColor = unselected
     }
 }
 
