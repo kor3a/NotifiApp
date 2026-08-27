@@ -1180,8 +1180,9 @@ struct ReminderView: View {
             }
         }
 
-        // The store name in the screen's own serif, with the item count under
-        // it — the list itself no longer carries a count anywhere else.
+        // The store name in the screen's own serif, with the number of
+        // still-unchecked reminders under it — the list itself no longer
+        // carries a count anywhere else.
         ToolbarItem(placement: .principal) {
             VStack(spacing: 1) {
                 Text(userStoreItem.store.name)
@@ -1190,7 +1191,7 @@ struct ReminderView: View {
                     .lineLimit(1)
 
                 if !viewModel.displayedReminders.isEmpty {
-                    Text(itemCountSubtitle)
+                    Text(remainingCountSubtitle)
                         .font(.system(size: 12))
                         .foregroundColor(OrganicPalette.inkSoft(colorScheme))
                 }
@@ -1254,12 +1255,12 @@ struct ReminderView: View {
         }
     }
 
-    /// "6 items", or "6 items · 2 done" once anything has been checked off.
-    private var itemCountSubtitle: String {
-        let total = viewModel.displayedReminders.count
-        let done = viewModel.displayedReminders.filter(\.isDone).count
-        let items = "\(total) item\(total == 1 ? "" : "s")"
-        return done > 0 ? "\(items) \u{00B7} \(done) done" : items
+    /// "4 reminders remaining", counting only the unchecked ones, or
+    /// "All done" once everything on the list is checked off.
+    private var remainingCountSubtitle: String {
+        let remaining = viewModel.displayedReminders.filter { !$0.isDone }.count
+        guard remaining > 0 else { return "All done" }
+        return "\(remaining) reminder\(remaining == 1 ? "" : "s") remaining"
     }
 
     /// Whether a membership card is saved for this store, used to fill in the
