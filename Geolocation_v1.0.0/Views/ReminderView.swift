@@ -30,7 +30,10 @@ struct ReminderView: View {
     @FocusState private var isNewReminderFocused: Bool
     @AppStorage("autoDeleteReminders") private var autoDeleteEnabled = false
     @State private var smartCategoryEnabled = true
-    @State private var showInfoPanel = false
+    @State private var showSettingsSheet = false
+    /// Set by a settings row that opens another sheet, run once the settings
+    /// sheet has finished dismissing. See `runPendingSettingsAction()`.
+    @State private var pendingSettingsAction: (() -> Void)?
     @State private var showBarcodePanel = false
     @State private var showingRecipePicker = false
     @State private var showingHistory = false
@@ -247,6 +250,9 @@ struct ReminderView: View {
 
     var body: some View {
         coreView
+            .sheet(isPresented: $showSettingsSheet, onDismiss: runPendingSettingsAction) {
+                settingsSheet
+            }
             .sheet(item: $reminderToShare) { reminder in
                 ShareReminderView(reminder: reminder, store: userStoreItem.store)
             }
@@ -445,23 +451,6 @@ struct ReminderView: View {
                 undoToastView(message: "\"\(pending.title)\" deleted", onUndo: undoPendingDeletion)
                     .transition(.move(edge: .bottom).combined(with: .opacity))
                     .zIndex(3)
-            }
-
-            // Info panel — tap outside to dismiss
-            if showInfoPanel {
-                Color.clear
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        withAnimation(.easeInOut(duration: 0.18)) {
-                            showInfoPanel = false
-                        }
-                    }
-                    .ignoresSafeArea()
-                    .zIndex(9)
-
-                infoPanelOverlay
-                    .transition(.opacity.combined(with: .scale(scale: 0.95, anchor: .topTrailing)))
-                    .zIndex(10)
             }
 
             // Membership barcode — slides down from the top of the screen.
@@ -1180,8 +1169,9 @@ struct ReminderView: View {
             }
         }
 
-        // The store name in the screen's own serif, with the item count under
-        // it — the list itself no longer carries a count anywhere else.
+        // The store name in the screen's own serif, with the number of
+        // still-unchecked reminders under it — the list itself no longer
+        // carries a count anywhere else.
         ToolbarItem(placement: .principal) {
             VStack(spacing: 1) {
                 Text(userStoreItem.store.name)
@@ -1190,7 +1180,7 @@ struct ReminderView: View {
                     .lineLimit(1)
 
                 if !viewModel.displayedReminders.isEmpty {
-                    Text(itemCountSubtitle)
+                    Text(remainingCountSubtitle)
                         .font(.system(size: 12))
                         .foregroundColor(OrganicPalette.inkSoft(colorScheme))
                 }
@@ -1218,7 +1208,6 @@ struct ReminderView: View {
             if !isReorderMode {
                 Button {
                     withAnimation(.easeInOut(duration: 0.25)) {
-                        showInfoPanel = false
                         showBarcodePanel.toggle()
                     }
                 } label: {
@@ -1232,7 +1221,7 @@ struct ReminderView: View {
         }
 
         // Break the shared Liquid Glass capsule so the barcode button renders in
-        // its own circle, separate from the info button.
+        // its own circle, separate from the settings button.
         if #available(iOS 26.0, *) {
             ToolbarSpacer(.fixed, placement: .navigationBarTrailing)
         }
@@ -1242,24 +1231,25 @@ struct ReminderView: View {
                 Button {
                     withAnimation(.easeInOut(duration: 0.18)) {
                         showBarcodePanel = false
-                        showInfoPanel.toggle()
                     }
+                    showSettingsSheet = true
                 } label: {
-                    Image(systemName: showInfoPanel ? "info.circle.fill" : "info.circle")
+                    Image(systemName: "gearshape")
                         .foregroundColor(OrganicPalette.terracotta(colorScheme))
                         .frame(width: 22, height: 22)
                 }
                 .frame(width: 44, height: 44)
+                .accessibilityLabel("Settings")
             }
         }
     }
 
-    /// "6 items", or "6 items · 2 done" once anything has been checked off.
-    private var itemCountSubtitle: String {
-        let total = viewModel.displayedReminders.count
-        let done = viewModel.displayedReminders.filter(\.isDone).count
-        let items = "\(total) item\(total == 1 ? "" : "s")"
-        return done > 0 ? "\(items) \u{00B7} \(done) done" : items
+    /// "4 reminders remaining", counting only the unchecked ones, or
+    /// "All done" once everything on the list is checked off.
+    private var remainingCountSubtitle: String {
+        let remaining = viewModel.displayedReminders.filter { !$0.isDone }.count
+        guard remaining > 0 else { return "All done" }
+        return "\(remaining) reminder\(remaining == 1 ? "" : "s") remaining"
     }
 
     /// Whether a membership card is saved for this store, used to fill in the
@@ -1540,15 +1530,24 @@ struct ReminderView: View {
         .allowsHitTesting(true)
     }
 
-    // MARK: - Info Panel
+    // MARK: - Settings Sheet
 
-    private var infoPanelOverlay: some View {
-        VStack(spacing: 0) {
-            HStack(alignment: .top) {
-                Spacer()
+    /// Runs whatever a settings row asked for once the sheet is off screen.
+    private func runPendingSettingsAction() {
+        guard let action = pendingSettingsAction else { return }
+        pendingSettingsAction = nil
+        action()
+    }
+
+    /// Everything that used to sit behind the toolbar's info button, pulled up
+    /// from the bottom instead: the same rows, in the same order, on a sheet
+    /// that starts half-height and can be dragged to full.
+    private var settingsSheet: some View {
+        NavigationStack {
+            ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
                     // Auto Delete row
-                    infoRow(
+                    settingsRow(
                         icon: autoDeleteEnabled ? "trash.fill" : "trash",
                         iconTint: autoDeleteEnabled ? OrganicPalette.rust(colorScheme) : nil,
                         title: "Auto Delete",
@@ -1560,7 +1559,7 @@ struct ReminderView: View {
                     )
 
                     // Smart Category row
-                    infoRow(
+                    settingsRow(
                         icon: "sparkles",
                         title: "Smart Category",
                         subtitle: smartCategorySubtitle,
@@ -1570,7 +1569,7 @@ struct ReminderView: View {
 
                     if userStoreItem.permission != .view {
                         // Recipes row
-                        infoRow(
+                        settingsRow(
                             icon: "fork.knife",
                             title: "Recipes",
                             subtitle: "Add ingredients from a saved recipe",
@@ -1580,30 +1579,42 @@ struct ReminderView: View {
                         }
                     }
 
-                    infoPanelSecondaryRows
+                    settingsSecondaryRows
                 }
                 .background(
                     RoundedRectangle(cornerRadius: 24, style: .continuous)
                         .fill(OrganicPalette.surface(colorScheme))
-                        .shadow(color: OrganicPalette.shadow(colorScheme), radius: 18, x: 0, y: 8)
                 )
-                .frame(width: 290)
-                .padding(.trailing, 12)
+                .padding(.horizontal, 16)
+                .padding(.top, 8)
+                .padding(.bottom, 24)
             }
-            Spacer()
+            .background(OrganicPalette.canvas(colorScheme))
+            .navigationTitle("Settings")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(OrganicPalette.canvas(colorScheme), for: .navigationBar)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Done") {
+                        showSettingsSheet = false
+                    }
+                    .font(.system(size: 16, weight: .bold, design: .serif))
+                    .foregroundColor(OrganicPalette.terracotta(colorScheme))
+                }
+            }
         }
-        .padding(.top, 8)
-        .allowsHitTesting(true)
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.visible)
     }
 
-    /// The lower half of the info panel.
+    /// The lower half of the settings sheet.
     ///
-    /// Split out of `infoPanelOverlay` purely for the ViewBuilder child
-    /// limit — the panel's rows had outgrown the ten a single stack allows.
-    private var infoPanelSecondaryRows: some View {
+    /// Split out of `settingsSheet` purely for the ViewBuilder child
+    /// limit — the rows had outgrown the ten a single stack allows.
+    private var settingsSecondaryRows: some View {
         Group {
             // History row — checked-off items no longer in the list
-            infoRow(
+            settingsRow(
                 icon: "clock.arrow.circlepath",
                 title: "History",
                 subtitle: "Checked-off items no longer in the list",
@@ -1614,7 +1625,7 @@ struct ReminderView: View {
 
             // Analytics row — premium shopping insights for this store.
             // The view itself shows an upgrade pitch for free users.
-            infoRow(
+            settingsRow(
                 icon: "chart.bar.xaxis",
                 title: "Analytics",
                 subtitle: isSubscribed ? "Shopping trends and item insights" : "Available for subscribers",
@@ -1626,7 +1637,7 @@ struct ReminderView: View {
 
             // Background row — colors are free, so this is never locked. The
             // picker itself pitches the upgrade for photos.
-            infoRow(
+            settingsRow(
                 icon: "photo.on.rectangle.angled",
                 title: "Change Background",
                 subtitle: isSubscribed ? "A photo or color just for this store" : "A color just for this store",
@@ -1639,7 +1650,7 @@ struct ReminderView: View {
             // (no per-store data to maintain); iOS opens the store's app via
             // universal links when installed, otherwise falls back to Safari.
             if let storeURL = storeWebsiteURL {
-                infoRow(
+                settingsRow(
                     icon: "safari",
                     title: "Visit store",
                     subtitle: "Open the store's app or website",
@@ -1653,7 +1664,7 @@ struct ReminderView: View {
             // the store_websites collection so it applies for everyone with this
             // store, so it is restricted to the app owner's account.
             if isStoreAdmin {
-                infoRow(
+                settingsRow(
                     icon: "link",
                     title: storeWebsiteURL == nil ? "Set store website" : "Edit store website",
                     subtitle: "Add a link to this store's website or app",
@@ -1666,20 +1677,20 @@ struct ReminderView: View {
         }
     }
 
-    /// One row of the info panel: a terracotta glyph on blush, a title, the line
-    /// of explanation under it, and whatever the row does on the right.
+    /// One row of the settings sheet: a terracotta glyph on blush, a title, the
+    /// line of explanation under it, and whatever the row does on the right.
     ///
-    /// `action` closes the panel before it runs — every row that has one either
-    /// pushes a sheet or leaves the app, so the panel would otherwise still be
-    /// sitting there on the way back.
+    /// `action` runs only once the sheet has finished dismissing — every row
+    /// that has one either pushes another sheet, which iOS drops while this one
+    /// is still up, or leaves the app.
     @ViewBuilder
-    private func infoRow(
+    private func settingsRow(
         icon: String,
         iconTint: Color? = nil,
         title: String,
         subtitle: String,
         isDimmed: Bool = false,
-        accessory: InfoRowAccessory,
+        accessory: SettingsRowAccessory,
         showsDivider: Bool = true,
         action: (() -> Void)? = nil
     ) -> some View {
@@ -1711,17 +1722,15 @@ struct ReminderView: View {
 
                 Spacer(minLength: 8)
 
-                infoRowAccessory(accessory)
+                settingsRowAccessory(accessory)
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
 
             if let action {
                 Button {
-                    withAnimation(.easeInOut(duration: 0.18)) {
-                        showInfoPanel = false
-                    }
-                    action()
+                    pendingSettingsAction = action
+                    showSettingsSheet = false
                 } label: {
                     content.contentShape(Rectangle())
                 }
@@ -1733,7 +1742,7 @@ struct ReminderView: View {
     }
 
     @ViewBuilder
-    private func infoRowAccessory(_ accessory: InfoRowAccessory) -> some View {
+    private func settingsRowAccessory(_ accessory: SettingsRowAccessory) -> some View {
         switch accessory {
         case .toggle(let isOn):
             Toggle("", isOn: isOn)
@@ -1819,7 +1828,7 @@ struct ReminderView: View {
 // MARK: - Info Panel Accessory
 
 /// What sits at the trailing edge of an info-panel row.
-enum InfoRowAccessory {
+enum SettingsRowAccessory {
     case toggle(Binding<Bool>)
     /// A toggle the user can see the state of but not change — a list they
     /// only have view access to.
