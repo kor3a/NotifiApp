@@ -6,12 +6,33 @@
 import SwiftUI
 
 struct PrivacyPolicyView: View {
+    /// Set when the policy is presented as a sheet, which is the only time it
+    /// needs a stack of its own and a way out. Pushed from About it inherits
+    /// both from the screen that pushed it, and supplying a second set stacked
+    /// one navigation bar on top of another.
+    var isModal: Bool = false
+
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) var colorScheme
 
     var body: some View {
-        NavigationStack {
-            ScrollView {
+        if isModal {
+            NavigationStack {
+                content
+                    .toolbar {
+                        ToolbarItem(placement: .navigationBarTrailing) {
+                            Button("Done") { dismiss() }
+                                .foregroundColor(OrganicPalette.terracotta(colorScheme))
+                        }
+                    }
+            }
+        } else {
+            content
+        }
+    }
+
+    private var content: some View {
+        ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
 
                     Group {
@@ -133,56 +154,59 @@ struct PrivacyPolicyView: View {
                 .padding(.horizontal, 20)
                 .padding(.top, 16)
             }
-            .background(Color.backgroundGradient(for: colorScheme).ignoresSafeArea())
-            .navigationTitle("Privacy Policy")
+            .background(OrganicPalette.canvas(colorScheme).ignoresSafeArea())
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(OrganicPalette.canvas(colorScheme), for: .navigationBar)
+            .tint(OrganicPalette.terracotta(colorScheme))
             .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") { dismiss() }
+                ToolbarItem(placement: .principal) {
+                    Text("Privacy Policy")
+                        .font(.system(size: 17, weight: .bold, design: .serif))
+                        .foregroundColor(OrganicPalette.ink(colorScheme))
                 }
             }
-        }
     }
 
     // MARK: - Helpers
 
     private func sectionHeader(_ text: String) -> some View {
         Text(text)
-            .font(.title2)
-            .fontWeight(.bold)
+            .font(OrganicPalette.display(28))
+            .foregroundColor(OrganicPalette.ink(colorScheme))
             .padding(.bottom, 4)
     }
 
     private func sectionTitle(_ text: String) -> some View {
         Text(text)
-            .font(.headline)
-            .fontWeight(.bold)
+            .font(OrganicPalette.display(19))
+            .foregroundColor(OrganicPalette.ink(colorScheme))
             .padding(.top, 4)
     }
 
     private func subsectionTitle(_ text: String) -> some View {
         Text(text)
-            .font(.subheadline)
-            .fontWeight(.semibold)
-            .foregroundColor(.secondary)
+            .font(.system(size: 15, weight: .semibold))
+            .foregroundColor(OrganicPalette.terracotta(colorScheme))
             .padding(.top, 2)
     }
 
     private func bodyText(_ text: String) -> some View {
         Text(text)
-            .font(.subheadline)
-            .foregroundColor(.primary)
+            .font(.system(size: 15))
+            .foregroundColor(OrganicPalette.inkSoft(colorScheme))
             .fixedSize(horizontal: false, vertical: true)
     }
 
     private func bulletPoint(_ text: String) -> some View {
-        HStack(alignment: .top, spacing: 8) {
-            Text("•")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
+        HStack(alignment: .top, spacing: 10) {
+            Circle()
+                .fill(OrganicPalette.terracotta(colorScheme).opacity(0.6))
+                .frame(width: 5, height: 5)
+                .padding(.top, 7)
+
             Text(text)
-                .font(.subheadline)
-                .foregroundColor(.primary)
+                .font(.system(size: 15))
+                .foregroundColor(OrganicPalette.inkSoft(colorScheme))
                 .fixedSize(horizontal: false, vertical: true)
         }
         .padding(.leading, 8)
@@ -190,5 +214,5 @@ struct PrivacyPolicyView: View {
 }
 
 #Preview {
-    PrivacyPolicyView()
+    PrivacyPolicyView(isModal: true)
 }

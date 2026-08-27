@@ -45,128 +45,79 @@ struct StoresView: View {
     @Environment(\.colorScheme) var colorScheme
 
     var body: some View {
-        NavigationStack {
-            ZStack {
-                // Background always visible — the user's chosen color for
-                // subscribers, the default gradient otherwise.
-                SurfaceBackground(surface: .stores)
+        ZStack {
+            // Background always visible — the user's chosen color for
+            // subscribers, the paper canvas otherwise.
+            SurfaceBackground(
+                surface: .stores,
+                systemDefault: OrganicPalette.canvas(colorScheme)
+            )
 
-                // Hidden navigation destination for notification taps
-                Color.clear
-                    .navigationDestination(item: $notificationDestination) { storeItem in
-                        ReminderView(
-                            userStoreItem: storeItem,
-                            availableStores: viewModel.userStoreItems.filter { $0.id != storeItem.id }
-                        )
-                    }
+            // Hidden navigation destination for notification taps
+            Color.clear
+                .navigationDestination(item: $notificationDestination) { storeItem in
+                    ReminderView(
+                        userStoreItem: storeItem,
+                        availableStores: viewModel.userStoreItems.filter { $0.id != storeItem.id }
+                    )
+                }
 
-                // Main content
+            // Main content
+            VStack(spacing: 0) {
+                header
+
                 if sessionManager.isLoading || viewModel.isLoading {
+                    Spacer()
                     ProgressView("Loading your stores...")
+                        .tint(OrganicPalette.terracotta(colorScheme))
+                        .foregroundColor(OrganicPalette.inkSoft(colorScheme))
+                    Spacer()
                 } else if viewModel.userStoreItems.isEmpty {
                     emptyStateView
+                } else if storeViewMode == .list {
+                    listContent
                 } else {
-                    if storeViewMode == .list {
-                        listContent
-                    } else {
-                        StoreFloatView(
-                            stores: viewModel.userStoreItems,
-                            onStoreTap: { item in
-                                notificationDestination = item
-                            },
-                            onStoreDelete: { item in
-                                storeToDelete = item
-                            },
-                            onReorder: { newOrder in
-                                viewModel.reorderStores(newOrder: newOrder)
-                            },
-                            isEditMode: $isFloatEditMode
-                        )
-                    }
-                }
-
-                // Transparent overlay to close FAB menu when tapped outside
-                if isMenuExpanded {
-                    Color.clear
-                        .contentShape(Rectangle())
-                        .ignoresSafeArea()
-                        .onTapGesture {
-                            withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                                isMenuExpanded = false
-                                if storeViewMode == .float {
-                                    isFabShrunk = true
-                                }
-                            }
-                        }
-                }
-
-                // Sticky banner ad at the bottom (list and float modes, hidden for subscribers)
-                if !viewModel.userStoreItems.isEmpty && !subscriptionManager.isSubscribed {
-                    bannerAdOverlay
-                }
-
-                // Floating action button (both list and float modes)
-                fabOverlay
-            }
-            .toolbar {
-                // Done button when reordering in list mode
-                if editMode == .active && storeViewMode == .list {
-                    ToolbarItem(placement: .navigationBarLeading) {
-                        Button("Done") {
-                            withAnimation {
-                                editMode = .inactive
-                            }
-                        }
-                    }
-                }
-
-                // Done button when in float edit mode
-                if isFloatEditMode && storeViewMode == .float {
-                    ToolbarItem(placement: .navigationBarLeading) {
-                        Button("Done") {
-                            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                                isFloatEditMode = false
-                            }
-                        }
-                    }
-                }
-
-                // Sort + view mode toggle (shown when stores exist, or during tutorial to highlight the icons)
-                if !viewModel.userStoreItems.isEmpty || tutorialManager.isActive {
-                    ToolbarItem(placement: .navigationBarTrailing) {
-                        HStack(spacing: 4) {
-                            // Sort by reminder count — one tap permanently reorders the stores
-                            Button(action: {
-                                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                                    editMode = .inactive
-                                    viewModel.sortByReminderCount()
-                                }
-                            }) {
-                                Image(systemName: "arrow.up.arrow.down.circle")
-                                    .imageScale(.large)
-                            }
-
-                            // List / float view toggle
-                            Button(action: {
-                                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                                    if storeViewMode == .list {
-                                        editMode = .inactive
-                                        storeViewMode = .float
-                                    } else {
-                                        isFloatEditMode = false
-                                        storeViewMode = .list
-                                    }
-                                }
-                            }) {
-                                Image(systemName: storeViewMode == .list ? "circle.grid.3x3" : "list.bullet")
-                                    .imageScale(.large)
-                            }
-                        }
-                        .tutorialHighlight(id: "tutorial_toolbar")
-                    }
+                    StoreFloatView(
+                        stores: viewModel.userStoreItems,
+                        onStoreTap: { item in
+                            notificationDestination = item
+                        },
+                        onStoreDelete: { item in
+                            storeToDelete = item
+                        },
+                        onReorder: { newOrder in
+                            viewModel.reorderStores(newOrder: newOrder)
+                        },
+                        isEditMode: $isFloatEditMode
+                    )
                 }
             }
-        }//:NAVIGATIONSTACK
+
+            // Transparent overlay to close FAB menu when tapped outside
+            if isMenuExpanded {
+                Color.clear
+                    .contentShape(Rectangle())
+                    .ignoresSafeArea()
+                    .onTapGesture {
+                        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                            isMenuExpanded = false
+                            if storeViewMode == .float {
+                                isFabShrunk = true
+                            }
+                        }
+                    }
+            }
+
+            // Sticky banner ad at the bottom (list and float modes, hidden for subscribers)
+            if !viewModel.userStoreItems.isEmpty && !subscriptionManager.isSubscribed {
+                bannerAdOverlay
+            }
+
+            // Floating action button (both list and float modes)
+            fabOverlay
+        }
+        .toolbar(.hidden, for: .navigationBar)
+        .tint(OrganicPalette.terracotta(colorScheme))
         .sheet(isPresented: $showingAddStore) {
             AddStoreView(viewModel: viewModel)
         }
@@ -182,7 +133,8 @@ struct StoresView: View {
         .sheet(isPresented: $showingBackgroundPicker) {
             BackgroundPickerView(
                 surface: .stores,
-                storeIds: viewModel.userStoreItems.map(\.id)
+                storeIds: viewModel.userStoreItems.map(\.id),
+                systemDefault: OrganicPalette.canvas(colorScheme)
             )
         }
         .sheet(item: $selectedStoreToShare) { storeToShare in
@@ -246,8 +198,13 @@ struct StoresView: View {
                 Color.black.opacity(0.3)
                     .ignoresSafeArea()
                 ProgressView("Calculating travel time...")
-                    .padding()
-                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
+                    .tint(OrganicPalette.terracotta(colorScheme))
+                    .foregroundColor(OrganicPalette.inkSoft(colorScheme))
+                    .padding(24)
+                    .background(
+                        RoundedRectangle(cornerRadius: 24, style: .continuous)
+                            .fill(OrganicPalette.surface(colorScheme))
+                    )
             }
         }
         .onAppear() {
@@ -312,6 +269,108 @@ struct StoresView: View {
         }
     }//:BODY
 
+    // MARK: - Header
+
+    /// The greeting and controls, drawn in the content rather than the
+    /// navigation bar — the greeting and the profile button used to be the
+    /// navigation bar's large title and leading item, which stacked a system
+    /// bar above this screen's own header.
+    ///
+    /// The tab bar already says Stores, so the title is the greeting instead:
+    /// a quiet "Hi," with the name under it in the screen's serif. The name
+    /// shrinks rather than wraps — a long one would otherwise take a third line
+    /// and shift the list below it.
+    ///
+    /// The screen's primary action is the FAB, so everything up here takes the
+    /// quiet blush treatment — and while a reorder is in progress the controls
+    /// give way to the one thing that ends it.
+    private var header: some View {
+        HStack(alignment: .center, spacing: 10) {
+            VStack(alignment: .leading, spacing: 0) {
+                Text("Hi,")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundColor(OrganicPalette.inkSoft(colorScheme))
+
+                Text(sessionManager.currentUser?.name ?? "there")
+                    .font(OrganicPalette.display(34))
+                    .foregroundColor(OrganicPalette.ink(colorScheme))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
+            }
+
+            Spacer(minLength: 8)
+
+            NavigationLink {
+                ProfileView()
+            } label: {
+                Image(systemName: "person")
+                    .font(.system(size: 19, weight: .semibold))
+                    .foregroundColor(OrganicPalette.terracotta(colorScheme))
+                    .frame(width: 48, height: 48)
+                    .background(Circle().fill(OrganicPalette.blush(colorScheme)))
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Profile")
+
+            if isReordering {
+                Button {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                        editMode = .inactive
+                        isFloatEditMode = false
+                    }
+                } label: {
+                    Text("Done")
+                        .font(.system(size: 16, weight: .bold, design: .serif))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 22)
+                        .frame(height: 48)
+                        .background(Capsule().fill(OrganicPalette.terracotta(colorScheme)))
+                }
+                .buttonStyle(.plain)
+            } else if !viewModel.userStoreItems.isEmpty || tutorialManager.isActive {
+                HStack(spacing: 10) {
+                    // Sort by reminder count — one tap permanently reorders the stores
+                    OrganicCircleButton(systemImage: "arrow.up.arrow.down", size: 48, glyphSize: 17) {
+                        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                            editMode = .inactive
+                            viewModel.sortByReminderCount()
+                        }
+                    }
+                    .accessibilityLabel("Sort by reminder count")
+
+                    // List / float view toggle
+                    OrganicCircleButton(
+                        systemImage: storeViewMode == .list ? "circle.grid.3x3" : "list.bullet",
+                        size: 48,
+                        glyphSize: 18
+                    ) {
+                        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                            if storeViewMode == .list {
+                                editMode = .inactive
+                                storeViewMode = .float
+                            } else {
+                                isFloatEditMode = false
+                                storeViewMode = .list
+                            }
+                        }
+                    }
+                    .accessibilityLabel(storeViewMode == .list ? "Switch to grid view" : "Switch to list view")
+                }
+                .tutorialHighlight(id: "tutorial_toolbar")
+            }
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 8)
+        .padding(.bottom, 14)
+    }
+
+    /// True while either view mode is being rearranged, which is the only time
+    /// the header shows Done instead of the sort and layout controls.
+    private var isReordering: Bool {
+        (editMode == .active && storeViewMode == .list)
+            || (isFloatEditMode && storeViewMode == .float)
+    }
+
     // MARK: - Empty State
 
     private var emptyStateView: some View {
@@ -319,40 +378,11 @@ struct StoresView: View {
             Spacer()
 
             VStack(spacing: 24) {
-                // Icon
-                ZStack {
-                    Circle()
-                        .fill(LinearGradient(
-                            colors: [Color.blue.opacity(0.15), Color.purple.opacity(0.15)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        ))
-                        .frame(width: 120, height: 120)
-
-                    Image(systemName: "cart.badge.plus")
-                        .font(.system(size: 52, weight: .light))
-                        .foregroundStyle(
-                            LinearGradient(
-                                colors: [.blue, .purple],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                }
-
-                // Title & description
-                VStack(spacing: 10) {
-                    Text("No Stores Yet")
-                        .font(.title2)
-                        .fontWeight(.semibold)
-                        .foregroundColor(.primary)
-
-                    Text("Add your favorite grocery stores\nto start managing your shopping reminders.")
-                        .font(.body)
-                        .foregroundColor(.secondary)
-                        .multilineTextAlignment(.center)
-                        .lineSpacing(2)
-                }
+                OrganicEmptyState(
+                    systemImage: "cart",
+                    title: "No stores yet",
+                    message: "Add the stores you shop at and Allim will remind you what you need when you get there."
+                )
 
                 // Step-by-step hint
                 VStack(spacing: 12) {
@@ -361,7 +391,6 @@ struct StoresView: View {
                     EmptyStateStep(number: 3, text: "Set reminders for items you need")
                 }
                 .padding(.horizontal, 32)
-                .padding(.top, 4)
             }
             .padding(.horizontal, 24)
 
@@ -373,38 +402,14 @@ struct StoresView: View {
 
     // MARK: - Store Row Card
 
-    /// The full rectangular store row — the store info on top of the glass
-    /// card. Used as the Button label so the entire block (not just the text)
+    /// The full rectangular store row — the store info on its own paper card.
+    /// Used as the Button label so the entire block (not just the text)
     /// participates in the press animation.
     @ViewBuilder
     private func storeRowCard(for userStoreItem: UserStoreItem) -> some View {
         StoreItemView(store: userStoreItem.store, isShared: userStoreItem.isShared)
             .contentShape(Rectangle())
-            .background(
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(.ultraThinMaterial)
-                    // In light mode the material takes on the light backdrop
-                    // behind it, so a row ends up almost the same brightness as
-                    // the background and the rows blur together. The shared card
-                    // tint and border lift each row off the background.
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 16)
-                            .fill(Color.cardFillTint(for: colorScheme))
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 16)
-                            .stroke(
-                                Color.cardBorderStyle(for: colorScheme),
-                                lineWidth: 1.5
-                            )
-                    )
-                    // Flatten fill + stroke before the shadow so it is computed
-                    // once per row; a second decorative shadow here cost an
-                    // extra offscreen pass per row while scrolling.
-                    .compositingGroup()
-                    .shadow(color: Color.black.opacity(Color.cardShadowOpacity(for: colorScheme)), radius: 8, x: 0, y: 4)
-            )
-            .padding(.vertical, 4)
+            .background(OrganicCardBackground(colorScheme: colorScheme))
     }
 
     // MARK: - List Content
@@ -439,9 +444,7 @@ struct StoresView: View {
                     }
                 }
                 .tutorialHighlight(id: index == 0 ? "tutorial_storeRow" : "noop_store_\(index)")
-                .listRowBackground(Color.clear)
-                .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
-                .listRowSeparator(.hidden)
+                .organicRow()
                 .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                     Button(role: .destructive) {
                         storeToDelete = userStoreItem
@@ -459,7 +462,7 @@ struct StoresView: View {
                         } label: {
                             Label("Share", systemImage: "square.and.arrow.up")
                         }
-                        .tint(.blue)
+                        .tint(OrganicPalette.terracotta(colorScheme))
 
                         // DEBUG-only for now (see FeatureFlags), and Premium
                         // when it ships. Absent rather than gated on tap —
@@ -475,7 +478,7 @@ struct StoresView: View {
                             } label: {
                                 Label("Voice", systemImage: "mic.fill")
                             }
-                            .tint(Color.appError)
+                            .tint(OrganicPalette.rust(colorScheme))
                             .accessibilityHint("Speak to add, check off, or remove reminders")
                         }
                     }
@@ -488,7 +491,7 @@ struct StoresView: View {
                         } label: {
                             Label("On My Way", systemImage: "car.fill")
                         }
-                        .tint(.green)
+                        .tint(OrganicPalette.sageInk(colorScheme))
                     }
                 }
                 .simultaneousGesture(
@@ -557,14 +560,8 @@ struct StoresView: View {
                 ZStack {
                     // Expanded menu items
                     if isMenuExpanded && !isFabShrunk {
-                        VStack(spacing: 8) {
-                            Button(action: {
-                                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                                    isMenuExpanded = false
-                                    if storeViewMode == .float {
-                                        isFabShrunk = true
-                                    }
-                                }
+                        VStack(spacing: 10) {
+                            fabMenuItem(icon: "cart.badge.plus", title: "Add Store") {
                                 // Free-tier store limit: existing stores over the limit are
                                 // kept, but adding another requires a subscription.
                                 if tutorialManager.isActive || SubscriptionManager.canAddStore(
@@ -575,100 +572,22 @@ struct StoresView: View {
                                 } else {
                                     showingPaywall = true
                                 }
-                            }) {
-                                HStack {
-                                    Image(systemName: "cart.badge.plus")
-                                        .font(.system(size: 20))
-                                    Text("Add Store")
-                                        .font(.system(size: 17))
-                                    Spacer()
-                                }
-                                .padding()
-                                .frame(width: 200)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 16)
-                                        .fill(.ultraThinMaterial)
-                                )
-                                .foregroundColor(.primary)
                             }
 
-                            Button(action: {
-                                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                                    isMenuExpanded = false
-                                    if storeViewMode == .float {
-                                        isFabShrunk = true
-                                    }
-                                }
+                            fabMenuItem(icon: "list.bullet.rectangle", title: "Add Recipe") {
                                 showingRecipes = true
-                            }) {
-                                HStack {
-                                    Image(systemName: "list.bullet.rectangle")
-                                        .font(.system(size: 20))
-                                    Text("Add Recipe")
-                                        .font(.system(size: 17))
-                                    Spacer()
-                                }
-                                .padding()
-                                .frame(width: 200)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 16)
-                                        .fill(.ultraThinMaterial)
-                                )
-                                .foregroundColor(.primary)
                             }
 
-                            Button(action: {
-                                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                                    isMenuExpanded = false
-                                    if storeViewMode == .float {
-                                        isFabShrunk = true
-                                    }
-                                }
+                            fabMenuItem(icon: "fork.knife.circle", title: "Smart Recipe") {
                                 if subscriptionManager.isSubscribed {
                                     showingSmartRecipe = true
                                 } else {
                                     showingPaywall = true
                                 }
-                            }) {
-                                HStack {
-                                    Image(systemName: "fork.knife.circle")
-                                        .font(.system(size: 20))
-                                    Text("Smart Recipe")
-                                        .font(.system(size: 17))
-                                    Spacer()
-                                }
-                                .padding()
-                                .frame(width: 200)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 16)
-                                        .fill(.ultraThinMaterial)
-                                )
-                                .foregroundColor(.primary)
                             }
 
-                            Button(action: {
-                                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                                    isMenuExpanded = false
-                                    if storeViewMode == .float {
-                                        isFabShrunk = true
-                                    }
-                                }
+                            fabMenuItem(icon: "paintpalette", title: "Colors") {
                                 showingBackgroundPicker = true
-                            }) {
-                                HStack {
-                                    Image(systemName: "paintpalette")
-                                        .font(.system(size: 20))
-                                    Text("Colors")
-                                        .font(.system(size: 17))
-                                    Spacer()
-                                }
-                                .padding()
-                                .frame(width: 200)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 16)
-                                        .fill(.ultraThinMaterial)
-                                )
-                                .foregroundColor(.primary)
                             }
                         }
                         .transition(.scale(scale: 0.1, anchor: .bottomTrailing).combined(with: .opacity))
@@ -698,12 +617,12 @@ struct StoresView: View {
                     }) {
                         ZStack {
                             Circle()
-                                .fill(Color.blue)
+                                .fill(OrganicPalette.terracotta(colorScheme))
                                 .shadow(
-                                    color: Color.black.opacity(0.3),
-                                    radius: effectivelyShrunk ? 4 : 8,
+                                    color: OrganicPalette.terracotta(colorScheme).opacity(0.4),
+                                    radius: effectivelyShrunk ? 5 : 11,
                                     x: 0,
-                                    y: effectivelyShrunk ? 2 : 4
+                                    y: effectivelyShrunk ? 2 : 5
                                 )
 
                             if !effectivelyShrunk {
@@ -728,6 +647,42 @@ struct StoresView: View {
         }
     }
 
+    /// One row of the FAB menu: a paper card carrying a terracotta glyph, so the
+    /// menu reads as a stack of the same cards the list is made of rather than a
+    /// frosted panel floating over them.
+    private func fabMenuItem(
+        icon: String,
+        title: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button {
+            withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                isMenuExpanded = false
+                if storeViewMode == .float {
+                    isFabShrunk = true
+                }
+            }
+            action()
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: icon)
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundColor(OrganicPalette.terracotta(colorScheme))
+                    .frame(width: 24)
+
+                Text(title)
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(OrganicPalette.ink(colorScheme))
+
+                Spacer()
+            }
+            .padding(.horizontal, 18)
+            .frame(width: 210, height: 56)
+            .background(OrganicCardBackground(colorScheme: colorScheme, cornerRadius: 20))
+        }
+        .buttonStyle(.plain)
+    }
+
     // MARK: - Banner Ad Overlay
 
     private var bannerAdOverlay: some View {
@@ -735,7 +690,7 @@ struct StoresView: View {
             Spacer()
             BannerAdView(adUnitID: kBannerAdUnitID)
                 .frame(height: 50)
-                .background(Color(.systemBackground).opacity(0.95))
+                .background(OrganicPalette.canvas(colorScheme))
         }
     }
 
@@ -809,24 +764,26 @@ private struct EmptyStateStep: View {
     let number: Int
     let text: String
 
+    @Environment(\.colorScheme) private var colorScheme
+
     var body: some View {
         HStack(alignment: .center, spacing: 14) {
-            ZStack {
-                Circle()
-                    .fill(Color.blue.opacity(0.15))
-                    .frame(width: 28, height: 28)
-                Text("\(number)")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundColor(.blue)
-            }
+            Text("\(number)")
+                .font(.system(size: 14, weight: .bold, design: .serif))
+                .foregroundColor(OrganicPalette.terracotta(colorScheme))
+                .frame(width: 30, height: 30)
+                .background(Circle().fill(OrganicPalette.blush(colorScheme)))
+
             Text(text)
-                .font(.subheadline)
-                .foregroundColor(.secondary)
+                .font(.system(size: 15))
+                .foregroundColor(OrganicPalette.inkSoft(colorScheme))
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 }
 
 #Preview {
-    StoresView(pendingStoreName: .constant(nil))
+    NavigationStack {
+        StoresView(pendingStoreName: .constant(nil))
+    }
 }

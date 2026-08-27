@@ -41,26 +41,35 @@ struct HistoryView: View {
 
     var body: some View {
         NavigationStack {
-            Group {
+            ZStack {
+                OrganicPalette.canvas(colorScheme)
+                    .ignoresSafeArea()
+
                 if viewModel.isLoading {
                     ProgressView("Loading history...")
+                        .tint(OrganicPalette.terracotta(colorScheme))
+                        .foregroundColor(OrganicPalette.inkSoft(colorScheme))
                 } else if visibleEntries.isEmpty {
                     emptyStateView
                 } else {
                     historyListView
                 }
             }
-            .background(
-                Color.backgroundGradient(for: colorScheme)
-                    .ignoresSafeArea()
-            )
-            .navigationTitle("History")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(OrganicPalette.canvas(colorScheme), for: .navigationBar)
+            .tint(OrganicPalette.terracotta(colorScheme))
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button("Done") {
                         dismiss()
                     }
+                    .foregroundColor(OrganicPalette.terracotta(colorScheme))
+                }
+
+                ToolbarItem(placement: .principal) {
+                    Text("History")
+                        .font(.system(size: 17, weight: .bold, design: .serif))
+                        .foregroundColor(OrganicPalette.ink(colorScheme))
                 }
             }
         }
@@ -70,37 +79,36 @@ struct HistoryView: View {
     }
 
     private var emptyStateView: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "clock.arrow.circlepath")
-                .font(.system(size: 60))
-                .foregroundStyle(.gray)
-            Text("No History Yet")
-                .font(.title2)
-                .bold()
-            Text("Items you check off and remove from \(userStoreItem.store.name) will appear here.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 32)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        OrganicEmptyState(
+            systemImage: "clock.arrow.circlepath",
+            title: "Nothing here yet",
+            message: "Items you check off and remove from \(userStoreItem.store.name) will appear here."
+        )
     }
 
     private var historyListView: some View {
         List {
             ForEach(groupedByDay, id: \.day) { group in
                 Section {
+                    // The date label is an ordinary row rather than a section
+                    // header: a `.plain` list pins its headers and draws its own
+                    // backing behind them, which puts a grey bar across the
+                    // paper canvas as soon as the list scrolls.
+                    dateDivider(for: group.day)
+                        .organicSectionLabelRow()
+
                     ForEach(group.entries) { entry in
                         HistoryRowView(entry: entry)
-                            .listRowBackground(cardRowBackground)
-                            .listRowSeparator(.hidden)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 12)
+                            .background(OrganicCardBackground(colorScheme: colorScheme))
+                            .organicRow()
                     }
-                } header: {
-                    dateDivider(for: group.day)
                 }
             }
         }
         .listStyle(.plain)
+        .listSectionSpacing(10)
         .scrollContentBackground(.hidden)
     }
 
@@ -108,15 +116,16 @@ struct HistoryView: View {
     private func dateDivider(for day: Date) -> some View {
         HStack(spacing: 12) {
             Rectangle()
-                .fill(Color.secondary.opacity(0.35))
+                .fill(OrganicPalette.outline(colorScheme).opacity(0.6))
                 .frame(height: 1)
+
             Text(dayLabel(for: day))
-                .font(.caption)
-                .fontWeight(.semibold)
-                .foregroundStyle(.secondary)
+                .font(.system(size: 13, weight: .bold, design: .serif))
+                .foregroundColor(OrganicPalette.inkSoft(colorScheme))
                 .fixedSize()
+
             Rectangle()
-                .fill(Color.secondary.opacity(0.35))
+                .fill(OrganicPalette.outline(colorScheme).opacity(0.6))
                 .frame(height: 1)
         }
         .padding(.vertical, 6)
@@ -132,25 +141,14 @@ struct HistoryView: View {
         }
         return day.formatted(date: .abbreviated, time: .omitted)
     }
-
-    private var cardRowBackground: some View {
-        RoundedRectangle(cornerRadius: 16)
-            .fill(.ultraThinMaterial)
-            .overlay(
-                RoundedRectangle(cornerRadius: 16)
-                    .stroke(
-                        Color.cardBorder(for: colorScheme),
-                        lineWidth: 1.5
-                    )
-            )
-            .padding(.vertical, 4)
-    }
 }
 
 // MARK: - History Row
 
 struct HistoryRowView: View {
     let entry: ReminderHistoryEntry
+
+    @Environment(\.colorScheme) private var colorScheme
 
     private var checkedOffDate: Date {
         Date(timeIntervalSince1970: entry.checkedOffAt)
@@ -161,12 +159,13 @@ struct HistoryRowView: View {
             // Item name with the check-off date below it in italics
             VStack(alignment: .leading, spacing: 4) {
                 Text(entry.title)
-                    .font(.system(size: 17, weight: .medium))
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundColor(OrganicPalette.ink(colorScheme))
 
                 Text(checkedOffDate.formatted(date: .abbreviated, time: .shortened))
-                    .font(.caption)
+                    .font(.system(size: 13))
                     .italic()
-                    .foregroundStyle(.secondary)
+                    .foregroundColor(OrganicPalette.inkSoft(colorScheme))
             }
 
             Spacer(minLength: 8)
@@ -177,9 +176,11 @@ struct HistoryRowView: View {
                 HStack(spacing: 8) {
                     if let quantity = entry.quantity, quantity > 0 {
                         Text("Qty: \(quantity)")
-                            .font(.caption)
-                            .fontWeight(.medium)
-                            .foregroundStyle(.secondary)
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundColor(OrganicPalette.inkSoft(colorScheme))
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 3)
+                            .background(Capsule().fill(OrganicPalette.field(colorScheme)))
                     }
 
                     if let photoURL = entry.photoURLs?.first {
@@ -190,27 +191,26 @@ struct HistoryRowView: View {
                 if let checkedOffBy = entry.checkedOffBy, !checkedOffBy.isEmpty {
                     HStack(spacing: 4) {
                         Image(systemName: "checkmark.circle.fill")
-                            .font(.caption2)
-                            .foregroundStyle(.green)
+                            .font(.system(size: 11))
+                            .foregroundColor(OrganicPalette.sageInk(colorScheme))
                         Text(checkedOffBy)
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
+                            .font(.system(size: 12))
+                            .foregroundColor(OrganicPalette.inkSoft(colorScheme))
                     }
                 }
 
                 if let createdBy = entry.createdBy, !createdBy.isEmpty {
                     HStack(spacing: 4) {
                         Image(systemName: "person.crop.circle.badge.plus")
-                            .font(.caption2)
-                            .foregroundStyle(Color.appAccent)
+                            .font(.system(size: 11))
+                            .foregroundColor(OrganicPalette.terracotta(colorScheme))
                         Text("Added by \(createdBy)")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
+                            .font(.system(size: 12))
+                            .foregroundColor(OrganicPalette.inkSoft(colorScheme))
                     }
                 }
             }
         }
-        .padding(.vertical, 2)
     }
 
     private func photoThumbnail(for urlString: String) -> some View {
@@ -222,21 +222,24 @@ struct HistoryRowView: View {
                     .scaledToFill()
                     .frame(width: 44, height: 44)
                     .clipped()
-                    .cornerRadius(8)
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
             case .failure:
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(Color.gray.opacity(0.3))
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(OrganicPalette.field(colorScheme))
                     .frame(width: 44, height: 44)
                     .overlay(
                         Image(systemName: "photo")
-                            .font(.caption)
-                            .foregroundColor(.gray)
+                            .font(.system(size: 13))
+                            .foregroundColor(OrganicPalette.inkSoft(colorScheme))
                     )
             case .empty:
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(Color.gray.opacity(0.2))
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(OrganicPalette.field(colorScheme))
                     .frame(width: 44, height: 44)
-                    .overlay(ProgressView())
+                    .overlay(
+                        ProgressView()
+                            .tint(OrganicPalette.terracotta(colorScheme))
+                    )
             @unknown default:
                 EmptyView()
             }

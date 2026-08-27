@@ -28,28 +28,37 @@ struct StoreAnalyticsView: View {
 
     var body: some View {
         NavigationStack {
-            Group {
+            ZStack {
+                OrganicPalette.canvas(colorScheme)
+                    .ignoresSafeArea()
+
                 if !subscriptionManager.isSubscribed {
                     lockedView
                 } else if viewModel.isLoading {
                     ProgressView("Loading analytics...")
+                        .tint(OrganicPalette.terracotta(colorScheme))
+                        .foregroundColor(OrganicPalette.inkSoft(colorScheme))
                 } else if viewModel.entries.isEmpty {
                     emptyStateView
                 } else {
                     analyticsContent
                 }
             }
-            .background(
-                Color.backgroundGradient(for: colorScheme)
-                    .ignoresSafeArea()
-            )
-            .navigationTitle("Analytics")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(OrganicPalette.canvas(colorScheme), for: .navigationBar)
+            .tint(OrganicPalette.terracotta(colorScheme))
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button("Done") {
                         dismiss()
                     }
+                    .foregroundColor(OrganicPalette.terracotta(colorScheme))
+                }
+
+                ToolbarItem(placement: .principal) {
+                    Text("Analytics")
+                        .font(.system(size: 17, weight: .bold, design: .serif))
+                        .foregroundColor(OrganicPalette.ink(colorScheme))
                 }
             }
         }
@@ -64,47 +73,23 @@ struct StoreAnalyticsView: View {
     // MARK: - Locked (non-subscriber) State
 
     private var lockedView: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "chart.bar.xaxis")
-                .font(.system(size: 60))
-                .foregroundStyle(Color.appAccent)
-            Text("Store Analytics")
-                .font(.title2)
-                .bold()
-            Text("See how often you get items at \(userStoreItem.store.name), your category breakdown, most-gotten items, and shopping patterns.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 32)
-            Button {
-                showingPaywall = true
-            } label: {
-                Label("Unlock with Premium", systemImage: "crown.fill")
-            }
-            .buttonStyle(PrimaryButtonStyle())
-            .padding(.horizontal, 48)
-            .padding(.top, 8)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        OrganicEmptyState(
+            systemImage: "chart.bar.xaxis",
+            title: "Store Analytics",
+            message: "See how often you get items at \(userStoreItem.store.name), your category breakdown, most-gotten items, and shopping patterns.",
+            actionTitle: "Unlock with Premium",
+            action: { showingPaywall = true }
+        )
     }
 
     // MARK: - Empty State
 
     private var emptyStateView: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "chart.bar.xaxis")
-                .font(.system(size: 60))
-                .foregroundStyle(.gray)
-            Text("No Data Yet")
-                .font(.title2)
-                .bold()
-            Text("Analytics build up as you check off and clear items at \(userStoreItem.store.name). Come back after a few shopping trips!")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 32)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        OrganicEmptyState(
+            systemImage: "chart.bar.xaxis",
+            title: "No data yet",
+            message: "Analytics build up as you check off and clear items at \(userStoreItem.store.name). Come back after a few shopping trips."
+        )
     }
 
     // MARK: - Analytics Content
@@ -112,12 +97,7 @@ struct StoreAnalyticsView: View {
     private var analyticsContent: some View {
         ScrollView {
             VStack(spacing: 16) {
-                Picker("Time Range", selection: $timeRange) {
-                    ForEach(AnalyticsTimeRange.allCases) { range in
-                        Text(range.rawValue).tag(range)
-                    }
-                }
-                .pickerStyle(.segmented)
+                timeRangePicker
 
                 if filteredEntries.isEmpty {
                     emptyRangeCard
@@ -129,23 +109,54 @@ struct StoreAnalyticsView: View {
                     weekdayCard
                 }
             }
-            .padding(.horizontal, 16)
+            .padding(.horizontal, 20)
             .padding(.vertical, 12)
         }
+    }
+
+    /// The range filter, in one row above the charts. A segmented control keeps
+    /// the system's grey capsule on the paper canvas, so it is three pills.
+    private var timeRangePicker: some View {
+        HStack(spacing: 6) {
+            ForEach(AnalyticsTimeRange.allCases) { range in
+                let isSelected = timeRange == range
+
+                Button {
+                    withAnimation(.easeInOut(duration: 0.18)) { timeRange = range }
+                } label: {
+                    Text(range.rawValue)
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(
+                            isSelected ? .white : OrganicPalette.inkSoft(colorScheme)
+                        )
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 38)
+                        .background(
+                            Capsule().fill(
+                                isSelected ? OrganicPalette.terracotta(colorScheme) : .clear
+                            )
+                        )
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(4)
+        .background(Capsule().fill(OrganicPalette.field(colorScheme)))
     }
 
     private var emptyRangeCard: some View {
         VStack(spacing: 12) {
             Image(systemName: "calendar.badge.exclamationmark")
-                .font(.system(size: 40))
-                .foregroundStyle(.secondary)
+                .font(.system(size: 32, weight: .light))
+                .foregroundColor(OrganicPalette.terracotta(colorScheme).opacity(0.55))
+
             Text("Nothing checked off in this period")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .font(.system(size: 15))
+                .foregroundColor(OrganicPalette.inkSoft(colorScheme))
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 40)
-        .cardStyle()
+        .background(OrganicCardBackground(colorScheme: colorScheme))
     }
 
     // MARK: - Summary Tiles
@@ -162,20 +173,23 @@ struct StoreAnalyticsView: View {
         }
     }
 
+    /// The number wears ink rather than the accent: it is text, and a screen of
+    /// terracotta figures competes with the bars, which are what the colour is
+    /// for.
     private func statTile(value: String, label: String) -> some View {
         VStack(spacing: 4) {
             Text(value)
-                .font(.title2)
-                .fontWeight(.bold)
-                .foregroundStyle(Color.appAccent)
+                .font(OrganicPalette.display(24))
+                .foregroundColor(OrganicPalette.ink(colorScheme))
+
             Text(label)
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                .font(.system(size: 12))
+                .foregroundColor(OrganicPalette.inkSoft(colorScheme))
                 .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 14)
-        .cardStyle()
+        .padding(.vertical, 16)
+        .background(OrganicCardBackground(colorScheme: colorScheme))
     }
 
     // MARK: - Items Over Time
@@ -192,20 +206,28 @@ struct StoreAnalyticsView: View {
                     x: .value("Date", bucket.date, unit: unit),
                     y: .value("Items", bucket.count)
                 )
-                .foregroundStyle(Color.appAccent)
+                .foregroundStyle(OrganicPalette.terracotta(colorScheme))
                 .cornerRadius(4)
             }
             .chartXAxis {
                 AxisMarks(values: xAxisValues) { _ in
-                    AxisGridLine()
+                    AxisGridLine().foregroundStyle(OrganicPalette.outline(colorScheme))
                     AxisValueLabel(format: xAxisFormat)
+                        .foregroundStyle(OrganicPalette.inkSoft(colorScheme))
+                }
+            }
+            .chartYAxis {
+                AxisMarks { _ in
+                    AxisGridLine().foregroundStyle(OrganicPalette.outline(colorScheme))
+                    AxisValueLabel()
+                        .foregroundStyle(OrganicPalette.inkSoft(colorScheme))
                 }
             }
             .frame(height: 180)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(16)
-        .cardStyle()
+        .background(OrganicCardBackground(colorScheme: colorScheme))
     }
 
     private var xAxisValues: AxisMarkValues {
@@ -231,31 +253,34 @@ struct StoreAnalyticsView: View {
         let total = filteredEntries.count
         let maxCount = categories.first?.count ?? 1
 
-        return VStack(alignment: .leading, spacing: 12) {
+        return VStack(alignment: .leading, spacing: 14) {
             sectionHeader(icon: "square.grid.2x2", title: "By Category")
 
             ForEach(categories) { stat in
                 HStack(spacing: 10) {
                     Image(systemName: CategoryIcon.symbol(for: stat.category))
-                        .font(.caption)
-                        .foregroundColor(Color.appAccent)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(OrganicPalette.terracotta(colorScheme))
                         .frame(width: 20)
 
-                    VStack(alignment: .leading, spacing: 4) {
+                    VStack(alignment: .leading, spacing: 5) {
                         HStack {
                             Text(stat.category)
-                                .font(.subheadline)
-                                .fontWeight(.medium)
+                                .font(.system(size: 15, weight: .semibold))
+                                .foregroundColor(OrganicPalette.ink(colorScheme))
+
                             Spacer()
+
                             Text("\(stat.count)")
-                                .font(.subheadline)
-                                .fontWeight(.semibold)
-                                .foregroundStyle(.primary)
+                                .font(.system(size: 15, weight: .semibold))
+                                .foregroundColor(OrganicPalette.ink(colorScheme))
+
                             Text(percentLabel(stat.count, of: total))
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+                                .font(.system(size: 12))
+                                .foregroundColor(OrganicPalette.inkSoft(colorScheme))
                                 .frame(width: 44, alignment: .trailing)
                         }
+
                         proportionBar(count: stat.count, max: maxCount)
                     }
                 }
@@ -263,7 +288,7 @@ struct StoreAnalyticsView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(16)
-        .cardStyle()
+        .background(OrganicCardBackground(colorScheme: colorScheme))
     }
 
     private func percentLabel(_ count: Int, of total: Int) -> String {
@@ -275,9 +300,9 @@ struct StoreAnalyticsView: View {
         GeometryReader { geo in
             ZStack(alignment: .leading) {
                 Capsule()
-                    .fill(Color.secondary.opacity(0.15))
+                    .fill(OrganicPalette.field(colorScheme))
                 Capsule()
-                    .fill(Color.appAccent)
+                    .fill(OrganicPalette.terracotta(colorScheme))
                     .frame(width: geo.size.width * CGFloat(count) / CGFloat(max(maxCount, 1)))
             }
         }
@@ -289,41 +314,46 @@ struct StoreAnalyticsView: View {
     private var topItemsCard: some View {
         let items = StoreAnalytics.topItems(for: filteredEntries, limit: 10)
 
-        return VStack(alignment: .leading, spacing: 12) {
+        return VStack(alignment: .leading, spacing: 14) {
             sectionHeader(icon: "trophy", title: "Most Gotten Items")
 
             ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
                 HStack(spacing: 12) {
                     Text("\(index + 1)")
-                        .font(.caption)
-                        .fontWeight(.bold)
-                        .foregroundStyle(index < 3 ? Color.white : Color.secondary)
-                        .frame(width: 24, height: 24)
+                        .font(.system(size: 12, weight: .bold, design: .serif))
+                        .foregroundColor(
+                            index < 3 ? .white : OrganicPalette.inkSoft(colorScheme)
+                        )
+                        .frame(width: 26, height: 26)
                         .background(
-                            Circle()
-                                .fill(index < 3 ? Color.appAccent : Color.secondary.opacity(0.15))
+                            Circle().fill(
+                                index < 3
+                                    ? OrganicPalette.terracotta(colorScheme)
+                                    : OrganicPalette.field(colorScheme)
+                            )
                         )
 
                     VStack(alignment: .leading, spacing: 2) {
                         Text(item.title)
-                            .font(.subheadline)
-                            .fontWeight(.medium)
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundColor(OrganicPalette.ink(colorScheme))
+
                         Text("Last gotten \(item.lastGotten.formatted(date: .abbreviated, time: .omitted))")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
+                            .font(.system(size: 12))
+                            .foregroundColor(OrganicPalette.inkSoft(colorScheme))
                     }
 
                     Spacer()
 
                     VStack(alignment: .trailing, spacing: 2) {
-                        Text("\(item.count)×")
-                            .font(.subheadline)
-                            .fontWeight(.semibold)
-                            .foregroundStyle(Color.appAccent)
+                        Text("\(item.count)\u{00D7}")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundColor(OrganicPalette.ink(colorScheme))
+
                         if item.totalQuantity > item.count {
                             Text("Qty \(item.totalQuantity)")
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
+                                .font(.system(size: 12))
+                                .foregroundColor(OrganicPalette.inkSoft(colorScheme))
                         }
                     }
                 }
@@ -331,7 +361,7 @@ struct StoreAnalyticsView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(16)
-        .cardStyle()
+        .background(OrganicCardBackground(colorScheme: colorScheme))
     }
 
     // MARK: - Shopping Pattern (Weekdays)
@@ -348,21 +378,34 @@ struct StoreAnalyticsView: View {
                     x: .value("Day", stat.label),
                     y: .value("Items", stat.count)
                 )
-                .foregroundStyle(Color.appAccent)
+                .foregroundStyle(OrganicPalette.terracotta(colorScheme))
                 .cornerRadius(4)
             }
             .chartXScale(domain: weekdays.map { $0.label })
+            .chartXAxis {
+                AxisMarks { _ in
+                    AxisValueLabel()
+                        .foregroundStyle(OrganicPalette.inkSoft(colorScheme))
+                }
+            }
+            .chartYAxis {
+                AxisMarks { _ in
+                    AxisGridLine().foregroundStyle(OrganicPalette.outline(colorScheme))
+                    AxisValueLabel()
+                        .foregroundStyle(OrganicPalette.inkSoft(colorScheme))
+                }
+            }
             .frame(height: 140)
 
             if let busiest {
                 Label("You check off the most items on \(busiest)s", systemImage: "lightbulb")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .font(.system(size: 13))
+                    .foregroundColor(OrganicPalette.inkSoft(colorScheme))
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(16)
-        .cardStyle()
+        .background(OrganicCardBackground(colorScheme: colorScheme))
     }
 
     // MARK: - Shared
@@ -370,10 +413,12 @@ struct StoreAnalyticsView: View {
     private func sectionHeader(icon: String, title: String) -> some View {
         HStack(spacing: 8) {
             Image(systemName: icon)
-                .font(.subheadline)
-                .foregroundColor(Color.appAccent)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundColor(OrganicPalette.terracotta(colorScheme))
+
             Text(title)
-                .font(.headline)
+                .font(OrganicPalette.display(19))
+                .foregroundColor(OrganicPalette.ink(colorScheme))
         }
     }
 }

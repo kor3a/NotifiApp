@@ -14,6 +14,7 @@ struct CachedLogoImage: View {
     let storeName: String
     let size: CGFloat
     @ObservedObject private var logoProvider = StoreLogoProvider.shared
+    @Environment(\.colorScheme) private var colorScheme
 
     init(storeName: String, size: CGFloat = 50) {
         self.storeName = storeName
@@ -31,6 +32,7 @@ struct CachedLogoImage: View {
             } else if logoProvider.logoURL(for: storeName) != nil {
                 // URL exists but image isn't cached yet — show placeholder while downloading
                 ProgressView()
+                    .tint(OrganicPalette.terracotta(colorScheme))
                     .frame(width: size, height: size)
             } else {
                 defaultStoreIcon
@@ -39,25 +41,18 @@ struct CachedLogoImage: View {
         .frame(width: size, height: size)
     }
 
+    /// Stand-in for a store with no logo. A flat blush disc carrying a
+    /// terracotta storefront, so a store without a logo still sits in the same
+    /// palette as the rest of the row rather than under a blue-purple gradient.
     private var defaultStoreIcon: some View {
         ZStack {
             Circle()
-                .fill(.ultraThinMaterial)
+                .fill(OrganicPalette.blush(colorScheme))
                 .frame(width: size, height: size)
-                .overlay(
-                    Circle()
-                        .stroke(Color.white.opacity(0.3), lineWidth: 1)
-                )
 
             Image(systemName: "storefront")
                 .font(.system(size: size * 0.44))
-                .foregroundStyle(
-                    LinearGradient(
-                        colors: [.blue, .purple],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
+                .foregroundColor(OrganicPalette.terracotta(colorScheme))
         }
     }
 }

@@ -44,6 +44,7 @@ struct MapView: View {
     @Binding var isSearchExpanded: Bool
     @Binding var searchQuery: String
     @FocusState private var isSearchFocused: Bool
+    @Environment(\.colorScheme) private var colorScheme
 
     // Messages view model for unread badge
     @ObservedObject var messagesViewModel: MessagesViewModel
@@ -181,6 +182,7 @@ struct MapView: View {
                 MapUserLocationButton(scope: mapScope)
             }//:VSTACK
             .buttonBorderShape(.circle)
+            .tint(OrganicPalette.terracotta(colorScheme))
             .padding()
             .padding(.bottom, 60) // Make room for custom tab bar
         }
@@ -320,7 +322,11 @@ struct MapView: View {
                                 .font(.system(size: 11))
                         }
                     }
-                    .foregroundColor(selectedTab == 0 ? .blue : .primary)
+                    .foregroundColor(
+                        selectedTab == 0
+                            ? OrganicPalette.terracotta(colorScheme)
+                            : OrganicPalette.inkSoft(colorScheme)
+                    )
                     .frame(width: isSearchExpanded ? 44 : 60, height: 50)
                 }
 
@@ -340,11 +346,11 @@ struct MapView: View {
                                 // Unread badge
                                 if messagesViewModel.totalUnreadCount > 0 {
                                     Text("\(messagesViewModel.totalUnreadCount)")
-                                        .font(.system(size: 10, weight: .bold))
+                                        .font(.system(size: 10, weight: .bold, design: .serif))
                                         .foregroundColor(.white)
                                         .padding(.horizontal, 5)
                                         .padding(.vertical, 2)
-                                        .background(Color.red)
+                                        .background(OrganicPalette.terracotta(colorScheme))
                                         .clipShape(Capsule())
                                         .offset(x: 10, y: -8)
                                 }
@@ -352,7 +358,11 @@ struct MapView: View {
                             Text("Messages")
                                 .font(.system(size: 11))
                         }
-                        .foregroundColor(selectedTab == 1 ? .blue : .primary)
+                        .foregroundColor(
+                            selectedTab == 1
+                                ? OrganicPalette.terracotta(colorScheme)
+                                : OrganicPalette.inkSoft(colorScheme)
+                        )
                         .frame(width: 60, height: 50)
                     }
                     .transition(.move(edge: .leading).combined(with: .opacity))
@@ -369,7 +379,11 @@ struct MapView: View {
                             Text("Friends")
                                 .font(.system(size: 11))
                         }
-                        .foregroundColor(selectedTab == 2 ? .blue : .primary)
+                        .foregroundColor(
+                            selectedTab == 2
+                                ? OrganicPalette.terracotta(colorScheme)
+                                : OrganicPalette.inkSoft(colorScheme)
+                        )
                         .frame(width: 60, height: 50)
                     }
                     .transition(.move(edge: .leading).combined(with: .opacity))
@@ -377,16 +391,29 @@ struct MapView: View {
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 8)
-            .background(.ultraThinMaterial)
-            .clipShape(RoundedRectangle(cornerRadius: 25))
+            // Paper rather than frosted glass. This bar floats over map
+            // imagery, so it keeps its shadow — that is what separates it from
+            // whatever is underneath, not a blur.
+            .background(
+                Capsule()
+                    .fill(OrganicPalette.surface(colorScheme))
+                    .shadow(color: OrganicPalette.shadow(colorScheme), radius: 10, x: 0, y: 4)
+            )
 
             Spacer()
 
             // Right side: Search
             HStack(spacing: 0) {
                 if isSearchExpanded {
-                    TextField("Search places...", text: $searchQuery)
+                    TextField(
+                        "",
+                        text: $searchQuery,
+                        prompt: Text("Search places\u{2026}")
+                            .foregroundColor(OrganicPalette.inkSoft(colorScheme).opacity(0.8))
+                    )
                         .textFieldStyle(PlainTextFieldStyle())
+                        .font(.system(size: 16))
+                        .foregroundColor(OrganicPalette.ink(colorScheme))
                         .padding(.horizontal, 16)
                         .padding(.vertical, 12)
                         .focused($isSearchFocused)
@@ -431,14 +458,17 @@ struct MapView: View {
                     }
                 }) {
                     Image(systemName: isSearchExpanded && !searchQuery.isEmpty ? "xmark" : "magnifyingglass")
-                        .font(.system(size: 20))
-                        .foregroundColor(.primary)
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundColor(OrganicPalette.terracotta(colorScheme))
                         .frame(width: 44, height: 44)
                 }
                 .tutorialHighlight(id: "tutorial_mapSearch")
             }
-            .background(.ultraThinMaterial)
-            .clipShape(RoundedRectangle(cornerRadius: 25))
+            .background(
+                Capsule()
+                    .fill(OrganicPalette.surface(colorScheme))
+                    .shadow(color: OrganicPalette.shadow(colorScheme), radius: 10, x: 0, y: 4)
+            )
             .frame(maxWidth: isSearchExpanded ? .infinity : 44)
         }
         .padding(.horizontal, 16)
@@ -653,82 +683,63 @@ struct StoreIconView: View {
     var reminderCount: Int = 0
     @ObservedObject private var logoProvider = StoreLogoProvider.shared
     @State private var isAnimating = false
+    @Environment(\.colorScheme) private var colorScheme
 
     private var firstLetter: String {
         let letter = storeName.prefix(1).uppercased()
         return letter.isEmpty ? "?" : letter
     }
 
+    /// The store's tint, from the palette the avatars share.
+    ///
+    /// Keyed off the name the same way they are — `hashValue` is seeded per
+    /// launch, so the old hash handed every store a new colour every time the
+    /// app opened.
     private var storeColor: Color {
-        // Generate a consistent color based on store name
-        let hash = abs(storeName.hashValue)
-        let colors: [Color] = [
-            .blue, .green, .orange, .purple, .pink, .teal, .indigo, .cyan
-        ]
-        return colors[hash % colors.count]
+        OrganicAvatarTint.forName(storeName).fill
     }
 
     var body: some View {
         ZStack(alignment: .topTrailing) {
-            // Main pin content
+            // Main pin content. These sit on map imagery rather than the paper
+            // canvas, so the white ring and the shadow stay — they are what
+            // separates a pin from whatever is under it.
             ZStack {
-                // Outer glow for visibility
-                Circle()
-                    .fill(storeColor.opacity(0.3))
-                    .frame(width: 36, height: 36)
-
                 if let image = logoProvider.cachedImage(for: storeName) {
                     // Store logo from cache
                     Image(uiImage: image)
                         .resizable()
                         .scaledToFill()
-                        .frame(width: 28, height: 28)
+                        .frame(width: 30, height: 30)
                         .clipShape(Circle())
-                        .shadow(color: Color.black.opacity(0.25), radius: 3, x: 0, y: 2)
                 } else {
                     // Fallback: letter circle
                     Circle()
-                        .fill(
-                            LinearGradient(
-                                colors: [storeColor, storeColor.opacity(0.8)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
+                        .fill(storeColor)
+                        .frame(width: 30, height: 30)
+                        .overlay(
+                            Text(firstLetter)
+                                .font(.system(size: 14, weight: .bold, design: .serif))
+                                .foregroundColor(OrganicAvatarTint.forName(storeName).glyph)
                         )
-                        .frame(width: 28, height: 28)
-                        .shadow(color: Color.black.opacity(0.25), radius: 3, x: 0, y: 2)
-
-                    // Inner highlight for 3D effect
-                    Circle()
-                        .fill(
-                            LinearGradient(
-                                colors: [Color.white.opacity(0.4), Color.clear],
-                                startPoint: .topLeading,
-                                endPoint: .center
-                            )
-                        )
-                        .frame(width: 24, height: 24)
-                        .offset(x: -2, y: -2)
-
-                    // First letter
-                    Text(firstLetter)
-                        .font(.system(size: 14, weight: .bold, design: .rounded))
-                        .foregroundColor(.white)
                 }
             }
+            .overlay(Circle().strokeBorder(.white, lineWidth: 2))
+            .shadow(color: Color.black.opacity(0.28), radius: 4, x: 0, y: 2)
 
             // Reminder count badge
             if reminderCount > 0 {
                 Text("\(reminderCount)")
-                    .font(.system(size: 10, weight: .bold))
+                    .font(.system(size: 10, weight: .bold, design: .serif))
                     .foregroundColor(.white)
                     .padding(.horizontal, 4)
                     .padding(.vertical, 1)
                     .background(
                         Capsule()
-                            .fill(.red)
+                            .fill(OrganicPalette.terracotta(colorScheme))
                     )
-                    .offset(x: 6, y: -6)
+                    .overlay(Capsule().strokeBorder(.white, lineWidth: 1.5))
+                    .offset(x: 8, y: -6)
             }
         }
         .scaleEffect(isAnimating ? 1.0 : 0.5)
@@ -746,62 +757,29 @@ struct StoreIconView: View {
 struct SearchResultPinView: View {
     let name: String
     @State private var isAnimating = false
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         VStack(spacing: 0) {
-            // Pin head with gradient and icon
+            // Flat terracotta rather than an orange-to-red gradient with a
+            // highlight on top. The white ring and the shadow stay: this pin
+            // lands on map imagery, not on paper.
             ZStack {
-                // Outer glow/shadow circle
                 Circle()
-                    .fill(
-                        RadialGradient(
-                            colors: [Color.orange.opacity(0.3), Color.clear],
-                            center: .center,
-                            startRadius: 0,
-                            endRadius: 24
-                        )
-                    )
-                    .frame(width: 48, height: 48)
-
-                // Main pin circle with gradient
-                Circle()
-                    .fill(
-                        LinearGradient(
-                            colors: [Color.orange, Color.red.opacity(0.85)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
+                    .fill(OrganicPalette.terracotta(colorScheme))
                     .frame(width: 38, height: 38)
-                    .shadow(color: Color.black.opacity(0.25), radius: 4, x: 0, y: 3)
 
-                // Inner highlight for 3D effect
-                Circle()
-                    .fill(
-                        LinearGradient(
-                            colors: [Color.white.opacity(0.4), Color.clear],
-                            startPoint: .topLeading,
-                            endPoint: .center
-                        )
-                    )
-                    .frame(width: 34, height: 34)
-                    .offset(x: -3, y: -3)
-
-                // Location icon
                 Image(systemName: "mappin")
                     .font(.system(size: 16, weight: .semibold))
                     .foregroundColor(.white)
             }
+            .overlay(Circle().strokeBorder(.white, lineWidth: 2))
+            .shadow(color: Color.black.opacity(0.28), radius: 4, x: 0, y: 3)
+            .zIndex(1)
 
             // Pin pointer/tail
             Triangle()
-                .fill(
-                    LinearGradient(
-                        colors: [Color.red.opacity(0.85), Color.red.opacity(0.7)],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                )
+                .fill(OrganicPalette.terracotta(colorScheme))
                 .frame(width: 14, height: 10)
                 .offset(y: -3)
                 .shadow(color: Color.black.opacity(0.2), radius: 2, x: 0, y: 2)
@@ -809,14 +787,14 @@ struct SearchResultPinView: View {
             // Name label
             Text(name)
                 .font(.system(size: 11, weight: .semibold))
-                .foregroundColor(.primary)
+                .foregroundColor(OrganicPalette.ink(colorScheme))
                 .lineLimit(1)
                 .padding(.horizontal, 8)
                 .padding(.vertical, 4)
                 .background(
                     Capsule()
-                        .fill(.ultraThinMaterial)
-                        .shadow(color: Color.black.opacity(0.15), radius: 3, x: 0, y: 2)
+                        .fill(OrganicPalette.surface(colorScheme))
+                        .shadow(color: Color.black.opacity(0.18), radius: 3, x: 0, y: 2)
                 )
                 .offset(y: 4)
         }

@@ -9,14 +9,13 @@ import SwiftUI
 
 // MARK: - Organic Palette
 
-/// The palette behind Friends, Messages and Conversations.
+/// The palette behind Friends, Messages, Conversations, Stores and Reminders.
 ///
-/// These screens are about people rather than data, so they run on paper and
-/// clay instead of the app's cool default gradient: a cream canvas, a terracotta
-/// accent, and a sage green kept for the one idea that isn't terracotta —
-/// Family in Friends, a store share in a chat. The system blue and the frosted
-/// material cards read as clinical beside the soft, rounded shapes these screens
-/// are built from.
+/// The app runs on paper and clay rather than its old cool gradient: a cream
+/// canvas, a terracotta accent, and a sage green kept for the one idea that
+/// isn't terracotta — Family in Friends, a store share in a chat, a shared
+/// store in the list. The system blue and the frosted material cards read as
+/// clinical beside the soft, rounded shapes these screens are built from.
 enum OrganicPalette {
     /// Full-bleed paper backdrop behind a whole screen.
     static func canvas(_ scheme: ColorScheme) -> Color {
@@ -78,6 +77,15 @@ enum OrganicPalette {
         scheme == .dark
             ? Color(red: 0.78, green: 0.86, blue: 0.68)
             : Color(red: 0.18, green: 0.29, blue: 0.13)
+    }
+
+    /// A deep brick, kept for the destructive and out-of-stock states that
+    /// would otherwise reach for the system red — a siren tone that pulls the
+    /// eye far harder than these states deserve on a paper background.
+    static func rust(_ scheme: ColorScheme) -> Color {
+        scheme == .dark
+            ? Color(red: 0.85, green: 0.38, blue: 0.31)
+            : Color(red: 0.69, green: 0.22, blue: 0.16)
     }
 
     /// Hairline used to outline ghost buttons and quiet rows.
@@ -230,6 +238,248 @@ extension View {
             .listRowInsets(EdgeInsets(top: 6, leading: 20, bottom: 2, trailing: 20))
             .listRowSeparator(.hidden)
             .listRowBackground(Color.clear)
+    }
+}
+
+// MARK: - Header Button
+
+/// The quiet round icon button these screens set beside a title.
+///
+/// Blush rather than filled terracotta: every one of these screens already has
+/// a single loud primary action (the compose disc, the add-store FAB), and a
+/// second filled circle next to it would just split the user's attention.
+struct OrganicCircleButton: View {
+    let systemImage: String
+    var size: CGFloat = 54
+    var glyphSize: CGFloat = 20
+    let action: () -> Void
+
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: systemImage)
+                .font(.system(size: glyphSize, weight: .semibold))
+                .foregroundColor(OrganicPalette.terracotta(colorScheme))
+                .frame(width: size, height: size)
+                .background(Circle().fill(OrganicPalette.blush(colorScheme)))
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+// MARK: - Pill Button
+
+/// The filled terracotta pill these screens use for the one action that commits
+/// something — save, submit, subscribe.
+///
+/// Reads `isEnabled` from the environment, so callers gate it with the ordinary
+/// `.disabled(_:)` rather than passing a flag in.
+struct OrganicPillButton: View {
+    let title: String
+    var systemImage: String?
+    /// Swaps the title for a spinner while the work is in flight.
+    var isLoading: Bool = false
+    /// Fills the available width instead of hugging the title — for a form's
+    /// submit button, which sits alone at the bottom of a screen.
+    var fillsWidth: Bool = false
+    let action: () -> Void
+
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.isEnabled) private var isEnabled
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 8) {
+                if isLoading {
+                    ProgressView()
+                        .tint(.white)
+                } else if let systemImage {
+                    Image(systemName: systemImage)
+                        .font(.system(size: 15, weight: .semibold))
+                }
+
+                Text(title)
+                    .font(.system(size: 17, weight: .bold, design: .serif))
+            }
+            .foregroundColor(.white)
+            .padding(.horizontal, 32)
+            .frame(maxWidth: fillsWidth ? .infinity : nil)
+            .frame(height: 54)
+            .background(Capsule().fill(OrganicPalette.terracotta(colorScheme)))
+            .opacity(isEnabled ? 1 : 0.4)
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+// MARK: - Navigation Row
+
+/// A row that leads somewhere: a terracotta glyph on a blush disc, a title, an
+/// optional line of explanation, and a chevron.
+///
+/// Content only — the caller wraps it in the `NavigationLink` or `Button` that
+/// makes it go, so the same row serves a push, a sheet and an external link.
+struct OrganicNavRow: View {
+    let systemImage: String
+    let title: String
+    var subtitle: String?
+    /// Overrides the glyph tint for a row that isn't about the app's own
+    /// accent — sage for something already granted, rust for something
+    /// destructive.
+    var tint: Color?
+    /// The trailing glyph. Nil leaves the row without one, for a row that is a
+    /// statement rather than a door.
+    var accessory: String? = "chevron.right"
+
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        HStack(spacing: 14) {
+            Image(systemName: systemImage)
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundColor(tint ?? OrganicPalette.terracotta(colorScheme))
+                .frame(width: 38, height: 38)
+                .background(Circle().fill(OrganicPalette.blush(colorScheme)))
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(OrganicPalette.ink(colorScheme))
+                    .multilineTextAlignment(.leading)
+
+                if let subtitle {
+                    Text(subtitle)
+                        .font(.system(size: 13))
+                        .foregroundColor(OrganicPalette.inkSoft(colorScheme))
+                        .multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+
+            Spacer(minLength: 8)
+
+            if let accessory {
+                Image(systemName: accessory)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(OrganicPalette.inkSoft(colorScheme).opacity(0.7))
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(OrganicCardBackground(colorScheme: colorScheme))
+        .contentShape(Rectangle())
+    }
+}
+
+// MARK: - Section Label
+
+/// The serif heading above a group of cards.
+struct OrganicSectionLabel: View {
+    let title: String
+
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        Text(title)
+            .font(OrganicPalette.display(22))
+            .foregroundColor(OrganicPalette.ink(colorScheme))
+            .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+// MARK: - Text Fields
+
+extension View {
+    /// A text field sunk into the canvas rather than raised off it — the search
+    /// pills, the message box, a form's inputs.
+    func organicField(_ scheme: ColorScheme, height: CGFloat = 54) -> some View {
+        self
+            .padding(.horizontal, 18)
+            .frame(height: height)
+            .background(Capsule().fill(OrganicPalette.field(scheme)))
+    }
+}
+
+// MARK: - Count Badge
+
+/// The small filled capsule carrying a number — unread messages, items waiting
+/// in a store, the size of a category.
+struct OrganicCountBadge: View {
+    let count: Int
+    var fontSize: CGFloat = 13
+
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        Text("\(count)")
+            .font(.system(size: fontSize, weight: .bold, design: .serif))
+            .foregroundColor(.white)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 2)
+            .background(Capsule().fill(OrganicPalette.terracotta(colorScheme)))
+    }
+}
+
+// MARK: - Empty State
+
+/// The shape an empty screen takes here: a glyph inside a blush disc, a serif
+/// line naming what is missing, a sentence of context, and — when there is
+/// something to do about it — one terracotta pill.
+struct OrganicEmptyState: View {
+    let systemImage: String
+    let title: String
+    let message: String
+    var actionTitle: String?
+    var action: (() -> Void)?
+    /// A quieter line under everything else, for a state the user can't act on
+    /// (a list they only have view access to).
+    var footnote: String?
+
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        VStack(spacing: 14) {
+            Image(systemName: systemImage)
+                .font(.system(size: 44, weight: .light))
+                .foregroundColor(OrganicPalette.terracotta(colorScheme).opacity(0.55))
+                .frame(width: 96, height: 96)
+                .background(Circle().fill(OrganicPalette.blush(colorScheme)))
+
+            Text(title)
+                .font(OrganicPalette.display(26))
+                .foregroundColor(OrganicPalette.ink(colorScheme))
+                .multilineTextAlignment(.center)
+
+            Text(message)
+                .font(.system(size: 16))
+                .foregroundColor(OrganicPalette.inkSoft(colorScheme))
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 32)
+
+            if let actionTitle, let action {
+                Button(action: action) {
+                    Text(actionTitle)
+                        .font(.system(size: 17, weight: .bold, design: .serif))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 32)
+                        .frame(height: 52)
+                        .background(Capsule().fill(OrganicPalette.terracotta(colorScheme)))
+                }
+                .buttonStyle(.plain)
+                .padding(.top, 4)
+            }
+
+            if let footnote {
+                Text(footnote)
+                    .font(.system(size: 14))
+                    .foregroundColor(OrganicPalette.inkSoft(colorScheme).opacity(0.8))
+                    .multilineTextAlignment(.center)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding()
     }
 }
 

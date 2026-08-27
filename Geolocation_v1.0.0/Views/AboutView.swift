@@ -7,6 +7,8 @@ import SwiftUI
 
 struct AboutView: View {
 
+    @Environment(\.colorScheme) private var colorScheme
+
     private var appVersion: String {
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
     }
@@ -16,42 +18,79 @@ struct AboutView: View {
     }
 
     var body: some View {
-        List {
-            Section {
-                VStack(spacing: 12) {
-                    Image(systemName: "cart.fill")
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 64, height: 64)
-                        .foregroundStyle(.blue)
-                        .padding(.top, 16)
+        ZStack {
+            OrganicPalette.canvas(colorScheme)
+                .ignoresSafeArea()
 
-                    Text("Allim Smart Shopping List")
-                        .font(.title2)
-                        .bold()
+            ScrollView {
+                VStack(alignment: .leading, spacing: 24) {
+                    hero
 
-                    Text("Version \(appVersion) (\(buildNumber))")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                    VStack(alignment: .leading, spacing: 10) {
+                        OrganicSectionLabel(title: "What it does")
+
+                        Text("Allim keeps your grocery lists tied to the places you actually shop. Save a store, add what you need, and Allim reminds you when you're nearby — so nothing gets left behind.")
+                            .font(.system(size: 16))
+                            .foregroundColor(OrganicPalette.inkSoft(colorScheme))
+                            .fixedSize(horizontal: false, vertical: true)
+                            .padding(18)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(OrganicCardBackground(colorScheme: colorScheme))
+                    }
+
+                    VStack(alignment: .leading, spacing: 10) {
+                        OrganicSectionLabel(title: "Legal")
+
+                        NavigationLink {
+                            PrivacyPolicyView()
+                        } label: {
+                            OrganicNavRow(
+                                systemImage: "hand.raised.fill",
+                                title: "Privacy Policy",
+                                subtitle: "What we collect, and what we never do with it"
+                            )
+                        }
+                        .buttonStyle(.plain)
+                    }
                 }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 8)
-            }
-
-            Section(header: Text("About")) {
-                Text("Allim Smart Shopping List helps you manage your grocery lists with location-based reminders, so you never forget an item when you're near a store.")
-                    .font(.body)
-                    .foregroundStyle(.secondary)
-                    .padding(.vertical, 4)
-            }
-
-            Section(header: Text("Legal")) {
-                NavigationLink("Privacy Policy") {
-                    PrivacyPolicyView()
-                }
+                .padding(.horizontal, 20)
+                .padding(.top, 12)
+                .padding(.bottom, 32)
             }
         }
-        .navigationTitle("About")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackground(OrganicPalette.canvas(colorScheme), for: .navigationBar)
+        .tint(OrganicPalette.terracotta(colorScheme))
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                Text("About")
+                    .font(.system(size: 17, weight: .bold, design: .serif))
+                    .foregroundColor(OrganicPalette.ink(colorScheme))
+            }
+        }
+    }
+
+    private var hero: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "cart.fill")
+                .font(.system(size: 40))
+                .foregroundColor(OrganicPalette.terracotta(colorScheme))
+                .frame(width: 96, height: 96)
+                .background(Circle().fill(OrganicPalette.blush(colorScheme)))
+
+            Text("Allim")
+                .font(OrganicPalette.display(30))
+                .foregroundColor(OrganicPalette.ink(colorScheme))
+
+            Text("Smart Shopping List")
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundColor(OrganicPalette.inkSoft(colorScheme))
+
+            Text("Version \(appVersion) (\(buildNumber))")
+                .font(.system(size: 13))
+                .foregroundColor(OrganicPalette.inkSoft(colorScheme).opacity(0.8))
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 24)
     }
 }
