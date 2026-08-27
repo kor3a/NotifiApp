@@ -51,6 +51,8 @@ private struct SwipeToRemoveRow<Content: View>: View {
     /// part in the layout itself.
     @State private var rowHeight: CGFloat = 0
 
+    @Environment(\.colorScheme) private var colorScheme
+
     private let actionWidth: CGFloat = 60
     /// A drag has to be this much wider than it is tall before it counts as a swipe.
     private let horizontalBias: CGFloat = 2
@@ -135,12 +137,12 @@ private struct SwipeToRemoveRow<Content: View>: View {
             onRemove()
         } label: {
             Circle()
-                .fill(Color.appError.opacity(0.7))
+                .fill(OrganicPalette.rust(colorScheme))
                 .frame(width: 40, height: 40)
                 .overlay(
                     Image(systemName: "person.fill.badge.minus")
                         .font(.system(size: 17))
-                        .foregroundStyle(Color.white.opacity(0.95))
+                        .foregroundStyle(.white)
                 )
                 .frame(width: actionWidth)
         }
@@ -184,9 +186,23 @@ struct ShareStoreView: View {
 
         var title: String { self == .family ? "Family" : "Friends" }
         var icon: String { self == .family ? "house.fill" : "person.2.fill" }
-        var tint: Color { self == .family ? .purple : .appAccent }
         var emptyMessage: String {
             self == .family ? "No family members yet." : "No friends yet."
+        }
+
+        /// Sage is Family here, the same as it is in Friends — it is the one
+        /// idea on these screens that isn't terracotta, so nothing else in the
+        /// sheet may borrow it.
+        func fill(_ scheme: ColorScheme) -> Color {
+            self == .family
+                ? OrganicPalette.sage(scheme)
+                : OrganicPalette.terracotta(scheme)
+        }
+
+        /// Type that sits on `fill`. Sage is a pale wash and needs dark ink;
+        /// terracotta is saturated and needs white.
+        func ink(_ scheme: ColorScheme) -> Color {
+            self == .family ? OrganicPalette.sageInk(scheme) : .white
         }
     }
 
@@ -229,7 +245,7 @@ struct ShareStoreView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                Color.backgroundGradient(for: colorScheme)
+                OrganicPalette.canvas(colorScheme)
                     .ignoresSafeArea()
 
                 ScrollView {
@@ -259,7 +275,6 @@ struct ShareStoreView: View {
                             if friendsViewModel.friends.isEmpty && friendsViewModel.familyMembers.isEmpty {
                                 infoCallout(
                                     icon: "person.crop.circle.badge.plus",
-                                    tint: .appAccent,
                                     text: "Add friends or family in the Friends tab to share this store with them."
                                 )
                             }
@@ -276,23 +291,34 @@ struct ShareStoreView: View {
                     }
                 }
             }
-            .navigationTitle("Share Store")
+            .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(OrganicPalette.canvas(colorScheme), for: .navigationBar)
+            .tint(OrganicPalette.terracotta(colorScheme))
             .toolbar {
+                ToolbarItem(placement: .principal) {
+                    Text("Share Store")
+                        .font(OrganicPalette.title(17))
+                        .foregroundColor(OrganicPalette.ink(colorScheme))
+                }
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button("Cancel") {
                         dismiss()
                     }
+                    .foregroundColor(OrganicPalette.terracotta(colorScheme))
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     if isSharing {
                         ProgressView()
+                            .tint(OrganicPalette.terracotta(colorScheme))
                     } else {
                         Button("Share") {
                             shareStore()
                         }
-                        .fontWeight(.semibold)
+                        .font(OrganicPalette.title(16))
+                        .foregroundColor(OrganicPalette.terracotta(colorScheme))
                         .disabled(selectedContacts.isEmpty)
+                        .opacity(selectedContacts.isEmpty ? 0.4 : 1)
                     }
                 }
             }
@@ -328,8 +354,8 @@ struct ShareStoreView: View {
             storeLogoTile
 
             Text(userStoreItem.store.name)
-                .font(.title2)
-                .fontWeight(.bold)
+                .font(OrganicPalette.display(26))
+                .foregroundColor(OrganicPalette.ink(colorScheme))
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
 
@@ -348,8 +374,10 @@ struct ShareStoreView: View {
             }
         } label: {
             Image(systemName: showShareInfo ? "info.circle.fill" : "info.circle")
-                .font(.title3)
-                .foregroundStyle(Color.appAccent)
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundColor(OrganicPalette.terracotta(colorScheme))
+                .frame(width: 38, height: 38)
+                .background(Circle().fill(OrganicPalette.blush(colorScheme)))
         }
         .buttonStyle(.plain)
         .accessibilityLabel("About sharing")
@@ -358,14 +386,14 @@ struct ShareStoreView: View {
     /// The share explainer, shown directly below the info button.
     private var shareInfoBubble: some View {
         Text("A share request will be sent to the recipient's messages. They must accept before the store is shared successfully for both users.")
-            .font(.caption)
-            .foregroundStyle(.secondary)
+            .font(OrganicPalette.body(14))
+            .foregroundColor(OrganicPalette.inkSoft(colorScheme))
             .fixedSize(horizontal: false, vertical: true)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(14)
+            .padding(16)
             .background(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(Color.appAccent.opacity(0.1))
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .fill(OrganicPalette.blush(colorScheme))
             )
             .transition(.opacity.combined(with: .move(edge: .top)))
     }
@@ -380,47 +408,44 @@ struct ShareStoreView: View {
                     .resizable()
                     .scaledToFill()
                     .frame(width: 60, height: 60)
-                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                    .shadow(color: .black.opacity(0.18), radius: 8, x: 0, y: 4)
+                    .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                    .shadow(color: OrganicPalette.shadow(colorScheme), radius: 8, x: 0, y: 4)
             } else {
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(Color.iconGradient)
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .fill(OrganicPalette.blush(colorScheme))
                     .frame(width: 60, height: 60)
                     .overlay(
                         Image(systemName: "cart.fill")
                             .font(.system(size: 26, weight: .semibold))
-                            .foregroundStyle(.white)
+                            .foregroundColor(OrganicPalette.terracotta(colorScheme))
                     )
-                    .shadow(color: Color.appAccent.opacity(0.35), radius: 8, x: 0, y: 4)
+                    .shadow(color: OrganicPalette.shadow(colorScheme), radius: 8, x: 0, y: 4)
             }
         }
     }
 
     /// Section shown to a recipient describing who shared the store with them.
     private func sharedBySection(sharedByName: String) -> some View {
-        sectionContainer(title: "Shared By", icon: "person.fill.badge.plus", tint: .appAccent) {
-            HStack(spacing: 12) {
-                ProfilePictureView(profilePictureURL: sharedByPictureURL, size: 44) {
-                    Circle()
-                        .fill(Color.appAccent.opacity(0.15))
-                        .overlay(
-                            Text(String(sharedByName.prefix(1)).uppercased())
-                                .font(.headline)
-                                .foregroundStyle(Color.appAccent)
-                        )
-                }
+        sectionContainer(title: "Shared By", icon: "person.fill.badge.plus") {
+            HStack(spacing: 14) {
+                OrganicAvatar(
+                    name: sharedByName,
+                    profilePictureURL: sharedByPictureURL,
+                    size: 46
+                )
 
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: 3) {
                     Text(sharedByName)
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
+                        .font(OrganicPalette.body(17, weight: .semibold))
+                        .foregroundColor(OrganicPalette.ink(colorScheme))
+                        .lineLimit(1)
 
                     // `.owner` — which is what a store carries after it was merged with
                     // an incoming share — is an editing permission, so it must not fall
                     // through to "View Only". See `StorePermission.canEdit`.
                     Text(userStoreItem.permission.displayLabel)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .font(OrganicPalette.body(14))
+                        .foregroundColor(OrganicPalette.inkSoft(colorScheme))
                 }
 
                 Spacer(minLength: 0)
@@ -442,17 +467,18 @@ struct ShareStoreView: View {
             permissionSection
 
             if isSharing && !shareProgress.isEmpty {
-                HStack(spacing: 8) {
+                HStack(spacing: 10) {
                     ProgressView()
+                        .tint(OrganicPalette.terracotta(colorScheme))
                     Text(shareProgress)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .font(OrganicPalette.body(15))
+                        .foregroundColor(OrganicPalette.inkSoft(colorScheme))
                 }
-                .padding(12)
+                .padding(14)
                 .frame(maxWidth: .infinity)
                 .background(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .fill(Color.purple.opacity(0.1))
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .fill(OrganicPalette.blush(colorScheme))
                 )
             }
 
@@ -468,38 +494,31 @@ struct ShareStoreView: View {
                 allFamilyRow
 
                 if !activeRecipientContacts.isEmpty {
-                    Divider()
+                    rowSeparator
                 }
             }
 
             ForEach(Array(activeRecipientContacts.enumerated()), id: \.element.id) { item in
-                contactRow(contact: item.element, tint: activeRecipientTab.tint)
+                contactRow(contact: item.element)
 
                 if item.offset < activeRecipientContacts.count - 1 {
-                    Divider()
+                    rowSeparator
                 }
             }
 
             if activeRecipientContacts.isEmpty {
                 Text(activeRecipientTab.emptyMessage)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .font(OrganicPalette.body(15))
+                    .foregroundColor(OrganicPalette.inkSoft(colorScheme))
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.vertical, 12)
+                    .padding(.vertical, 14)
             }
         }
-        .padding(.horizontal, 14)
+        .padding(.horizontal, 16)
         .padding(.vertical, 4)
-        // Off-white for both tabs, so the list reads as a sheet of its own
-        // against the gradient background.
-        .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(recipientListBackground)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(Color.secondary.opacity(0.18), lineWidth: 1)
-        )
+        // One raised card for both tabs, so switching between them moves the
+        // names inside a surface that stays put.
+        .background(OrganicCardBackground(colorScheme: colorScheme))
     }
 
     /// One tab of the Family / Friends picker.
@@ -507,7 +526,8 @@ struct ShareStoreView: View {
         selectionChip(
             title: tab.title,
             icon: tab.icon,
-            tint: tab.tint,
+            fill: tab.fill(colorScheme),
+            ink: tab.ink(colorScheme),
             isSelected: activeRecipientTab == tab
         ) {
             recipientTab = tab
@@ -523,18 +543,17 @@ struct ShareStoreView: View {
             recipientRowLayout(
                 avatar: AnyView(
                     Circle()
-                        .fill(Color.purple.opacity(0.15))
-                        .frame(width: 44, height: 44)
+                        .fill(OrganicPalette.sage(colorScheme))
+                        .frame(width: 46, height: 46)
                         .overlay(
                             Image(systemName: "person.3.fill")
-                                .font(.system(size: 16))
-                                .foregroundStyle(.purple)
+                                .font(.system(size: 17, weight: .medium))
+                                .foregroundColor(OrganicPalette.sageInk(colorScheme))
                         )
                 ),
                 name: "All Family",
                 isShared: allFamilyAlreadyShared,
-                isSelected: allFamilySelected,
-                tint: .purple
+                isSelected: allFamilySelected
             )
         }
         .buttonStyle(.plain)
@@ -543,7 +562,7 @@ struct ShareStoreView: View {
 
     /// One recipient in the list. Tapping it ticks or unticks them; once the store
     /// is shared with them, swiping left reveals Remove instead.
-    private func contactRow(contact: Contact, tint: Color) -> some View {
+    private func contactRow(contact: Contact) -> some View {
         let isShared = isAlreadyShared(contact)
 
         return SwipeToRemoveRow(
@@ -552,41 +571,47 @@ struct ShareStoreView: View {
             openRowID: $openSwipeRowID,
             onRemove: { unshare(contact) }
         ) {
-            contactRowButton(contact: contact, tint: tint, isShared: isShared)
+            contactRowButton(contact: contact, isShared: isShared)
         }
     }
 
+    /// The hairline between recipients. The rows sit on one card, so they are
+    /// divided by a rule in the palette's own outline rather than by the
+    /// system separator, which is a cool grey on the cream surface.
+    private var rowSeparator: some View {
+        Rectangle()
+            .fill(OrganicPalette.outline(colorScheme))
+            .frame(height: 1)
+    }
+
     /// The tappable body of a recipient row.
-    private func contactRowButton(contact: Contact, tint: Color, isShared: Bool) -> some View {
+    private func contactRowButton(contact: Contact, isShared: Bool) -> some View {
         Button {
             guard !isShared else { return }
             toggleSelection(of: contact)
         } label: {
             recipientRowLayout(
                 avatar: AnyView(
-                    ProfilePictureView(profilePictureURL: contact.profilePictureURL, size: 44) {
-                        Circle()
-                            .fill(tint.opacity(0.15))
-                            .overlay(
-                                Text(String(contact.name.prefix(1)).uppercased())
-                                    .font(.headline)
-                                    .foregroundStyle(tint)
-                            )
-                    }
+                    OrganicAvatar(
+                        name: contact.name,
+                        profilePictureURL: contact.profilePictureURL,
+                        size: 46
+                    )
                 ),
                 name: contact.name,
                 isShared: isShared,
-                isSelected: selectedContactIDs.contains(contact.id),
-                tint: tint
+                isSelected: selectedContactIDs.contains(contact.id)
             )
         }
         .buttonStyle(.plain)
     }
 
     /// The name colour for a recipient row across its three states.
-    private func rowNameColor(isShared: Bool, isSelected: Bool, tint: Color) -> Color {
-        if isShared { return .secondary }
-        return isSelected ? tint : .primary
+    private func rowNameColor(isShared: Bool, isSelected: Bool) -> Color {
+        if isShared { return OrganicPalette.inkSoft(colorScheme) }
+        return isSelected
+            ? OrganicPalette.terracotta(colorScheme)
+            : OrganicPalette.ink(colorScheme)
     }
 
     /// The row chrome shared by the contact rows and the All Family shortcut.
@@ -595,31 +620,39 @@ struct ShareStoreView: View {
         avatar: AnyView,
         name: String,
         isShared: Bool,
-        isSelected: Bool,
-        tint: Color
+        isSelected: Bool
     ) -> some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 14) {
             avatar
 
             Text(name)
-                .font(.subheadline)
-                .fontWeight(isSelected ? .semibold : .medium)
-                .foregroundStyle(rowNameColor(isShared: isShared, isSelected: isSelected, tint: tint))
+                .font(OrganicPalette.body(17, weight: isSelected ? .semibold : .medium))
+                .foregroundColor(rowNameColor(isShared: isShared, isSelected: isSelected))
                 .lineLimit(1)
 
             Spacer(minLength: 0)
 
+            // Someone already shared with is a finished row, not a warmer one:
+            // it says so in a quiet capsule and keeps out of the way, leaving
+            // terracotta to mark the people this share is actually going to.
             if isShared {
                 Text("Shared")
-                    .font(.caption)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(Color.appSuccess)
-            } else if isSelected {
-                Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(tint)
+                    .font(OrganicPalette.title(12))
+                    .foregroundColor(OrganicPalette.inkSoft(colorScheme))
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
+                    .background(Capsule().fill(OrganicPalette.field(colorScheme)))
+            } else {
+                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                    .font(.system(size: 22))
+                    .foregroundColor(
+                        isSelected
+                            ? OrganicPalette.terracotta(colorScheme)
+                            : OrganicPalette.outline(colorScheme)
+                    )
             }
         }
-        .padding(.vertical, 10)
+        .padding(.vertical, 12)
         .contentShape(Rectangle())
         .opacity(isShared ? 0.6 : 1)
     }
@@ -628,48 +661,42 @@ struct ShareStoreView: View {
     /// single smaller control beneath the Family / Friends tabs.
     private var permissionSection: some View {
         HStack(spacing: 4) {
-            permissionSegment(.edit, title: "Can Edit", icon: "pencil", tint: .appSuccess)
-            permissionSegment(.view, title: "View Only", icon: "eye", tint: .appWarning)
+            permissionSegment(.edit, title: "Can Edit", icon: "pencil")
+            permissionSegment(.view, title: "View Only", icon: "eye")
         }
         .padding(4)
-        .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(Color.primary.opacity(0.06))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .stroke(Color.secondary.opacity(0.25), lineWidth: 1)
-        )
+        .background(Capsule().fill(OrganicPalette.field(colorScheme)))
         .frame(maxWidth: .infinity)
         .animation(.easeInOut(duration: 0.15), value: selectedPermission)
     }
 
     /// One segment of the permission control.
+    ///
+    /// Both segments are terracotta when picked. Edit and View are two settings
+    /// of one control, not a good outcome and a warning, and the green/amber
+    /// pair they used to wear said otherwise.
     private func permissionSegment(
         _ permission: StorePermission,
         title: String,
-        icon: String,
-        tint: Color
+        icon: String
     ) -> some View {
         let isSelected = selectedPermission == permission
 
         return Button {
             selectedPermission = permission
         } label: {
-            HStack(spacing: 4) {
+            HStack(spacing: 5) {
                 Image(systemName: icon)
-                    .font(.caption2)
-                    .fontWeight(.semibold)
+                    .font(.system(size: 11, weight: .semibold))
                 Text(title)
-                    .font(.caption)
-                    .fontWeight(.semibold)
+                    .font(OrganicPalette.title(13))
             }
-            .foregroundStyle(isSelected ? Color.white : Color.secondary)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
+            .foregroundColor(isSelected ? .white : OrganicPalette.inkSoft(colorScheme))
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 9)
             .background(
-                RoundedRectangle(cornerRadius: 9, style: .continuous)
-                    .fill(isSelected ? tint : Color.clear)
+                Capsule()
+                    .fill(isSelected ? OrganicPalette.terracotta(colorScheme) : .clear)
             )
         }
         .buttonStyle(.plain)
@@ -680,29 +707,24 @@ struct ShareStoreView: View {
     private func selectionChip(
         title: String,
         icon: String,
-        tint: Color,
+        fill: Color,
+        ink: Color,
         isSelected: Bool,
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
-            HStack(spacing: 6) {
+            HStack(spacing: 7) {
                 Image(systemName: icon)
-                    .font(.caption)
-                    .fontWeight(.semibold)
+                    .font(.system(size: 13, weight: .semibold))
                 Text(title)
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
+                    .font(OrganicPalette.title(15))
             }
-            .foregroundStyle(isSelected ? Color.white : Color.secondary)
-            .padding(.horizontal, 18)
-            .padding(.vertical, 11)
+            .foregroundColor(isSelected ? ink : OrganicPalette.inkSoft(colorScheme))
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 12)
             .background(
                 Capsule()
-                    .fill(isSelected ? tint : Color.primary.opacity(0.06))
-            )
-            .overlay(
-                Capsule()
-                    .stroke(isSelected ? Color.clear : Color.secondary.opacity(0.3), lineWidth: 1)
+                    .fill(isSelected ? fill : OrganicPalette.field(colorScheme))
             )
         }
         .buttonStyle(.plain)
@@ -711,28 +733,32 @@ struct ShareStoreView: View {
 
     // MARK: - Reusable building blocks
 
-    /// A titled card container used by the Shared By / Shared With sections.
+    /// The titled card the Shared By section sits in: a terracotta glyph on a
+    /// blush disc, the title beside it, and the content below — the same header
+    /// shape `OrganicNavRow` uses, so a card and a row read as one family.
     private func sectionContainer<Content: View>(
         title: String,
         icon: String,
-        tint: Color,
         @ViewBuilder content: () -> Content
     ) -> some View {
         VStack(alignment: .leading, spacing: 14) {
-            HStack(spacing: 8) {
+            HStack(spacing: 10) {
                 Image(systemName: icon)
-                    .font(.subheadline)
-                    .foregroundStyle(tint)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(OrganicPalette.terracotta(colorScheme))
+                    .frame(width: 30, height: 30)
+                    .background(Circle().fill(OrganicPalette.blush(colorScheme)))
+
                 Text(title)
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
+                    .font(OrganicPalette.title(16))
+                    .foregroundColor(OrganicPalette.ink(colorScheme))
             }
 
             content()
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(18)
-        .cardStyle()
+        .background(OrganicCardBackground(colorScheme: colorScheme))
     }
 
     /// A small pill describing a permission level.
@@ -740,32 +766,39 @@ struct ShareStoreView: View {
         // `.owner` is an editing permission too — see `StorePermission.canEdit`.
         let isEdit = permission.canEdit
         return Text(isEdit ? "Edit" : "View")
-            .font(.caption2)
-            .fontWeight(.semibold)
-            .foregroundStyle(isEdit ? Color.appSuccess : Color.appWarning)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 4)
+            .font(OrganicPalette.title(12))
+            .foregroundColor(
+                isEdit
+                    ? OrganicPalette.terracotta(colorScheme)
+                    : OrganicPalette.inkSoft(colorScheme)
+            )
+            .padding(.horizontal, 11)
+            .padding(.vertical, 5)
             .background(
-                Capsule()
-                    .fill((isEdit ? Color.appSuccess : Color.appWarning).opacity(0.15))
+                Capsule().fill(
+                    isEdit
+                        ? OrganicPalette.blush(colorScheme)
+                        : OrganicPalette.field(colorScheme)
+                )
             )
     }
 
     /// A tinted informational callout row.
-    private func infoCallout(icon: String, tint: Color, text: String) -> some View {
-        HStack(alignment: .top, spacing: 10) {
+    private func infoCallout(icon: String, text: String) -> some View {
+        HStack(alignment: .top, spacing: 12) {
             Image(systemName: icon)
-                .foregroundStyle(tint)
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundColor(OrganicPalette.terracotta(colorScheme))
             Text(text)
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                .font(OrganicPalette.body(14))
+                .foregroundColor(OrganicPalette.inkSoft(colorScheme))
                 .fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 0)
         }
-        .padding(14)
+        .padding(16)
         .background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(tint.opacity(0.1))
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .fill(OrganicPalette.blush(colorScheme))
         )
     }
 
@@ -797,12 +830,6 @@ struct ShareStoreView: View {
 
     /// The recipient list's panel colour. Off-white in light mode; dark mode gets
     /// the system's equivalent so the row text stays legible.
-    private var recipientListBackground: Color {
-        colorScheme == .dark
-            ? Color(.secondarySystemBackground)
-            : Color(red: 0.98, green: 0.98, blue: 0.97)
-    }
-
     /// Every contact the sheet can share with, across both tabs.
     private var allSelectableContacts: [Contact] {
         (friendsViewModel.familyMembers + friendsViewModel.friends)
