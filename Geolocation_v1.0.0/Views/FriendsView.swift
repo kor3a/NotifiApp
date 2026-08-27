@@ -53,9 +53,11 @@ struct FriendsView: View {
                 }
             }
         }
-        // The screen draws its own oversized display title, so the system bar
-        // would only stack a second "Friends" above it.
-        .toolbar(.hidden, for: .navigationBar)
+        // The screen draws its own oversized display title, so the bar carries
+        // no title of its own — but it has to stay, because Friends is pushed
+        // from Profile now and the back button is the way out of it.
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackground(OrganicPalette.canvas(colorScheme), for: .navigationBar)
         .tint(OrganicPalette.terracotta(colorScheme))
         .sheet(isPresented: $showAddFriend) {
             AddFriendView(viewModel: viewModel)

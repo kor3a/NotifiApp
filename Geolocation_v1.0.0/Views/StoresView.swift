@@ -16,14 +16,18 @@ struct StoresView: View {
     // MARK: - PROPERTIES
 
     @Binding var pendingStoreName: String?
+    /// Raised by a friend-request notification. Friends sits under Profile, and
+    /// this is the tab that pushes Profile, so the deep link lands here.
+    @Binding var showFriends: Bool
     @StateObject private var viewModel = StoresViewModel()
     @StateObject private var messagesViewModel = MessagesViewModel()
-    @StateObject private var smartRecipeViewModel = SmartRecipeViewModel()
     @ObservedObject private var sessionManager = UserSessionManager.shared
     @ObservedObject private var subscriptionManager = SubscriptionManager.shared
+    /// Only for the count on the profile button — friend requests are answered
+    /// on Friends, which now lives behind that button.
+    @ObservedObject private var friendRequestService = FriendRequestService.shared
     @ObservedObject private var tutorialManager = TutorialManager.shared
     @State private var showingAddStore = false
-    @State private var showingSmartRecipe = false
     @State private var showingRecipes = false
     @State private var showingPaywall = false
     @State private var isMenuExpanded = false
@@ -52,6 +56,14 @@ struct StoresView: View {
                 surface: .stores,
                 systemDefault: OrganicPalette.canvas(colorScheme)
             )
+
+            // Hidden navigation destination for a friend-request tap: Profile,
+            // already opened on Friends.
+            Color.clear
+                .navigationDestination(isPresented: $showFriends) {
+                    ProfileView(opensFriends: true)
+                        .organicTabBarInset()
+                }
 
             // Hidden navigation destination for notification taps
             Color.clear
@@ -134,9 +146,6 @@ struct StoresView: View {
         .tint(OrganicPalette.terracotta(colorScheme))
         .sheet(isPresented: $showingAddStore) {
             AddStoreView(viewModel: viewModel)
-        }
-        .sheet(isPresented: $showingSmartRecipe) {
-            SmartRecipeView(viewModel: smartRecipeViewModel, storesViewModel: viewModel)
         }
         .sheet(isPresented: $showingRecipes) {
             RecipeView()
@@ -342,9 +351,36 @@ struct StoresView: View {
                     .foregroundColor(OrganicPalette.terracotta(colorScheme))
                     .frame(width: 48, height: 48)
                     .background(Circle().fill(OrganicPalette.blush(colorScheme)))
+                    // Friend requests used to announce themselves on the
+                    // Friends tab. Friends is behind this button now, so the
+                    // count has to be visible on it or nothing on this screen
+                    // says anyone is waiting.
+                    .overlay(alignment: .topTrailing) {
+                        if friendRequestService.pendingRequestCount > 0 {
+                            Text(
+                                friendRequestService.pendingRequestCount > 99
+                                    ? "99+"
+                                    : "\(friendRequestService.pendingRequestCount)"
+                            )
+                            .font(OrganicPalette.title(11))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 2)
+                            .background(Capsule().fill(OrganicPalette.terracotta(colorScheme)))
+                            .overlay(
+                                Capsule().strokeBorder(OrganicPalette.canvas(colorScheme), lineWidth: 1.5)
+                            )
+                            .offset(x: 4, y: -2)
+                        }
+                    }
             }
             .buttonStyle(.plain)
-            .accessibilityLabel("Profile")
+            .accessibilityLabel(
+                friendRequestService.pendingRequestCount > 0
+                    ? "Profile, \(friendRequestService.pendingRequestCount) friend requests waiting"
+                    : "Profile"
+            )
+            .tutorialHighlight(id: "tutorial_profile")
 
             if isReordering {
                 Button {
@@ -613,14 +649,6 @@ struct StoresView: View {
                                 showingRecipes = true
                             }
 
-                            fabMenuItem(icon: "fork.knife.circle", title: "Smart Recipe") {
-                                if subscriptionManager.isSubscribed {
-                                    showingSmartRecipe = true
-                                } else {
-                                    showingPaywall = true
-                                }
-                            }
-
                             fabMenuItem(icon: "paintpalette", title: "Colors") {
                                 showingBackgroundPicker = true
                             }
@@ -819,6 +847,6 @@ private struct EmptyStateStep: View {
 
 #Preview {
     NavigationStack {
-        StoresView(pendingStoreName: .constant(nil))
+        StoresView(pendingStoreName: .constant(nil), showFriends: .constant(false))
     }
 }

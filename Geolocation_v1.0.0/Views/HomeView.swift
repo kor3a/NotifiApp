@@ -18,9 +18,15 @@ struct HomeView: View {
     @ObservedObject private var friendRequestService = FriendRequestService.shared
     @ObservedObject private var messagingService = MessagingService.shared
     @StateObject private var messagesViewModel = MessagesViewModel()
-    @StateObject private var friendsViewModel = FriendsViewModel()
+    @StateObject private var smartRecipeViewModel = SmartRecipeViewModel()
+    @ObservedObject private var subscriptionManager = SubscriptionManager.shared
     @ObservedObject private var tutorialManager = TutorialManager.shared
     @State private var selectedTab = 0
+    @State private var showRecipePaywall = false
+    /// Set by a friend-request notification. Friends lives under Profile now,
+    /// so the tap has to open two screens deep on the Stores tab rather than
+    /// select a tab of its own.
+    @State private var showFriendsFromNotification = false
     @State private var isSearchExpanded = false
     @State private var searchQuery = ""
     @State private var hasRequestedPermissions = false
@@ -28,6 +34,7 @@ struct HomeView: View {
     @State private var pendingConversationId: String? = nil
     @State private var showCarPlayAlert = false
     @State private var showNotificationsDeniedAlert = false
+    @Environment(\.colorScheme) private var colorScheme
 
     @ViewBuilder
     private var debugTab: some View {
@@ -43,6 +50,36 @@ struct HomeView: View {
         }
         .tag(4)
         #endif
+    }
+
+    /// The Recipe tab's content. Smart Recipe is a premium feature, so anyone
+    /// without a subscription lands on what it does and the way to get it
+    /// rather than on a chat that would refuse them at the first message.
+    @ViewBuilder
+    private var recipeTab: some View {
+        if subscriptionManager.isSubscribed {
+            SmartRecipeView(
+                viewModel: smartRecipeViewModel,
+                storesViewModel: storesViewModel
+            )
+        } else {
+            ZStack {
+                // The same backdrop the chat runs on, dialled up a little:
+                // there are no bubbles here to carry the text, so it sits
+                // straight on the artwork.
+                RecipeBackdrop(colorScheme: colorScheme, extraScrimOpacity: 0.2)
+
+                OrganicEmptyState(
+                    systemImage: "fork.knife.circle",
+                    title: "Smart Recipe",
+                    message: "Ask for any recipe and Allim turns it into a shopping list — the ingredients sorted straight into the store you pick.",
+                    actionTitle: "Get Allim Premium",
+                    action: { showRecipePaywall = true }
+                )
+            }
+            .navigationTitle("Smart Recipe")
+            .navigationBarTitleDisplayMode(.inline)
+        }
     }
 
     /// The destinations OrganicTabBar draws, in the order the TabView declares
@@ -66,10 +103,9 @@ struct HomeView: View {
             ),
             OrganicTab(
                 tag: 2,
-                title: "Friends",
-                systemImage: "person.2",
-                selectedImage: "person.2.fill",
-                badge: friendsViewModel.pendingRequestCount
+                title: "Recipe",
+                systemImage: "fork.knife.circle",
+                selectedImage: "fork.knife.circle.fill"
             ),
             OrganicTab(
                 tag: 3,
@@ -98,7 +134,10 @@ struct HomeView: View {
                 // the content, so this stack is here only to push from — the
                 // screen hides its navigation bar.
                 NavigationStack {
-                    StoresView(pendingStoreName: $pendingStoreName)
+                    StoresView(
+                        pendingStoreName: $pendingStoreName,
+                        showFriends: $showFriendsFromNotification
+                    )
                         .organicTabBarInset()
                         .onAppear {
                             // Fetch user data if not already loaded
@@ -134,16 +173,14 @@ struct HomeView: View {
                 .tag(1)
 
                 NavigationStack {
-                    FriendsView(messagesViewModel: messagesViewModel)
+                    recipeTab
                         .organicTabBarInset()
-                        .navigationBarTitleDisplayMode(.large)
                 }//:NAVIGATIONSTACK
                 .toolbar(.hidden, for: .tabBar)
                 .tabItem {
-                    Image(systemName: "person.2")
-                    Text("Friends")
+                    Image(systemName: "fork.knife.circle")
+                    Text("Recipe")
                 }
-                .badge(friendsViewModel.pendingRequestCount)
                 .tag(2)
 
                 NavigationStack {
@@ -182,6 +219,9 @@ struct HomeView: View {
                     .allowsHitTesting(true)
             }
         }//:ZSTACK
+        .sheet(isPresented: $showRecipePaywall) {
+            SubscriptionPaywallView()
+        }
         .onChange(of: notificationManager.pendingNavigation) { _, navigation in
             guard let navigation = navigation else { return }
             handleNotificationNavigation(navigation)
@@ -216,8 +256,6 @@ struct HomeView: View {
             storesViewModel.fetchUserStores()
             // Fetch unread message count for badge
             messagesViewModel.fetchUnreadCount()
-            // Fetch pending friend request count for badge
-            friendsViewModel.fetchPendingRequestCount()
 
             // Start listening for friend requests, incoming messages, and shared reminder changes
             if let userId = sessionManager.currentUser?.userId {
@@ -248,7 +286,6 @@ struct HomeView: View {
             // Fetch unread message count whenever user data becomes available
             if let userId = newUser?.userId {
                 messagesViewModel.fetchUnreadCount()
-                friendsViewModel.fetchPendingRequestCount()
 
                 // Start listening for friend requests
                 friendRequestService.listenForIncomingRequests(userId: userId)
@@ -300,7 +337,9 @@ struct HomeView: View {
             selectedTab = 1
             pendingConversationId = conversationId
         case .friendRequest:
-            selectedTab = 2
+            // Stores is the tab Profile — and Friends under it — is reached from.
+            selectedTab = 0
+            showFriendsFromNotification = true
         }
         notificationManager.pendingNavigation = nil
     }

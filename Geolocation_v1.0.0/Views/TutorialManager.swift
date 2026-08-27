@@ -19,8 +19,7 @@ enum TutorialStep: Int, CaseIterable {
     case remindersInfoMenu
     case remindersItemMenu
     case messagesCompose
-    case friendsAddFriend
-    case friendsFamily
+    case friendsInProfile
     case mapSearch
     case complete
 
@@ -31,7 +30,9 @@ enum TutorialStep: Int, CaseIterable {
         // so keep the underlying tab on Stores (0).
         case .remindersCategories, .remindersInfoMenu, .remindersItemMenu: return 0
         case .messagesCompose: return 1
-        case .friendsAddFriend, .friendsFamily: return 2
+        // Friends lives under Profile now, and Stores is the tab the profile
+        // button sits on.
+        case .friendsInProfile: return 0
         case .mapSearch: return 3
         case .complete: return 0
         }
@@ -46,8 +47,7 @@ enum TutorialStep: Int, CaseIterable {
         // mock reminder scene rather than a real element in the live app.
         case .remindersCategories, .remindersInfoMenu, .remindersItemMenu: return nil
         case .messagesCompose: return "tutorial_compose"
-        case .friendsAddFriend: return "tutorial_addFriend"
-        case .friendsFamily: return "tutorial_friendCard"
+        case .friendsInProfile: return "tutorial_profile"
         case .mapSearch: return "tutorial_mapSearch"
         }
     }
@@ -70,8 +70,7 @@ enum TutorialStep: Int, CaseIterable {
         case .remindersInfoMenu: return "The List Menu"
         case .remindersItemMenu: return "Item Shortcuts"
         case .messagesCompose: return "Message Friends"
-        case .friendsAddFriend: return "Add Friends"
-        case .friendsFamily: return "Add to Family"
+        case .friendsInProfile: return "Friends & Family"
         case .mapSearch: return "Find Stores Nearby"
         case .complete: return "You're All Set!"
         }
@@ -93,10 +92,8 @@ enum TutorialStep: Int, CaseIterable {
             return "Touch and hold any reminder to open its shortcut menu. Mark it out of stock, move it to another store, add a photo or quantity, or change its category."
         case .messagesCompose:
             return "Tap the compose button to start a conversation. Share stores and reminders directly with friends."
-        case .friendsAddFriend:
-            return "Tap the person+ button to find and add friends. Collaborate on shared shopping lists together."
-        case .friendsFamily:
-            return "Tap the house icon on a friend's row to add them to your Family group, and use Manage on the Family card to take someone back out. Family gets priority when you share a store or reminder."
+        case .friendsInProfile:
+            return "Open your profile here to find Friends. Add friends to share stores and reminders with, and put the closest of them in your Family group so they come first whenever you share."
         case .mapSearch:
             return "Use the search button to find stores near you on the map. Tap any pin to view or add reminders."
         case .complete:

@@ -275,7 +275,7 @@ struct ShareStoreView: View {
                             if friendsViewModel.friends.isEmpty && friendsViewModel.familyMembers.isEmpty {
                                 infoCallout(
                                     icon: "person.crop.circle.badge.plus",
-                                    text: "Add friends or family in the Friends tab to share this store with them."
+                                    text: "Add friends or family from your Profile to share this store with them."
                                 )
                             }
                         } // End of owner-only sharing UI
