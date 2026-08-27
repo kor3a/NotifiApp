@@ -17,11 +17,9 @@ enum RecipePalette {
     static let paprika = Color(red: 0.90, green: 0.32, blue: 0.23)
     static let basil = Color(red: 0.33, green: 0.60, blue: 0.36)
 
-    static let warmGradient = LinearGradient(
-        colors: [apricot, paprika],
-        startPoint: .topLeading,
-        endPoint: .bottomTrailing
-    )
+    /// Flat fill for the accented surfaces — avatar, send button, user bubbles,
+    /// primary action buttons.
+    static let accent = paprika
 
     /// Wash laid over the backdrop art so message text keeps its contrast.
     static func scrim(for colorScheme: ColorScheme) -> Color {
@@ -92,7 +90,7 @@ private struct RecipeAssistantAvatar: View {
             .font(.system(size: 12, weight: .bold))
             .foregroundColor(.white)
             .frame(width: 26, height: 26)
-            .background(Circle().fill(RecipePalette.warmGradient))
+            .background(Circle().fill(RecipePalette.accent))
             .padding(.top, 2)
     }
 }
@@ -285,7 +283,7 @@ struct SmartRecipeView: View {
         let addToStore = recipeActionButton(
             title: "Add to Store",
             icon: "cart.badge.plus",
-            fill: AnyShapeStyle(RecipePalette.warmGradient)
+            fill: AnyShapeStyle(RecipePalette.accent)
         ) {
             messageIdForStorePicker = message.id
         }
@@ -350,13 +348,13 @@ struct SmartRecipeView: View {
                 .font(.system(size: 36, weight: .semibold))
                 .foregroundColor(.white)
                 .frame(width: 84, height: 84)
-                .background(Circle().fill(RecipePalette.warmGradient))
+                .background(Circle().fill(RecipePalette.accent))
                 .overlay(Circle().stroke(Color.white.opacity(0.4), lineWidth: 1))
                 .shadow(color: RecipePalette.paprika.opacity(0.35), radius: 18, x: 0, y: 8)
                 .padding(.top, 36)
 
             VStack(spacing: 8) {
-                Text("Recipe Assistant")
+                Text("AI Recipe")
                     .font(.title2)
                     .fontWeight(.bold)
 
@@ -442,7 +440,7 @@ struct SmartRecipeView: View {
                     .background(
                         Circle().fill(isSendDisabled
                             ? AnyShapeStyle(Color.secondary.opacity(0.4))
-                            : AnyShapeStyle(RecipePalette.warmGradient))
+                            : AnyShapeStyle(RecipePalette.accent))
                     )
                     .shadow(
                         color: isSendDisabled ? .clear : RecipePalette.paprika.opacity(0.35),
@@ -577,7 +575,7 @@ struct MessageBubbleView: View {
                     .padding(.vertical, 11)
                     .background(
                         RoundedRectangle(cornerRadius: 20, style: .continuous)
-                            .fill(RecipePalette.warmGradient)
+                            .fill(RecipePalette.accent)
                     )
                     .foregroundColor(.white)
                     .shadow(color: RecipePalette.paprika.opacity(0.28), radius: 8, x: 0, y: 4)
