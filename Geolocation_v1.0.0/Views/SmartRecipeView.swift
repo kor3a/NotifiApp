@@ -100,49 +100,44 @@ private struct RecipeAssistantAvatar: View {
 struct SmartRecipeView: View {
     @ObservedObject var viewModel: SmartRecipeViewModel
     @ObservedObject var storesViewModel: StoresViewModel
-    @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) var colorScheme
     @FocusState private var isInputFocused: Bool
     @State private var messageIdForStorePicker: UUID?
 
+    // The screen is a tab's root now rather than a sheet, so it carries no
+    // stack and no Close button of its own: HomeView's NavigationStack owns the
+    // bar this title lands in, and the tab bar is how the user leaves.
     var body: some View {
-        NavigationStack {
-            ZStack {
-                RecipeBackdrop(colorScheme: colorScheme)
+        ZStack {
+            RecipeBackdrop(colorScheme: colorScheme)
 
-                VStack(spacing: 0) {
-                    conversation
-                    statusBanners
-                    inputBar
-                }
+            VStack(spacing: 0) {
+                conversation
+                statusBanners
+                inputBar
             }
-            .tint(RecipePalette.paprika)
-            .navigationTitle("Smart Recipe")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Close") {
-                        dismiss()
-                    }
-                }
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    if !viewModel.messages.isEmpty {
-                        Button {
-                            viewModel.startNewChat()
-                        } label: {
-                            Image(systemName: "square.and.pencil")
-                        }
+        }
+        .tint(RecipePalette.paprika)
+        .navigationTitle("AI Recipe")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                if !viewModel.messages.isEmpty {
+                    Button {
+                        viewModel.startNewChat()
+                    } label: {
+                        Image(systemName: "square.and.pencil")
                     }
                 }
             }
-            .sheet(item: $messageIdForStorePicker) { messageId in
-                StorePickerView(
-                    userStoreItems: storesViewModel.userStoreItems,
-                    colorScheme: colorScheme
-                ) { selectedStore in
-                    messageIdForStorePicker = nil
-                    viewModel.addIngredientsToStore(messageId: messageId, userStoreItem: selectedStore)
-                }
+        }
+        .sheet(item: $messageIdForStorePicker) { messageId in
+            StorePickerView(
+                userStoreItems: storesViewModel.userStoreItems,
+                colorScheme: colorScheme
+            ) { selectedStore in
+                messageIdForStorePicker = nil
+                viewModel.addIngredientsToStore(messageId: messageId, userStoreItem: selectedStore)
             }
         }
     }
@@ -752,5 +747,7 @@ struct TypingIndicatorView: View {
 }
 
 #Preview {
-    SmartRecipeView(viewModel: SmartRecipeViewModel(), storesViewModel: StoresViewModel())
+    NavigationStack {
+        SmartRecipeView(viewModel: SmartRecipeViewModel(), storesViewModel: StoresViewModel())
+    }
 }

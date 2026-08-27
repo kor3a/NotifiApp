@@ -330,7 +330,7 @@ struct MapView: View {
                     .frame(width: isSearchExpanded ? 44 : 60, height: 50)
                 }
 
-                // Messages and Friends tabs collapse away while searching to
+                // Messages and Recipe tabs collapse away while searching to
                 // make room for the expanding search bar.
                 if !isSearchExpanded {
                     // Messages tab
@@ -367,16 +367,16 @@ struct MapView: View {
                     }
                     .transition(.move(edge: .leading).combined(with: .opacity))
 
-                    // Friends tab
+                    // Recipe tab
                     Button(action: {
                         withAnimation(.spring(response: 0.3)) {
                             selectedTab = 2
                         }
                     }) {
                         VStack(spacing: 4) {
-                            Image(systemName: "person.2")
+                            Image(systemName: "fork.knife.circle")
                                 .font(.system(size: 20))
-                            Text("Friends")
+                            Text("AI Recipe")
                                 .font(.system(size: 11))
                         }
                         .foregroundColor(

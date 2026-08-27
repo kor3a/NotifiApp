@@ -10,11 +10,21 @@ import FirebaseAuth
 
 struct ProfileView: View {
 
+    /// Opens straight onto Friends. Set when the screen is reached from a
+    /// friend-request notification, which has somewhere more specific to land
+    /// than the profile itself.
+    var opensFriends: Bool = false
+
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
     @StateObject private var viewModel = ProfileViewModel()
+    /// Friends messages the people on it, and the conversation it pushes needs
+    /// a view model to run on.
+    @StateObject private var messagesViewModel = MessagesViewModel()
     @ObservedObject private var sessionManager = UserSessionManager.shared
     @ObservedObject private var subscriptionManager = SubscriptionManager.shared
+    @ObservedObject private var friendRequestService = FriendRequestService.shared
+    @State private var showFriends = false
     @State private var showImagePicker = false
     @State private var selectedImage: UIImage?
     @State private var showDeleteAccountAlert = false
@@ -57,6 +67,17 @@ struct ProfileView: View {
                         .imageScale(.large)
                 }
                 .accessibilityLabel(subscriptionManager.isSubscribed ? "Manage subscription" : "Allim Premium")
+            }
+        }
+        .navigationDestination(isPresented: $showFriends) {
+            friendsDestination
+        }
+        .onAppear {
+            // A friend-request notification opens this screen only to get to
+            // Friends. Pushing on appear (rather than replacing the screen)
+            // keeps Back going where the user expects it to.
+            if opensFriends && !showFriends {
+                showFriends = true
             }
         }
         .sheet(isPresented: $showSubscriptionSheet) {
@@ -116,6 +137,8 @@ struct ProfileView: View {
                 }
 
                 settingsSection
+
+                friendsSection
 
                 accountActionsSection
 
@@ -258,6 +281,41 @@ struct ProfileView: View {
             }
             .buttonStyle(.plain)
         }
+    }
+
+    /// Friends used to be a tab of its own. It sits here now, under the
+    /// account it belongs to, carrying the count of requests still waiting.
+    private var friendsSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            OrganicSectionLabel(title: "Friends")
+
+            NavigationLink {
+                friendsDestination
+            } label: {
+                OrganicNavRow(
+                    systemImage: "person.2.fill",
+                    title: "Friends & Family",
+                    subtitle: friendsRowSubtitle
+                )
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    /// A waiting request is the one thing on this row worth interrupting for,
+    /// so it takes the line over the description of what Friends is.
+    private var friendsRowSubtitle: String {
+        let pending = friendRequestService.pendingRequestCount
+        switch pending {
+        case 0: return "Add friends and family to share stores and reminders with"
+        case 1: return "1 friend request waiting"
+        default: return "\(pending) friend requests waiting"
+        }
+    }
+
+    private var friendsDestination: some View {
+        FriendsView(messagesViewModel: messagesViewModel)
+            .organicTabBarInset()
     }
 
     private var accountActionsSection: some View {
