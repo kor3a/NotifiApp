@@ -211,16 +211,21 @@ struct LoginView: View {
 
     }//:BODY
 
-    /// The app's mark, in the same shape the About screen gives it — a
-    /// terracotta glyph on a blush disc with the name below — so the first
-    /// screen of the app and the one describing it agree on what Allim is.
+    /// The app's own mark on a blush disc, with the name below.
+    ///
+    /// `AllimMark` is the app icon's artwork recoloured into the palette —
+    /// terracotta storefront, the badge in sage — and carries light and dark
+    /// variants, so the disc behind it and the mark on it change scheme
+    /// together. Its ground is transparent because the disc is the ground.
     private var wordmark: some View {
         VStack(spacing: 14) {
-            Image(systemName: "cart.fill")
-                .font(.system(size: 40))
-                .foregroundColor(OrganicPalette.terracotta(colorScheme))
+            Image("AllimMark")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 86, height: 86)
                 .frame(width: 96, height: 96)
                 .background(Circle().fill(OrganicPalette.blush(colorScheme)))
+                .accessibilityHidden(true)
 
             Text("Allim")
                 .font(OrganicPalette.display(40))

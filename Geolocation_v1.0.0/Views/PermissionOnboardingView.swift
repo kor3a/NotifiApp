@@ -61,7 +61,7 @@ private struct LocationPermissionPrimerView: View {
             step: .location,
             symbol: "location.fill",
             title: "Enable Location Services",
-            subtitle: "Allim uses your location while you're using the app to spot the stores you're already standing next to.",
+            subtitle: "Allim uses your location while you're using the app to spot the stores nearby. Choose \"Allow While Using App\" when iOS asks.",
             bullets: [
                 PermissionPrimerBullet(
                     symbol: "bell.badge",
@@ -72,14 +72,9 @@ private struct LocationPermissionPrimerView: View {
                     symbol: "storefront",
                     title: "Stores around you",
                     detail: "See the supermarkets and shops nearby on the map without typing in an address."
-                ),
-                PermissionPrimerBullet(
-                    symbol: "hand.raised",
-                    title: "You stay in control",
-                    detail: "Allim only watches for the stores you saved, and you can turn this off any time in Settings."
                 )
             ],
-            footnote: "Choose \"Allow While Using App\" when iOS asks. You can change this any time in Settings.",
+            footnote: "You can change this any time in Settings.",
             buttonTitle: "Enable Location",
             isRequesting: isRequesting,
             action: requestLocation
