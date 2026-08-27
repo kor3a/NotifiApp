@@ -114,26 +114,13 @@ struct SubscriptionManagementView: View {
                 .font(OrganicPalette.display(20))
                 .foregroundColor(OrganicPalette.ink(colorScheme))
 
-            featureRow(
-                icon: "infinity",
-                title: "Unlimited Stores",
-                description: "Free accounts are limited to \(SubscriptionManager.freeStoreLimit) stores of your own — go unlimited with Premium"
-            )
-            featureRow(
-                icon: "fork.knife",
-                title: "Smart Recipe",
-                description: "Ask for any recipe and add ingredients directly to your stores"
-            )
-            featureRow(
-                icon: "sparkles",
-                title: "Smart Category",
-                description: "AI auto-categorizes every item you add to your shopping list"
-            )
-            featureRow(
-                icon: "hand.thumbsup.fill",
-                title: "Ad-Free Experience",
-                description: "Enjoy the app without any banner advertisements"
-            )
+            ForEach(PremiumFeature.all) { feature in
+                featureRow(
+                    icon: feature.icon,
+                    title: feature.title,
+                    description: feature.description
+                )
+            }
         }
         .padding(20)
         .background(OrganicCardBackground(colorScheme: colorScheme, cornerRadius: 28))
