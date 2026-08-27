@@ -60,6 +60,9 @@ struct StoresView: View {
                         userStoreItem: storeItem,
                         availableStores: viewModel.userStoreItems.filter { $0.id != storeItem.id }
                     )
+                    // The bar floats over pushed screens too, and this one
+                    // pins a banner ad to its bottom edge.
+                    .organicTabBarInset()
                 }
 
             // Main content
@@ -332,6 +335,7 @@ struct StoresView: View {
 
             NavigationLink {
                 ProfileView()
+                    .organicTabBarInset()
             } label: {
                 Image(systemName: "person")
                     .font(.system(size: 19, weight: .semibold))

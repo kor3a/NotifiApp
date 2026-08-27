@@ -34,9 +34,9 @@ struct HomeView: View {
         #if DEBUG
         NavigationStack {
             NotificationDebugTab()
+                .organicTabBarInset()
         }
         .toolbar(.hidden, for: .tabBar)
-        .organicTabBarInset()
         .tabItem {
             Image(systemName: "bell.badge")
             Text("Debug")
@@ -99,6 +99,7 @@ struct HomeView: View {
                 // screen hides its navigation bar.
                 NavigationStack {
                     StoresView(pendingStoreName: $pendingStoreName)
+                        .organicTabBarInset()
                         .onAppear {
                             // Fetch user data if not already loaded
                             if sessionManager.currentUser == nil && !sessionManager.isLoading {
@@ -107,7 +108,6 @@ struct HomeView: View {
                         }
                 }//:NAVIGATIONSTACK
                 .toolbar(.hidden, for: .tabBar)
-                .organicTabBarInset()
                 .tabItem {
                     Image(systemName: "storefront")
                     Text("Stores")
@@ -116,10 +116,10 @@ struct HomeView: View {
 
                 NavigationStack {
                     MessagesView(viewModel: messagesViewModel, pendingConversationId: $pendingConversationId)
+                        .organicTabBarInset()
                         .navigationBarTitleDisplayMode(.large)
                 }//:NAVIGATIONSTACK
                 .toolbar(.hidden, for: .tabBar)
-                .organicTabBarInset()
                 .tabItem {
                     Image(systemName: "message")
                     Text("Messages")
@@ -135,10 +135,10 @@ struct HomeView: View {
 
                 NavigationStack {
                     FriendsView(messagesViewModel: messagesViewModel)
+                        .organicTabBarInset()
                         .navigationBarTitleDisplayMode(.large)
                 }//:NAVIGATIONSTACK
                 .toolbar(.hidden, for: .tabBar)
-                .organicTabBarInset()
                 .tabItem {
                     Image(systemName: "person.2")
                     Text("Friends")

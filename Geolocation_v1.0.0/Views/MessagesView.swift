@@ -66,6 +66,9 @@ struct MessagesView: View {
         }
         .navigationDestination(item: $selectedConversation) { conversation in
             ConversationView(conversation: conversation, viewModel: viewModel)
+                // The bar floats over a conversation too, and the message
+                // field is pinned to the bottom edge under it.
+                .organicTabBarInset()
         }
         .onAppear {
             viewModel.fetchConversations()
@@ -417,6 +420,7 @@ struct NewMessageView: View {
             }
             .navigationDestination(item: $selectedConversation) { conversation in
                 ConversationView(conversation: conversation, viewModel: viewModel)
+                    .organicTabBarInset()
             }
         }
     }

@@ -62,6 +62,7 @@ struct FriendsView: View {
         }
         .navigationDestination(item: $selectedConversation) { conversation in
             ConversationView(conversation: conversation, viewModel: messagesViewModel)
+                .organicTabBarInset()
         }
         .onAppear {
             viewModel.fetchFriendships()

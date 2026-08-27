@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import UIKit
 
 // MARK: - Tab
 
@@ -152,23 +153,56 @@ struct OrganicTabBar: View {
 // MARK: - Screen Inset
 
 extension View {
-    /// Reserves the bar's room at a screen's bottom edge.
+    /// Reserves the bar's room at the bottom of a screen the bar floats over.
     ///
-    /// Applied inside each tab rather than around the `TabView`: an inset put
-    /// on the TabView itself never reaches the screens, which are hosted per
-    /// tab, so a list would run to the bottom of the window and anything the
-    /// screen pins there — a banner ad, the Stores FAB — would come out from
-    /// under the bar. Inside the tab it is ordinary SwiftUI layout, and every
-    /// one of those lands above the bar for the same reason it used to land
-    /// above the system one.
+    /// Applied to the screen itself, not to the `TabView` or the
+    /// `NavigationStack` around it: each tab and each pushed screen is hosted
+    /// separately, and an inset set outside those boundaries never reaches the
+    /// content — which is what left the Stores FAB and the banner ads sitting
+    /// under the bar. On the screen it is ordinary SwiftUI layout, so anything
+    /// the screen pins to its bottom edge lands above the bar for the same
+    /// reason it used to land above the system one.
+    ///
+    /// Every screen under the bar needs it, pushed ones included — a
+    /// conversation, a store's reminders, the profile page all pin something
+    /// to the bottom.
     func organicTabBarInset() -> some View {
-        safeAreaInset(edge: .bottom, spacing: 0) {
-            Color.clear
-                .frame(height: OrganicTabBar.reservedHeight)
-                // Spacing only. `Color` takes taps, and this strip sits under
-                // the gap below the capsule.
-                .allowsHitTesting(false)
-        }
+        modifier(OrganicTabBarInset())
+    }
+}
+
+/// The reservation itself, which the keyboard takes back.
+///
+/// The system bar released its room the moment a keyboard covered it, and the
+/// message field in a conversation rose to sit on the keyboard. A fixed inset
+/// would instead hold the field a bar's height above the keyboard, so this one
+/// collapses for as long as the keyboard is up — the bar is behind it anyway.
+private struct OrganicTabBarInset: ViewModifier {
+    @State private var isKeyboardUp = false
+
+    func body(content: Content) -> some View {
+        content
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                Color.clear
+                    .frame(height: isKeyboardUp ? 0 : OrganicTabBar.reservedHeight)
+                    // Spacing only. `Color` takes taps, and this strip sits
+                    // under the gap below the capsule.
+                    .allowsHitTesting(false)
+            }
+            .onReceive(
+                NotificationCenter.default.publisher(
+                    for: UIResponder.keyboardWillShowNotification
+                )
+            ) { _ in
+                isKeyboardUp = true
+            }
+            .onReceive(
+                NotificationCenter.default.publisher(
+                    for: UIResponder.keyboardWillHideNotification
+                )
+            ) { _ in
+                isKeyboardUp = false
+            }
     }
 }
 
