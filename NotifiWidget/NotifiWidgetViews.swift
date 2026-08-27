@@ -9,12 +9,14 @@
 //  All three families draw the same view; only `WidgetMetrics` differs, so a
 //  change to the row shape lands on every size at once.
 //
-//  The metrics are sized against the *smallest* widget of each family (a 4.7"
-//  device gives small and medium only 141pt of height), and the widget turns
-//  off the system's content margins so the paper runs to the edge and the
-//  padding below is the real padding. Rows have fixed heights and the layout is
-//  top-anchored, so a taller device gets more paper under the last row rather
-//  than a stretched card.
+//  How many stores fit isn't declared, it's measured: a family's widget is a
+//  different height on every phone (a 4.7" device gives the medium widget 141pt
+//  where a 6.9" gives 170), so the rows are handed the space that's left after
+//  the header and count the cards that fit in it. Cards keep a fixed height on
+//  every device — the slack buys another store rather than taller paper.
+//
+//  The widget also turns off the system's content margins, so the paper runs to
+//  the edge and the padding below is the real padding.
 //
 
 import WidgetKit
@@ -66,8 +68,6 @@ struct WidgetMetrics {
     let totalBadgeSize: CGFloat
 
     // Rows
-    /// How many cards the height allows, the overflow card included.
-    let rowSlots: Int
     let avatarSize: CGFloat
     let nameSize: CGFloat
     let badgeSize: CGFloat
@@ -87,11 +87,19 @@ struct WidgetMetrics {
 
     var rowHeight: CGFloat { avatarSize + rowVPadding * 2 }
 
+    /// How many cards fit in `height` — the overflow card counting as one of
+    /// them. The last card sits flush against the bottom padding when the
+    /// division comes out even.
+    func slots(inRowsHeight height: CGFloat) -> Int {
+        let pitch = rowHeight + cardGap
+        guard pitch > 0 else { return 1 }
+        return max(1, Int((height + cardGap) / pitch))
+    }
+
     static let small = WidgetMetrics(
         padding: 12, headerGap: 6, cardGap: 6,
         discSize: 20, discGlyph: 10, titleSize: 13,
         showsTotal: false, totalBadgeSize: 10,
-        rowSlots: 3,
         avatarSize: 17, nameSize: 12, badgeSize: 10,
         rowHPadding: 8, rowVPadding: 4, rowCorner: 12, rowSpacing: 7, rowShadow: 0,
         emptyDisc: 44, emptyGlyph: 20, emptyTitleSize: 15,
@@ -102,7 +110,6 @@ struct WidgetMetrics {
         padding: 12, headerGap: 6, cardGap: 6,
         discSize: 20, discGlyph: 10, titleSize: 15,
         showsTotal: true, totalBadgeSize: 10,
-        rowSlots: 3,
         avatarSize: 18, nameSize: 13, badgeSize: 11,
         rowHPadding: 10, rowVPadding: 3, rowCorner: 13, rowSpacing: 8, rowShadow: 2,
         emptyDisc: 48, emptyGlyph: 22, emptyTitleSize: 17,
@@ -113,7 +120,6 @@ struct WidgetMetrics {
         padding: 14, headerGap: 8, cardGap: 7,
         discSize: 30, discGlyph: 15, titleSize: 21,
         showsTotal: true, totalBadgeSize: 12,
-        rowSlots: 6,
         avatarSize: 24, nameSize: 15, badgeSize: 12,
         rowHPadding: 12, rowVPadding: 5, rowCorner: 16, rowSpacing: 10, rowShadow: 3,
         emptyDisc: 84, emptyGlyph: 38, emptyTitleSize: 24,
@@ -127,17 +133,6 @@ struct StoresWidgetView: View {
     let stores: [WidgetStoreData]
     let metrics: WidgetMetrics
 
-    /// The stores that get a card of their own. One slot is given up to the
-    /// overflow card when there are more stores than slots, so the layout never
-    /// has to fit a line it didn't budget height for.
-    private var displayed: [WidgetStoreData] {
-        stores.count > metrics.rowSlots
-            ? Array(stores.prefix(metrics.rowSlots - 1))
-            : stores
-    }
-
-    private var overflow: Int { stores.count - displayed.count }
-
     private var totalReminders: Int { stores.reduce(0) { $0 + $1.reminderCount } }
 
     var body: some View {
@@ -147,20 +142,48 @@ struct StoresWidgetView: View {
             if stores.isEmpty {
                 WidgetEmptyState(metrics: metrics)
             } else {
-                VStack(spacing: metrics.cardGap) {
-                    ForEach(Array(displayed.enumerated()), id: \.offset) { _, store in
-                        StoreRow(store: store, metrics: metrics)
-                    }
-
-                    if overflow > 0 {
-                        OverflowRow(count: overflow, metrics: metrics)
-                    }
+                // The reader takes whatever the header left, which is exactly
+                // the height the cards have to divide up.
+                GeometryReader { geometry in
+                    StoreStack(
+                        stores: stores,
+                        metrics: metrics,
+                        slots: metrics.slots(inRowsHeight: geometry.size.height)
+                    )
                 }
-
-                Spacer(minLength: 0)
             }
         }
         .padding(metrics.padding)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+    }
+}
+
+/// The stack of store cards, filling the slots it was measured for. One slot
+/// goes to the overflow card when there are more stores than fit, so the tally
+/// never costs height the layout didn't count.
+private struct StoreStack: View {
+    let stores: [WidgetStoreData]
+    let metrics: WidgetMetrics
+    let slots: Int
+
+    private var displayed: [WidgetStoreData] {
+        stores.count > slots ? Array(stores.prefix(slots - 1)) : stores
+    }
+
+    private var overflow: Int { stores.count - displayed.count }
+
+    var body: some View {
+        VStack(spacing: metrics.cardGap) {
+            ForEach(Array(displayed.enumerated()), id: \.offset) { _, store in
+                StoreRow(store: store, metrics: metrics)
+            }
+
+            if overflow > 0 {
+                OverflowRow(count: overflow, metrics: metrics)
+            }
+
+            Spacer(minLength: 0)
+        }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 }
