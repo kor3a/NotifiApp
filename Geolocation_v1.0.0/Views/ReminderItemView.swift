@@ -122,7 +122,7 @@ struct ReminderItemView: View {
 
                 if isEditing {
                     TextField("Reminder", text: $editText)
-                        .font(.system(size: 17, weight: .semibold))
+                        .font(OrganicPalette.body(17, weight: .semibold))
                         .foregroundColor(OrganicPalette.ink(colorScheme))
                         .focused($isTextFieldFocused)
                         .onSubmit {
@@ -142,7 +142,7 @@ struct ReminderItemView: View {
                         }
                 } else {
                     Text(item.title)
-                        .font(.system(size: 17, weight: .semibold))
+                        .font(OrganicPalette.body(17, weight: .semibold))
                         .strikethrough(item.isDone, color: OrganicPalette.inkSoft(colorScheme))
                         .foregroundColor(
                             item.isDone
@@ -162,10 +162,10 @@ struct ReminderItemView: View {
                 if isEditingQuantity {
                     HStack(spacing: 2) {
                         Text("Qty:")
-                            .font(.system(size: 12, weight: .semibold))
+                            .font(OrganicPalette.body(12, weight: .semibold))
                             .foregroundColor(OrganicPalette.inkSoft(colorScheme))
                         TextField("", text: $editQuantityText)
-                            .font(.system(size: 12, weight: .semibold))
+                            .font(OrganicPalette.body(12, weight: .semibold))
                             .foregroundColor(OrganicPalette.ink(colorScheme))
                             .keyboardType(.numberPad)
                             .frame(width: 40)
@@ -194,7 +194,7 @@ struct ReminderItemView: View {
                     }
                 } else if let quantity = item.quantity, quantity > 0 {
                     Text("Qty: \(quantity)")
-                        .font(.system(size: 12, weight: .semibold))
+                        .font(OrganicPalette.body(12, weight: .semibold))
                         .foregroundColor(OrganicPalette.inkSoft(colorScheme))
                         .padding(.horizontal, 8)
                         .padding(.vertical, 3)

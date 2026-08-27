@@ -25,6 +25,10 @@ struct Geolocation_v1_0_0App: App {
     init() {
         FirebaseApp.configure()
 
+        // The tab bar is built the first time MainView resolves, and the
+        // appearance proxy only reaches bars created after it is set.
+        OrganicPalette.applyTabBarFont()
+
         // Configure Google Sign-In with the OAuth client ID from GoogleService-Info.plist.
         if let clientID = FirebaseApp.app()?.options.clientID {
             GIDSignIn.sharedInstance.configuration = GIDConfiguration(clientID: clientID)

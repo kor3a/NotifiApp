@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import UIKit
 
 // MARK: - Organic Palette
 
@@ -131,6 +132,30 @@ enum OrganicPalette {
     /// row names, section labels, chips and badges.
     static func title(_ size: CGFloat, weight: Font.Weight = .bold) -> Font {
         .custom(commissioner(weight), fixedSize: size)
+    }
+
+    /// Running text the eye reads rather than scans — a store's name in the
+    /// list, a reminder and its quantity, the words in a message bubble. The
+    /// tier the three of them share is what keeps a chat and a shopping list
+    /// looking like one app.
+    static func body(_ size: CGFloat, weight: Font.Weight = .regular) -> Font {
+        .custom(commissioner(weight), fixedSize: size)
+    }
+
+    /// The tab bar is UIKit's, and a `.font` applied inside `.tabItem` is
+    /// dropped on the way down, so the labels can only be reached through the
+    /// appearance proxy. Only the title attributes are set — the bar keeps the
+    /// background and tint UIKit gives it, and the color still comes from the
+    /// bar's tint rather than from here.
+    ///
+    /// Call once before the first `TabView` is built; a proxy read after that
+    /// leaves already-created bars alone.
+    static func applyTabBarFont() {
+        guard let font = UIFont(name: commissioner(.medium), size: 10) else { return }
+
+        for state in [UIControl.State.normal, .selected] {
+            UITabBarItem.appearance().setTitleTextAttributes([.font: font], for: state)
+        }
     }
 }
 

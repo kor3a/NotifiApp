@@ -282,7 +282,7 @@ struct ConversationView: View {
                     axis: .vertical
                 )
                 .textFieldStyle(.plain)
-                .font(.system(size: 17))
+                .font(OrganicPalette.body(17))
                 .foregroundColor(OrganicPalette.ink(colorScheme))
                 .padding(.vertical, 6)
                 .focused($isInputFocused)
@@ -415,7 +415,7 @@ struct MessageBubble: View {
                 // Message content (only show if non-empty)
                 if !message.content.isEmpty {
                     Text(message.content)
-                        .font(.system(size: 16))
+                        .font(OrganicPalette.body(16))
                         .textSelection(.enabled)
                         .padding(.horizontal, 15)
                         .padding(.vertical, 11)
