@@ -71,13 +71,13 @@ struct HomeView: View {
 
                 OrganicEmptyState(
                     systemImage: "fork.knife.circle",
-                    title: "AI Recipe",
+                    title: "Smart Recipe",
                     message: "Ask for any recipe and Allim turns it into a shopping list — the ingredients sorted straight into the store you pick.",
                     actionTitle: "Get Allim Premium",
                     action: { showRecipePaywall = true }
                 )
             }
-            .navigationTitle("AI Recipe")
+            .navigationTitle("Smart Recipe")
             .navigationBarTitleDisplayMode(.inline)
         }
     }

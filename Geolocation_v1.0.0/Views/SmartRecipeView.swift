@@ -116,7 +116,7 @@ struct SmartRecipeView: View {
             }
         }
         .tint(RecipePalette.paprika)
-        .navigationTitle("AI Recipe")
+        .navigationTitle("Smart Recipe")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
@@ -354,7 +354,7 @@ struct SmartRecipeView: View {
                 .padding(.top, 36)
 
             VStack(spacing: 8) {
-                Text("AI Recipe")
+                Text("Smart Recipe")
                     .font(.title2)
                     .fontWeight(.bold)
 
