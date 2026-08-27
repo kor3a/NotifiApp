@@ -90,9 +90,10 @@ struct BackgroundPickerView: View {
                 }
                 .padding(.vertical, 20)
             }
-            .background(Color(.systemGroupedBackground).ignoresSafeArea())
-            .navigationTitle("\(title ?? surface.displayName) Background")
+            .background(OrganicPalette.canvas(colorScheme).ignoresSafeArea())
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(OrganicPalette.canvas(colorScheme), for: .navigationBar)
+            .tint(OrganicPalette.terracotta(colorScheme))
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button("Reset") {
@@ -100,11 +101,19 @@ struct BackgroundPickerView: View {
                             preferences.reset(surface)
                         }
                     }
+                    .foregroundColor(OrganicPalette.terracotta(colorScheme))
                     .disabled(isDefault)
+                }
+                ToolbarItem(placement: .principal) {
+                    Text("\(title ?? surface.displayName) Background")
+                        .font(.system(size: 17, weight: .bold, design: .serif))
+                        .foregroundColor(OrganicPalette.ink(colorScheme))
+                        .lineLimit(1)
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Done") { dismiss() }
-                        .fontWeight(.semibold)
+                        .font(.system(size: 16, weight: .bold, design: .serif))
+                        .foregroundColor(OrganicPalette.terracotta(colorScheme))
                 }
             }
             .sheet(isPresented: $showingPaywall) {
@@ -161,16 +170,16 @@ struct BackgroundPickerView: View {
                 }
             }
             .frame(height: 170)
-            .clipShape(RoundedRectangle(cornerRadius: 20))
+            .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
             .overlay(
-                RoundedRectangle(cornerRadius: 20)
-                    .stroke(Color.primary.opacity(0.08), lineWidth: 1)
+                RoundedRectangle(cornerRadius: 24, style: .continuous)
+                    .stroke(OrganicPalette.outline(colorScheme), lineWidth: 1)
             )
             .animation(.easeInOut(duration: 0.2), value: selection)
 
             Text(selectedPhoto != nil ? "Your Photo" : selection.displayName)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundColor(OrganicPalette.inkSoft(colorScheme))
         }
         .padding(.horizontal, 20)
     }
@@ -197,29 +206,26 @@ struct BackgroundPickerView: View {
 
     private func previewCard(title: String, subtitle: String) -> some View {
         HStack(spacing: 12) {
-            RoundedRectangle(cornerRadius: 8)
-                .fill(Color.primary.opacity(0.12))
+            Circle()
+                .fill(OrganicPalette.blush(colorScheme))
                 .frame(width: 34, height: 34)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
                     .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(.primary)
+                    .foregroundColor(OrganicPalette.ink(colorScheme))
                 Text(subtitle)
                     .font(.system(size: 12))
-                    .foregroundStyle(.secondary)
+                    .foregroundColor(OrganicPalette.inkSoft(colorScheme))
             }
 
             Spacer()
         }
         .padding(10)
         .background(
-            RoundedRectangle(cornerRadius: 14)
-                .fill(.ultraThinMaterial)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 14)
-                        .stroke(Color.cardBorder(for: colorScheme), lineWidth: 1.5)
-                )
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(OrganicPalette.surface(colorScheme))
+                .shadow(color: OrganicPalette.shadow(colorScheme), radius: 6, x: 0, y: 2)
         )
     }
 
@@ -244,11 +250,11 @@ struct BackgroundPickerView: View {
                 }
 
                 if selectedPhoto != nil {
-                    Divider().padding(.leading, 52)
+                    cardRule
 
                     dimRow
 
-                    Divider().padding(.leading, 52)
+                    cardRule
 
                     Button(role: .destructive) {
                         withAnimation(.easeInOut(duration: 0.2)) {
@@ -261,17 +267,17 @@ struct BackgroundPickerView: View {
                                 .font(.system(size: 18))
                                 .frame(width: 24)
                             Text("Remove Photo")
-                                .font(.subheadline)
+                                .font(.system(size: 15, weight: .semibold))
                             Spacer()
                         }
-                        .foregroundStyle(.red)
+                        .foregroundColor(OrganicPalette.rust(colorScheme))
                         .padding(14)
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                 }
             }
-            .background(RoundedRectangle(cornerRadius: 14).fill(.ultraThinMaterial))
+            .background(OrganicCardBackground(colorScheme: colorScheme, cornerRadius: 20))
         }
         .padding(.horizontal, 20)
     }
@@ -280,43 +286,39 @@ struct BackgroundPickerView: View {
         HStack(spacing: 14) {
             Image(systemName: "photo.on.rectangle.angled")
                 .font(.system(size: 18))
-                .foregroundStyle(Color.accentColor)
+                .foregroundColor(OrganicPalette.terracotta(colorScheme))
                 .frame(width: 24)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(selectedPhoto == nil ? "Choose Photo" : "Change Photo")
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                    .foregroundStyle(.primary)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundColor(OrganicPalette.ink(colorScheme))
                 Text("Use one of your own photos as the background")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .font(.system(size: 12))
+                    .foregroundColor(OrganicPalette.inkSoft(colorScheme))
             }
 
             Spacer()
 
             if isLoadingPhoto {
                 ProgressView()
+                    .tint(OrganicPalette.terracotta(colorScheme))
             } else if let photo = selectedPhoto {
                 Image(uiImage: photo)
                     .resizable()
                     .scaledToFill()
                     .frame(width: 36, height: 36)
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
             } else if !subscriptionManager.isSubscribed {
                 // The one paid row on this screen — marked so it reads as
                 // locked rather than broken when the paywall appears.
                 Image(systemName: "crown.fill")
-                    .font(.caption)
-                    .foregroundStyle(.linearGradient(
-                        colors: [.yellow, .orange],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ))
+                    .font(.system(size: 12))
+                    .foregroundColor(OrganicPalette.terracotta(colorScheme))
             } else {
                 Image(systemName: "chevron.right")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(OrganicPalette.inkSoft(colorScheme).opacity(0.7))
             }
         }
         .padding(14)
@@ -330,12 +332,12 @@ struct BackgroundPickerView: View {
             HStack(spacing: 14) {
                 Image(systemName: colorScheme == .dark ? "moon.fill" : "sun.max.fill")
                     .font(.system(size: 18))
-                    .foregroundStyle(.secondary)
+                    .foregroundColor(OrganicPalette.inkSoft(colorScheme))
                     .frame(width: 24)
 
                 Text("Fade")
-                    .font(.subheadline)
-                    .foregroundStyle(.primary)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundColor(OrganicPalette.ink(colorScheme))
 
                 Slider(
                     value: Binding(
@@ -347,8 +349,8 @@ struct BackgroundPickerView: View {
             }
 
             Text("Fade the photo so your stores stay easy to read.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                .font(.system(size: 12))
+                .foregroundColor(OrganicPalette.inkSoft(colorScheme))
                 .padding(.leading, 38)
         }
         .padding(14)
@@ -388,7 +390,8 @@ struct BackgroundPickerView: View {
                             preferences.setShadeLevel(0, for: surface)
                         }
                     }
-                    .font(.caption.weight(.semibold))
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundColor(OrganicPalette.terracotta(colorScheme))
                 }
             }
 
@@ -396,7 +399,7 @@ struct BackgroundPickerView: View {
                 HStack(spacing: 12) {
                     Image(systemName: "sun.max.fill")
                         .font(.system(size: 15))
-                        .foregroundStyle(.secondary)
+                        .foregroundColor(OrganicPalette.inkSoft(colorScheme))
 
                     Slider(
                         value: Binding(
@@ -409,15 +412,15 @@ struct BackgroundPickerView: View {
 
                     Image(systemName: "moon.fill")
                         .font(.system(size: 15))
-                        .foregroundStyle(.secondary)
+                        .foregroundColor(OrganicPalette.inkSoft(colorScheme))
                 }
 
                 Text(shadeHint)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .font(.system(size: 12))
+                    .foregroundColor(OrganicPalette.inkSoft(colorScheme))
             }
             .padding(14)
-            .background(RoundedRectangle(cornerRadius: 14).fill(.ultraThinMaterial))
+            .background(OrganicCardBackground(colorScheme: colorScheme, cornerRadius: 20))
         }
         .padding(.horizontal, 20)
     }
@@ -431,11 +434,20 @@ struct BackgroundPickerView: View {
 
     private func sectionHeader(_ title: String) -> some View {
         Text(title)
-            .font(.caption)
-            .fontWeight(.semibold)
-            .foregroundStyle(.secondary)
+            .font(.system(size: 11, weight: .bold))
+            .kerning(0.8)
+            .foregroundColor(OrganicPalette.inkSoft(colorScheme))
             .padding(.horizontal, 4)
             .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// The hairline between rows inside a card. `Divider` draws the system's
+    /// grey, which reads as a seam across the paper.
+    private var cardRule: some View {
+        Rectangle()
+            .fill(OrganicPalette.outline(colorScheme).opacity(0.5))
+            .frame(height: 1)
+            .padding(.leading, 52)
     }
 
     /// Swatches carry the current shade, so dragging the slider previews the
@@ -456,11 +468,13 @@ struct BackgroundPickerView: View {
                             shade: shade,
                             systemDefault: systemDefault
                         ))
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                         .overlay(
-                            RoundedRectangle(cornerRadius: 12)
+                            RoundedRectangle(cornerRadius: 16, style: .continuous)
                                 .stroke(
-                                    isSelected ? Color.accentColor : Color.primary.opacity(0.12),
+                                    isSelected
+                                        ? OrganicPalette.terracotta(colorScheme)
+                                        : OrganicPalette.outline(colorScheme),
                                     lineWidth: isSelected ? 2.5 : 1
                                 )
                         )
@@ -469,14 +483,18 @@ struct BackgroundPickerView: View {
                         Image(systemName: "checkmark.circle.fill")
                             .font(.system(size: 20))
                             .symbolRenderingMode(.palette)
-                            .foregroundStyle(.white, Color.accentColor)
+                            .foregroundStyle(.white, OrganicPalette.terracotta(colorScheme))
                     }
                 }
                 .frame(height: 56)
 
                 Text(color.displayName)
-                    .font(.caption2)
-                    .foregroundStyle(isSelected ? .primary : .secondary)
+                    .font(.system(size: 11, weight: isSelected ? .bold : .regular))
+                    .foregroundColor(
+                        isSelected
+                            ? OrganicPalette.ink(colorScheme)
+                            : OrganicPalette.inkSoft(colorScheme)
+                    )
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
             }
@@ -498,32 +516,35 @@ struct BackgroundPickerView: View {
                 HStack(spacing: 14) {
                     Image(systemName: didApplyToAllStores ? "checkmark.circle.fill" : "square.grid.2x2")
                         .font(.system(size: 18))
-                        .foregroundStyle(didApplyToAllStores ? Color.green : Color.accentColor)
+                        .foregroundColor(
+                            didApplyToAllStores
+                                ? OrganicPalette.sageInk(colorScheme)
+                                : OrganicPalette.terracotta(colorScheme)
+                        )
                         .frame(width: 24)
 
                     VStack(alignment: .leading, spacing: 2) {
                         Text(didApplyToAllStores ? "Applied to All Stores" : "Apply to All Stores")
-                            .font(.subheadline)
-                            .fontWeight(.medium)
-                            .foregroundStyle(.primary)
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundColor(OrganicPalette.ink(colorScheme))
                         Text(applyAllSubtitle)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .font(.system(size: 12))
+                            .foregroundColor(OrganicPalette.inkSoft(colorScheme))
                     }
 
                     Spacer()
 
                     if !didApplyToAllStores {
                         Image(systemName: "chevron.right")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(.secondary)
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundColor(OrganicPalette.inkSoft(colorScheme).opacity(0.7))
                     }
                 }
                 .padding(14)
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .background(RoundedRectangle(cornerRadius: 14).fill(.ultraThinMaterial))
+            .background(OrganicCardBackground(colorScheme: colorScheme, cornerRadius: 20))
         }
         .padding(.horizontal, 20)
         // Carried on the row rather than the screen: the photo alert already

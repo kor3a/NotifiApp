@@ -435,11 +435,13 @@ struct RecipePickerView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                Color.backgroundGradient(for: colorScheme)
+                OrganicPalette.canvas(colorScheme)
                     .ignoresSafeArea()
 
                 if viewModel.isLoading {
                     ProgressView("Loading recipes...")
+                        .tint(OrganicPalette.terracotta(colorScheme))
+                        .foregroundColor(OrganicPalette.inkSoft(colorScheme))
                 } else if viewModel.recipes.isEmpty {
                     emptyStateView
                 } else {
@@ -449,16 +451,30 @@ struct RecipePickerView: View {
                 if viewModel.isSavingIngredients {
                     Color.black.opacity(0.25)
                         .ignoresSafeArea()
+
                     ProgressView("Adding ingredients…")
-                        .padding()
-                        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
+                        .tint(OrganicPalette.terracotta(colorScheme))
+                        .foregroundColor(OrganicPalette.inkSoft(colorScheme))
+                        .padding(24)
+                        .background(
+                            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                                .fill(OrganicPalette.surface(colorScheme))
+                        )
                 }
             }
-            .navigationTitle("Choose a Recipe")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(OrganicPalette.canvas(colorScheme), for: .navigationBar)
+            .tint(OrganicPalette.terracotta(colorScheme))
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button("Cancel") { dismiss() }
+                        .foregroundColor(OrganicPalette.terracotta(colorScheme))
+                }
+
+                ToolbarItem(placement: .principal) {
+                    Text("Choose a Recipe")
+                        .font(.system(size: 17, weight: .bold, design: .serif))
+                        .foregroundColor(OrganicPalette.ink(colorScheme))
                 }
             }
         }
@@ -497,16 +513,7 @@ struct RecipePickerView: View {
                             addedForRecipeName = recipe.name
                         }
                     }
-                    .listRowBackground(
-                        RoundedRectangle(cornerRadius: 16)
-                            .fill(.ultraThinMaterial)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 16)
-                                    .stroke(Color.cardBorder(for: colorScheme), lineWidth: 1.5)
-                            )
-                            .padding(.vertical, 4)
-                    )
-                    .listRowSeparator(.hidden)
+                    .organicRow()
             }
         }
         .listStyle(.plain)
@@ -514,19 +521,11 @@ struct RecipePickerView: View {
     }
 
     private var emptyStateView: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "fork.knife.circle")
-                .font(.system(size: 48, weight: .light))
-                .foregroundStyle(.secondary)
-            Text("No Recipes")
-                .font(.title3)
-                .fontWeight(.semibold)
-            Text("Create recipes from the Stores screen\nusing the  +  button.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-        }
-        .padding()
+        OrganicEmptyState(
+            systemImage: "fork.knife",
+            title: "No recipes yet",
+            message: "Create recipes from the Stores screen using the + button."
+        )
     }
 }
 
@@ -535,31 +534,36 @@ struct RecipePickerView: View {
 private struct RecipePickerRowView: View {
     let recipe: Recipe
 
+    @Environment(\.colorScheme) private var colorScheme
+
     var body: some View {
         HStack(spacing: 14) {
-            ZStack {
-                Circle()
-                    .fill(Color.blue.opacity(0.12))
-                    .frame(width: 42, height: 42)
-                Image(systemName: "fork.knife")
-                    .font(.system(size: 18, weight: .medium))
-                    .foregroundStyle(Color.appAccent)
-            }
+            Image(systemName: "fork.knife")
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundColor(OrganicPalette.terracotta(colorScheme))
+                .frame(width: 44, height: 44)
+                .background(Circle().fill(OrganicPalette.blush(colorScheme)))
+
             VStack(alignment: .leading, spacing: 3) {
                 Text(recipe.name)
-                    .font(.body)
-                    .fontWeight(.medium)
-                Text(recipe.ingredients.prefix(3).joined(separator: ", ") + (recipe.ingredients.count > 3 ? "…" : ""))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundColor(OrganicPalette.ink(colorScheme))
+                    .lineLimit(1)
+
+                Text(recipe.ingredients.prefix(3).joined(separator: ", ") + (recipe.ingredients.count > 3 ? "\u{2026}" : ""))
+                    .font(.system(size: 13))
+                    .foregroundColor(OrganicPalette.inkSoft(colorScheme))
                     .lineLimit(1)
             }
-            Spacer()
-            Image(systemName: "plus.circle")
-                .font(.title3)
-                .foregroundStyle(Color.appAccent)
+
+            Spacer(minLength: 8)
+
+            Image(systemName: "plus.circle.fill")
+                .font(.system(size: 22))
+                .foregroundColor(OrganicPalette.terracotta(colorScheme))
         }
-        .padding(.vertical, 10)
-        .padding(.horizontal, 4)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(OrganicCardBackground(colorScheme: colorScheme))
     }
 }
