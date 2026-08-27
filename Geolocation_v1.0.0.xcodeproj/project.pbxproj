@@ -53,6 +53,7 @@
 		01AA00042F900000AB942904 /* ProfileSetupViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01AA00032F900000AB942903 /* ProfileSetupViewModel.swift */; };
 		01AA00122F900000AB942912 /* PermissionOnboardingManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01AA00112F900000AB942911 /* PermissionOnboardingManager.swift */; };
 		01AA00142F900000AB942914 /* PermissionOnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01AA00132F900000AB942913 /* PermissionOnboardingView.swift */; };
+		01AA00212F900000AB942921 /* LaunchLoadingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01AA00202F900000AB942920 /* LaunchLoadingView.swift */; };
 		01B408232F3BECB100EA1F25 /* MessagesViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01B408222F3BECB100EA1F25 /* MessagesViewModel.swift */; };
 		01B408252F3BECB800EA1F25 /* FriendsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01B408242F3BECB800EA1F25 /* FriendsViewModel.swift */; };
 		01B408272F3BECC300EA1F25 /* Friend.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01B408262F3BECC300EA1F25 /* Friend.swift */; };
@@ -241,6 +242,7 @@
 		01AA00032F900000AB942903 /* ProfileSetupViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileSetupViewModel.swift; sourceTree = "<group>"; };
 		01AA00112F900000AB942911 /* PermissionOnboardingManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionOnboardingManager.swift; sourceTree = "<group>"; };
 		01AA00132F900000AB942913 /* PermissionOnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionOnboardingView.swift; sourceTree = "<group>"; };
+		01AA00202F900000AB942920 /* LaunchLoadingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchLoadingView.swift; sourceTree = "<group>"; };
 		01B408212F3BEC7F00EA1F25 /* Secrets.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Secrets.xcconfig; sourceTree = "<group>"; };
 		01B408222F3BECB100EA1F25 /* MessagesViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessagesViewModel.swift; sourceTree = "<group>"; };
 		01B408242F3BECB800EA1F25 /* FriendsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FriendsViewModel.swift; sourceTree = "<group>"; };
@@ -550,6 +552,7 @@
 				82D289B62C61D631009F357F /* ProfileView.swift */,
 				01AA00012F900000AB942901 /* ProfileSetupView.swift */,
 				01AA00132F900000AB942913 /* PermissionOnboardingView.swift */,
+				01AA00202F900000AB942920 /* LaunchLoadingView.swift */,
 				82D715C52C8D6B230000D1E3 /* MapView.swift */,
 				82EC11822C64755300A6CD8C /* LocationDetailsView.swift */,
 				7498B0832CC2D49A0003C68F /* StoresView.swift */,
@@ -978,6 +981,7 @@
 				01B408312F3BECEC00EA1F25 /* FriendsView.swift in Sources */,
 				01B408352F3BECF900EA1F25 /* ShareReminderView.swift in Sources */,
 				7498B0842CC2D49A0003C68F /* StoresView.swift in Sources */,
+				01AA00212F900000AB942921 /* LaunchLoadingView.swift in Sources */,
 				0138242D2EDCD05F0069F38C /* NotificationLog.swift in Sources */,
 				0115748A2F69DC4D00963138 /* AppDelegate.swift in Sources */,
 				74A8AA3E2DEBB84B005855A0 /* AddReminderView.swift in Sources */,
