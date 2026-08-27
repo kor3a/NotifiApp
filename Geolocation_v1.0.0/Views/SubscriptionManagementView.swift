@@ -28,186 +28,48 @@ struct SubscriptionManagementView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(spacing: 28) {
-                    Spacer(minLength: 16)
+            ZStack {
+                OrganicPalette.canvas(colorScheme)
+                    .ignoresSafeArea()
 
-                    // Hero icon
-                    ZStack {
-                        Circle()
-                            .fill(
-                                LinearGradient(
-                                    colors: [.yellow.opacity(0.2), .orange.opacity(0.2)],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
-                            .frame(width: 100, height: 100)
+                ScrollView {
+                    VStack(spacing: 26) {
+                        hero
 
-                        Image(systemName: "crown.fill")
-                            .font(.system(size: 48))
-                            .foregroundStyle(.linearGradient(
-                                colors: [.yellow, .orange],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ))
-                    }
+                        featureCard
 
-                    // Title
-                    VStack(spacing: 6) {
-                        Text("Allim Premium")
-                            .font(.title)
-                            .fontWeight(.bold)
-                        Text("Active Subscription")
-                            .font(.subheadline)
-                            .foregroundColor(.green)
-                            .fontWeight(.semibold)
-                    }
+                        planSection
 
-                    // Active features card
-                    VStack(alignment: .leading, spacing: 16) {
-                        Text("Your Premium Features")
-                            .font(.subheadline)
-                            .fontWeight(.semibold)
-                            .foregroundColor(.secondary)
-                            .padding(.bottom, 4)
-
-                        featureRow(
-                            icon: "infinity.circle.fill",
-                            color: .orange,
-                            title: "Unlimited Stores",
-                            description: "Free accounts are limited to \(SubscriptionManager.freeStoreLimit) stores of your own — go unlimited with Premium"
-                        )
-                        featureRow(
-                            icon: "fork.knife.circle.fill",
-                            color: .blue,
-                            title: "Smart Recipe",
-                            description: "Ask for any recipe and add ingredients directly to your stores"
-                        )
-                        featureRow(
-                            icon: "sparkles",
-                            color: .purple,
-                            title: "Smart Category",
-                            description: "AI auto-categorizes every item you add to your shopping list"
-                        )
-                        featureRow(
-                            icon: "hand.thumbsup.fill",
-                            color: .green,
-                            title: "Ad-Free Experience",
-                            description: "Enjoy the app without any banner advertisements"
-                        )
-                    }
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 20)
-                    .background(
-                        RoundedRectangle(cornerRadius: 16)
-                            .fill(.ultraThinMaterial)
-                    )
-                    .padding(.horizontal, 20)
-
-                    // Plan comparison
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Your Plan")
-                            .font(.subheadline)
-                            .fontWeight(.semibold)
-                            .foregroundColor(.secondary)
-
-                        HStack(spacing: 12) {
-                            planComparisonCard(
-                                title: "Monthly",
-                                price: subscriptionManager.product?.displayPrice ?? "—",
-                                period: "per month",
-                                isActive: subscriptionManager.activeProductID == SubscriptionManager.monthlyProductID,
-                                badge: nil
-                            )
-                            planComparisonCard(
-                                title: "Annual",
-                                price: subscriptionManager.annualProduct?.displayPrice ?? "$10.00",
-                                period: "per year",
-                                isActive: subscriptionManager.activeProductID == SubscriptionManager.annualProductID,
-                                badge: annualSavingsLabel
-                            )
+                        OrganicPillButton(
+                            title: "Manage Subscription",
+                            systemImage: "gear",
+                            fillsWidth: true
+                        ) {
+                            Task { await openManageSubscriptions() }
                         }
-                    }
-                    .padding(.horizontal, 20)
+                        .padding(.horizontal, 20)
 
-                    // Manage subscription button
-                    Button {
-                        Task {
-                            await openManageSubscriptions()
-                        }
-                    } label: {
-                        HStack {
-                            Image(systemName: "gear")
-                            Text("Manage Subscription")
-                                .font(.headline)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 16)
-                        .background(
-                            LinearGradient(
-                                colors: [.blue, .purple],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
-                        .foregroundColor(.white)
-                        .clipShape(RoundedRectangle(cornerRadius: 14))
-                    }
-                    .padding(.horizontal, 20)
+                        cancelSection
 
-                    // Unsubscribe / Cancel info
-                    VStack(spacing: 8) {
-                        Button {
-                            Task {
-                                await openManageSubscriptions()
-                            }
-                        } label: {
-                            Text("Cancel Subscription")
-                                .font(.subheadline)
-                                .foregroundColor(.red)
-                        }
-
-                        Text("To cancel, tap above to open App Store subscription settings and turn off auto-renewal for Allim Premium.")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal, 24)
+                        legal
                     }
-
-                    // Legal
-                    VStack(spacing: 10) {
-                        let isAnnual = subscriptionManager.activeProduct?.id == SubscriptionManager.annualProductID
-                        Text("Allim Premium · \(isAnnual ? "Annual" : "Monthly") Subscription")
-                            .font(.caption2)
-                            .fontWeight(.semibold)
-                            .foregroundColor(.secondary)
-                        Text("Subscription auto-renews \(isAnnual ? "annually" : "monthly") unless cancelled at least 24 hours before the end of the current period. Manage or cancel anytime in App Store Settings.")
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
-                            .multilineTextAlignment(.center)
-                        HStack(spacing: 16) {
-                            Link("Terms of Use", destination: appleEULAURL)
-                                .font(.caption2)
-                            Text("·")
-                                .font(.caption2)
-                                .foregroundColor(.secondary)
-                            Button("Privacy Policy") { showPrivacy = true }
-                                .font(.caption2)
-                                .foregroundColor(.blue)
-                        }
-                    }
-                    .padding(.horizontal, 24)
+                    .padding(.top, 16)
                     .padding(.bottom, 16)
-                    .sheet(isPresented: $showPrivacy) { PrivacyPolicyView() }
                 }
             }
-            .background(Color.backgroundGradient(for: colorScheme).ignoresSafeArea())
-            .navigationTitle("Subscription")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(OrganicPalette.canvas(colorScheme), for: .navigationBar)
+            .tint(OrganicPalette.terracotta(colorScheme))
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button("Close") { dismiss() }
+                        .foregroundColor(OrganicPalette.terracotta(colorScheme))
+                }
+
+                ToolbarItem(placement: .principal) {
+                    Text("Subscription")
+                        .font(.system(size: 17, weight: .bold, design: .serif))
+                        .foregroundColor(OrganicPalette.ink(colorScheme))
                 }
             }
             .alert("Unable to Open Settings", isPresented: $showManageError) {
@@ -215,7 +77,224 @@ struct SubscriptionManagementView: View {
             } message: {
                 Text(manageErrorMessage)
             }
+            .sheet(isPresented: $showPrivacy) { PrivacyPolicyView(isModal: true) }
         }
+    }
+
+    // MARK: - Hero
+
+    private var hero: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "crown.fill")
+                .font(.system(size: 42))
+                .foregroundColor(OrganicPalette.terracotta(colorScheme))
+                .frame(width: 104, height: 104)
+                .background(Circle().fill(OrganicPalette.blush(colorScheme)))
+
+            Text("Allim Premium")
+                .font(OrganicPalette.display(32))
+                .foregroundColor(OrganicPalette.ink(colorScheme))
+
+            Text("Active subscription")
+                .font(.system(size: 13, weight: .bold))
+                .kerning(0.6)
+                .textCase(.uppercase)
+                .foregroundColor(OrganicPalette.sageInk(colorScheme))
+                .padding(.horizontal, 12)
+                .padding(.vertical, 5)
+                .background(Capsule().fill(OrganicPalette.sage(colorScheme)))
+        }
+    }
+
+    // MARK: - Features
+
+    private var featureCard: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            Text("Your Premium features")
+                .font(OrganicPalette.display(20))
+                .foregroundColor(OrganicPalette.ink(colorScheme))
+
+            featureRow(
+                icon: "infinity",
+                title: "Unlimited Stores",
+                description: "Free accounts are limited to \(SubscriptionManager.freeStoreLimit) stores of your own — go unlimited with Premium"
+            )
+            featureRow(
+                icon: "fork.knife",
+                title: "Smart Recipe",
+                description: "Ask for any recipe and add ingredients directly to your stores"
+            )
+            featureRow(
+                icon: "sparkles",
+                title: "Smart Category",
+                description: "AI auto-categorizes every item you add to your shopping list"
+            )
+            featureRow(
+                icon: "hand.thumbsup.fill",
+                title: "Ad-Free Experience",
+                description: "Enjoy the app without any banner advertisements"
+            )
+        }
+        .padding(20)
+        .background(OrganicCardBackground(colorScheme: colorScheme, cornerRadius: 28))
+        .padding(.horizontal, 20)
+    }
+
+    /// Matches the paywall's row exactly — the same list, once you own it.
+    private func featureRow(icon: String, title: String, description: String) -> some View {
+        HStack(alignment: .top, spacing: 14) {
+            Image(systemName: icon)
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundColor(OrganicPalette.sageInk(colorScheme))
+                .frame(width: 38, height: 38)
+                .background(Circle().fill(OrganicPalette.sage(colorScheme)))
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title)
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(OrganicPalette.ink(colorScheme))
+
+                Text(description)
+                    .font(.system(size: 13))
+                    .foregroundColor(OrganicPalette.inkSoft(colorScheme))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer(minLength: 0)
+        }
+    }
+
+    // MARK: - Plan
+
+    private var planSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            OrganicSectionLabel(title: "Your plan")
+
+            HStack(spacing: 12) {
+                planComparisonCard(
+                    title: "Monthly",
+                    price: subscriptionManager.product?.displayPrice ?? "—",
+                    period: "per month",
+                    isActive: subscriptionManager.activeProductID == SubscriptionManager.monthlyProductID,
+                    badge: nil
+                )
+                planComparisonCard(
+                    title: "Annual",
+                    price: subscriptionManager.annualProduct?.displayPrice ?? "$10.00",
+                    period: "per year",
+                    isActive: subscriptionManager.activeProductID == SubscriptionManager.annualProductID,
+                    badge: annualSavingsLabel
+                )
+            }
+        }
+        .padding(.horizontal, 20)
+    }
+
+    @ViewBuilder
+    private func planComparisonCard(title: String, price: String, period: String, isActive: Bool, badge: String?) -> some View {
+        ZStack(alignment: .topTrailing) {
+            VStack(spacing: 6) {
+                if isActive {
+                    HStack(spacing: 4) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 12))
+                        Text("Current Plan")
+                            .font(.system(size: 12, weight: .semibold))
+                    }
+                    .foregroundColor(.white)
+                }
+
+                Text(title)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundColor(isActive ? .white : OrganicPalette.inkSoft(colorScheme))
+
+                Text(price)
+                    .font(OrganicPalette.display(24))
+                    .foregroundColor(isActive ? .white : OrganicPalette.ink(colorScheme))
+
+                Text(period)
+                    .font(.system(size: 13))
+                    .foregroundColor(
+                        isActive ? .white.opacity(0.8) : OrganicPalette.inkSoft(colorScheme)
+                    )
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 18)
+            .padding(.top, badge != nil ? 10 : 0)
+            .background(
+                RoundedRectangle(cornerRadius: 24, style: .continuous)
+                    .fill(
+                        isActive
+                            ? OrganicPalette.terracotta(colorScheme)
+                            : OrganicPalette.surface(colorScheme)
+                    )
+                    .shadow(color: OrganicPalette.shadow(colorScheme), radius: 10, x: 0, y: 4)
+            )
+
+            if let badge {
+                Text(badge)
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundColor(OrganicPalette.sageInk(colorScheme))
+                    .padding(.horizontal, 9)
+                    .padding(.vertical, 4)
+                    .background(Capsule().fill(OrganicPalette.sage(colorScheme)))
+                    .offset(x: -10, y: -10)
+            }
+        }
+    }
+
+    // MARK: - Cancel
+
+    private var cancelSection: some View {
+        VStack(spacing: 8) {
+            Button {
+                Task { await openManageSubscriptions() }
+            } label: {
+                Text("Cancel Subscription")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundColor(OrganicPalette.rust(colorScheme))
+            }
+            .buttonStyle(.plain)
+
+            Text("To cancel, tap above to open App Store subscription settings and turn off auto-renewal for Allim Premium.")
+                .font(.system(size: 13))
+                .foregroundColor(OrganicPalette.inkSoft(colorScheme))
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 24)
+        }
+    }
+
+    // MARK: - Legal
+
+    private var legal: some View {
+        VStack(spacing: 10) {
+            let isAnnual = subscriptionManager.activeProduct?.id == SubscriptionManager.annualProductID
+
+            Text("Allim Premium \u{00B7} \(isAnnual ? "Annual" : "Monthly") Subscription")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundColor(OrganicPalette.inkSoft(colorScheme))
+
+            Text("Subscription auto-renews \(isAnnual ? "annually" : "monthly") unless cancelled at least 24 hours before the end of the current period. Manage or cancel anytime in App Store Settings.")
+                .font(.system(size: 12))
+                .foregroundColor(OrganicPalette.inkSoft(colorScheme))
+                .multilineTextAlignment(.center)
+
+            HStack(spacing: 16) {
+                Link("Terms of Use", destination: appleEULAURL)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(OrganicPalette.terracotta(colorScheme))
+
+                Text("\u{00B7}")
+                    .font(.system(size: 12))
+                    .foregroundColor(OrganicPalette.inkSoft(colorScheme))
+
+                Button("Privacy Policy") { showPrivacy = true }
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(OrganicPalette.terracotta(colorScheme))
+            }
+        }
+        .padding(.horizontal, 24)
+        .padding(.bottom, 16)
     }
 
     private func openManageSubscriptions() async {
@@ -229,82 +308,6 @@ struct SubscriptionManagementView: View {
         } else {
             if let url = URL(string: "itms-apps://apps.apple.com/account/subscriptions") {
                 await UIApplication.shared.open(url)
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func planComparisonCard(title: String, price: String, period: String, isActive: Bool, badge: String?) -> some View {
-        ZStack(alignment: .topTrailing) {
-            VStack(spacing: 6) {
-                if isActive {
-                    HStack(spacing: 4) {
-                        Image(systemName: "checkmark.circle.fill")
-                            .font(.caption)
-                        Text("Current Plan")
-                            .font(.caption)
-                            .fontWeight(.semibold)
-                    }
-                    .foregroundColor(.white)
-                }
-                Text(title)
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
-                    .foregroundColor(isActive ? .white : .primary)
-                Text(price)
-                    .font(.title2)
-                    .fontWeight(.bold)
-                    .foregroundColor(isActive ? .white : .primary)
-                Text(period)
-                    .font(.caption)
-                    .foregroundColor(isActive ? .white.opacity(0.8) : .secondary)
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 18)
-            .padding(.top, badge != nil ? 10 : 0)
-            .background(
-                RoundedRectangle(cornerRadius: 14)
-                    .fill(isActive
-                        ? AnyShapeStyle(LinearGradient(
-                            colors: [.yellow, .orange],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing))
-                        : AnyShapeStyle(.ultraThinMaterial))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 14)
-                    .strokeBorder(
-                        isActive ? Color.clear : Color.secondary.opacity(0.2),
-                        lineWidth: 1
-                    )
-            )
-
-            if let badge {
-                Text(badge)
-                    .font(.caption2)
-                    .fontWeight(.bold)
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(Capsule().fill(Color.green))
-                    .offset(x: -10, y: -10)
-            }
-        }
-    }
-
-    private func featureRow(icon: String, color: Color, title: String, description: String) -> some View {
-        HStack(alignment: .top, spacing: 14) {
-            Image(systemName: icon)
-                .font(.system(size: 24))
-                .foregroundColor(color)
-                .frame(width: 32)
-            VStack(alignment: .leading, spacing: 3) {
-                Text(title)
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
-                Text(description)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
             }
         }
     }

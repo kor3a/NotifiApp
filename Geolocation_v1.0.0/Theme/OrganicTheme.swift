@@ -268,6 +268,140 @@ struct OrganicCircleButton: View {
     }
 }
 
+// MARK: - Pill Button
+
+/// The filled terracotta pill these screens use for the one action that commits
+/// something — save, submit, subscribe.
+///
+/// Reads `isEnabled` from the environment, so callers gate it with the ordinary
+/// `.disabled(_:)` rather than passing a flag in.
+struct OrganicPillButton: View {
+    let title: String
+    var systemImage: String?
+    /// Swaps the title for a spinner while the work is in flight.
+    var isLoading: Bool = false
+    /// Fills the available width instead of hugging the title — for a form's
+    /// submit button, which sits alone at the bottom of a screen.
+    var fillsWidth: Bool = false
+    let action: () -> Void
+
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.isEnabled) private var isEnabled
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 8) {
+                if isLoading {
+                    ProgressView()
+                        .tint(.white)
+                } else if let systemImage {
+                    Image(systemName: systemImage)
+                        .font(.system(size: 15, weight: .semibold))
+                }
+
+                Text(title)
+                    .font(.system(size: 17, weight: .bold, design: .serif))
+            }
+            .foregroundColor(.white)
+            .padding(.horizontal, 32)
+            .frame(maxWidth: fillsWidth ? .infinity : nil)
+            .frame(height: 54)
+            .background(Capsule().fill(OrganicPalette.terracotta(colorScheme)))
+            .opacity(isEnabled ? 1 : 0.4)
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+// MARK: - Navigation Row
+
+/// A row that leads somewhere: a terracotta glyph on a blush disc, a title, an
+/// optional line of explanation, and a chevron.
+///
+/// Content only — the caller wraps it in the `NavigationLink` or `Button` that
+/// makes it go, so the same row serves a push, a sheet and an external link.
+struct OrganicNavRow: View {
+    let systemImage: String
+    let title: String
+    var subtitle: String?
+    /// Overrides the glyph tint for a row that isn't about the app's own
+    /// accent — sage for something already granted, rust for something
+    /// destructive.
+    var tint: Color?
+    /// The trailing glyph. Nil leaves the row without one, for a row that is a
+    /// statement rather than a door.
+    var accessory: String? = "chevron.right"
+
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        HStack(spacing: 14) {
+            Image(systemName: systemImage)
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundColor(tint ?? OrganicPalette.terracotta(colorScheme))
+                .frame(width: 38, height: 38)
+                .background(Circle().fill(OrganicPalette.blush(colorScheme)))
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(OrganicPalette.ink(colorScheme))
+                    .multilineTextAlignment(.leading)
+
+                if let subtitle {
+                    Text(subtitle)
+                        .font(.system(size: 13))
+                        .foregroundColor(OrganicPalette.inkSoft(colorScheme))
+                        .multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+
+            Spacer(minLength: 8)
+
+            if let accessory {
+                Image(systemName: accessory)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(OrganicPalette.inkSoft(colorScheme).opacity(0.7))
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(OrganicCardBackground(colorScheme: colorScheme))
+        .contentShape(Rectangle())
+    }
+}
+
+// MARK: - Section Label
+
+/// The serif heading above a group of cards.
+struct OrganicSectionLabel: View {
+    let title: String
+
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        Text(title)
+            .font(OrganicPalette.display(22))
+            .foregroundColor(OrganicPalette.ink(colorScheme))
+            .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+// MARK: - Text Fields
+
+extension View {
+    /// A text field sunk into the canvas rather than raised off it — the search
+    /// pills, the message box, a form's inputs.
+    func organicField(_ scheme: ColorScheme, height: CGFloat = 54) -> some View {
+        self
+            .padding(.horizontal, 18)
+            .frame(height: height)
+            .background(Capsule().fill(OrganicPalette.field(scheme)))
+    }
+}
+
 // MARK: - Count Badge
 
 /// The small filled capsule carrying a number — unread messages, items waiting
