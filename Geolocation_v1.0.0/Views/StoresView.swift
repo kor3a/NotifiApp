@@ -271,26 +271,25 @@ struct StoresView: View {
 
     // MARK: - Header
 
-    /// Greeting, title and controls, drawn in the content rather than the
+    /// The greeting and controls, drawn in the content rather than the
     /// navigation bar — the greeting and the profile button used to be the
     /// navigation bar's large title and leading item, which stacked a system
     /// bar above this screen's own header.
+    ///
+    /// The tab bar already says Stores, so the title is the greeting instead.
+    /// It shrinks rather than wraps: a long name would otherwise push the row
+    /// to two lines and shift everything below it.
     ///
     /// The screen's primary action is the FAB, so everything up here takes the
     /// quiet blush treatment — and while a reorder is in progress the controls
     /// give way to the one thing that ends it.
     private var header: some View {
         HStack(alignment: .center, spacing: 10) {
-            VStack(alignment: .leading, spacing: 0) {
-                Text("Hi, \(sessionManager.currentUser?.name ?? "there")")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundColor(OrganicPalette.inkSoft(colorScheme))
-                    .lineLimit(1)
-
-                Text("Stores")
-                    .font(OrganicPalette.display(38))
-                    .foregroundColor(OrganicPalette.ink(colorScheme))
-            }
+            Text("Hi, \(sessionManager.currentUser?.name ?? "there")")
+                .font(OrganicPalette.display(34))
+                .foregroundColor(OrganicPalette.ink(colorScheme))
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
 
             Spacer(minLength: 8)
 
