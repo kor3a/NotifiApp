@@ -10,6 +10,10 @@ import SwiftUI
 struct MessagesView: View {
     @ObservedObject var viewModel: MessagesViewModel
     @Binding var pendingConversationId: String?
+    /// Bumped when the user taps the Messages tab while already on it. The open
+    /// conversation is the only screen this one pushes, so dropping it is the
+    /// whole pop-to-root.
+    var popToRootSignal: Int = 0
     @ObservedObject private var sessionManager = UserSessionManager.shared
     @ObservedObject private var subscriptionManager = SubscriptionManager.shared
     @State private var showNewMessage = false
@@ -91,6 +95,12 @@ struct MessagesView: View {
                 selectedConversation = conversation
                 pendingConversationId = nil
             }
+        }
+        .onChange(of: popToRootSignal) { _, _ in
+            // A pending deep link goes with it: the tab tap is the more recent
+            // of the two instructions.
+            if selectedConversation != nil { selectedConversation = nil }
+            if pendingConversationId != nil { pendingConversationId = nil }
         }
     }
 

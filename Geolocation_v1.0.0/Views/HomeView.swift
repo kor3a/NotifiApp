@@ -27,6 +27,11 @@ struct HomeView: View {
     /// so the tap has to open two screens deep on the Stores tab rather than
     /// select a tab of its own.
     @State private var showFriendsFromNotification = false
+    /// Bumped when the bar's current tab is tapped again, which is how a tab
+    /// gets back to its own root screen. Each tab watches its own counter —
+    /// Search pushes nothing, and Recipe opens its screens as sheets.
+    @State private var storesPopToRoot = 0
+    @State private var messagesPopToRoot = 0
     @State private var isSearchExpanded = false
     @State private var searchQuery = ""
     @State private var hasRequestedPermissions = false
@@ -136,7 +141,8 @@ struct HomeView: View {
                 NavigationStack {
                     StoresView(
                         pendingStoreName: $pendingStoreName,
-                        showFriends: $showFriendsFromNotification
+                        showFriends: $showFriendsFromNotification,
+                        popToRootSignal: storesPopToRoot
                     )
                         .organicTabBarInset()
                         .onAppear {
@@ -154,7 +160,11 @@ struct HomeView: View {
                 .tag(0)
 
                 NavigationStack {
-                    MessagesView(viewModel: messagesViewModel, pendingConversationId: $pendingConversationId)
+                    MessagesView(
+                        viewModel: messagesViewModel,
+                        pendingConversationId: $pendingConversationId,
+                        popToRootSignal: messagesPopToRoot
+                    )
                         .organicTabBarInset()
                         .navigationBarTitleDisplayMode(.large)
                 }//:NAVIGATIONSTACK
@@ -204,7 +214,11 @@ struct HomeView: View {
                 // Search floats its own bar over the map, with the search field
                 // living in it, so this one steps aside there.
                 if selectedTab != 3 {
-                    OrganicTabBar(tabs: organicTabs, selection: $selectedTab)
+                    OrganicTabBar(
+                        tabs: organicTabs,
+                        selection: $selectedTab,
+                        onReselect: popTabToRoot
+                    )
                         // Pinned to the bottom while a keyboard is up, the way
                         // the system bar was, rather than riding up on top of a
                         // conversation's message field.
@@ -323,6 +337,21 @@ struct HomeView: View {
                 // Fetch stores now that user data is available
                 storesViewModel.fetchUserStores()
             }
+        }
+    }
+
+    // MARK: - Tab Reselection
+
+    /// Tapping the tab you are already on sends that tab back to its own root,
+    /// the way the system bar does. Without it, a user who reached Profile —
+    /// and Friends under it — from Stores has no way back to the store list
+    /// except the navigation bar's Back button, since the Stores tab is already
+    /// the selected one and the tap changes nothing.
+    private func popTabToRoot(_ tab: Int) {
+        switch tab {
+        case 0: storesPopToRoot += 1
+        case 1: messagesPopToRoot += 1
+        default: break
         }
     }
 
