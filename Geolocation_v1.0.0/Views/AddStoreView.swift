@@ -39,10 +39,6 @@ struct AddStoreView: View {
                             .foregroundColor(OrganicPalette.ink(colorScheme))
                             .padding(.top, 8)
 
-                        Text("Search for a shop near you and add it to your list.")
-                            .font(.system(size: 16))
-                            .foregroundColor(OrganicPalette.inkSoft(colorScheme))
-
                         searchField
 
                         if !locationSearchManager.isLocationAuthorized {
