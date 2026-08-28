@@ -41,6 +41,10 @@ struct OrganicTab: Identifiable {
 struct OrganicTabBar: View {
     let tabs: [OrganicTab]
     @Binding var selection: Int
+    /// Tapping the tab you are already on. The system bar pops that tab back to
+    /// its root screen, and nothing else in the app does — without this, a user
+    /// two screens deep on Stores taps Stores and watches nothing happen.
+    var onReselect: ((Int) -> Void)? = nil
 
     @Environment(\.colorScheme) private var colorScheme
     @Namespace private var indicator
@@ -60,7 +64,10 @@ struct OrganicTabBar: View {
         HStack(spacing: 2) {
             ForEach(tabs) { tab in
                 Button {
-                    guard selection != tab.tag else { return }
+                    guard selection != tab.tag else {
+                        onReselect?(tab.tag)
+                        return
+                    }
                     withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
                         selection = tab.tag
                     }

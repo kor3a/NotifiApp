@@ -19,6 +19,11 @@ struct StoresView: View {
     /// Raised by a friend-request notification. Friends sits under Profile, and
     /// this is the tab that pushes Profile, so the deep link lands here.
     @Binding var showFriends: Bool
+    /// Bumped when the user taps the Stores tab while already on it. Every push
+    /// this screen makes is driven by one of the states `popToRoot()` clears,
+    /// so dropping them unwinds the stack — Profile's own pushes included,
+    /// since popping a screen takes everything above it along.
+    var popToRootSignal: Int = 0
     @StateObject private var viewModel = StoresViewModel()
     @StateObject private var messagesViewModel = MessagesViewModel()
     @ObservedObject private var sessionManager = UserSessionManager.shared
@@ -38,6 +43,9 @@ struct StoresView: View {
     @State private var selectedOnMyWayStore: UserStoreItem?
     @State private var storeToDelete: UserStoreItem?
     @State private var notificationDestination: UserStoreItem? = nil
+    /// Profile is pushed from state rather than by a `NavigationLink` so the
+    /// tab bar can pop it back off when Stores is tapped a second time.
+    @State private var showProfile = false
     @State private var voiceCommandStore: UserStoreItem? = nil
     @State private var pressedStoreId: String? = nil
     @AppStorage("storeViewMode") private var storeViewMode: StoreViewMode = .list
@@ -62,6 +70,13 @@ struct StoresView: View {
             Color.clear
                 .navigationDestination(isPresented: $showFriends) {
                     ProfileView(opensFriends: true)
+                        .organicTabBarInset()
+                }
+
+            // The profile button's destination.
+            Color.clear
+                .navigationDestination(isPresented: $showProfile) {
+                    ProfileView()
                         .organicTabBarInset()
                 }
 
@@ -290,7 +305,20 @@ struct StoresView: View {
                 pendingStoreName = nil
             }
         }
+        .onChange(of: popToRootSignal) { _, _ in
+            popToRoot()
+        }
     }//:BODY
+
+    /// Unwinds everything this screen has pushed, so the tab lands back on the
+    /// store list. A pending deep link is dropped with it — the tab tap is the
+    /// more recent instruction of the two.
+    private func popToRoot() {
+        if showProfile { showProfile = false }
+        if showFriends { showFriends = false }
+        if notificationDestination != nil { notificationDestination = nil }
+        if pendingStoreName != nil { pendingStoreName = nil }
+    }
 
     // MARK: - Loading
 
@@ -342,9 +370,8 @@ struct StoresView: View {
 
             Spacer(minLength: 8)
 
-            NavigationLink {
-                ProfileView()
-                    .organicTabBarInset()
+            Button {
+                showProfile = true
             } label: {
                 Image(systemName: "person")
                     .font(.system(size: 19, weight: .semibold))
