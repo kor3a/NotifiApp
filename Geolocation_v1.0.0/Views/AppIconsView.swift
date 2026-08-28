@@ -13,7 +13,7 @@ struct AppIconsView: View {
     @Environment(\.colorScheme) private var colorScheme
     @ObservedObject private var iconManager = AppIconManager.shared
 
-    private let columns = Array(repeating: GridItem(.flexible(), spacing: 16), count: 3)
+    private let columns = Array(repeating: GridItem(.flexible(), spacing: 16), count: 2)
 
     var body: some View {
         ZStack {
@@ -22,8 +22,6 @@ struct AppIconsView: View {
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
-                    intro
-
                     if !iconManager.supportsAlternateIcons {
                         unsupportedNotice
                     }
@@ -68,16 +66,6 @@ struct AppIconsView: View {
 
     // MARK: - Pieces
 
-    private var intro: some View {
-        Text("Pick the icon Allim wears on your Home Screen. iOS confirms the change with an alert of its own, and the new icon appears right after.")
-            .font(.system(size: 15))
-            .foregroundColor(OrganicPalette.inkSoft(colorScheme))
-            .fixedSize(horizontal: false, vertical: true)
-            .padding(18)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(OrganicCardBackground(colorScheme: colorScheme))
-    }
-
     private var unsupportedNotice: some View {
         HStack(spacing: 12) {
             Image(systemName: "exclamationmark.triangle.fill")
@@ -102,50 +90,36 @@ struct AppIconsView: View {
                 iconManager.select(option)
             }
         } label: {
-            VStack(spacing: 8) {
-                preview(for: option)
-                    .frame(width: 68, height: 68)
-                    // The Home Screen's own corner curve, near enough.
-                    .clipShape(RoundedRectangle(cornerRadius: 15, style: .continuous))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 15, style: .continuous)
-                            .strokeBorder(
-                                isSelected
-                                    ? OrganicPalette.terracotta(colorScheme)
-                                    : OrganicPalette.inkSoft(colorScheme).opacity(0.15),
-                                lineWidth: isSelected ? 3 : 1
+            preview(for: option)
+                .frame(width: 96, height: 96)
+                // The Home Screen's own corner curve, near enough.
+                .clipShape(RoundedRectangle(cornerRadius: 21, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 21, style: .continuous)
+                        .strokeBorder(
+                            isSelected
+                                ? OrganicPalette.terracotta(colorScheme)
+                                : OrganicPalette.inkSoft(colorScheme).opacity(0.15),
+                            lineWidth: isSelected ? 3 : 1
+                        )
+                )
+                .overlay(alignment: .bottomTrailing) {
+                    if isSelected {
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundColor(.white)
+                            .frame(width: 26, height: 26)
+                            .background(Circle().fill(OrganicPalette.terracotta(colorScheme)))
+                            .overlay(
+                                Circle().strokeBorder(OrganicPalette.surface(colorScheme), lineWidth: 2)
                             )
-                    )
-                    .overlay(alignment: .bottomTrailing) {
-                        if isSelected {
-                            Image(systemName: "checkmark")
-                                .font(.system(size: 10, weight: .bold))
-                                .foregroundColor(.white)
-                                .frame(width: 22, height: 22)
-                                .background(Circle().fill(OrganicPalette.terracotta(colorScheme)))
-                                .overlay(
-                                    Circle().strokeBorder(OrganicPalette.surface(colorScheme), lineWidth: 2)
-                                )
-                                .offset(x: 6, y: 6)
-                        }
+                            .offset(x: 8, y: 8)
                     }
-
-                VStack(spacing: 1) {
-                    Text(option.displayName)
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundColor(OrganicPalette.ink(colorScheme))
-                        .lineLimit(1)
-
-                    Text(option.subtitle)
-                        .font(.system(size: 11))
-                        .foregroundColor(OrganicPalette.inkSoft(colorScheme))
-                        .lineLimit(1)
                 }
-            }
-            .padding(.vertical, 14)
-            .frame(maxWidth: .infinity)
-            .background(OrganicCardBackground(colorScheme: colorScheme, cornerRadius: 20))
-            .contentShape(Rectangle())
+                .padding(.vertical, 24)
+                .frame(maxWidth: .infinity)
+                .background(OrganicCardBackground(colorScheme: colorScheme, cornerRadius: 24))
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .disabled(!iconManager.supportsAlternateIcons)

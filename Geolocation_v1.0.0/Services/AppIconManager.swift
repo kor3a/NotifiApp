@@ -15,9 +15,9 @@ import UIKit
 /// by the absence of a name.
 struct AppIconOption: Identifiable, Equatable {
     let alternateName: String?
+    /// Not drawn — the picker shows the artwork alone — but VoiceOver reads
+    /// it, so every option still needs a name.
     let displayName: String
-    /// Short line under the name on the picker.
-    let subtitle: String
     /// The image drawn in the picker. The icon assets themselves aren't
     /// loadable by name at runtime, so every option carries a plain imageset
     /// holding the same artwork.
@@ -47,25 +47,21 @@ final class AppIconManager: ObservableObject {
         AppIconOption(
             alternateName: nil,
             displayName: "Allim",
-            subtitle: "Default",
             previewAssetName: "AppIconPreview-Default"
         ),
         AppIconOption(
             alternateName: "AppIcon-Allim",
             displayName: "Cart",
-            subtitle: "Classic",
             previewAssetName: "AppIconPreview-Allim"
         ),
         AppIconOption(
             alternateName: "AppIcon-Route",
             displayName: "Route",
-            subtitle: "On the way",
             previewAssetName: "AppIconPreview-Route"
         ),
         AppIconOption(
             alternateName: "AppIcon-Notifi",
             displayName: "Notifi",
-            subtitle: "Original",
             previewAssetName: "AppIconPreview-Notifi"
         )
     ]

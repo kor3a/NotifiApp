@@ -63,8 +63,7 @@ thumbnail for the shipped icon, which is `Geolocation_v1.0.0/NotifiApp.icon`
    ```swift
    AppIconOption(
        alternateName: "AppIcon-Sunset",       // must match the .appiconset name
-       displayName: "Sunset",
-       subtitle: "Warm",
+       displayName: "Sunset",                 // not drawn; VoiceOver reads it
        previewAssetName: "AppIconPreview-Sunset"
    )
    ```
