@@ -1875,6 +1875,66 @@ class StoresViewModel: ObservableObject {
     @Published var isSendingOnMyWay = false
     @Published var onMyWayError: String?
     @Published var onMyWaySentStoreName: String?
+    /// How long the drive was, phrased for the "Notification Sent" alert, so the
+    /// user is told afterwards the same number their contacts were sent.
+    @Published var onMyWaySentTravelTime: String?
+
+    /// The drive, worked out while the confirmation alert is on screen.
+    ///
+    /// Sending used to calculate it only after the user had committed, which
+    /// meant the alert could not say how far away they were — and the number
+    /// their contacts received was one nobody had seen. Now it is worked out
+    /// once, shown, and then sent.
+    @Published private(set) var onMyWayEstimate: TravelTimeService.TravelEstimate?
+    @Published private(set) var isEstimatingOnMyWay = false
+    /// No location, no nearby branch, or no route — the alert says so and still
+    /// lets the user send.
+    @Published private(set) var onMyWayEstimateUnavailable = false
+
+    /// Marks which store the in-flight estimate belongs to, so a result that
+    /// lands after the user has backed out isn't shown against the next store
+    /// they pick.
+    private var onMyWayEstimateToken: UUID?
+
+    /// Starts working out the drive to `userStoreItem` for the confirmation
+    /// alert. Call it as the alert is raised.
+    func prepareOnMyWayEstimate(for userStoreItem: UserStoreItem) {
+        let token = UUID()
+        onMyWayEstimateToken = token
+        onMyWayEstimate = nil
+        onMyWayEstimateUnavailable = false
+        isEstimatingOnMyWay = true
+
+        TravelTimeService.shared.calculateTravelTime(to: userStoreItem.store.name) { [weak self] result in
+            DispatchQueue.main.async {
+                guard let self = self, self.onMyWayEstimateToken == token else { return }
+
+                self.isEstimatingOnMyWay = false
+
+                switch result {
+                case .success(let estimate):
+                    #if DEBUG
+                    print("🚗 StoresViewModel: Travel time to \(userStoreItem.store.name): \(estimate.formattedTravelTime)")
+                    #endif
+                    self.onMyWayEstimate = estimate
+
+                case .failure(let error):
+                    #if DEBUG
+                    print("🚗 StoresViewModel: Couldn't estimate travel time: \(error.localizedDescription)")
+                    #endif
+                    self.onMyWayEstimateUnavailable = true
+                }
+            }
+        }
+    }
+
+    /// Drops the estimate when the user backs out of the alert.
+    func clearOnMyWayEstimate() {
+        onMyWayEstimateToken = nil
+        onMyWayEstimate = nil
+        isEstimatingOnMyWay = false
+        onMyWayEstimateUnavailable = false
+    }
 
     /// Send "on my way" notification to all users sharing the given store.
     /// Calculates driving time from the user's current location to the nearest store location.
@@ -1887,6 +1947,15 @@ class StoresViewModel: ObservableObject {
         isSendingOnMyWay = true
         onMyWayError = nil
         onMyWaySentStoreName = nil
+        onMyWaySentTravelTime = nil
+
+        // The alert has almost always worked this out already, and sending that
+        // number rather than a fresh one keeps what the user was told and what
+        // their contacts are told the same.
+        if let estimate = onMyWayEstimate, estimate.storeName == userStoreItem.store.name {
+            deliverOnMyWay(estimate, for: userStoreItem, currentUser: currentUser)
+            return
+        }
 
         TravelTimeService.shared.calculateTravelTime(to: userStoreItem.store.name) { [weak self] result in
             DispatchQueue.main.async {
@@ -1897,16 +1966,7 @@ class StoresViewModel: ObservableObject {
                     #if DEBUG
                     print("🚗 StoresViewModel: Travel time to \(userStoreItem.store.name): \(estimate.formattedTravelTime)")
                     #endif
-
-                    OnMyWayNotificationService.shared.sendNotification(
-                        for: userStoreItem,
-                        travelTimeMinutes: estimate.travelTimeMinutes,
-                        currentUserId: currentUser.userId,
-                        currentUserName: currentUser.name
-                    )
-
-                    self.isSendingOnMyWay = false
-                    self.onMyWaySentStoreName = userStoreItem.store.name
+                    self.deliverOnMyWay(estimate, for: userStoreItem, currentUser: currentUser)
 
                 case .failure(let error):
                     #if DEBUG
@@ -1917,6 +1977,26 @@ class StoresViewModel: ObservableObject {
                 }
             }
         }
+    }
+
+    private func deliverOnMyWay(
+        _ estimate: TravelTimeService.TravelEstimate,
+        for userStoreItem: UserStoreItem,
+        currentUser: User
+    ) {
+        OnMyWayNotificationService.shared.sendNotification(
+            for: userStoreItem,
+            travelTimeMinutes: estimate.travelTimeMinutes,
+            currentUserId: currentUser.userId,
+            currentUserName: currentUser.name
+        )
+
+        isSendingOnMyWay = false
+        onMyWaySentTravelTime = estimate.formattedTravelTime
+        onMyWaySentStoreName = userStoreItem.store.name
+        // The estimate is deliberately left in place: clearing it here would
+        // blank the card's own line while it is still fading out, and the next
+        // `prepareOnMyWayEstimate` resets it before it could be reused stale.
     }
 
     deinit {

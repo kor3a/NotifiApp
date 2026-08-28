@@ -43,11 +43,13 @@ struct AddReminderView: View {
                     }
                 }
             }
-            .alert("Duplicate Reminder", isPresented: $showDuplicateAlert) {
-                Button("OK", role: .cancel) {}
-            } message: {
-                Text("'\(reminderTitle.trimmingCharacters(in: .whitespaces))' already exists in this store.")
-            }
+            .organicAlert(
+                "Duplicate Reminder",
+                isPresented: $showDuplicateAlert,
+                icon: "exclamationmark.circle.fill",
+                message: "'\(reminderTitle.trimmingCharacters(in: .whitespaces))' already exists in this store.",
+                actions: [.ok()]
+            )
         }
     }
     

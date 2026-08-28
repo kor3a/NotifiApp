@@ -769,14 +769,16 @@ struct StoreCard: View {
         .padding(14)
         .frame(maxWidth: 250, alignment: .leading)
         .background(OrganicCardBackground(colorScheme: colorScheme, cornerRadius: 20))
-        .alert("Merge Lists?", isPresented: $showMergeAlert) {
-            Button("Merge", role: .none) {
-                performAccept()
-            }
-            Button("Cancel", role: .cancel) { }
-        } message: {
-            Text("You already have \(store.storeName) in your list. Accepting combines both lists into one shared list — everything either of you adds, checks off or removes from now on shows up for both of you.")
-        }
+        .organicAlert(
+            "Merge Lists?",
+            isPresented: $showMergeAlert,
+            icon: "arrow.triangle.merge",
+            message: "You already have \(store.storeName) in your list. Accepting combines both lists into one shared list — everything either of you adds, checks off or removes from now on shows up for both of you.",
+            actions: [
+                .primary("Merge") { performAccept() },
+                .cancel()
+            ]
+        )
     }
 
     private func acceptStore() {

@@ -107,18 +107,17 @@ struct MembershipBarcodeTopSheet: View {
                 cardStore.saveImage(image, forStoreNamed: storeName)
             }
         }
-        .confirmationDialog(
+        .organicAlert(
             "Delete membership card?",
             isPresented: $showDeleteConfirm,
-            titleVisibility: .visible
-        ) {
-            Button("Delete Card", role: .destructive) {
-                cardStore.delete(forStoreNamed: storeName)
-            }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("This removes the saved number and photo for \(storeName) from this device.")
-        }
+            icon: "trash.fill",
+            tone: .destructive,
+            message: "This removes the saved number and photo for \(storeName) from this device.",
+            actions: [
+                .destructive("Delete Card") { cardStore.delete(forStoreNamed: storeName) },
+                .cancel()
+            ]
+        )
     }
 
     // MARK: - Pieces

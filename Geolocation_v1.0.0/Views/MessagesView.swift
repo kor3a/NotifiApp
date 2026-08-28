@@ -205,19 +205,22 @@ struct MessagesView: View {
         .safeAreaInset(edge: .bottom) {
             Color.clear.frame(height: subscriptionManager.isSubscribed ? 0 : 50)
         }
-        .alert("Delete Group Chat?", isPresented: $showDeleteGroupAlert) {
-            Button("Delete for Everyone", role: .destructive) {
-                if let conversation = pendingDeleteConversation {
-                    viewModel.deleteConversation(conversation)
-                }
-                pendingDeleteConversation = nil
-            }
-            Button("Cancel", role: .cancel) {
-                pendingDeleteConversation = nil
-            }
-        } message: {
-            Text("This will permanently delete the group chat and all its messages for every member.")
-        }
+        .organicAlert(
+            "Delete Group Chat?",
+            isPresented: $showDeleteGroupAlert,
+            icon: "trash.fill",
+            tone: .destructive,
+            message: "This will permanently delete the group chat and all its messages for every member.",
+            actions: [
+                .destructive("Delete for Everyone") {
+                    if let conversation = pendingDeleteConversation {
+                        viewModel.deleteConversation(conversation)
+                    }
+                    pendingDeleteConversation = nil
+                },
+                .cancel { pendingDeleteConversation = nil }
+            ]
+        )
     }
 
     private func handleDelete(_ conversation: Conversation) {

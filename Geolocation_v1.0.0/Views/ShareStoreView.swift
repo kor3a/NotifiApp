@@ -322,17 +322,22 @@ struct ShareStoreView: View {
                     }
                 }
             }
-            .alert(alertTitle, isPresented: $showAlert) {
-                Button("OK") {
-                    if alertTitle == "Success" {
-                        fetchSharedUsers()
-                        selectedContactIDs.removeAll()
-                        dismiss()
+            .organicAlert(
+                alertTitle,
+                isPresented: $showAlert,
+                icon: alertTitle == "Success" ? "checkmark" : "exclamationmark.triangle.fill",
+                tone: alertTitle == "Success" ? .success : .destructive,
+                message: alertMessage,
+                actions: [
+                    .ok {
+                        if alertTitle == "Success" {
+                            fetchSharedUsers()
+                            selectedContactIDs.removeAll()
+                            dismiss()
+                        }
                     }
-                }
-            } message: {
-                Text(alertMessage)
-            }
+                ]
+            )
             .onAppear {
                 fetchSharedUsers()
                 fetchReminderTitles()

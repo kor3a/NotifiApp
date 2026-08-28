@@ -124,9 +124,13 @@ struct SignupView: View {
         // to tint.
         .toolbarBackground(OrganicPalette.canvas(colorScheme), for: .navigationBar)
         .tint(OrganicPalette.terracotta(colorScheme))
-        .alert(isPresented: $showAlert) {
-            Alert(title: Text("Note"), message: Text(alertMsg), dismissButton: .default(Text("OK")))
-        }
+        .organicAlert(
+            "Note",
+            isPresented: $showAlert,
+            icon: "exclamationmark.circle.fill",
+            message: alertMsg,
+            actions: [.ok()]
+        )
         .onReceive(viewModel.$errorMessage, perform: { errorMessage in
             if !errorMessage.isEmpty {
                 alertMsg = errorMessage

@@ -150,9 +150,13 @@ struct LoginView: View {
                 OrganicPalette.canvas(colorScheme)
                     .ignoresSafeArea()
             )
-            .alert(isPresented: $showAlert) {
-                Alert(title: Text("Note"), message: Text(alertMsg), dismissButton: .default(Text("OK")))
-            }
+            .organicAlert(
+                "Note",
+                isPresented: $showAlert,
+                icon: "exclamationmark.circle.fill",
+                message: alertMsg,
+                actions: [.ok()]
+            )
             .onReceive(viewModel.$errorMessage, perform: { errorMessage in
                 if !errorMessage.isEmpty {
                     alertMsg = errorMessage
@@ -182,23 +186,23 @@ struct LoginView: View {
             .sheet(item: $authManager.pendingLink) { link in
                 LinkAccountSheet(authManager: authManager, link: link)
             }
-            .alert(
+            .organicAlert(
                 "Link your accounts?",
                 isPresented: Binding(
                     get: { authManager.crossProviderLink != nil },
                     set: { _ in } // dismissal is driven by the buttons below
                 ),
-                presenting: authManager.crossProviderLink
-            ) { link in
-                Button("Continue with \(link.existingProviderLabel)") {
-                    authManager.confirmCrossProviderLink()
-                }
-                Button("Cancel", role: .cancel) {
-                    authManager.cancelCrossProviderLink()
-                }
-            } message: { link in
-                Text("\(link.email) is already registered with \(link.existingProviderLabel). Sign in with \(link.existingProviderLabel) to link your \(link.newProviderLabel) account — no duplicate account will be created.")
-            }
+                icon: "link",
+                message: authManager.crossProviderLink.map { link in
+                    "\(link.email) is already registered with \(link.existingProviderLabel). Sign in with \(link.existingProviderLabel) to link your \(link.newProviderLabel) account — no duplicate account will be created."
+                },
+                actions: [
+                    .primary("Continue with \(authManager.crossProviderLink?.existingProviderLabel ?? "")") {
+                        authManager.confirmCrossProviderLink()
+                    },
+                    .cancel { authManager.cancelCrossProviderLink() }
+                ]
+            )
             .navigationDestination(isPresented: $isSignup) {
                 SignupView(onSignupComplete: { email in
                     signupConfirmationEmail = email

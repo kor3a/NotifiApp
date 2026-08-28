@@ -168,13 +168,14 @@ struct ShareReminderView: View {
             .onDisappear {
                 friendsViewModel.stopListening()
             }
-            .alert("Reminder Shared!", isPresented: $showSuccess) {
-                Button("OK") {
-                    dismiss()
-                }
-            } message: {
-                Text("Your reminder has been sent to \(selectedContact?.name ?? "the contact").")
-            }
+            .organicAlert(
+                "Reminder Shared!",
+                isPresented: $showSuccess,
+                icon: "checkmark",
+                tone: .success,
+                message: "Your reminder has been sent to \(selectedContact?.name ?? "the contact").",
+                actions: [.ok { dismiss() }]
+            )
             .overlay {
                 if isSending {
                     Color.black.opacity(0.3)

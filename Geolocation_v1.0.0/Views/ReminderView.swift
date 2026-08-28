@@ -290,105 +290,121 @@ struct ReminderView: View {
                     viewModel.uploadPhoto(for: reminder, image: image)
                 }
             }
-            .alert("Delete Shared Reminder", isPresented: .init(
-                get: { reminderToDelete != nil },
-                set: { if !$0 { reminderToDelete = nil } }
-            )) {
-                Button("Delete for Everyone", role: .destructive) {
-                    if let reminder = reminderToDelete {
-                        stageReminderForDeletion(reminder)
-                        reminderToDelete = nil
+            .organicAlert(
+                "Delete Shared Reminder",
+                isPresented: .init(
+                    get: { reminderToDelete != nil },
+                    set: { if !$0 { reminderToDelete = nil } }
+                ),
+                icon: "trash.fill",
+                tone: .destructive,
+                message: deleteSharedReminderMessage,
+                actions: [
+                    .destructive("Delete for Everyone") {
+                        if let reminder = reminderToDelete {
+                            stageReminderForDeletion(reminder)
+                            reminderToDelete = nil
+                        }
+                    },
+                    .cancel { reminderToDelete = nil }
+                ]
+            )
+            .organicAlert(
+                "Duplicate Reminder",
+                isPresented: $showDuplicateAlert,
+                icon: "exclamationmark.circle.fill",
+                message: "'\(duplicateTitle)' already exists in this store.",
+                actions: [.ok { newReminderText = "" }]
+            )
+            .organicAlert(
+                "Add Quantity",
+                isPresented: .init(
+                    get: { reminderForQuantity != nil },
+                    set: { if !$0 { reminderForQuantity = nil } }
+                ),
+                icon: "number",
+                message: "Enter quantity for this reminder item.",
+                actions: [
+                    .primary("Save") {
+                        if let reminder = reminderForQuantity {
+                            let qty = Int(quantityText)
+                            viewModel.updateReminderQuantity(reminder, newQuantity: qty)
+                        }
+                        reminderForQuantity = nil
+                        quantityText = ""
+                    },
+                    .destructive("Remove") {
+                        if let reminder = reminderForQuantity {
+                            viewModel.updateReminderQuantity(reminder, newQuantity: nil)
+                        }
+                        reminderForQuantity = nil
+                        quantityText = ""
+                    },
+                    .cancel {
+                        reminderForQuantity = nil
+                        quantityText = ""
                     }
-                }
-                Button("Cancel", role: .cancel) {
-                    reminderToDelete = nil
-                }
-            } message: {
-                deleteSharedReminderMessage
-            }
-            .alert("Duplicate Reminder", isPresented: $showDuplicateAlert) {
-                Button("OK", role: .cancel) {
-                    newReminderText = ""
-                }
-            } message: {
-                Text("'\(duplicateTitle)' already exists in this store.")
-            }
-            .alert("Add Quantity", isPresented: .init(
-                get: { reminderForQuantity != nil },
-                set: { if !$0 { reminderForQuantity = nil } }
-            )) {
-                TextField("Quantity", text: $quantityText)
+                ]
+            ) {
+                OrganicAlertTextField(placeholder: "Quantity", text: $quantityText)
                     .keyboardType(.numberPad)
-                Button("Save") {
-                    if let reminder = reminderForQuantity {
-                        let qty = Int(quantityText)
-                        viewModel.updateReminderQuantity(reminder, newQuantity: qty)
-                    }
-                    reminderForQuantity = nil
-                    quantityText = ""
-                }
-                Button("Remove", role: .destructive) {
-                    if let reminder = reminderForQuantity {
-                        viewModel.updateReminderQuantity(reminder, newQuantity: nil)
-                    }
-                    reminderForQuantity = nil
-                    quantityText = ""
-                }
-                Button("Cancel", role: .cancel) {
-                    reminderForQuantity = nil
-                    quantityText = ""
-                }
-            } message: {
-                Text("Enter quantity for this reminder item.")
             }
-            .alert("Set Category", isPresented: .init(
-                get: { reminderForCategory != nil },
-                set: { if !$0 { reminderForCategory = nil } }
-            )) {
-                TextField("Category name", text: $customCategoryText)
+            .organicAlert(
+                "Set Category",
+                isPresented: .init(
+                    get: { reminderForCategory != nil },
+                    set: { if !$0 { reminderForCategory = nil } }
+                ),
+                icon: "tag.fill",
+                message: "Enter a custom category for this item.",
+                actions: [
+                    .primary("Save") {
+                        if let reminder = reminderForCategory {
+                            let cat = customCategoryText.trimmingCharacters(in: .whitespaces)
+                            viewModel.updateReminderCategory(reminder, newCategory: cat.isEmpty ? nil : cat)
+                        }
+                        reminderForCategory = nil
+                        customCategoryText = ""
+                    },
+                    .destructive("Remove Category") {
+                        if let reminder = reminderForCategory {
+                            viewModel.updateReminderCategory(reminder, newCategory: nil)
+                        }
+                        reminderForCategory = nil
+                        customCategoryText = ""
+                    },
+                    .cancel {
+                        reminderForCategory = nil
+                        customCategoryText = ""
+                    }
+                ]
+            ) {
+                OrganicAlertTextField(placeholder: "Category name", text: $customCategoryText)
                     .textInputAutocapitalization(.words)
-                Button("Save") {
-                    if let reminder = reminderForCategory {
-                        let cat = customCategoryText.trimmingCharacters(in: .whitespaces)
-                        viewModel.updateReminderCategory(reminder, newCategory: cat.isEmpty ? nil : cat)
-                    }
-                    reminderForCategory = nil
-                    customCategoryText = ""
-                }
-                Button("Remove Category", role: .destructive) {
-                    if let reminder = reminderForCategory {
-                        viewModel.updateReminderCategory(reminder, newCategory: nil)
-                    }
-                    reminderForCategory = nil
-                    customCategoryText = ""
-                }
-                Button("Cancel", role: .cancel) {
-                    reminderForCategory = nil
-                    customCategoryText = ""
-                }
-            } message: {
-                Text("Enter a custom category for this item.")
             }
-            .alert("Store Website", isPresented: $showingEditWebsite) {
-                TextField("https://example.com", text: $websiteInputText)
+            .organicAlert(
+                "Store Website",
+                isPresented: $showingEditWebsite,
+                icon: "globe",
+                message: "Set the website for \(userStoreItem.store.name). This applies for everyone who has this store, and the app opens it in the store's app when installed.",
+                actions: [
+                    .primary("Save") {
+                        let trimmed = websiteInputText.trimmingCharacters(in: .whitespacesAndNewlines)
+                        if !trimmed.isEmpty {
+                            StoreLogoProvider.shared.setStoreWebsite(
+                                storeName: userStoreItem.store.name,
+                                websiteURL: trimmed
+                            )
+                        }
+                        websiteInputText = ""
+                    },
+                    .cancel { websiteInputText = "" }
+                ]
+            ) {
+                OrganicAlertTextField(placeholder: "https://example.com", text: $websiteInputText)
                     .keyboardType(.URL)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled(true)
-                Button("Save") {
-                    let trimmed = websiteInputText.trimmingCharacters(in: .whitespacesAndNewlines)
-                    if !trimmed.isEmpty {
-                        StoreLogoProvider.shared.setStoreWebsite(
-                            storeName: userStoreItem.store.name,
-                            websiteURL: trimmed
-                        )
-                    }
-                    websiteInputText = ""
-                }
-                Button("Cancel", role: .cancel) {
-                    websiteInputText = ""
-                }
-            } message: {
-                Text("Set the website for \(userStoreItem.store.name). This applies for everyone who has this store, and the app opens it in the store's app when installed.")
             }
     }
 
@@ -989,18 +1005,17 @@ struct ReminderView: View {
             }
         }
         .padding(.vertical, 4)
-        .confirmationDialog(
+        .organicAlert(
             "Remove All Favorites",
             isPresented: $showRemoveAllFavoritesConfirmation,
-            titleVisibility: .visible
-        ) {
-            Button("Remove All", role: .destructive) {
-                viewModel.removeAllFavoriteTags()
-            }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("This will remove all \(viewModel.favoriteTags.count) favorite\(viewModel.favoriteTags.count == 1 ? "" : "s"). This cannot be undone.")
-        }
+            icon: "star.slash.fill",
+            tone: .destructive,
+            message: "This will remove all \(viewModel.favoriteTags.count) favorite\(viewModel.favoriteTags.count == 1 ? "" : "s"). This cannot be undone.",
+            actions: [
+                .destructive("Remove All") { viewModel.removeAllFavoriteTags() },
+                .cancel()
+            ]
+        )
     }
 
     @ViewBuilder
@@ -1137,18 +1152,23 @@ struct ReminderView: View {
                 .padding(.bottom, 40)
             }
             .transition(.opacity)
-            .alert("Delete Photo", isPresented: $showDeletePhotoConfirm) {
-                Button("Delete", role: .destructive) {
-                    if let reminder = enlargedPhotoReminder, let url = enlargedPhotoURL {
-                        withAnimation { enlargedPhotoURL = nil }
-                        enlargedPhotoReminder = nil
-                        stagePhotoForDeletion(reminder: reminder, url: url)
-                    }
-                }
-                Button("Cancel", role: .cancel) {}
-            } message: {
-                Text("Are you sure you want to delete this photo?")
-            }
+            .organicAlert(
+                "Delete Photo",
+                isPresented: $showDeletePhotoConfirm,
+                icon: "trash.fill",
+                tone: .destructive,
+                message: "Are you sure you want to delete this photo?",
+                actions: [
+                    .destructive("Delete") {
+                        if let reminder = enlargedPhotoReminder, let url = enlargedPhotoURL {
+                            withAnimation { enlargedPhotoURL = nil }
+                            enlargedPhotoReminder = nil
+                            stagePhotoForDeletion(reminder: reminder, url: url)
+                        }
+                    },
+                    .cancel()
+                ]
+            )
         }
     }
 
@@ -1264,16 +1284,15 @@ struct ReminderView: View {
         }
     }
 
-    @ViewBuilder
-    private var deleteSharedReminderMessage: some View {
-        if let reminder = reminderToDelete {
-            if let sharedWith = reminder.sharedWith, !sharedWith.isEmpty {
-                Text("This reminder is shared with \(sharedWith.joined(separator: ", ")). Deleting it will remove it for everyone.")
-            } else if let sharedFrom = reminder.sharedFrom {
-                Text("This reminder was shared by \(sharedFrom). Deleting it will remove it for everyone.")
-            } else {
-                Text("This reminder is shared. Deleting it will remove it for everyone.")
-            }
+    private var deleteSharedReminderMessage: String? {
+        guard let reminder = reminderToDelete else { return nil }
+
+        if let sharedWith = reminder.sharedWith, !sharedWith.isEmpty {
+            return "This reminder is shared with \(sharedWith.joined(separator: ", ")). Deleting it will remove it for everyone."
+        } else if let sharedFrom = reminder.sharedFrom {
+            return "This reminder was shared by \(sharedFrom). Deleting it will remove it for everyone."
+        } else {
+            return "This reminder is shared. Deleting it will remove it for everyone."
         }
     }
 

@@ -181,61 +181,74 @@ struct StoresView: View {
         .sheet(item: $voiceCommandStore) { storeItem in
             VoiceCommandView(userStoreItem: storeItem)
         }
-        .alert("On My Way", isPresented: $showOnMyWayConfirmation) {
-            Button("Send") {
-                if let store = selectedOnMyWayStore {
-                    viewModel.sendOnMyWayNotification(for: store)
-                }
-            }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            if let store = selectedOnMyWayStore {
-                Text("Notify people you share \(store.store.name) with that you're on your way?")
-            }
+        .organicAlert(
+            "On My Way",
+            isPresented: $showOnMyWayConfirmation,
+            icon: "car.fill",
+            message: selectedOnMyWayStore.map {
+                "Notify people you share \($0.store.name) with that you're on your way?"
+            },
+            actions: [
+                .primary("Send") {
+                    if let store = selectedOnMyWayStore {
+                        viewModel.sendOnMyWayNotification(for: store)
+                    }
+                },
+                .cancel { viewModel.clearOnMyWayEstimate() }
+            ]
+        ) {
+            OnMyWayEstimateRow(
+                estimate: viewModel.onMyWayEstimate,
+                isCalculating: viewModel.isEstimatingOnMyWay,
+                isUnavailable: viewModel.onMyWayEstimateUnavailable
+            )
         }
-        .alert("Notification Sent", isPresented: Binding(
-            get: { viewModel.onMyWaySentStoreName != nil },
-            set: { if !$0 { viewModel.onMyWaySentStoreName = nil } }
-        )) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            if let storeName = viewModel.onMyWaySentStoreName {
-                Text("Your shared contacts have been notified that you're on your way to \(storeName).")
-            }
-        }
-        .alert("Unable to Send", isPresented: Binding(
-            get: { viewModel.onMyWayError != nil },
-            set: { if !$0 { viewModel.onMyWayError = nil } }
-        )) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            if let error = viewModel.onMyWayError {
-                Text(error)
-            }
-        }
-        .alert(deleteAlertTitle, isPresented: Binding(
-            get: { storeToDelete != nil },
-            set: { if !$0 { storeToDelete = nil } }
-        )) {
-            Button(deleteAlertActionLabel, role: .destructive) {
-                if let store = storeToDelete {
-                    deleteStore(store)
-                }
-                storeToDelete = nil
-            }
-            Button("Cancel", role: .cancel) {
-                storeToDelete = nil
-            }
-        } message: {
-            if let store = storeToDelete {
-                Text(deleteAlertMessage(for: store))
-            }
-        }
+        .organicAlert(
+            "Notification Sent",
+            isPresented: Binding(
+                get: { viewModel.onMyWaySentStoreName != nil },
+                set: { if !$0 { viewModel.onMyWaySentStoreName = nil } }
+            ),
+            icon: "checkmark",
+            tone: .success,
+            message: onMyWaySentMessage,
+            actions: [.ok()]
+        )
+        .organicAlert(
+            "Unable to Send",
+            isPresented: Binding(
+                get: { viewModel.onMyWayError != nil },
+                set: { if !$0 { viewModel.onMyWayError = nil } }
+            ),
+            icon: "exclamationmark.triangle.fill",
+            tone: .destructive,
+            message: viewModel.onMyWayError,
+            actions: [.ok()]
+        )
+        .organicAlert(
+            deleteAlertTitle,
+            isPresented: Binding(
+                get: { storeToDelete != nil },
+                set: { if !$0 { storeToDelete = nil } }
+            ),
+            icon: "trash.fill",
+            tone: .destructive,
+            message: storeToDelete.map { deleteAlertMessage(for: $0) },
+            actions: [
+                .destructive(deleteAlertActionLabel) {
+                    if let store = storeToDelete {
+                        deleteStore(store)
+                    }
+                    storeToDelete = nil
+                },
+                .cancel { storeToDelete = nil }
+            ]
+        )
         .overlay {
             if viewModel.isSendingOnMyWay {
                 Color.black.opacity(0.3)
                     .ignoresSafeArea()
-                ProgressView("Calculating travel time...")
+                ProgressView("Sending…")
                     .tint(OrganicPalette.terracotta(colorScheme))
                     .foregroundColor(OrganicPalette.inkSoft(colorScheme))
                     .padding(24)
@@ -584,6 +597,9 @@ struct StoresView: View {
                     if userStoreItem.isShared {
                         Button {
                             selectedOnMyWayStore = userStoreItem
+                            // Kicked off with the alert rather than after it, so
+                            // the card can say how far away they are.
+                            viewModel.prepareOnMyWayEstimate(for: userStoreItem)
                             showOnMyWayConfirmation = true
                         } label: {
                             Label("On My Way", systemImage: "car.fill")
@@ -799,6 +815,17 @@ struct StoresView: View {
 
     // MARK: - Helpers
 
+    /// Names the drive the contacts were actually sent, so the confirmation and
+    /// the notification agree on how far away the user is.
+    private var onMyWaySentMessage: String? {
+        guard let storeName = viewModel.onMyWaySentStoreName else { return nil }
+
+        guard let travelTime = viewModel.onMyWaySentTravelTime else {
+            return "Your shared contacts have been notified that you're on your way to \(storeName)."
+        }
+        return "Your shared contacts have been notified that you're about \(travelTime) from \(storeName)."
+    }
+
     private var deleteAlertTitle: String {
         guard let store = storeToDelete else { return "Delete Store?" }
         // A store the user owned before merging it into someone else's list is theirs
@@ -845,6 +872,71 @@ struct StoresView: View {
                 editMode = .inactive
             }
         }
+    }
+}
+
+// MARK: - On My Way Estimate
+
+/// The drive shown on the "On My Way" card — how long it will take to get
+/// there, so the user knows what their contacts are about to be told.
+///
+/// A fixed height whichever state it is in: the estimate lands a moment after
+/// the card opens, and a row that grew as it arrived would shift the buttons
+/// out from under the user's thumb.
+private struct OnMyWayEstimateRow: View {
+    let estimate: TravelTimeService.TravelEstimate?
+    let isCalculating: Bool
+    let isUnavailable: Bool
+
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        HStack(spacing: 8) {
+            if isCalculating {
+                ProgressView()
+                    .controlSize(.small)
+                    .tint(OrganicPalette.inkSoft(colorScheme))
+            } else {
+                Image(systemName: isUnavailable ? "questionmark.circle" : "clock.fill")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(inkColor)
+            }
+
+            Text(label)
+                .font(OrganicPalette.title(15))
+                .foregroundColor(inkColor)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+        }
+        .padding(.horizontal, 18)
+        .frame(height: 42)
+        .background(Capsule().fill(fillColor))
+        .animation(.easeInOut(duration: 0.2), value: isCalculating)
+        .accessibilityElement(children: .combine)
+    }
+
+    private var label: String {
+        if let estimate {
+            // Phrased as a distance in time. The line above has already named
+            // the store, so this only has to carry the number.
+            return "About \(estimate.formattedTravelTime) away"
+        }
+        return isUnavailable ? "Travel time unavailable" : "Checking travel time…"
+    }
+
+    /// Sage is this screen's "on my way" colour — it tints the swipe action the
+    /// card was raised from — so a settled estimate takes it and the two
+    /// waiting states stay in the recessed field tone.
+    private var fillColor: Color {
+        estimate == nil
+            ? OrganicPalette.field(colorScheme)
+            : OrganicPalette.sage(colorScheme)
+    }
+
+    private var inkColor: Color {
+        estimate == nil
+            ? OrganicPalette.inkSoft(colorScheme)
+            : OrganicPalette.sageInk(colorScheme)
     }
 }
 

@@ -119,14 +119,17 @@ struct BackgroundPickerView: View {
             .sheet(isPresented: $showingPaywall) {
                 SubscriptionPaywallView()
             }
-            .alert("Couldn't Use That Photo", isPresented: Binding(
-                get: { photoError != nil },
-                set: { if !$0 { photoError = nil } }
-            )) {
-                Button("OK", role: .cancel) { photoError = nil }
-            } message: {
-                Text(photoError ?? "")
-            }
+            .organicAlert(
+                "Couldn't Use That Photo",
+                isPresented: Binding(
+                    get: { photoError != nil },
+                    set: { if !$0 { photoError = nil } }
+                ),
+                icon: "photo.badge.exclamationmark",
+                tone: .destructive,
+                message: photoError,
+                actions: [.ok { photoError = nil }]
+            )
             .onChange(of: photoItem) { _, item in
                 guard let item else { return }
                 loadPhoto(item)
@@ -550,24 +553,27 @@ struct BackgroundPickerView: View {
         // Carried on the row rather than the screen: the photo alert already
         // sits on the NavigationStack, and stacked presentations there swallow
         // one another.
-        .confirmationDialog(
+        .organicAlert(
             "Apply to All Stores?",
             isPresented: $showingApplyAllConfirmation,
-            titleVisibility: .visible
-        ) {
-            Button("Apply") { applyToAllStores() }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("Every store's reminder list will use this background. Any background you set on a store on its own will be replaced.")
-        }
-        .alert("Couldn't Apply Background", isPresented: Binding(
-            get: { applyAllError != nil },
-            set: { if !$0 { applyAllError = nil } }
-        )) {
-            Button("OK", role: .cancel) { applyAllError = nil }
-        } message: {
-            Text(applyAllError ?? "")
-        }
+            icon: "square.on.square",
+            message: "Every store's reminder list will use this background. Any background you set on a store on its own will be replaced.",
+            actions: [
+                .primary("Apply") { applyToAllStores() },
+                .cancel()
+            ]
+        )
+        .organicAlert(
+            "Couldn't Apply Background",
+            isPresented: Binding(
+                get: { applyAllError != nil },
+                set: { if !$0 { applyAllError = nil } }
+            ),
+            icon: "exclamationmark.triangle.fill",
+            tone: .destructive,
+            message: applyAllError,
+            actions: [.ok { applyAllError = nil }]
+        )
         // The row confirms the look that was swept out, so a new pick makes it
         // stale.
         .onChange(of: selection) { _, _ in didApplyToAllStores = false }
