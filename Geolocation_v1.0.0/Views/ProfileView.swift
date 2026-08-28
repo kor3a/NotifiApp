@@ -138,6 +138,8 @@ struct ProfileView: View {
 
                 settingsSection
 
+                appSettingsSection
+
                 friendsSection
 
                 accountActionsSection
@@ -277,6 +279,25 @@ struct ProfileView: View {
                     systemImage: "exclamationmark.bubble.fill",
                     title: "Report Errors and Feedback",
                     subtitle: "Tell us what's broken or what you'd like next"
+                )
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    /// How the app looks and behaves, as opposed to who the account belongs
+    /// to — which is what the section above it is for.
+    private var appSettingsSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            OrganicSectionLabel(title: "Settings")
+
+            NavigationLink {
+                AppIconsView()
+            } label: {
+                OrganicNavRow(
+                    systemImage: "app.badge.fill",
+                    title: "App Icons",
+                    subtitle: "Choose the icon Allim wears on your Home Screen"
                 )
             }
             .buttonStyle(.plain)

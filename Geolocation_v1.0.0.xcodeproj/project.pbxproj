@@ -19,6 +19,7 @@
 		011574932F69FD9700963138 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 011574922F69FD9700963138 /* GoogleService-Info.plist */; };
 		0119CD0D2F4CF95A00DEDEFD /* AutoDeleteSwipeRail.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0119CD0C2F4CF95A00DEDEFD /* AutoDeleteSwipeRail.swift */; };
 		0119CD0F2F4CF96000DEDEFD /* CachedLogoImage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0119CD0E2F4CF96000DEDEFD /* CachedLogoImage.swift */; };
+		011C26D13042082C00D21CB5 /* OrganicTabBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 011C26D03042082C00D21CB5 /* OrganicTabBar.swift */; };
 		011CF5FE2ED638D6009A31A6 /* ForgotPasswordView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 011CF5FD2ED638D6009A31A6 /* ForgotPasswordView.swift */; };
 		011CF6002ED638DD009A31A6 /* ShareStoreView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 011CF5FF2ED638DD009A31A6 /* ShareStoreView.swift */; };
 		011CF6022ED638E4009A31A6 /* SharedStoreGroup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 011CF6012ED638E4009A31A6 /* SharedStoreGroup.swift */; };
@@ -54,6 +55,8 @@
 		01AA00122F900000AB942912 /* PermissionOnboardingManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01AA00112F900000AB942911 /* PermissionOnboardingManager.swift */; };
 		01AA00142F900000AB942914 /* PermissionOnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01AA00132F900000AB942913 /* PermissionOnboardingView.swift */; };
 		01AA00212F900000AB942921 /* LaunchLoadingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01AA00202F900000AB942920 /* LaunchLoadingView.swift */; };
+		01AC10022FA0000100A1C001 /* AppIconManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01AC10012FA0000100A1C001 /* AppIconManager.swift */; };
+		01AC10042FA0000100A1C001 /* AppIconsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01AC10032FA0000100A1C001 /* AppIconsView.swift */; };
 		01B408232F3BECB100EA1F25 /* MessagesViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01B408222F3BECB100EA1F25 /* MessagesViewModel.swift */; };
 		01B408252F3BECB800EA1F25 /* FriendsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01B408242F3BECB800EA1F25 /* FriendsViewModel.swift */; };
 		01B408272F3BECC300EA1F25 /* Friend.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01B408262F3BECC300EA1F25 /* Friend.swift */; };
@@ -217,6 +220,7 @@
 		011574922F69FD9700963138 /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 		0119CD0C2F4CF95A00DEDEFD /* AutoDeleteSwipeRail.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoDeleteSwipeRail.swift; sourceTree = "<group>"; };
 		0119CD0E2F4CF96000DEDEFD /* CachedLogoImage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CachedLogoImage.swift; sourceTree = "<group>"; };
+		011C26D03042082C00D21CB5 /* OrganicTabBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrganicTabBar.swift; sourceTree = "<group>"; };
 		011CF5FD2ED638D6009A31A6 /* ForgotPasswordView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForgotPasswordView.swift; sourceTree = "<group>"; };
 		011CF5FF2ED638DD009A31A6 /* ShareStoreView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareStoreView.swift; sourceTree = "<group>"; };
 		011CF6012ED638E4009A31A6 /* SharedStoreGroup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedStoreGroup.swift; sourceTree = "<group>"; };
@@ -250,6 +254,8 @@
 		01AA00112F900000AB942911 /* PermissionOnboardingManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionOnboardingManager.swift; sourceTree = "<group>"; };
 		01AA00132F900000AB942913 /* PermissionOnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionOnboardingView.swift; sourceTree = "<group>"; };
 		01AA00202F900000AB942920 /* LaunchLoadingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchLoadingView.swift; sourceTree = "<group>"; };
+		01AC10012FA0000100A1C001 /* AppIconManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppIconManager.swift; sourceTree = "<group>"; };
+		01AC10032FA0000100A1C001 /* AppIconsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppIconsView.swift; sourceTree = "<group>"; };
 		01B408212F3BEC7F00EA1F25 /* Secrets.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Secrets.xcconfig; sourceTree = "<group>"; };
 		01B408222F3BECB100EA1F25 /* MessagesViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessagesViewModel.swift; sourceTree = "<group>"; };
 		01B408242F3BECB800EA1F25 /* FriendsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FriendsViewModel.swift; sourceTree = "<group>"; };
@@ -434,6 +440,7 @@
 		01FB27582EC2A7490038E406 /* Services */ = {
 			isa = PBXGroup;
 			children = (
+				01AC10012FA0000100A1C001 /* AppIconManager.swift */,
 				01BC6BF6303265DE0018331E /* ReminderToggleService.swift */,
 				011574872F69DC3900963138 /* FCMTokenManager.swift */,
 				0138D8742F68BB95007CC1E4 /* SubscriptionManager.swift */,
@@ -524,6 +531,8 @@
 		8278FE0E2C5DE5930017EB72 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				011C26D03042082C00D21CB5 /* OrganicTabBar.swift */,
+				01AC10032FA0000100A1C001 /* AppIconsView.swift */,
 				01BF38AA301C3DE700F49DBC /* BackgroundPickerView.swift */,
 				01500AB32F87F22F0038F0D3 /* SubscriptionDebugView.swift */,
 				017BD2522F76D39800E5842A /* RecipeView.swift */,
@@ -943,12 +952,15 @@
 				AA1234560001AABB00CC0308 /* StoreAnalytics.swift in Sources */,
 				AA1234560001AABB00CC0310 /* StoreAnalyticsView.swift in Sources */,
 				01B408332F3BECF200EA1F25 /* MessagesView.swift in Sources */,
+				01AC10022FA0000100A1C001 /* AppIconManager.swift in Sources */,
+				01AC10042FA0000100A1C001 /* AppIconsView.swift in Sources */,
 				01BF38AB301C3DE700F49DBC /* BackgroundPickerView.swift in Sources */,
 				0188F8592F68568C007953B2 /* BannerAdView.swift in Sources */,
 				0138242F2EDCD08C0069F38C /* NotificationLogView.swift in Sources */,
 				82D289AE2C61CEBD009F357F /* SignupViewModel.swift in Sources */,
 				748542B32CB5307000C58D9B /* HomeView.swift in Sources */,
 				82D715C62C8D6B230000D1E3 /* MapView.swift in Sources */,
+				011C26D13042082C00D21CB5 /* OrganicTabBar.swift in Sources */,
 				74A79E832CBDAC7500713F0E /* ReminderItemViewModel.swift in Sources */,
 				0119CD0D2F4CF95A00DEDEFD /* AutoDeleteSwipeRail.swift in Sources */,
 				01B4082B2F3BECCF00EA1F25 /* Message.swift in Sources */,
@@ -1382,8 +1394,10 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 01B408212F3BEC7F00EA1F25 /* Secrets.xcconfig */;
 			buildSettings = {
+				ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES = "AppIcon-Storefront";
 				ASSETCATALOG_COMPILER_APPICON_NAME = NotifiApp;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = AllimRelease.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
@@ -1412,8 +1426,10 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 01B408212F3BEC7F00EA1F25 /* Secrets.xcconfig */;
 			buildSettings = {
+				ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES = "AppIcon-Storefront";
 				ASSETCATALOG_COMPILER_APPICON_NAME = NotifiApp;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = AllimRelease.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
