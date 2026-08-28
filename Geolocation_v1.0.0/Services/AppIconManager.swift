@@ -50,11 +50,6 @@ final class AppIconManager: ObservableObject {
             previewAssetName: "AppIconPreview-Default"
         ),
         AppIconOption(
-            alternateName: "AppIcon-Allim",
-            displayName: "Cart",
-            previewAssetName: "AppIconPreview-Allim"
-        ),
-        AppIconOption(
             alternateName: "AppIcon-Storefront",
             displayName: "Storefront",
             previewAssetName: "AppIconPreview-Storefront"

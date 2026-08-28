@@ -9,22 +9,24 @@ Everything is in the app's asset catalog:
 
 ```
 Geolocation_v1.0.0/Assets.xcassets/
-├── AppIcon-Allim.appiconset/          ← the icon iOS installs
-│   ├── AppIcon-Allim-1024.png
+├── AppIcon-Storefront.appiconset/          ← the icon iOS installs
+│   ├── AppIcon-Storefront-1024.png
 │   └── Contents.json
-├── AppIcon-Storefront.appiconset/
-├── AppIconPreview-Allim.imageset/     ← the thumbnail the picker draws
-│   ├── AppIconPreview-Allim.png
+├── AppIconPreview-Storefront.imageset/     ← the thumbnail the picker draws
+│   ├── AppIconPreview-Storefront.png
 │   └── Contents.json
-├── AppIconPreview-Storefront.imageset/
 └── AppIconPreview-Default.imageset/
 ```
 
-Two copies of the same PNG, on purpose. iOS does **not** let an app load its own
-icon assets as ordinary images, so the picker needs a plain imageset alongside
-the icon set to have something to show. (`AppIconPreview-Default` is the
-thumbnail for the shipped icon, which is `Geolocation_v1.0.0/NotifiApp.icon`
-— an Icon Composer file, not an asset catalog entry.)
+The shipped icon has no `.appiconset` here: it is
+`Geolocation_v1.0.0/NotifiApp.icon`, an Icon Composer file, and the picker
+reaches it by asking iOS for no alternate at all. It needs only the
+`AppIconPreview-Default` thumbnail. Don't add an alternate holding that same
+artwork — it shows up in the grid as a second, identical tile.
+
+Every *other* icon is two copies of the same PNG, on purpose: iOS does **not**
+let an app load its own icon assets as ordinary images, so the picker needs a
+plain imageset alongside the icon set to have something to show.
 
 ## Adding another icon
 
@@ -48,7 +50,6 @@ thumbnail for the shipped icon, which is `Geolocation_v1.0.0/NotifiApp.icon`
 
    ```
    ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES = (
-       "AppIcon-Allim",
        "AppIcon-Storefront",
        "AppIcon-Sunset",
    );
