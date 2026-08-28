@@ -78,61 +78,71 @@ struct FriendsView: View {
             // that card goes away and nothing could switch it back off.
             if isEmpty { isManagingFamily = false }
         }
-        .alert("Success", isPresented: .init(
-            get: { viewModel.successMessage != nil },
-            set: { if !$0 { viewModel.clearMessages() } }
-        )) {
-            Button("OK") { viewModel.clearMessages() }
-        } message: {
-            Text(viewModel.successMessage ?? "")
-        }
-        .alert("Error", isPresented: .init(
-            get: { viewModel.errorMessage != nil },
-            set: { if !$0 { viewModel.clearMessages() } }
-        )) {
-            Button("OK") { viewModel.clearMessages() }
-        } message: {
-            Text(viewModel.errorMessage ?? "")
-        }
-        .alert("Remove Friend", isPresented: $showingRemoveAlert) {
-            Button("Cancel", role: .cancel) {
-                friendshipToRemove = nil
-            }
-            Button("Remove", role: .destructive) {
-                if let friendship = friendshipToRemove {
-                    viewModel.removeFriend(friendship)
-                    friendshipToRemove = nil
-                }
-            }
-        } message: {
-            if let friendship = friendshipToRemove {
-                Text("Are you sure you want to remove \(friendship.friendName(currentUserId: sessionManager.currentUser?.userId ?? "")) from your friends? Any stores shared between you will be unshared.")
-            } else {
-                Text("Are you sure you want to remove this friend?")
-            }
-        }
-        .alert("Invite Friends", isPresented: $showInviteAlert) {
-            Button("OK") { }
-        } message: {
-            Text(AppInvite.linkCopiedMessage)
-        }
-        .alert("Cancel Request", isPresented: $showingCancelAlert) {
-            Button("No", role: .cancel) {
-                friendshipToCancel = nil
-            }
-            Button("Yes, Cancel", role: .destructive) {
-                if let friendship = friendshipToCancel {
-                    viewModel.cancelRequest(friendship)
-                    friendshipToCancel = nil
-                }
-            }
-        } message: {
-            if let friendship = friendshipToCancel {
-                Text("Cancel your friend request to \(friendship.receiverName)?")
-            } else {
-                Text("Cancel this friend request?")
-            }
-        }
+        .organicAlert(
+            "Success",
+            isPresented: .init(
+                get: { viewModel.successMessage != nil },
+                set: { if !$0 { viewModel.clearMessages() } }
+            ),
+            icon: "checkmark",
+            tone: .success,
+            message: viewModel.successMessage,
+            actions: [.ok { viewModel.clearMessages() }]
+        )
+        .organicAlert(
+            "Error",
+            isPresented: .init(
+                get: { viewModel.errorMessage != nil },
+                set: { if !$0 { viewModel.clearMessages() } }
+            ),
+            icon: "exclamationmark.triangle.fill",
+            tone: .destructive,
+            message: viewModel.errorMessage,
+            actions: [.ok { viewModel.clearMessages() }]
+        )
+        .organicAlert(
+            "Remove Friend",
+            isPresented: $showingRemoveAlert,
+            icon: "person.badge.minus",
+            tone: .destructive,
+            message: friendshipToRemove.map {
+                "Are you sure you want to remove \($0.friendName(currentUserId: sessionManager.currentUser?.userId ?? "")) from your friends? Any stores shared between you will be unshared."
+            } ?? "Are you sure you want to remove this friend?",
+            actions: [
+                .destructive("Remove") {
+                    if let friendship = friendshipToRemove {
+                        viewModel.removeFriend(friendship)
+                        friendshipToRemove = nil
+                    }
+                },
+                .cancel { friendshipToRemove = nil }
+            ]
+        )
+        .organicAlert(
+            "Invite Friends",
+            isPresented: $showInviteAlert,
+            icon: "link",
+            message: AppInvite.linkCopiedMessage,
+            actions: [.ok()]
+        )
+        .organicAlert(
+            "Cancel Request",
+            isPresented: $showingCancelAlert,
+            icon: "person.crop.circle.badge.xmark",
+            tone: .destructive,
+            message: friendshipToCancel.map {
+                "Cancel your friend request to \($0.receiverName)?"
+            } ?? "Cancel this friend request?",
+            actions: [
+                .destructive("Yes, Cancel") {
+                    if let friendship = friendshipToCancel {
+                        viewModel.cancelRequest(friendship)
+                        friendshipToCancel = nil
+                    }
+                },
+                .cancel("No") { friendshipToCancel = nil }
+            ]
+        )
     }
 
     // MARK: - Main Content
@@ -896,25 +906,33 @@ struct AddFriendView: View {
                     .foregroundColor(OrganicPalette.terracotta(colorScheme))
                 }
             }
-            .alert("Success", isPresented: .init(
-                get: { viewModel.successMessage != nil },
-                set: { if !$0 { viewModel.clearMessages(); dismiss() } }
-            )) {
-                Button("OK") {
-                    viewModel.clearMessages()
-                    dismiss()
-                }
-            } message: {
-                Text(viewModel.successMessage ?? "")
-            }
-            .alert("Error", isPresented: .init(
-                get: { viewModel.errorMessage != nil },
-                set: { if !$0 { viewModel.clearMessages() } }
-            )) {
-                Button("OK") { viewModel.clearMessages() }
-            } message: {
-                Text(viewModel.errorMessage ?? "")
-            }
+            .organicAlert(
+                "Success",
+                isPresented: .init(
+                    get: { viewModel.successMessage != nil },
+                    set: { if !$0 { viewModel.clearMessages(); dismiss() } }
+                ),
+                icon: "checkmark",
+                tone: .success,
+                message: viewModel.successMessage,
+                actions: [
+                    .ok {
+                        viewModel.clearMessages()
+                        dismiss()
+                    }
+                ]
+            )
+            .organicAlert(
+                "Error",
+                isPresented: .init(
+                    get: { viewModel.errorMessage != nil },
+                    set: { if !$0 { viewModel.clearMessages() } }
+                ),
+                icon: "exclamationmark.triangle.fill",
+                tone: .destructive,
+                message: viewModel.errorMessage,
+                actions: [.ok { viewModel.clearMessages() }]
+            )
         }
     }
 

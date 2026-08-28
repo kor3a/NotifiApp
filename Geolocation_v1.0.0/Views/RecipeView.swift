@@ -61,22 +61,25 @@ struct RecipeView: View {
                 viewModel.updateRecipe(recipe, name: name, ingredients: ingredients)
             }
         }
-        .alert("Delete Recipe", isPresented: Binding(
-            get: { recipeToDelete != nil },
-            set: { if !$0 { recipeToDelete = nil } }
-        )) {
-            Button("Delete", role: .destructive) {
-                if let recipe = recipeToDelete {
-                    viewModel.deleteRecipe(recipe)
-                }
-                recipeToDelete = nil
-            }
-            Button("Cancel", role: .cancel) { recipeToDelete = nil }
-        } message: {
-            if let recipe = recipeToDelete {
-                Text("Delete \"\(recipe.name)\"? This cannot be undone.")
-            }
-        }
+        .organicAlert(
+            "Delete Recipe",
+            isPresented: Binding(
+                get: { recipeToDelete != nil },
+                set: { if !$0 { recipeToDelete = nil } }
+            ),
+            icon: "trash.fill",
+            tone: .destructive,
+            message: recipeToDelete.map { "Delete \"\($0.name)\"? This cannot be undone." },
+            actions: [
+                .destructive("Delete") {
+                    if let recipe = recipeToDelete {
+                        viewModel.deleteRecipe(recipe)
+                    }
+                    recipeToDelete = nil
+                },
+                .cancel { recipeToDelete = nil }
+            ]
+        )
         .onAppear { viewModel.fetchRecipes() }
     }
 
@@ -478,24 +481,33 @@ struct RecipePickerView: View {
                 }
             }
         }
-        .alert("Ingredients Added", isPresented: Binding(
-            get: { addedCount != nil },
-            set: { if !$0 { addedCount = nil; dismiss() } }
-        )) {
-            Button("OK") {
-                addedCount = nil
-                dismiss()
-            }
-        } message: {
-            if let count = addedCount, let name = addedForRecipeName {
-                if count > 0 {
-                    Text("Added \(count) ingredient\(count == 1 ? "" : "s") from \"\(name)\" to \(userStoreItem.store.name).")
-                } else {
-                    Text("All ingredients from \"\(name)\" already exist in \(userStoreItem.store.name).")
+        .organicAlert(
+            "Ingredients Added",
+            isPresented: Binding(
+                get: { addedCount != nil },
+                set: { if !$0 { addedCount = nil; dismiss() } }
+            ),
+            icon: "checkmark",
+            tone: .success,
+            message: ingredientsAddedMessage,
+            actions: [
+                .ok {
+                    addedCount = nil
+                    dismiss()
                 }
-            }
-        }
+            ]
+        )
         .onAppear { viewModel.fetchRecipes() }
+    }
+
+    private var ingredientsAddedMessage: String? {
+        guard let count = addedCount, let name = addedForRecipeName else { return nil }
+
+        if count > 0 {
+            return "Added \(count) ingredient\(count == 1 ? "" : "s") from \"\(name)\" to \(userStoreItem.store.name)."
+        } else {
+            return "All ingredients from \"\(name)\" already exist in \(userStoreItem.store.name)."
+        }
     }
 
     private var recipeList: some View {

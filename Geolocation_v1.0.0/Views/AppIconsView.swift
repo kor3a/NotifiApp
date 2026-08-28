@@ -51,17 +51,17 @@ struct AppIconsView: View {
                     .foregroundColor(OrganicPalette.ink(colorScheme))
             }
         }
-        .alert(
+        .organicAlert(
             "Couldn't change the icon",
             isPresented: Binding(
                 get: { iconManager.errorMessage != nil },
                 set: { if !$0 { iconManager.errorMessage = nil } }
-            )
-        ) {
-            Button("OK", role: .cancel) { iconManager.errorMessage = nil }
-        } message: {
-            Text(iconManager.errorMessage ?? "")
-        }
+            ),
+            icon: "exclamationmark.triangle.fill",
+            tone: .destructive,
+            message: iconManager.errorMessage,
+            actions: [.ok { iconManager.errorMessage = nil }]
+        )
     }
 
     // MARK: - Pieces

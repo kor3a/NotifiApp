@@ -72,11 +72,14 @@ struct SubscriptionManagementView: View {
                         .foregroundColor(OrganicPalette.ink(colorScheme))
                 }
             }
-            .alert("Unable to Open Settings", isPresented: $showManageError) {
-                Button("OK") { }
-            } message: {
-                Text(manageErrorMessage)
-            }
+            .organicAlert(
+                "Unable to Open Settings",
+                isPresented: $showManageError,
+                icon: "exclamationmark.triangle.fill",
+                tone: .destructive,
+                message: manageErrorMessage,
+                actions: [.ok()]
+            )
             .sheet(isPresented: $showPrivacy) { PrivacyPolicyView(isModal: true) }
         }
     }

@@ -181,56 +181,65 @@ struct StoresView: View {
         .sheet(item: $voiceCommandStore) { storeItem in
             VoiceCommandView(userStoreItem: storeItem)
         }
-        .alert("On My Way", isPresented: $showOnMyWayConfirmation) {
-            Button("Send") {
-                if let store = selectedOnMyWayStore {
-                    viewModel.sendOnMyWayNotification(for: store)
-                }
-            }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            if let store = selectedOnMyWayStore {
-                Text("Notify people you share \(store.store.name) with that you're on your way?")
-            }
-        }
-        .alert("Notification Sent", isPresented: Binding(
-            get: { viewModel.onMyWaySentStoreName != nil },
-            set: { if !$0 { viewModel.onMyWaySentStoreName = nil } }
-        )) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            if let storeName = viewModel.onMyWaySentStoreName {
-                Text("Your shared contacts have been notified that you're on your way to \(storeName).")
-            }
-        }
-        .alert("Unable to Send", isPresented: Binding(
-            get: { viewModel.onMyWayError != nil },
-            set: { if !$0 { viewModel.onMyWayError = nil } }
-        )) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            if let error = viewModel.onMyWayError {
-                Text(error)
-            }
-        }
-        .alert(deleteAlertTitle, isPresented: Binding(
-            get: { storeToDelete != nil },
-            set: { if !$0 { storeToDelete = nil } }
-        )) {
-            Button(deleteAlertActionLabel, role: .destructive) {
-                if let store = storeToDelete {
-                    deleteStore(store)
-                }
-                storeToDelete = nil
-            }
-            Button("Cancel", role: .cancel) {
-                storeToDelete = nil
-            }
-        } message: {
-            if let store = storeToDelete {
-                Text(deleteAlertMessage(for: store))
-            }
-        }
+        .organicAlert(
+            "On My Way",
+            isPresented: $showOnMyWayConfirmation,
+            icon: "car.fill",
+            message: selectedOnMyWayStore.map {
+                "Notify people you share \($0.store.name) with that you're on your way?"
+            },
+            actions: [
+                .primary("Send") {
+                    if let store = selectedOnMyWayStore {
+                        viewModel.sendOnMyWayNotification(for: store)
+                    }
+                },
+                .cancel()
+            ]
+        )
+        .organicAlert(
+            "Notification Sent",
+            isPresented: Binding(
+                get: { viewModel.onMyWaySentStoreName != nil },
+                set: { if !$0 { viewModel.onMyWaySentStoreName = nil } }
+            ),
+            icon: "checkmark",
+            tone: .success,
+            message: viewModel.onMyWaySentStoreName.map {
+                "Your shared contacts have been notified that you're on your way to \($0)."
+            },
+            actions: [.ok()]
+        )
+        .organicAlert(
+            "Unable to Send",
+            isPresented: Binding(
+                get: { viewModel.onMyWayError != nil },
+                set: { if !$0 { viewModel.onMyWayError = nil } }
+            ),
+            icon: "exclamationmark.triangle.fill",
+            tone: .destructive,
+            message: viewModel.onMyWayError,
+            actions: [.ok()]
+        )
+        .organicAlert(
+            deleteAlertTitle,
+            isPresented: Binding(
+                get: { storeToDelete != nil },
+                set: { if !$0 { storeToDelete = nil } }
+            ),
+            icon: "trash.fill",
+            tone: .destructive,
+            message: storeToDelete.map { deleteAlertMessage(for: $0) },
+            actions: [
+                .destructive(deleteAlertActionLabel) {
+                    if let store = storeToDelete {
+                        deleteStore(store)
+                    }
+                    storeToDelete = nil
+                },
+                .cancel { storeToDelete = nil }
+            ]
+        )
         .overlay {
             if viewModel.isSendingOnMyWay {
                 Color.black.opacity(0.3)

@@ -78,16 +78,22 @@ struct ReportFeedbackView: View {
                     .foregroundColor(OrganicPalette.ink(colorScheme))
             }
         }
-        .alert("Thank you!", isPresented: $showConfirmation) {
-            Button("OK", role: .cancel) { }
-        } message: {
-            Text("Your feedback has been submitted. We appreciate you helping improve Allim!")
-        }
-        .alert("Couldn't Send Feedback", isPresented: $showError) {
-            Button("OK", role: .cancel) { }
-        } message: {
-            Text(errorMessage)
-        }
+        .organicAlert(
+            "Thank you!",
+            isPresented: $showConfirmation,
+            icon: "heart.fill",
+            tone: .success,
+            message: "Your feedback has been submitted. We appreciate you helping improve Allim!",
+            actions: [.ok()]
+        )
+        .organicAlert(
+            "Couldn't Send Feedback",
+            isPresented: $showError,
+            icon: "exclamationmark.triangle.fill",
+            tone: .destructive,
+            message: errorMessage,
+            actions: [.ok()]
+        )
     }
 
     // MARK: - Sections

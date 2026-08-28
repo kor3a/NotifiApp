@@ -367,28 +367,39 @@ struct ProfileView: View {
                 )
             }
             .buttonStyle(.plain)
-            .alert("Delete Account", isPresented: $showDeleteAccountAlert) {
-                Button("Delete", role: .destructive) {
-                    viewModel.deleteAccount()
-                }
-                Button("Cancel", role: .cancel) { }
-            } message: {
-                Text(deleteAccountMessage)
-            }
+            .organicAlert(
+                "Delete Account",
+                isPresented: $showDeleteAccountAlert,
+                icon: "person.crop.circle.badge.xmark",
+                tone: .destructive,
+                message: deleteAccountMessage,
+                actions: [
+                    .destructive("Delete") { viewModel.deleteAccount() },
+                    .cancel()
+                ]
+            )
             // Only password accounts get here — Apple/Google accounts confirm
             // through their provider's sheet instead.
-            .alert("Confirm Your Identity", isPresented: $viewModel.needsReauthForDeletion) {
-                SecureField("Password", text: $reauthPassword)
-                Button("Delete Account", role: .destructive) {
-                    let password = reauthPassword
-                    reauthPassword = ""
-                    viewModel.reauthenticateAndDelete(password: password)
-                }
-                Button("Cancel", role: .cancel) {
-                    reauthPassword = ""
-                }
-            } message: {
-                Text("Please enter your password to confirm account deletion.")
+            .organicAlert(
+                "Confirm Your Identity",
+                isPresented: $viewModel.needsReauthForDeletion,
+                icon: "lock.fill",
+                tone: .destructive,
+                message: "Please enter your password to confirm account deletion.",
+                actions: [
+                    .destructive("Delete Account") {
+                        let password = reauthPassword
+                        reauthPassword = ""
+                        viewModel.reauthenticateAndDelete(password: password)
+                    },
+                    .cancel { reauthPassword = "" }
+                ]
+            ) {
+                OrganicAlertTextField(
+                    placeholder: "Password",
+                    text: $reauthPassword,
+                    isSecure: true
+                )
             }
         }
     }

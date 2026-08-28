@@ -240,26 +240,34 @@ struct HomeView: View {
             guard let navigation = navigation else { return }
             handleNotificationNavigation(navigation)
         }
-        .alert("Notifications Are Disabled", isPresented: $showNotificationsDeniedAlert) {
-            Button("Open Settings") {
-                if let url = URL(string: UIApplication.openSettingsURLString) {
-                    UIApplication.shared.open(url)
-                }
-            }
-            Button("Dismiss", role: .cancel) {}
-        } message: {
-            Text("Allim needs notifications to alert you about nearby stores and messages. Go to Settings > Notifications > Allim and turn on Allow Notifications.")
-        }
-        .alert("Enable CarPlay Notifications", isPresented: $showCarPlayAlert) {
-            Button("Open Settings") {
-                if let url = URL(string: UIApplication.openSettingsURLString) {
-                    UIApplication.shared.open(url)
-                }
-            }
-            Button("Dismiss", role: .cancel) {}
-        } message: {
-            Text("Notifications won't appear on your CarPlay screen. Go to Settings > Notifications > Allim and turn on CarPlay.")
-        }
+        .organicAlert(
+            "Notifications Are Disabled",
+            isPresented: $showNotificationsDeniedAlert,
+            icon: "bell.slash.fill",
+            message: "Allim needs notifications to alert you about nearby stores and messages. Go to Settings > Notifications > Allim and turn on Allow Notifications.",
+            actions: [
+                .primary("Open Settings") {
+                    if let url = URL(string: UIApplication.openSettingsURLString) {
+                        UIApplication.shared.open(url)
+                    }
+                },
+                .cancel("Dismiss")
+            ]
+        )
+        .organicAlert(
+            "Enable CarPlay Notifications",
+            isPresented: $showCarPlayAlert,
+            icon: "car.fill",
+            message: "Notifications won't appear on your CarPlay screen. Go to Settings > Notifications > Allim and turn on CarPlay.",
+            actions: [
+                .primary("Open Settings") {
+                    if let url = URL(string: UIApplication.openSettingsURLString) {
+                        UIApplication.shared.open(url)
+                    }
+                },
+                .cancel("Dismiss")
+            ]
+        )
         .onAppear {
             // Handle any notification tap that occurred before the view appeared
             if let navigation = notificationManager.pendingNavigation {

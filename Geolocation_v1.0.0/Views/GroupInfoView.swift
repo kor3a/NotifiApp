@@ -63,18 +63,28 @@ struct GroupInfoView: View {
                         .foregroundColor(OrganicPalette.terracotta(colorScheme))
                 }
             }
-            .alert("Leave Group", isPresented: $showLeaveAlert) {
-                Button("Leave", role: .destructive) { leaveGroup() }
-                Button("Cancel", role: .cancel) {}
-            } message: {
-                Text("You will no longer receive messages from this group.")
-            }
-            .alert("Delete Group", isPresented: $showDeleteAlert) {
-                Button("Delete", role: .destructive) { deleteGroup() }
-                Button("Cancel", role: .cancel) {}
-            } message: {
-                Text("This will permanently delete the group and all its messages for everyone.")
-            }
+            .organicAlert(
+                "Leave Group",
+                isPresented: $showLeaveAlert,
+                icon: "rectangle.portrait.and.arrow.right",
+                tone: .destructive,
+                message: "You will no longer receive messages from this group.",
+                actions: [
+                    .destructive("Leave") { leaveGroup() },
+                    .cancel()
+                ]
+            )
+            .organicAlert(
+                "Delete Group",
+                isPresented: $showDeleteAlert,
+                icon: "trash.fill",
+                tone: .destructive,
+                message: "This will permanently delete the group and all its messages for everyone.",
+                actions: [
+                    .destructive("Delete") { deleteGroup() },
+                    .cancel()
+                ]
+            )
         }
     }
 
