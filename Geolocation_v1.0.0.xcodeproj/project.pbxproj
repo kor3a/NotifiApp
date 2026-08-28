@@ -67,6 +67,8 @@
 		01B78C382EBD414A00201B88 /* UserStoreItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01B78C372EBD414A00201B88 /* UserStoreItem.swift */; };
 		01B78C3A2EBD415F00201B88 /* ReminderViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01B78C392EBD415F00201B88 /* ReminderViewModel.swift */; };
 		01BC6BF9303265DE0018331E /* ReminderToggleService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01BC6BF6303265DE0018331E /* ReminderToggleService.swift */; };
+		01AC10022FA0000100A1C001 /* AppIconManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01AC10012FA0000100A1C001 /* AppIconManager.swift */; };
+		01AC10042FA0000100A1C001 /* AppIconsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01AC10032FA0000100A1C001 /* AppIconsView.swift */; };
 		01BF38AB301C3DE700F49DBC /* BackgroundPickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01BF38AA301C3DE700F49DBC /* BackgroundPickerView.swift */; };
 		01D2D8732EC2901F009C371F /* ImagePicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01D2D8722EC2901F009C371F /* ImagePicker.swift */; };
 		01D86E952F6AD65B0007802A /* TutorialManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01D86E942F6AD65B0007802A /* TutorialManager.swift */; };
@@ -264,6 +266,8 @@
 		01B78C372EBD414A00201B88 /* UserStoreItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserStoreItem.swift; sourceTree = "<group>"; };
 		01B78C392EBD415F00201B88 /* ReminderViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderViewModel.swift; sourceTree = "<group>"; };
 		01BC6BF6303265DE0018331E /* ReminderToggleService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderToggleService.swift; sourceTree = "<group>"; };
+		01AC10012FA0000100A1C001 /* AppIconManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppIconManager.swift; sourceTree = "<group>"; };
+		01AC10032FA0000100A1C001 /* AppIconsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppIconsView.swift; sourceTree = "<group>"; };
 		01BF38AA301C3DE700F49DBC /* BackgroundPickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundPickerView.swift; sourceTree = "<group>"; };
 		01D2D8722EC2901F009C371F /* ImagePicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImagePicker.swift; sourceTree = "<group>"; };
 		01D86E942F6AD65B0007802A /* TutorialManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TutorialManager.swift; sourceTree = "<group>"; };
@@ -434,6 +438,7 @@
 		01FB27582EC2A7490038E406 /* Services */ = {
 			isa = PBXGroup;
 			children = (
+				01AC10012FA0000100A1C001 /* AppIconManager.swift */,
 				01BC6BF6303265DE0018331E /* ReminderToggleService.swift */,
 				011574872F69DC3900963138 /* FCMTokenManager.swift */,
 				0138D8742F68BB95007CC1E4 /* SubscriptionManager.swift */,
@@ -524,6 +529,7 @@
 		8278FE0E2C5DE5930017EB72 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				01AC10032FA0000100A1C001 /* AppIconsView.swift */,
 				01BF38AA301C3DE700F49DBC /* BackgroundPickerView.swift */,
 				01500AB32F87F22F0038F0D3 /* SubscriptionDebugView.swift */,
 				017BD2522F76D39800E5842A /* RecipeView.swift */,
@@ -943,6 +949,8 @@
 				AA1234560001AABB00CC0308 /* StoreAnalytics.swift in Sources */,
 				AA1234560001AABB00CC0310 /* StoreAnalyticsView.swift in Sources */,
 				01B408332F3BECF200EA1F25 /* MessagesView.swift in Sources */,
+				01AC10022FA0000100A1C001 /* AppIconManager.swift in Sources */,
+				01AC10042FA0000100A1C001 /* AppIconsView.swift in Sources */,
 				01BF38AB301C3DE700F49DBC /* BackgroundPickerView.swift in Sources */,
 				0188F8592F68568C007953B2 /* BannerAdView.swift in Sources */,
 				0138242F2EDCD08C0069F38C /* NotificationLogView.swift in Sources */,
@@ -1382,8 +1390,14 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 01B408212F3BEC7F00EA1F25 /* Secrets.xcconfig */;
 			buildSettings = {
+				ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES = (
+					"AppIcon-Allim",
+					"AppIcon-Route",
+					"AppIcon-Notifi",
+				);
 				ASSETCATALOG_COMPILER_APPICON_NAME = NotifiApp;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = AllimRelease.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
@@ -1412,8 +1426,14 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 01B408212F3BEC7F00EA1F25 /* Secrets.xcconfig */;
 			buildSettings = {
+				ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES = (
+					"AppIcon-Allim",
+					"AppIcon-Route",
+					"AppIcon-Notifi",
+				);
 				ASSETCATALOG_COMPILER_APPICON_NAME = NotifiApp;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = AllimRelease.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
