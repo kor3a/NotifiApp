@@ -55,14 +55,9 @@ final class AppIconManager: ObservableObject {
             previewAssetName: "AppIconPreview-Allim"
         ),
         AppIconOption(
-            alternateName: "AppIcon-Route",
-            displayName: "Route",
-            previewAssetName: "AppIconPreview-Route"
-        ),
-        AppIconOption(
-            alternateName: "AppIcon-Notifi",
-            displayName: "Notifi",
-            previewAssetName: "AppIconPreview-Notifi"
+            alternateName: "AppIcon-Storefront",
+            displayName: "Storefront",
+            previewAssetName: "AppIconPreview-Storefront"
         )
     ]
 

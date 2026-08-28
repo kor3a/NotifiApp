@@ -12,13 +12,11 @@ Geolocation_v1.0.0/Assets.xcassets/
 ├── AppIcon-Allim.appiconset/          ← the icon iOS installs
 │   ├── AppIcon-Allim-1024.png
 │   └── Contents.json
-├── AppIcon-Route.appiconset/
-├── AppIcon-Notifi.appiconset/
+├── AppIcon-Storefront.appiconset/
 ├── AppIconPreview-Allim.imageset/     ← the thumbnail the picker draws
 │   ├── AppIconPreview-Allim.png
 │   └── Contents.json
-├── AppIconPreview-Route.imageset/
-├── AppIconPreview-Notifi.imageset/
+├── AppIconPreview-Storefront.imageset/
 └── AppIconPreview-Default.imageset/
 ```
 
@@ -51,8 +49,7 @@ thumbnail for the shipped icon, which is `Geolocation_v1.0.0/NotifiApp.icon`
    ```
    ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES = (
        "AppIcon-Allim",
-       "AppIcon-Route",
-       "AppIcon-Notifi",
+       "AppIcon-Storefront",
        "AppIcon-Sunset",
    );
    ```
@@ -70,6 +67,18 @@ thumbnail for the shipped icon, which is `Geolocation_v1.0.0/NotifiApp.icon`
 
 Nothing else to touch: the grid, the selection state and the Info.plist entries
 all follow from that list and the build setting.
+
+## Replacing an icon's artwork
+
+Drop the new 1024×1024 PNG over **both** copies, keeping the filenames:
+
+```
+Assets.xcassets/AppIcon-Storefront.appiconset/AppIcon-Storefront-1024.png
+Assets.xcassets/AppIconPreview-Storefront.imageset/AppIconPreview-Storefront.png
+```
+
+Nothing in the code refers to the file, only to the asset name, so there's
+nothing else to change.
 
 ## Notes
 
