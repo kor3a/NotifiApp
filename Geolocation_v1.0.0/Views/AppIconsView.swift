@@ -29,7 +29,7 @@ struct AppIconsView: View {
                     VStack(alignment: .leading, spacing: 14) {
                         OrganicSectionLabel(title: "Choose an icon")
 
-                        LazyVGrid(columns: columns, spacing: 18) {
+                        LazyVGrid(columns: columns, spacing: 24) {
                             ForEach(AppIconManager.options) { option in
                                 iconCell(option)
                             }
@@ -91,18 +91,17 @@ struct AppIconsView: View {
             }
         } label: {
             preview(for: option)
-                .frame(width: 96, height: 96)
+                .frame(width: 112, height: 112)
                 // The Home Screen's own corner curve, near enough.
-                .clipShape(RoundedRectangle(cornerRadius: 21, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 21, style: .continuous)
-                        .strokeBorder(
-                            isSelected
-                                ? OrganicPalette.terracotta(colorScheme)
-                                : OrganicPalette.inkSoft(colorScheme).opacity(0.15),
-                            lineWidth: isSelected ? 3 : 1
-                        )
-                )
+                .clipShape(RoundedRectangle(cornerRadius: 25, style: .continuous))
+                // Nothing marks an unselected icon: the artwork sits on the
+                // canvas as it would on the Home Screen.
+                .overlay {
+                    if isSelected {
+                        RoundedRectangle(cornerRadius: 25, style: .continuous)
+                            .strokeBorder(OrganicPalette.terracotta(colorScheme), lineWidth: 3)
+                    }
+                }
                 .overlay(alignment: .bottomTrailing) {
                     if isSelected {
                         Image(systemName: "checkmark")
@@ -110,15 +109,18 @@ struct AppIconsView: View {
                             .foregroundColor(.white)
                             .frame(width: 26, height: 26)
                             .background(Circle().fill(OrganicPalette.terracotta(colorScheme)))
+                            // Reads against the canvas now that the cards are
+                            // gone.
                             .overlay(
-                                Circle().strokeBorder(OrganicPalette.surface(colorScheme), lineWidth: 2)
+                                Circle().strokeBorder(OrganicPalette.canvas(colorScheme), lineWidth: 2)
                             )
                             .offset(x: 8, y: 8)
                     }
                 }
-                .padding(.vertical, 24)
+                // No card behind the icon — only enough room around it to
+                // keep the tap target comfortable.
+                .padding(10)
                 .frame(maxWidth: .infinity)
-                .background(OrganicCardBackground(colorScheme: colorScheme, cornerRadius: 24))
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
