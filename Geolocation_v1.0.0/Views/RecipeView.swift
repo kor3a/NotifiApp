@@ -291,132 +291,181 @@ struct RecipeEditView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                Color.backgroundGradient(for: colorScheme)
+                OrganicPalette.canvas(colorScheme)
                     .ignoresSafeArea()
 
                 ScrollView {
-                    VStack(alignment: .leading, spacing: 20) {
-                        // Recipe Name
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Recipe Name")
-                                .font(.subheadline)
-                                .fontWeight(.medium)
-                                .foregroundStyle(.secondary)
-                                .padding(.horizontal, 4)
-                            TextField("e.g. Pasta Carbonara", text: $recipeName)
-                                .font(.body)
-                                .padding()
-                                .background(
-                                    RoundedRectangle(cornerRadius: 12)
-                                        .fill(.ultraThinMaterial)
-                                )
-                                .focused($isNameFocused)
-                                .submitLabel(.next)
-                                .onSubmit { isNewIngredientFocused = true }
-                        }
+                    VStack(alignment: .leading, spacing: 24) {
+                        Text(recipe == nil ? "New recipe" : "Edit recipe")
+                            .font(OrganicPalette.display(32))
+                            .foregroundColor(OrganicPalette.ink(colorScheme))
+                            .padding(.top, 8)
 
-                        // Ingredients
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Ingredients")
-                                .font(.subheadline)
-                                .fontWeight(.medium)
-                                .foregroundStyle(.secondary)
-                                .padding(.horizontal, 4)
+                        nameSection
 
-                            // Existing ingredients
-                            if !ingredients.isEmpty {
-                                VStack(spacing: 0) {
-                                    ForEach(Array(ingredients.enumerated()), id: \.offset) { index, ingredient in
-                                        HStack {
-                                            Image(systemName: "circle.fill")
-                                                .font(.system(size: 6))
-                                                .foregroundStyle(.secondary)
-                                            Text(ingredient)
-                                                .font(.body)
-                                            Spacer()
-                                            Button {
-                                                ingredients.remove(at: index)
-                                            } label: {
-                                                Image(systemName: "xmark.circle.fill")
-                                                    .foregroundStyle(.secondary)
-                                            }
-                                        }
-                                        .padding(.horizontal, 14)
-                                        .padding(.vertical, 10)
-
-                                        if index < ingredients.count - 1 {
-                                            Divider().padding(.horizontal, 14)
-                                        }
-                                    }
-                                }
-                                .background(
-                                    RoundedRectangle(cornerRadius: 12)
-                                        .fill(.ultraThinMaterial)
-                                )
-                            }
-
-                            // Add ingredient field
-                            HStack(spacing: 10) {
-                                TextField("Add ingredient…", text: $newIngredientText)
-                                    .font(.body)
-                                    .padding()
-                                    .background(
-                                        RoundedRectangle(cornerRadius: 12)
-                                            .fill(.ultraThinMaterial)
-                                    )
-                                    .focused($isNewIngredientFocused)
-                                    .submitLabel(.done)
-                                    .onSubmit { addIngredient() }
-
-                                Button(action: addIngredient) {
-                                    Image(systemName: "plus.circle.fill")
-                                        .font(.system(size: 32))
-                                        .foregroundStyle(
-                                            newIngredientText.trimmingCharacters(in: .whitespaces).isEmpty
-                                                ? Color.secondary
-                                                : Color.appAccent
-                                        )
-                                }
-                                .disabled(newIngredientText.trimmingCharacters(in: .whitespaces).isEmpty)
-                            }
-                        }
+                        ingredientsSection
                     }
-                    .padding()
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 32)
                 }
+                .scrollDismissesKeyboard(.interactively)
             }
-            .navigationTitle(recipe == nil ? "New Recipe" : "Edit Recipe")
+            .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(OrganicPalette.canvas(colorScheme), for: .navigationBar)
+            .tint(OrganicPalette.terracotta(colorScheme))
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button("Cancel") { dismiss() }
+                        .font(OrganicPalette.title(16))
+                        .foregroundColor(OrganicPalette.terracotta(colorScheme))
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Save") {
-                        let name = recipeName.trimmingCharacters(in: .whitespaces)
-                        // Finalize any in-progress ingredient text before saving
-                        let finalIngredients: [String]
-                        let pending = newIngredientText.trimmingCharacters(in: .whitespaces)
-                        if !pending.isEmpty {
-                            finalIngredients = ingredients + [pending]
-                        } else {
-                            finalIngredients = ingredients
-                        }
-                        onSave(name, finalIngredients)
-                        dismiss()
-                    }
-                    .fontWeight(.semibold)
-                    .disabled(!isValid)
+                    Button("Save") { save() }
+                        .font(OrganicPalette.title(16))
+                        .foregroundColor(OrganicPalette.terracotta(colorScheme))
+                        .opacity(isValid ? 1 : 0.4)
+                        .disabled(!isValid)
                 }
             }
         }
     }
 
+    // MARK: - Sections
+
+    private var nameSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            OrganicSectionLabel(title: "Recipe name")
+
+            TextField(
+                "",
+                text: $recipeName,
+                prompt: OrganicPalette.prompt("e.g. Pasta Carbonara", colorScheme)
+            )
+            .font(.system(size: 17))
+            .foregroundColor(OrganicPalette.ink(colorScheme))
+            .focused($isNameFocused)
+            .submitLabel(.next)
+            .onSubmit { isNewIngredientFocused = true }
+            .organicField(colorScheme)
+        }
+    }
+
+    private var ingredientsSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            OrganicSectionLabel(title: "Ingredients")
+
+            if ingredients.isEmpty {
+                // A sentence rather than a full empty state: the field that
+                // fixes it is the next thing down the screen.
+                Text("Nothing here yet. Add the ingredients you shop for.")
+                    .font(.system(size: 14))
+                    .foregroundColor(OrganicPalette.inkSoft(colorScheme))
+                    .fixedSize(horizontal: false, vertical: true)
+            } else {
+                VStack(spacing: 8) {
+                    ForEach(Array(ingredients.enumerated()), id: \.offset) { index, ingredient in
+                        ingredientRow(ingredient, at: index)
+                    }
+                }
+            }
+
+            addIngredientField
+                .padding(.top, 4)
+        }
+    }
+
+    /// One ingredient as its own card. The divided block this replaced needed a
+    /// material panel and hairlines to hold it together; separate cards on the
+    /// canvas carry the separation themselves.
+    private func ingredientRow(_ ingredient: String, at index: Int) -> some View {
+        HStack(spacing: 14) {
+            Circle()
+                .fill(OrganicPalette.terracotta(colorScheme))
+                .frame(width: 7, height: 7)
+                .padding(.leading, 4)
+
+            Text(ingredient)
+                .font(.system(size: 16))
+                .foregroundColor(OrganicPalette.ink(colorScheme))
+                .multilineTextAlignment(.leading)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Spacer(minLength: 8)
+
+            Button {
+                removeIngredient(at: index)
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundColor(OrganicPalette.rust(colorScheme))
+                    .frame(width: 30, height: 30)
+                    .background(Circle().fill(OrganicPalette.blush(colorScheme)))
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Remove \(ingredient)")
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(OrganicCardBackground(colorScheme: colorScheme))
+    }
+
+    private var addIngredientField: some View {
+        let isEmpty = newIngredientText.trimmingCharacters(in: .whitespaces).isEmpty
+
+        return HStack(spacing: 10) {
+            TextField(
+                "",
+                text: $newIngredientText,
+                prompt: OrganicPalette.prompt("Add ingredient…", colorScheme)
+            )
+            .font(.system(size: 17))
+            .foregroundColor(OrganicPalette.ink(colorScheme))
+            .focused($isNewIngredientFocused)
+            .submitLabel(.done)
+            .onSubmit { addIngredient() }
+            .organicField(colorScheme)
+
+            Button(action: addIngredient) {
+                Image(systemName: "plus")
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundColor(.white)
+                    .frame(width: 54, height: 54)
+                    .background(Circle().fill(OrganicPalette.terracotta(colorScheme)))
+                    .opacity(isEmpty ? 0.4 : 1)
+            }
+            .buttonStyle(.plain)
+            .disabled(isEmpty)
+            .accessibilityLabel("Add ingredient")
+        }
+    }
+
+    // MARK: - Actions
+
     private func addIngredient() {
         let text = newIngredientText.trimmingCharacters(in: .whitespaces)
         guard !text.isEmpty else { return }
-        ingredients.append(text)
+        withAnimation(.easeOut(duration: 0.18)) {
+            ingredients.append(text)
+        }
         newIngredientText = ""
         isNewIngredientFocused = true
+    }
+
+    private func removeIngredient(at index: Int) {
+        guard ingredients.indices.contains(index) else { return }
+        withAnimation(.easeOut(duration: 0.18)) {
+            _ = ingredients.remove(at: index)
+        }
+    }
+
+    private func save() {
+        let name = recipeName.trimmingCharacters(in: .whitespaces)
+        // Finalize any in-progress ingredient text before saving
+        let pending = newIngredientText.trimmingCharacters(in: .whitespaces)
+        let finalIngredients = pending.isEmpty ? ingredients : ingredients + [pending]
+        onSave(name, finalIngredients)
+        dismiss()
     }
 }
 
