@@ -242,28 +242,17 @@ class ReminderViewModel: ObservableObject {
 
     // MARK: - Category Grouping
 
-    /// All distinct categories present in the current reminders, sorted alphabetically,
-    /// with "Uncategorized" (nil category) always at the end.
+    /// All distinct categories present in the current reminders, in the order
+    /// their first item appears. Sections are therefore ordered by the same
+    /// persisted `sortOrder` that orders the rows within them, which is what
+    /// lets a category be dragged to a new position (see `moveCategory`).
     var categoryOrder: [String] {
-        var cats = Set<String>()
-        var hasUncategorized = false
-        for r in reminders {
-            if let cat = r.category, !cat.isEmpty {
-                cats.insert(cat)
-            } else {
-                hasUncategorized = true
-            }
-        }
-        var sorted = cats.sorted()
-        if hasUncategorized {
-            sorted.append("Uncategorized")
-        }
-        return sorted
+        orderedCategories(in: reminders)
     }
 
     /// Reminders grouped by category. Key is the display category name.
     func reminders(for category: String) -> [Reminder] {
-        if category == "Uncategorized" {
+        if category == Self.uncategorizedCategoryName {
             return reminders.filter { $0.category == nil || $0.category?.isEmpty == true }
         }
         return reminders.filter { $0.category == category }
@@ -284,26 +273,13 @@ class ReminderViewModel: ObservableObject {
 
     /// Displayed category order (excludes autosaved reminder)
     var displayedCategoryOrder: [String] {
-        var cats = Set<String>()
-        var hasUncategorized = false
-        for r in displayedReminders {
-            if let cat = r.category, !cat.isEmpty {
-                cats.insert(cat)
-            } else {
-                hasUncategorized = true
-            }
-        }
-        var sorted = cats.sorted()
-        if hasUncategorized {
-            sorted.append("Uncategorized")
-        }
-        return sorted
+        orderedCategories(in: displayedReminders)
     }
 
     /// Displayed reminders for a given category (excludes autosaved reminder)
     func displayedReminders(for category: String) -> [Reminder] {
         let base = displayedReminders
-        if category == "Uncategorized" {
+        if category == Self.uncategorizedCategoryName {
             return base.filter { $0.category == nil || $0.category?.isEmpty == true }
         }
         return base.filter { $0.category == category }
@@ -796,6 +772,190 @@ class ReminderViewModel: ObservableObject {
                 } else {
                     #if DEBUG
                     print("ReminderViewModel: Sort orders updated successfully")
+                    #endif
+                }
+            }
+        }
+    }
+
+    // MARK: - Drag Reordering (categories and items)
+
+    /// Display name for items that carry no category of their own.
+    static let uncategorizedCategoryName = "Uncategorized"
+
+    /// The section a reminder belongs to.
+    func categoryName(for reminder: Reminder) -> String {
+        if let category = reminder.category, !category.isEmpty { return category }
+        return Self.uncategorizedCategoryName
+    }
+
+    /// Section order for a list of reminders: the order their categories first
+    /// appear. Because `reminders` is kept sorted by `sortOrder`, this makes the
+    /// section order a function of the same persisted field that orders the rows
+    /// inside a section — dragging a category is just a renumbering, and it
+    /// syncs to every device and shared-list member for free.
+    private func orderedCategories(in list: [Reminder]) -> [String] {
+        var seen = Set<String>()
+        var order: [String] = []
+        for reminder in list {
+            let name = categoryName(for: reminder)
+            if seen.insert(name).inserted {
+                order.append(name)
+            }
+        }
+        return order
+    }
+
+    /// Snapshot of `reminders` taken when a drag lifts off. Hover moves
+    /// rearrange `reminders` in place so the list animates under the finger;
+    /// this is what the drop diffs against, and what an abandoned drag restores.
+    private var dragBaseline: [Reminder]?
+
+    /// Fires if a lifted drag never reaches a drop target (dropped outside the
+    /// app, cancelled by a call), so the paused snapshot listener can't stay
+    /// paused and freeze the list.
+    private var dragWatchdog: DispatchWorkItem?
+
+    /// True while a category or row is in flight.
+    var isDragging: Bool { dragBaseline != nil }
+
+    func beginDrag() {
+        guard dragBaseline == nil else { return }
+        dragBaseline = reminders
+        // Hold snapshot rebuilds so a listener callback mid-drag can't yank the
+        // rows out from under the finger.
+        isReordering = true
+        armDragWatchdog()
+    }
+
+    /// Restore the pre-drag order and let snapshots through again.
+    func cancelDrag() {
+        guard let baseline = dragBaseline else { return }
+        dragWatchdog?.cancel()
+        dragWatchdog = nil
+        reminders = baseline
+        dragBaseline = nil
+        isReordering = false
+    }
+
+    private func armDragWatchdog() {
+        dragWatchdog?.cancel()
+        let work = DispatchWorkItem { [weak self] in self?.cancelDrag() }
+        dragWatchdog = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 20, execute: work)
+    }
+
+    /// Move a whole category — header and every item under it — into the
+    /// position `target` currently occupies. Local only; `commitDrag()` persists.
+    func moveCategory(_ category: String, before target: String) {
+        guard category != target else { return }
+        var order = orderedCategories(in: reminders)
+        guard let from = order.firstIndex(of: category),
+              let to = order.firstIndex(of: target) else { return }
+        order.remove(at: from)
+        order.insert(category, at: to)
+        reminders = regrouped(reminders, byCategoryOrder: order)
+        armDragWatchdog()
+    }
+
+    /// Move a dragged item into `target`'s place, adopting `target`'s category
+    /// when they differ. Local only; `commitDrag()` persists.
+    func moveReminder(id: String, onto target: Reminder) {
+        guard id != target.id,
+              let from = reminders.firstIndex(where: { $0.id == id }) else { return }
+        var updated = reminders
+        var moved = updated.remove(at: from)
+        moved.category = target.category
+        let to = updated.firstIndex(where: { $0.id == target.id }) ?? updated.count
+        updated.insert(moved, at: to)
+        reminders = regrouped(updated, byCategoryOrder: orderedCategories(in: updated))
+        armDragWatchdog()
+    }
+
+    /// Move a dragged item to the top of `category`. This is the drop that lands
+    /// on a section header, so it also works for a collapsed section that shows
+    /// no rows to aim at. Local only; `commitDrag()` persists.
+    func moveReminder(id: String, toCategory category: String) {
+        guard let from = reminders.firstIndex(where: { $0.id == id }),
+              categoryName(for: reminders[from]) != category else { return }
+        var updated = reminders
+        var moved = updated.remove(at: from)
+        moved.category = (category == Self.uncategorizedCategoryName) ? nil : category
+        if let first = updated.firstIndex(where: { categoryName(for: $0) == category }) {
+            updated.insert(moved, at: first)
+        } else {
+            updated.append(moved)
+        }
+        reminders = regrouped(updated, byCategoryOrder: orderedCategories(in: updated))
+        armDragWatchdog()
+    }
+
+    /// Reorders `list` so every category's items sit together in `order`, each
+    /// section keeping its internal order. Legacy lists can have a category's
+    /// items scattered across the global order; this makes the flat array match
+    /// what the sectioned list actually shows, so the sort orders written on
+    /// drop describe that same arrangement.
+    private func regrouped(_ list: [Reminder], byCategoryOrder order: [String]) -> [Reminder] {
+        var buckets: [String: [Reminder]] = [:]
+        for reminder in list {
+            buckets[categoryName(for: reminder), default: []].append(reminder)
+        }
+        return order.flatMap { buckets[$0] ?? [] }
+    }
+
+    /// Persist what the drag rearranged: a new `sortOrder` for every row that
+    /// moved, plus a category change for any item dragged into another section.
+    func commitDrag() {
+        guard let baseline = dragBaseline else { return }
+        dragWatchdog?.cancel()
+        dragWatchdog = nil
+        dragBaseline = nil
+
+        let before = Dictionary(baseline.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+
+        // Category changes go through the normal path so linked copies on a
+        // shared list follow along and the edit is attributed to this user.
+        var categoryChanges: [(reminder: Reminder, newCategory: String?)] = []
+        for reminder in reminders {
+            guard let old = before[reminder.id], old.category != reminder.category else { continue }
+            categoryChanges.append((old, reminder.category))
+        }
+
+        let batch = db.batch()
+        var hasSortChanges = false
+        var renumbered = reminders
+        for index in renumbered.indices where renumbered[index].sortOrder != index {
+            renumbered[index].sortOrder = index
+            hasSortChanges = true
+            batch.updateData(
+                ["sortOrder": index],
+                forDocument: db.collection("reminders").document(renumbered[index].id)
+            )
+        }
+        if hasSortChanges {
+            reminders = renumbered
+        }
+
+        for (reminder, newCategory) in categoryChanges {
+            updateReminderCategory(reminder, newCategory: newCategory)
+        }
+
+        guard hasSortChanges else {
+            isReordering = false
+            return
+        }
+
+        batch.commit { [weak self] error in
+            DispatchQueue.main.async {
+                self?.isReordering = false
+                if let error = error {
+                    #if DEBUG
+                    print("ReminderViewModel: Error persisting drag order: \(error.localizedDescription)")
+                    #endif
+                    self?.errorMessage = "Failed to update sort order: \(error.localizedDescription)"
+                } else {
+                    #if DEBUG
+                    print("ReminderViewModel: Drag order persisted")
                     #endif
                 }
             }

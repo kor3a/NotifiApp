@@ -6,6 +6,8 @@
 //
 
 import SwiftUI
+import Foundation
+import UniformTypeIdentifiers
 
 /// Holds the global frames of each row's checkbox for the AutoDeleteSwipeRail's
 /// pan hit-testing.
@@ -59,6 +61,11 @@ struct ReminderView: View {
     @State private var reminderForCategory: Reminder?
     @State private var customCategoryText = ""
     @State private var collapsedCategories: Set<String> = []
+    /// Category lifted by a press-and-drag, if any. Set on lift and cleared on
+    /// drop; the section it names is dimmed while it's in flight.
+    @State private var draggedCategory: String?
+    /// Reminder lifted by a press-and-drag, if any.
+    @State private var draggedReminderId: String?
     /// Set once a backlog categorization pass has been requested for this
     /// appearance, so routine list changes don't keep re-requesting one. Cleared
     /// when Smart Category becomes available again (subscription or toggle).
@@ -758,6 +765,14 @@ struct ReminderView: View {
             .listStyle(.plain)
             .listSectionSpacing(10)
             .scrollContentBackground(.hidden)
+            .onDrop(
+                of: [UTType.text],
+                delegate: ListDropDelegate(
+                    viewModel: viewModel,
+                    draggedCategory: $draggedCategory,
+                    draggedReminderId: $draggedReminderId
+                )
+            )
             .safeAreaInset(edge: .bottom) {
                 Color.clear.frame(height: 50)
             }
@@ -802,7 +817,49 @@ struct ReminderView: View {
         }
     }
 
+    /// Press-and-drag reordering is for members who can edit, and only outside
+    /// the explicit reorder mode (which has its own flat list and drag handles).
+    private var canDragReorder: Bool {
+        userStoreItem.permission != .view && !isReorderMode
+    }
+
+    /// Rows are dimmed while they're being dragged — either the row itself, or
+    /// every row of a category whose header is in flight, so it reads as the
+    /// whole section moving.
+    private func isInFlight(_ reminder: Reminder) -> Bool {
+        if draggedReminderId == reminder.id { return true }
+        guard let draggedCategory = draggedCategory else { return false }
+        return draggedCategory == viewModel.categoryName(for: reminder)
+    }
+
+    @ViewBuilder
     private func categoryHeader(for category: String) -> some View {
+        let header = categoryHeaderLabel(for: category)
+
+        if canDragReorder {
+            header
+                .opacity(draggedCategory == category ? 0.4 : 1)
+                .onDrag {
+                    draggedReminderId = nil
+                    draggedCategory = category
+                    viewModel.beginDrag()
+                    return NSItemProvider(object: category as NSString)
+                }
+                .onDrop(
+                    of: [UTType.text],
+                    delegate: CategoryDropDelegate(
+                        category: category,
+                        viewModel: viewModel,
+                        draggedCategory: $draggedCategory,
+                        draggedReminderId: $draggedReminderId
+                    )
+                )
+        } else {
+            header
+        }
+    }
+
+    private func categoryHeaderLabel(for category: String) -> some View {
         Button {
             withAnimation {
                 if collapsedCategories.contains(category) {
@@ -834,6 +891,7 @@ struct ReminderView: View {
                     .foregroundColor(OrganicPalette.inkSoft(colorScheme))
             }
             .padding(.vertical, 6)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
     }
@@ -842,7 +900,42 @@ struct ReminderView: View {
         CategoryIcon.symbol(for: category)
     }
 
+    @ViewBuilder
     private func reminderRow(
+        for reminder: Reminder,
+        avatarColors: [String: Color],
+        memberNames: [String: String]
+    ) -> some View {
+        let row = reminderRowContent(
+            for: reminder,
+            avatarColors: avatarColors,
+            memberNames: memberNames
+        )
+
+        if canDragReorder {
+            row
+                .opacity(isInFlight(reminder) ? 0.4 : 1)
+                .onDrag {
+                    draggedCategory = nil
+                    draggedReminderId = reminder.id
+                    viewModel.beginDrag()
+                    return NSItemProvider(object: reminder.id as NSString)
+                }
+                .onDrop(
+                    of: [UTType.text],
+                    delegate: ReminderDropDelegate(
+                        reminder: reminder,
+                        viewModel: viewModel,
+                        draggedCategory: $draggedCategory,
+                        draggedReminderId: $draggedReminderId
+                    )
+                )
+        } else {
+            row
+        }
+    }
+
+    private func reminderRowContent(
         for reminder: Reminder,
         avatarColors: [String: Color],
         memberNames: [String: String]
@@ -1899,4 +1992,90 @@ struct FavoriteTagView: View {
         sharedWith: nil,
         notificationsEnabled: true
     ))
+}
+
+// MARK: - Drag Reordering Drop Targets
+
+/// Hovering a lifted row or category over a section header. A category dropped
+/// here takes this section's place; an item dropped here moves into this
+/// section — which is the only way to reach a collapsed section, since it shows
+/// no rows to aim at.
+private struct CategoryDropDelegate: DropDelegate {
+    let category: String
+    let viewModel: ReminderViewModel
+    @Binding var draggedCategory: String?
+    @Binding var draggedReminderId: String?
+
+    func dropEntered(info: DropInfo) {
+        withAnimation(.easeInOut(duration: 0.2)) {
+            if let dragged = draggedCategory {
+                viewModel.moveCategory(dragged, before: category)
+            } else if let draggedId = draggedReminderId {
+                viewModel.moveReminder(id: draggedId, toCategory: category)
+            }
+        }
+    }
+
+    func dropUpdated(info: DropInfo) -> DropProposal? {
+        DropProposal(operation: .move)
+    }
+
+    func performDrop(info: DropInfo) -> Bool {
+        viewModel.commitDrag()
+        draggedCategory = nil
+        draggedReminderId = nil
+        return true
+    }
+}
+
+/// Hovering a lifted row or category over a row. A dragged item takes the
+/// target's place, adopting the target's category when they're in different
+/// sections. A dragged category moves to wherever this row's section sits, so
+/// aiming at a tall section's body works as well as aiming at its header.
+private struct ReminderDropDelegate: DropDelegate {
+    let reminder: Reminder
+    let viewModel: ReminderViewModel
+    @Binding var draggedCategory: String?
+    @Binding var draggedReminderId: String?
+
+    func dropEntered(info: DropInfo) {
+        withAnimation(.easeInOut(duration: 0.2)) {
+            if let dragged = draggedCategory {
+                viewModel.moveCategory(dragged, before: viewModel.categoryName(for: reminder))
+            } else if let draggedId = draggedReminderId {
+                viewModel.moveReminder(id: draggedId, onto: reminder)
+            }
+        }
+    }
+
+    func dropUpdated(info: DropInfo) -> DropProposal? {
+        DropProposal(operation: .move)
+    }
+
+    func performDrop(info: DropInfo) -> Bool {
+        viewModel.commitDrag()
+        draggedCategory = nil
+        draggedReminderId = nil
+        return true
+    }
+}
+
+/// Catches a drop that lands in the list but not on a row or header (the gap
+/// below the last section, say) so the rearrangement the hover already made is
+/// still persisted instead of being left uncommitted.
+private struct ListDropDelegate: DropDelegate {
+    let viewModel: ReminderViewModel
+    @Binding var draggedCategory: String?
+    @Binding var draggedReminderId: String?
+
+    func dropUpdated(info: DropInfo) -> DropProposal? {
+        DropProposal(operation: .move)
+    }
+
+    func performDrop(info: DropInfo) -> Bool {
+        viewModel.commitDrag()
+        draggedCategory = nil
+        draggedReminderId = nil
+        return true
+    }
 }
