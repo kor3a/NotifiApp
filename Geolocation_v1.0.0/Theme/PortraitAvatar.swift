@@ -10,7 +10,7 @@ import UIKit
 
 /// Draws the stand-in portraits, one per person.
 ///
-/// Which of the 24 portraits someone gets is derived from their name, so it is
+/// Which of the eight portraits someone gets is derived from their name, so it is
 /// the same on every screen, on every device, and across launches — and it
 /// stays theirs until they upload a photo of their own. The portraits are
 /// drawn once each and kept for the session; nothing is downloaded and nothing
@@ -18,7 +18,7 @@ import UIKit
 enum PortraitAvatar {
 
     /// How many distinct portraits there are to hand out.
-    static let variantCount = 24
+    static var variantCount: Int { recipes.count }
 
     /// The portrait for a name, or nil for an empty one — a row with no name
     /// to draw from keeps the tinted circle.
@@ -56,30 +56,18 @@ enum PortraitAvatar {
 
     // MARK: - Traits
 
-    private enum HairStyle: CaseIterable {
-        case short, long, buzz, bob, curls, bun, fringe, ponytail, wavy, afro, twintails, locs
+    /// Eight plain silhouettes. Anything with more character than this — a
+    /// ponytail, twin tails, a blunt fringe — reads as a particular person
+    /// rather than as a stand-in, so the set stays deliberately quiet.
+    private enum HairStyle {
+        case buzz, short, curls, afro, bob, wavy, long, bun
 
-        /// Styles that read wrong in blonde or grey — a buzz or a head of locs
-        /// wants a colour with some weight behind it.
-        var prefersDarkHair: Bool {
-            switch self {
-            case .buzz, .locs, .afro, .curls: return true
-            default: return false
-            }
-        }
-
-        var allowsBeard: Bool {
-            switch self {
-            case .short, .buzz, .curls, .locs, .afro: return true
-            default: return false
-            }
-        }
-
-        /// Whether the cap needs sideburns to meet the ears.
+        /// Whether the cap needs sideburns to meet the ears. A buzz is already
+        /// short enough, and an afro's silhouette covers them.
         var hasTemples: Bool {
             switch self {
-            case .short, .bob, .curls, .fringe, .ponytail, .wavy, .twintails, .locs: return true
-            default: return false
+            case .buzz, .afro: return false
+            default: return true
             }
         }
     }
@@ -92,7 +80,6 @@ enum PortraitAvatar {
         let backdropEdge: UIColor
         let style: HairStyle
         let glasses: Bool
-        let beard: Bool
         /// Which way the hair is parted, so the hairline isn't the same band on
         /// every portrait.
         let partsLeft: Bool
@@ -106,14 +93,12 @@ enum PortraitAvatar {
         UIColor(red: 0.45, green: 0.30, blue: 0.22, alpha: 1),
     ]
 
-    /// The first five are the dark half, which the styles above draw from.
     private static let hairColors: [UIColor] = [
         UIColor(red: 0.16, green: 0.12, blue: 0.10, alpha: 1),
         UIColor(red: 0.28, green: 0.18, blue: 0.12, alpha: 1),
         UIColor(red: 0.42, green: 0.28, blue: 0.16, alpha: 1),
         UIColor(red: 0.55, green: 0.38, blue: 0.22, alpha: 1),
         UIColor(red: 0.44, green: 0.20, blue: 0.12, alpha: 1),
-        UIColor(red: 0.66, green: 0.36, blue: 0.18, alpha: 1),
         UIColor(red: 0.78, green: 0.62, blue: 0.36, alpha: 1),
         UIColor(red: 0.55, green: 0.54, blue: 0.56, alpha: 1),
     ]
@@ -138,27 +123,41 @@ enum PortraitAvatar {
         (UIColor(red: 0.95, green: 0.93, blue: 0.86, alpha: 1), UIColor(red: 0.88, green: 0.84, blue: 0.73, alpha: 1)),
     ]
 
-    /// Every portrait gets its own combination: the style walks the list so all
-    /// twelve appear, and the colours come off a mixed seed so neighbouring
-    /// variants don't come out as near-twins.
-    private static func traits(variant: Int) -> Traits {
-        let mixed = (UInt64(variant) &* 2_654_435_761) % 1_000_003
-        let style = HairStyle.allCases[variant % HairStyle.allCases.count]
+    /// One line per portrait, picked by hand rather than mixed from a seed:
+    /// with only eight of them, every skin tone, hair colour and shirt is
+    /// spoken for exactly where it reads best.
+    private struct Recipe {
+        let style: HairStyle
+        let skin: Int
+        let hair: Int
+        let clothing: Int
+        let backdrop: Int
+        let glasses: Bool
+    }
 
-        let hairIndex = style.prefersDarkHair
-            ? Int((mixed / 5) % 5)
-            : Int((mixed / 5) % UInt64(hairColors.count))
-        let backdrop = backdrops[Int((mixed / 180) % UInt64(backdrops.count))]
+    private static let recipes: [Recipe] = [
+        Recipe(style: .buzz,  skin: 1, hair: 0, clothing: 2, backdrop: 0, glasses: false),
+        Recipe(style: .short, skin: 3, hair: 1, clothing: 1, backdrop: 4, glasses: false),
+        Recipe(style: .curls, skin: 0, hair: 2, clothing: 4, backdrop: 2, glasses: true),
+        Recipe(style: .afro,  skin: 4, hair: 0, clothing: 0, backdrop: 1, glasses: false),
+        Recipe(style: .bob,   skin: 2, hair: 4, clothing: 5, backdrop: 3, glasses: false),
+        Recipe(style: .wavy,  skin: 1, hair: 6, clothing: 3, backdrop: 5, glasses: true),
+        Recipe(style: .long,  skin: 0, hair: 5, clothing: 2, backdrop: 2, glasses: false),
+        Recipe(style: .bun,   skin: 3, hair: 3, clothing: 1, backdrop: 3, glasses: false),
+    ]
+
+    private static func traits(variant: Int) -> Traits {
+        let recipe = recipes[variant % recipes.count]
+        let backdrop = backdrops[recipe.backdrop]
 
         return Traits(
-            skin: skinTones[Int(mixed % UInt64(skinTones.count))],
-            hair: hairColors[hairIndex],
-            clothing: clothingColors[Int((mixed / 30) % UInt64(clothingColors.count))],
+            skin: skinTones[recipe.skin],
+            hair: hairColors[recipe.hair],
+            clothing: clothingColors[recipe.clothing],
             backdropCenter: backdrop.0,
             backdropEdge: backdrop.1,
-            style: style,
-            glasses: (mixed / 1_080) % 4 == 1,
-            beard: (mixed / 4_320) % 3 == 0 && style.allowsBeard,
+            style: recipe.style,
+            glasses: recipe.glasses,
             partsLeft: variant % 2 == 0
         )
     }
@@ -247,17 +246,8 @@ enum PortraitAvatar {
         cg.setFillColor(traits.hair.cgColor)
 
         switch traits.style {
-        case .short, .buzz:
+        case .buzz, .short:
             break
-
-        case .long:
-            fill(cg, rounded: box(0.262, 0.30, 0.476, 0.545), radius: 0.20)
-
-        case .bob:
-            fill(cg, rounded: box(0.264, 0.30, 0.472, 0.35), radius: 0.20)
-
-        case .fringe:
-            fill(cg, rounded: box(0.264, 0.30, 0.472, 0.37), radius: 0.20)
 
         case .curls:
             for step in 0...6 {
@@ -270,14 +260,8 @@ enum PortraitAvatar {
         case .afro:
             cg.fillEllipse(in: box(0.195, 0.10, 0.61, 0.61))
 
-        case .bun:
-            cg.fillEllipse(in: box(0.425, 0.108, 0.15, 0.15))
-
-        case .ponytail:
-            fill(cg, rounded: box(0.665, 0.285, 0.155, 0.34), radius: 0.075)
-            cg.setFillColor(traits.hair.portraitShade(0.80).cgColor)
-            cg.fillEllipse(in: box(0.645, 0.285, 0.09, 0.075))
-            cg.setFillColor(traits.hair.cgColor)
+        case .bob:
+            fill(cg, rounded: box(0.264, 0.30, 0.472, 0.35), radius: 0.20)
 
         case .wavy:
             fill(cg, rounded: box(0.258, 0.30, 0.484, 0.38), radius: 0.20)
@@ -285,15 +269,11 @@ enum PortraitAvatar {
                 cg.fillEllipse(in: box(CGFloat(centerX) - 0.06, 0.62, 0.12, 0.12))
             }
 
-        case .twintails:
-            cg.fillEllipse(in: box(0.178, 0.445, 0.15, 0.23))
-            cg.fillEllipse(in: box(0.672, 0.445, 0.15, 0.23))
-            fill(cg, rounded: box(0.268, 0.30, 0.464, 0.24), radius: 0.18)
+        case .long:
+            fill(cg, rounded: box(0.262, 0.30, 0.476, 0.545), radius: 0.20)
 
-        case .locs:
-            for x in [0.225, 0.288, 0.651, 0.714] {
-                fill(cg, rounded: box(CGFloat(x), 0.30, 0.062, 0.45), radius: 0.031)
-            }
+        case .bun:
+            cg.fillEllipse(in: box(0.425, 0.108, 0.15, 0.15))
         }
     }
 
@@ -302,22 +282,12 @@ enum PortraitAvatar {
     private static func drawHairCap(_ cg: CGContext, traits: Traits) {
         let part: CGFloat = traits.partsLeft ? 0.012 : -0.012
 
-        let hairline: CGFloat
-        let cap: CGRect
-        switch traits.style {
-        case .buzz:
-            // A buzz hugs the skull and starts lower, so it reads as cropped
-            // hair rather than as a cap.
-            hairline = 0.365
-            cap = box(0.315 + part, 0.208, 0.37, 0.42)
-        case .fringe:
-            // Blunt bangs sit low and level — no parting.
-            hairline = 0.428
-            cap = box(0.286, 0.19, 0.428, 0.47)
-        default:
-            hairline = 0.385
-            cap = box(0.289 + part, 0.19, 0.422, 0.47)
-        }
+        // A buzz hugs the skull and starts lower, so it reads as cropped hair
+        // rather than as a cap.
+        let hairline: CGFloat = traits.style == .buzz ? 0.365 : 0.385
+        let cap = traits.style == .buzz
+            ? box(0.315 + part, 0.208, 0.37, 0.42)
+            : box(0.289 + part, 0.19, 0.422, 0.47)
 
         cg.saveGState()
         cg.clip(to: box(0, 0, 1, hairline))
@@ -333,23 +303,13 @@ enum PortraitAvatar {
     }
 
     private static func drawFace(_ cg: CGContext, traits: Traits) {
-        if traits.beard {
-            cg.saveGState()
-            cg.clip(to: box(0, 0.525, 1, 0.195))
-            cg.setFillColor(traits.hair.cgColor)
-            cg.fillEllipse(in: box(0.322, 0.25, 0.356, 0.42))
-            cg.restoreGState()
-        }
-
         drawCheek(cg, traits: traits, at: box(0.352, 0.478, 0.085, 0.055))
         drawCheek(cg, traits: traits, at: box(0.563, 0.478, 0.085, 0.055))
 
-        // Brows — a blunt fringe covers them.
-        if traits.style != .fringe {
-            cg.setFillColor(traits.hair.portraitShade(0.80).cgColor)
-            fill(cg, rounded: box(0.396, 0.401, 0.062, 0.014), radius: 0.008)
-            fill(cg, rounded: box(0.542, 0.401, 0.062, 0.014), radius: 0.008)
-        }
+        // Brows.
+        cg.setFillColor(traits.hair.portraitShade(0.80).cgColor)
+        fill(cg, rounded: box(0.396, 0.401, 0.062, 0.014), radius: 0.008)
+        fill(cg, rounded: box(0.542, 0.401, 0.062, 0.014), radius: 0.008)
 
         // Eyes.
         cg.setFillColor(ink.cgColor)

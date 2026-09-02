@@ -36,7 +36,8 @@ final class ScreenshotMockStore: ObservableObject {
 
     // MARK: - Mock Friendships
 
-    /// Nine friends, enough to fill the Friends tab past the fold.
+    /// Eight friends — enough to fill the Friends tab past the fold, and one
+    /// per portrait, so no two rows share a face.
     func friends(currentUserId: String) -> [Friendship] {
         let people: [(String, String)] = [
             ("Alex Rivera",     "alex.rivera"),
@@ -47,7 +48,6 @@ final class ScreenshotMockStore: ObservableObject {
             ("Emma Chen",       "emma.chen"),
             ("Marcus Johnson",  "marcus.johnson"),
             ("Olivia Brooks",   "olivia.brooks"),
-            ("Noah Patel",      "noah.patel"),
         ]
         return people.enumerated().map { index, person in
             friendship(
@@ -60,13 +60,14 @@ final class ScreenshotMockStore: ObservableObject {
     }
 
     /// A small family list, so the other tab isn't empty behind the screenshot.
-    /// Their portraits are named rather than counted off, so the beard lands on
-    /// Dad and none of them shares a face with the friends above.
+    /// Their portraits are named rather than counted off — with eight in the
+    /// set they repeat faces from the Friends tab, so at least they repeat the
+    /// ones that suit them.
     func family(currentUserId: String) -> [Friendship] {
         let people: [(name: String, handle: String, portrait: Int)] = [
-            ("Mom",           "mom",           15),
-            ("Dad",           "dad",           14),
-            ("Hannah Brooks", "hannah.brooks", 17),
+            ("Mom",           "mom",           4),
+            ("Dad",           "dad",           1),
+            ("Hannah Brooks", "hannah.brooks", 7),
         ]
         return people.map { person in
             friendship(
@@ -167,7 +168,7 @@ final class ScreenshotMockStore: ObservableObject {
         [
             Self.alexId: ScreenshotAvatarFactory.url(index: 0, handle: "alex.rivera"),
             Self.priyaId: ScreenshotAvatarFactory.url(index: 1, handle: "priya.sharma"),
-            Self.momId: ScreenshotAvatarFactory.url(index: 15, handle: "mom"),
+            Self.momId: ScreenshotAvatarFactory.url(index: 4, handle: "mom"),
         ]
     }
 
