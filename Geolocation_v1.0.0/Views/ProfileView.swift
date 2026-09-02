@@ -24,6 +24,9 @@ struct ProfileView: View {
     @ObservedObject private var sessionManager = UserSessionManager.shared
     @ObservedObject private var subscriptionManager = SubscriptionManager.shared
     @ObservedObject private var friendRequestService = FriendRequestService.shared
+    #if DEBUG
+    @ObservedObject private var screenshotMocks = ScreenshotMockStore.shared
+    #endif
     @State private var showFriends = false
     @State private var showImagePicker = false
     @State private var selectedImage: UIImage?
@@ -450,6 +453,22 @@ struct ProfileView: View {
                 OrganicNavRow(
                     systemImage: "ladybug",
                     title: "Subscription Debug"
+                )
+            }
+            .buttonStyle(.plain)
+
+            // Fills Share Store and Messages with sample people, so those
+            // screens can be photographed on an account with no real friends.
+            Button {
+                screenshotMocks.isEnabled.toggle()
+            } label: {
+                OrganicNavRow(
+                    systemImage: "person.2.fill",
+                    title: "Mock Friends (Screenshots)",
+                    subtitle: screenshotMocks.isEnabled
+                        ? "On — sample friends, chats and photos"
+                        : "Off — your real friends and chats",
+                    accessory: screenshotMocks.isEnabled ? "checkmark.circle.fill" : "circle"
                 )
             }
             .buttonStyle(.plain)

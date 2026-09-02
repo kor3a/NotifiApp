@@ -269,7 +269,7 @@ struct OrganicAvatarTint {
 // MARK: - Organic Avatar
 
 /// The round avatar these screens share: a profile photo when there is one,
-/// otherwise a tinted circle carrying the first initial.
+/// otherwise the drawn portrait that stands in until someone uploads theirs.
 struct OrganicAvatar: View {
     let name: String
     let profilePictureURL: String?
@@ -277,9 +277,12 @@ struct OrganicAvatar: View {
     /// Ring drawn around the circle, for stacked avatars that would otherwise
     /// bleed into each other.
     var ringColor: Color?
-    /// Replaces the initial with an SF Symbol — used for group chats, which
+    /// Replaces the portrait with an SF Symbol — used for group chats, which
     /// have a name but no single face behind it.
     var systemImage: String?
+    /// Draws the initial instead of a portrait, for a row where a stand-in
+    /// face would be read as a photo the person chose.
+    var usesPortrait: Bool = true
 
     private var tint: OrganicAvatarTint {
         OrganicAvatarTint.forName(name)
@@ -291,14 +294,29 @@ struct OrganicAvatar: View {
 
     var body: some View {
         ProfilePictureView(profilePictureURL: profilePictureURL, size: size) {
+            placeholder
+        }
+        .overlay(
+            Circle().strokeBorder(ringColor ?? .clear, lineWidth: ringColor == nil ? 0 : 3)
+        )
+    }
+
+    /// What stands in for a photo: the group glyph, then the portrait, and the
+    /// tinted initial only when there is no name to draw a face from.
+    @ViewBuilder
+    private var placeholder: some View {
+        if systemImage == nil, usesPortrait, let portrait = PortraitAvatar.image(for: name) {
+            Image(uiImage: portrait)
+                .resizable()
+                .scaledToFill()
+                .frame(width: size, height: size)
+                .clipShape(Circle())
+        } else {
             Circle()
                 .fill(tint.fill)
                 .frame(width: size, height: size)
                 .overlay(glyph)
         }
-        .overlay(
-            Circle().strokeBorder(ringColor ?? .clear, lineWidth: ringColor == nil ? 0 : 3)
-        )
     }
 
     @ViewBuilder

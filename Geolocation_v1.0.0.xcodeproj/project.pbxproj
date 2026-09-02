@@ -28,6 +28,7 @@
 		011CF60D2ED63A69009A31A6 /* NotifiApp.icon in Resources */ = {isa = PBXBuildFile; fileRef = 011CF60C2ED63A69009A31A6 /* NotifiApp.icon */; };
 		0125A7A32F68345D0089F321 /* GoogleMobileAds in Frameworks */ = {isa = PBXBuildFile; productRef = 0125A7A22F68345D0089F321 /* GoogleMobileAds */; };
 		012FB6952F6AED5C0020BB90 /* TutorialMockData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 012FB6942F6AED5C0020BB90 /* TutorialMockData.swift */; };
+		AA1234560001AABB00CC0091 /* ScreenshotMockData.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0090 /* ScreenshotMockData.swift */; };
 		0133243C2FDCAE0D0074A818 /* NotifiNotificationService.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = 013324352FDCAE0D0074A818 /* NotifiNotificationService.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		0138242D2EDCD05F0069F38C /* NotificationLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0138242C2EDCD05F0069F38C /* NotificationLog.swift */; };
 		0138242F2EDCD08C0069F38C /* NotificationLogView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0138242E2EDCD08C0069F38C /* NotificationLogView.swift */; };
@@ -228,6 +229,7 @@
 		011CF6082ED63945009A31A6 /* Notifi.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = Notifi.icon; sourceTree = "<group>"; };
 		011CF60C2ED63A69009A31A6 /* NotifiApp.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = NotifiApp.icon; sourceTree = "<group>"; };
 		012FB6942F6AED5C0020BB90 /* TutorialMockData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TutorialMockData.swift; sourceTree = "<group>"; };
+		AA1234560001AABB00CC0090 /* ScreenshotMockData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenshotMockData.swift; sourceTree = "<group>"; };
 		013324352FDCAE0D0074A818 /* NotifiNotificationService.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = NotifiNotificationService.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		0138242C2EDCD05F0069F38C /* NotificationLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationLog.swift; sourceTree = "<group>"; };
 		0138242E2EDCD08C0069F38C /* NotificationLogView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationLogView.swift; sourceTree = "<group>"; };
@@ -544,6 +546,7 @@
 				0141FCBF2F718817009C626B /* SubscriptionManagementView.swift */,
 				0141FCBD2F71880F009C626B /* PrivacyPolicyView.swift */,
 				012FB6942F6AED5C0020BB90 /* TutorialMockData.swift */,
+				AA1234560001AABB00CC0090 /* ScreenshotMockData.swift */,
 				01D86E962F6AD6630007802A /* TutorialOverlayView.swift */,
 				01D86E9A2F6AD6630007802A /* TutorialReminderScene.swift */,
 				01D86E942F6AD65B0007802A /* TutorialManager.swift */,
@@ -1040,6 +1043,7 @@
 				0183E1FB2F743B0500AB9429 /* AboutView.swift in Sources */,
 				0138D8752F68BB95007CC1E4 /* SubscriptionManager.swift in Sources */,
 				012FB6952F6AED5C0020BB90 /* TutorialMockData.swift in Sources */,
+				AA1234560001AABB00CC0091 /* ScreenshotMockData.swift in Sources */,
 				AA1234560001AABB00CC0020 /* FriendRequestService.swift in Sources */,
 				AA1234560001AABB00CC0021 /* FriendsService.swift in Sources */,
 				AA1234560001AABB00CC0023 /* LocationMonitoringManager.swift in Sources */,

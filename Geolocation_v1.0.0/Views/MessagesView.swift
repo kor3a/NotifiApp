@@ -505,16 +505,11 @@ struct ContactRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            ProfilePictureView(profilePictureURL: contact.profilePictureURL, size: 40) {
-                Circle()
-                    .fill(Color.appAccent.opacity(0.2))
-                    .frame(width: 40, height: 40)
-                    .overlay(
-                        Text(String(contact.name.prefix(1)).uppercased())
-                            .font(.subheadline)
-                            .foregroundColor(.appAccent)
-                    )
-            }
+            OrganicAvatar(
+                name: contact.name,
+                profilePictureURL: contact.profilePictureURL,
+                size: 40
+            )
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(contact.name)

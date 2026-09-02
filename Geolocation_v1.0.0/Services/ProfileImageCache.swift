@@ -74,6 +74,14 @@ final class ProfileImageCache: ObservableObject {
               !urlString.isEmpty,
               let url = URL(string: urlString) else { return nil }
 
+        #if DEBUG
+        // The screenshot mocks address drawn portraits rather than uploads, so
+        // there is nothing to fetch — hand the drawing straight back.
+        if let portrait = ScreenshotAvatarFactory.image(forMockURL: urlString) {
+            return portrait
+        }
+        #endif
+
         let key = Self.cacheKey(for: url)
 
         if let image = memoryCache.object(forKey: key as NSString) {

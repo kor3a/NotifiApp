@@ -215,6 +215,11 @@ struct ShareStoreView: View {
     let userStoreItem: UserStoreItem
 
     @StateObject private var friendsViewModel = FriendsViewModel()
+    #if DEBUG
+    /// Debug switch for the mock recipient lists, so flipping it in Profile
+    /// refreshes a sheet that is already open.
+    @ObservedObject private var screenshotMocks = ScreenshotMockStore.shared
+    #endif
     /// Observed so the header refreshes once a logo finishes downloading.
     @ObservedObject private var logoProvider = StoreLogoProvider.shared
     @State private var selectedPermission: StorePermission = .edit
@@ -266,13 +271,13 @@ struct ShareStoreView: View {
                         // Only show sharing UI if user is the owner (not a recipient)
                         if userStoreItem.sharedFromName == nil {
                             // Family / Friends picker and the matching list
-                            if !friendsViewModel.familyMembers.isEmpty || !friendsViewModel.friends.isEmpty {
+                            if !familyFriendships.isEmpty || !friendFriendships.isEmpty {
                                 recipientSection
                             }
 
                             // Sharing is friends/family only, so say what to do when
                             // there is nobody to share with yet.
-                            if friendsViewModel.friends.isEmpty && friendsViewModel.familyMembers.isEmpty {
+                            if friendFriendships.isEmpty && familyFriendships.isEmpty {
                                 infoCallout(
                                     icon: "person.crop.circle.badge.plus",
                                     text: "Add friends or family from your Profile to share this store with them."
@@ -495,7 +500,7 @@ struct ShareStoreView: View {
     /// The active tab's contacts, separated by hairlines rather than cards.
     private var recipientList: some View {
         VStack(spacing: 0) {
-            if activeRecipientTab == .family && !friendsViewModel.familyMembers.isEmpty {
+            if activeRecipientTab == .family && !familyFriendships.isEmpty {
                 allFamilyRow
 
                 if !activeRecipientContacts.isEmpty {
@@ -819,9 +824,38 @@ struct ShareStoreView: View {
         if let recipientTab {
             return recipientTab
         }
-        return friendsViewModel.familyMembers.isEmpty && !friendsViewModel.friends.isEmpty
+        #if DEBUG
+        // The mock lists exist to be photographed on the Friends tab, so open
+        // there rather than on Family.
+        if screenshotMocks.isEnabled {
+            return .friends
+        }
+        #endif
+        return familyFriendships.isEmpty && !friendFriendships.isEmpty
             ? .friends
             : .family
+    }
+
+    /// The friendships shown under Friends. Debug builds with mock friends
+    /// switched on substitute a full sample list so the sheet can be
+    /// screenshotted on an account that has no friends yet.
+    private var friendFriendships: [Friendship] {
+        #if DEBUG
+        if screenshotMocks.isEnabled {
+            return screenshotMocks.friends(currentUserId: currentUserId)
+        }
+        #endif
+        return friendsViewModel.friends
+    }
+
+    /// The friendships shown under Family, mocked alongside `friendFriendships`.
+    private var familyFriendships: [Friendship] {
+        #if DEBUG
+        if screenshotMocks.isEnabled {
+            return screenshotMocks.family(currentUserId: currentUserId)
+        }
+        #endif
+        return friendsViewModel.familyMembers
     }
 
     private func isAlreadyShared(_ contact: Contact) -> Bool {
@@ -837,7 +871,7 @@ struct ShareStoreView: View {
     /// the system's equivalent so the row text stays legible.
     /// Every contact the sheet can share with, across both tabs.
     private var allSelectableContacts: [Contact] {
-        (friendsViewModel.familyMembers + friendsViewModel.friends)
+        (familyFriendships + friendFriendships)
             .map { $0.toContact(currentUserId: currentUserId) }
     }
 
@@ -850,7 +884,7 @@ struct ShareStoreView: View {
 
     /// Family members still available to share with.
     private var unsharedFamilyContacts: [Contact] {
-        friendsViewModel.familyMembers
+        familyFriendships
             .map { $0.toContact(currentUserId: currentUserId) }
             .filter { !isAlreadyShared($0) }
     }
@@ -864,8 +898,8 @@ struct ShareStoreView: View {
     /// The contacts listed under the active tab.
     private var activeRecipientContacts: [Contact] {
         let friendships = activeRecipientTab == .family
-            ? friendsViewModel.familyMembers
-            : friendsViewModel.friends
+            ? familyFriendships
+            : friendFriendships
         return friendships.map { $0.toContact(currentUserId: currentUserId) }
     }
 
@@ -927,6 +961,17 @@ struct ShareStoreView: View {
 
     /// Sends a share request to every ticked recipient.
     private func shareStore() {
+        #if DEBUG
+        // The mock recipients have no accounts behind them, so stop before any
+        // of this reaches Firestore.
+        if screenshotMocks.isEnabled {
+            alertTitle = "Mock Friends On"
+            alertMessage = "These recipients are debug placeholders for screenshots. Turn off Mock Friends in Profile → Debug to share for real."
+            showAlert = true
+            return
+        }
+        #endif
+
         guard let currentUserName = viewModel.sessionManager.currentUser?.name else {
             alertTitle = "Error"
             alertMessage = "No user data available."
