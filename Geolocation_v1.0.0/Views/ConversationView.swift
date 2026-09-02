@@ -838,33 +838,7 @@ struct PhotoAttachmentsView: View {
 
         LazyVGrid(columns: columns, spacing: 4) {
             ForEach(photoURLs, id: \.self) { urlString in
-                AsyncImage(url: URL(string: urlString)) { phase in
-                    switch phase {
-                    case .success(let image):
-                        image
-                            .resizable()
-                            .scaledToFit()
-                            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                            .onTapGesture {
-                                selectedPhotoURL = urlString
-                            }
-                    case .failure:
-                        RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .fill(OrganicPalette.field(colorScheme))
-                            .frame(height: 100)
-                            .overlay(
-                                Image(systemName: "photo")
-                                    .foregroundColor(OrganicPalette.inkSoft(colorScheme))
-                            )
-                    case .empty:
-                        RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .fill(OrganicPalette.field(colorScheme))
-                            .frame(height: 100)
-                            .overlay(ProgressView().tint(OrganicPalette.terracotta(colorScheme)))
-                    @unknown default:
-                        EmptyView()
-                    }
-                }
+                photo(urlString)
             }
         }
         .frame(maxWidth: 220)
@@ -873,6 +847,54 @@ struct PhotoAttachmentsView: View {
             set: { selectedPhotoURL = $0?.url }
         )) { item in
             PhotoFullScreenView(urlString: item.url)
+        }
+    }
+
+    @ViewBuilder
+    private func photo(_ urlString: String) -> some View {
+        #if DEBUG
+        // The screenshot mocks attach drawn photos rather than uploads.
+        if let drawn = ScreenshotPhotoFactory.image(forMockURL: urlString) {
+            Image(uiImage: drawn)
+                .resizable()
+                .scaledToFit()
+                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .onTapGesture { selectedPhotoURL = urlString }
+        } else {
+            remotePhoto(urlString)
+        }
+        #else
+        remotePhoto(urlString)
+        #endif
+    }
+
+    private func remotePhoto(_ urlString: String) -> some View {
+        AsyncImage(url: URL(string: urlString)) { phase in
+            switch phase {
+            case .success(let image):
+                image
+                    .resizable()
+                    .scaledToFit()
+                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .onTapGesture {
+                        selectedPhotoURL = urlString
+                    }
+            case .failure:
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(OrganicPalette.field(colorScheme))
+                    .frame(height: 100)
+                    .overlay(
+                        Image(systemName: "photo")
+                            .foregroundColor(OrganicPalette.inkSoft(colorScheme))
+                    )
+            case .empty:
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(OrganicPalette.field(colorScheme))
+                    .frame(height: 100)
+                    .overlay(ProgressView().tint(OrganicPalette.terracotta(colorScheme)))
+            @unknown default:
+                EmptyView()
+            }
         }
     }
 }
@@ -890,22 +912,17 @@ struct PhotoFullScreenView: View {
         ZStack {
             Color.black.ignoresSafeArea()
 
-            AsyncImage(url: URL(string: urlString)) { phase in
-                switch phase {
-                case .success(let image):
-                    image
-                        .resizable()
-                        .scaledToFit()
-                case .failure:
-                    Image(systemName: "photo")
-                        .foregroundColor(.white)
-                case .empty:
-                    ProgressView()
-                        .tint(.white)
-                @unknown default:
-                    EmptyView()
-                }
+            #if DEBUG
+            if let drawn = ScreenshotPhotoFactory.image(forMockURL: urlString) {
+                Image(uiImage: drawn)
+                    .resizable()
+                    .scaledToFit()
+            } else {
+                remotePhoto
             }
+            #else
+            remotePhoto
+            #endif
 
             VStack {
                 HStack {
@@ -920,6 +937,25 @@ struct PhotoFullScreenView: View {
                     }
                 }
                 Spacer()
+            }
+        }
+    }
+
+    private var remotePhoto: some View {
+        AsyncImage(url: URL(string: urlString)) { phase in
+            switch phase {
+            case .success(let image):
+                image
+                    .resizable()
+                    .scaledToFit()
+            case .failure:
+                Image(systemName: "photo")
+                    .foregroundColor(.white)
+            case .empty:
+                ProgressView()
+                    .tint(.white)
+            @unknown default:
+                EmptyView()
             }
         }
     }

@@ -457,8 +457,8 @@ struct ProfileView: View {
             }
             .buttonStyle(.plain)
 
-            // Fills the Share Store sheet with sample friends so its Friends
-            // tab can be photographed on an account with no real friendships.
+            // Fills Share Store and Messages with sample people, so those
+            // screens can be photographed on an account with no real friends.
             Button {
                 screenshotMocks.isEnabled.toggle()
             } label: {
@@ -466,8 +466,8 @@ struct ProfileView: View {
                     systemImage: "person.2.fill",
                     title: "Mock Friends (Screenshots)",
                     subtitle: screenshotMocks.isEnabled
-                        ? "On — Share Store shows 9 sample friends"
-                        : "Off — Share Store shows your real friends",
+                        ? "On — sample friends, chats and photos"
+                        : "Off — your real friends and chats",
                     accessory: screenshotMocks.isEnabled ? "checkmark.circle.fill" : "circle"
                 )
             }

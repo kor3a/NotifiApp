@@ -71,6 +71,22 @@ class MessagesViewModel: ObservableObject {
         totalUnreadCount = 0
     }
 
+    #if DEBUG
+    // MARK: - Screenshot Mock Data
+
+    /// Stands the mock chats in for the account's real ones while the
+    /// screenshot switch is on. Nothing here is read from or written to
+    /// Firestore.
+    private func loadScreenshotMockConversations() {
+        let mocks = ScreenshotMockStore.shared
+        let userId = currentUserId ?? "screenshot_self"
+        isLoading = false
+        conversations = mocks.conversations(currentUserId: userId)
+        participantProfilePictures.merge(mocks.conversationAvatarURLs) { _, new in new }
+        totalUnreadCount = mocks.unreadCount
+    }
+    #endif
+
     deinit {
         stopListeningForMessages()
     }
@@ -82,6 +98,12 @@ class MessagesViewModel: ObservableObject {
             loadTutorialMockData()
             return
         }
+        #if DEBUG
+        if ScreenshotMockStore.shared.isEnabled {
+            loadScreenshotMockConversations()
+            return
+        }
+        #endif
         guard let userId = currentUserId else { return }
         isLoading = true
 
@@ -103,6 +125,12 @@ class MessagesViewModel: ObservableObject {
     }
 
     func fetchUnreadCount() {
+        #if DEBUG
+        if ScreenshotMockStore.shared.isEnabled {
+            totalUnreadCount = ScreenshotMockStore.shared.unreadCount
+            return
+        }
+        #endif
         guard let userId = currentUserId else {
             #if DEBUG
             print("⚠️ MessagesViewModel.fetchUnreadCount: No userId available")
@@ -130,6 +158,9 @@ class MessagesViewModel: ObservableObject {
     /// Delete a conversation and all its messages
     func deleteConversation(_ conversation: Conversation) {
         guard !TutorialManager.shared.isActive else { return }
+        #if DEBUG
+        guard !ScreenshotMockStore.shared.isEnabled else { return }
+        #endif
 
         // Drop this chat's custom background — its key is the conversation id,
         // which is gone for good, so the photo would otherwise sit on disk
@@ -173,6 +204,21 @@ class MessagesViewModel: ObservableObject {
         }
 
         currentConversationId = conversationId
+
+        #if DEBUG
+        if ScreenshotMockStore.shared.isEnabled {
+            // The mock chat is already complete — no listener, no paging.
+            isLoading = false
+            allLoadedMessages = ScreenshotMockStore.shared.messages(
+                for: conversationId,
+                currentUserId: currentUserId ?? "screenshot_self"
+            )
+            messages = allLoadedMessages
+            hasMoreMessages = false
+            return
+        }
+        #endif
+
         isLoading = true
 
         // Use snapshot listener for real-time updates on the most recent messages
@@ -216,6 +262,9 @@ class MessagesViewModel: ObservableObject {
 
     /// Delete a message
     func deleteMessage(_ message: Message) {
+        #if DEBUG
+        guard !ScreenshotMockStore.shared.isEnabled else { return }
+        #endif
         messagingService.deleteMessage(messageId: message.id) { [weak self] result in
             DispatchQueue.main.async {
                 switch result {
@@ -241,6 +290,9 @@ class MessagesViewModel: ObservableObject {
         senderName: String
     ) {
         guard !TutorialManager.shared.isActive else { return }
+        #if DEBUG
+        guard !ScreenshotMockStore.shared.isEnabled else { return }
+        #endif
         guard let userId = currentUserId else { return }
 
         messagingService.sendMessage(
@@ -273,6 +325,9 @@ class MessagesViewModel: ObservableObject {
         completion: @escaping (Bool) -> Void
     ) {
         guard !TutorialManager.shared.isActive else { completion(false); return }
+        #if DEBUG
+        guard !ScreenshotMockStore.shared.isEnabled else { completion(false); return }
+        #endif
         guard let userId = currentUserId else { completion(false); return }
 
         guard !images.isEmpty else {
@@ -366,6 +421,9 @@ class MessagesViewModel: ObservableObject {
     }
 
     func markAsRead(conversationId: String) {
+        #if DEBUG
+        guard !ScreenshotMockStore.shared.isEnabled else { return }
+        #endif
         guard let userId = currentUserId else { return }
         messagingService.markMessagesAsRead(conversationId: conversationId, userId: userId)
     }
@@ -428,6 +486,15 @@ class MessagesViewModel: ObservableObject {
         currentUserName: String,
         completion: @escaping (Conversation?) -> Void
     ) {
+        #if DEBUG
+        // Messaging a mock friend opens their mock chat rather than writing a
+        // conversation for a user that doesn't exist.
+        if ScreenshotMockStore.shared.isEnabled {
+            let userId = currentUserId ?? "screenshot_self"
+            completion(ScreenshotMockStore.shared.conversation(with: contact, currentUserId: userId))
+            return
+        }
+        #endif
         guard let userId = currentUserId else {
             completion(nil)
             return
