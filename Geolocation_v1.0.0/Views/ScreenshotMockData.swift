@@ -115,8 +115,8 @@ final class ScreenshotMockStore: ObservableObject {
 /// The Share Store rows fall back to a letter avatar whenever a friend has no
 /// picture, which is not what a store screenshot should show, and real photos
 /// of real people are not ours to ship. So each mock person gets a flat
-/// portrait illustration drawn here: a seeded but fixed combination of skin
-/// tone, hair, clothing and background, generated once per launch and cached.
+/// portrait illustration drawn here: a fixed combination of skin tone, hair,
+/// clothing and backdrop, generated once per launch and cached.
 ///
 /// `ProfileImageCache` recognises the `mock-avatar://` URLs these portraits are
 /// addressed by and hands the drawn image straight back, so every screen that
@@ -136,13 +136,13 @@ enum ScreenshotAvatarFactory {
         guard urlString.hasPrefix(prefix) else { return nil }
 
         let body = urlString.dropFirst(prefix.count)
-        let parts = body.split(separator: "/", maxSplits: 1)
-        guard let first = parts.first, let index = Int(first) else { return nil }
+        guard let first = body.split(separator: "/", maxSplits: 1).first,
+              let index = Int(first) else { return nil }
 
         if let cached = cache[index] { return cached }
-        let image = render(traits(index: index))
-        cache[index] = image
-        return image
+        let portrait = render(traits(index: index))
+        cache[index] = portrait
+        return portrait
     }
 
     private static var cache: [Int: UIImage] = [:]
@@ -157,11 +157,14 @@ enum ScreenshotAvatarFactory {
         let skin: UIColor
         let hair: UIColor
         let clothing: UIColor
-        let backgroundTop: UIColor
-        let backgroundBottom: UIColor
+        let backdropCenter: UIColor
+        let backdropEdge: UIColor
         let style: HairStyle
         let glasses: Bool
         let beard: Bool
+        /// Which way the hair is parted, so the hairline isn't a flat band on
+        /// every face in the list.
+        let partsLeft: Bool
     }
 
     private static let skinTones: [UIColor] = [
@@ -191,6 +194,7 @@ enum ScreenshotAvatarFactory {
     ]
 
     /// Soft studio backdrops, in the same earthy family as the rest of the app.
+    /// The first colour sits behind the head, the second at the edges.
     private static let backdrops: [(UIColor, UIColor)] = [
         (UIColor(red: 0.98, green: 0.91, blue: 0.83, alpha: 1), UIColor(red: 0.94, green: 0.83, blue: 0.72, alpha: 1)),
         (UIColor(red: 0.89, green: 0.92, blue: 0.85, alpha: 1), UIColor(red: 0.78, green: 0.85, blue: 0.76, alpha: 1)),
@@ -212,11 +216,12 @@ enum ScreenshotAvatarFactory {
             skin: skinTones[(index * 3 + 1) % skinTones.count],
             hair: hairColors[(index * 5 + 1) % hairColors.count],
             clothing: clothingColors[(index * 4 + 2) % clothingColors.count],
-            backgroundTop: backdrop.0,
-            backgroundBottom: backdrop.1,
+            backdropCenter: backdrop.0,
+            backdropEdge: backdrop.1,
             style: style,
             glasses: index % 4 == 1,
-            beard: index % 5 == 2 && style != .bob && style != .long && style != .bun
+            beard: index % 5 == 2 && style != .bob && style != .long && style != .bun,
+            partsLeft: index % 2 == 0
         )
     }
 
@@ -225,6 +230,10 @@ enum ScreenshotAvatarFactory {
     /// 240pt square: the avatars draw at 46pt, so this stays sharp on a 3x
     /// screen without holding a camera-sized bitmap per friend.
     private static let side: CGFloat = 240
+
+    /// The ink the features are drawn in — a warm near-black, so the faces
+    /// don't go colder than the rest of the palette.
+    private static let ink = UIColor(red: 0.22, green: 0.16, blue: 0.14, alpha: 1)
 
     private static func render(_ traits: Traits) -> UIImage {
         let format = UIGraphicsImageRendererFormat.default()
@@ -238,45 +247,62 @@ enum ScreenshotAvatarFactory {
 
         return renderer.image { context in
             let cg = context.cgContext
-            let ink = UIColor(red: 0.20, green: 0.15, blue: 0.13, alpha: 1)
 
             drawBackdrop(cg, traits: traits)
-
-            // Neck first, then the shoulders that cut across it.
-            cg.setFillColor(traits.skin.darkened(by: 0.88).cgColor)
-            fill(cg, rounded: box(0.437, 0.555, 0.126, 0.23), radius: 0.05)
-
-            cg.setFillColor(traits.clothing.cgColor)
-            fill(cg, rounded: box(0.04, 0.755, 0.92, 0.45), radius: 0.24)
-
+            drawNeckAndShoulders(cg, traits: traits)
             drawBackHair(cg, traits: traits)
 
-            // Head and ears.
+            // Ears, then the head over them.
             cg.setFillColor(traits.skin.cgColor)
-            cg.fillEllipse(in: box(0.278, 0.425, 0.055, 0.078))
-            cg.fillEllipse(in: box(0.667, 0.425, 0.055, 0.078))
-            cg.fillEllipse(in: box(0.30, 0.205, 0.40, 0.47))
+            cg.fillEllipse(in: box(0.281, 0.428, 0.053, 0.075))
+            cg.fillEllipse(in: box(0.666, 0.428, 0.053, 0.075))
+            cg.fillEllipse(in: box(0.307, 0.205, 0.386, 0.47))
 
             drawHairCap(cg, traits: traits)
-            drawFace(cg, traits: traits, ink: ink)
+            drawFace(cg, traits: traits)
         }
     }
 
+    /// A soft pool of light behind the head, rather than a flat wash.
     private static func drawBackdrop(_ cg: CGContext, traits: Traits) {
         let space = CGColorSpace(name: CGColorSpace.sRGB) ?? CGColorSpaceCreateDeviceRGB()
-        let colors = [traits.backgroundTop.cgColor, traits.backgroundBottom.cgColor] as CFArray
+        let colors = [traits.backdropCenter.cgColor, traits.backdropEdge.cgColor] as CFArray
 
-        if let gradient = CGGradient(colorsSpace: space, colors: colors, locations: [0, 1]) {
-            cg.drawLinearGradient(
-                gradient,
-                start: CGPoint(x: 0, y: 0),
-                end: CGPoint(x: 0, y: side),
-                options: []
-            )
-        } else {
-            cg.setFillColor(traits.backgroundTop.cgColor)
+        guard let gradient = CGGradient(colorsSpace: space, colors: colors, locations: [0, 1]) else {
+            cg.setFillColor(traits.backdropCenter.cgColor)
             cg.fill(CGRect(x: 0, y: 0, width: side, height: side))
+            return
         }
+
+        let center = point(0.5, 0.42)
+        cg.drawRadialGradient(
+            gradient,
+            startCenter: center,
+            startRadius: 0,
+            endCenter: center,
+            endRadius: side * 0.78,
+            options: [.drawsBeforeStartLocation, .drawsAfterEndLocation]
+        )
+    }
+
+    /// The neck, the shadow the chin casts on it, and the shirt that cuts
+    /// across the bottom of the frame.
+    private static func drawNeckAndShoulders(_ cg: CGContext, traits: Traits) {
+        cg.setFillColor(traits.skin.darkened(by: 0.90).cgColor)
+        fill(cg, rounded: box(0.437, 0.545, 0.126, 0.25), radius: 0.055)
+
+        cg.setFillColor(traits.skin.darkened(by: 0.82).cgColor)
+        cg.fillEllipse(in: box(0.40, 0.50, 0.20, 0.13))
+
+        cg.setFillColor(traits.clothing.cgColor)
+        fill(cg, rounded: box(0.04, 0.76, 0.92, 0.45), radius: 0.24)
+
+        // Collar: a darker crew neckline with the shoulder line of the neck
+        // showing through it.
+        cg.setFillColor(traits.clothing.darkened(by: 0.86).cgColor)
+        cg.fillEllipse(in: box(0.355, 0.715, 0.29, 0.16))
+        cg.setFillColor(traits.skin.darkened(by: 0.90).cgColor)
+        cg.fillEllipse(in: box(0.383, 0.70, 0.234, 0.135))
     }
 
     /// The hair that sits behind the head: what falls past the jaw, and the
@@ -286,19 +312,18 @@ enum ScreenshotAvatarFactory {
 
         switch traits.style {
         case .long:
-            fill(cg, rounded: box(0.258, 0.235, 0.484, 0.60), radius: 0.20)
+            fill(cg, rounded: box(0.252, 0.235, 0.496, 0.60), radius: 0.21)
         case .bob:
-            fill(cg, rounded: box(0.262, 0.245, 0.476, 0.40), radius: 0.21)
+            fill(cg, rounded: box(0.258, 0.245, 0.484, 0.40), radius: 0.22)
         case .curls:
-            let center = CGPoint(x: 0.5, y: 0.44)
             for step in 0...6 {
                 let angle = CGFloat.pi + CGFloat.pi * CGFloat(step) / 6
-                let x = center.x + cos(angle) * 0.215
-                let y = center.y + sin(angle) * 0.245
-                cg.fillEllipse(in: box(x - 0.085, y - 0.085, 0.17, 0.17))
+                let x = 0.5 + cos(angle) * 0.215
+                let y = 0.44 + sin(angle) * 0.245
+                cg.fillEllipse(in: box(x - 0.088, y - 0.088, 0.176, 0.176))
             }
         case .bun:
-            cg.fillEllipse(in: box(0.42, 0.115, 0.16, 0.16))
+            cg.fillEllipse(in: box(0.425, 0.108, 0.15, 0.15))
         case .short, .buzz:
             break
         }
@@ -307,12 +332,13 @@ enum ScreenshotAvatarFactory {
     /// The hairline itself, clipped so it reads as hair lying over the skull
     /// rather than a hat.
     private static func drawHairCap(_ cg: CGContext, traits: Traits) {
-        // A buzz sits tighter to the skull and starts a little lower, so it
-        // reads as cropped hair rather than as a cap.
-        let hairline: CGFloat = traits.style == .buzz ? 0.365 : 0.385
+        let part: CGFloat = traits.partsLeft ? 0.012 : -0.012
+        // A buzz hugs the skull and starts a little lower, so it reads as
+        // cropped hair rather than as a cap.
+        let hairline: CGFloat = traits.style == .buzz ? 0.368 : 0.388
         let cap = traits.style == .buzz
-            ? box(0.293, 0.199, 0.414, 0.45)
-            : box(0.283, 0.19, 0.434, 0.47)
+            ? box(0.315 + part, 0.208, 0.37, 0.42)
+            : box(0.289 + part, 0.19, 0.422, 0.47)
 
         cg.saveGState()
         cg.clip(to: box(0, 0, 1, hairline))
@@ -323,47 +349,86 @@ enum ScreenshotAvatarFactory {
         // Temples, so the cap meets the ears instead of floating above them.
         if traits.style == .short || traits.style == .bob || traits.style == .curls {
             cg.setFillColor(traits.hair.cgColor)
-            fill(cg, rounded: box(0.288, 0.345, 0.048, 0.115), radius: 0.024)
-            fill(cg, rounded: box(0.664, 0.345, 0.048, 0.115), radius: 0.024)
+            fill(cg, rounded: box(0.292, 0.345, 0.045, 0.112), radius: 0.023)
+            fill(cg, rounded: box(0.663, 0.345, 0.045, 0.112), radius: 0.023)
         }
     }
 
-    private static func drawFace(_ cg: CGContext, traits: Traits, ink: UIColor) {
+    private static func drawFace(_ cg: CGContext, traits: Traits) {
         if traits.beard {
             cg.saveGState()
-            cg.clip(to: box(0, 0.52, 1, 0.20))
+            cg.clip(to: box(0, 0.525, 1, 0.195))
             cg.setFillColor(traits.hair.cgColor)
-            cg.fillEllipse(in: box(0.315, 0.25, 0.37, 0.42))
+            cg.fillEllipse(in: box(0.322, 0.25, 0.356, 0.42))
             cg.restoreGState()
         }
 
-        // Brows, eyes, mouth.
-        cg.setFillColor(traits.hair.darkened(by: 0.85).cgColor)
-        fill(cg, rounded: box(0.392, 0.398, 0.068, 0.017), radius: 0.009)
-        fill(cg, rounded: box(0.540, 0.398, 0.068, 0.017), radius: 0.009)
+        drawCheek(cg, traits: traits, at: box(0.352, 0.478, 0.085, 0.055))
+        drawCheek(cg, traits: traits, at: box(0.563, 0.478, 0.085, 0.055))
 
+        // Brows.
+        cg.setFillColor(traits.hair.darkened(by: 0.80).cgColor)
+        fill(cg, rounded: box(0.396, 0.401, 0.062, 0.014), radius: 0.008)
+        fill(cg, rounded: box(0.542, 0.401, 0.062, 0.014), radius: 0.008)
+
+        // Eyes.
         cg.setFillColor(ink.cgColor)
-        cg.fillEllipse(in: box(0.404, 0.432, 0.044, 0.054))
-        cg.fillEllipse(in: box(0.552, 0.432, 0.044, 0.054))
+        cg.fillEllipse(in: box(0.408, 0.434, 0.038, 0.048))
+        cg.fillEllipse(in: box(0.554, 0.434, 0.038, 0.048))
 
-        let mouth = UIBezierPath()
-        mouth.move(to: point(0.452, 0.545))
-        mouth.addQuadCurve(to: point(0.548, 0.545), controlPoint: point(0.5, 0.588))
-        cg.setStrokeColor(ink.withAlphaComponent(0.85).cgColor)
-        cg.setLineWidth(side * 0.016)
+        // Nose: a shaded line rather than an outline, so it stays quiet at
+        // avatar size.
+        cg.setStrokeColor(traits.skin.darkened(by: 0.78).cgColor)
+        cg.setLineWidth(side * 0.012)
         cg.setLineCap(.round)
+        cg.move(to: point(0.5, 0.487))
+        cg.addLine(to: point(0.5, 0.517))
+        cg.strokePath()
+
+        // Mouth.
+        let mouth = UIBezierPath()
+        mouth.move(to: point(0.449, 0.552))
+        mouth.addQuadCurve(to: point(0.551, 0.552), controlPoint: point(0.5, 0.596))
+        cg.setStrokeColor(ink.withAlphaComponent(0.85).cgColor)
+        cg.setLineWidth(side * 0.015)
         cg.addPath(mouth.cgPath)
         cg.strokePath()
 
         if traits.glasses {
             cg.setStrokeColor(ink.withAlphaComponent(0.75).cgColor)
-            cg.setLineWidth(side * 0.013)
-            stroke(cg, rounded: box(0.368, 0.410, 0.116, 0.098), radius: 0.032)
-            stroke(cg, rounded: box(0.516, 0.410, 0.116, 0.098), radius: 0.032)
-            cg.move(to: point(0.484, 0.452))
-            cg.addLine(to: point(0.516, 0.452))
+            cg.setLineWidth(side * 0.012)
+            stroke(cg, rounded: box(0.368, 0.412, 0.114, 0.094), radius: 0.032)
+            stroke(cg, rounded: box(0.518, 0.412, 0.114, 0.094), radius: 0.032)
+            cg.move(to: point(0.482, 0.452))
+            cg.addLine(to: point(0.518, 0.452))
             cg.strokePath()
         }
+    }
+
+    /// A blush that fades out at its edge — a hard-edged circle would read as a
+    /// blemish at full size.
+    private static func drawCheek(_ cg: CGContext, traits: Traits, at rect: CGRect) {
+        let space = CGColorSpace(name: CGColorSpace.sRGB) ?? CGColorSpaceCreateDeviceRGB()
+        let warm = traits.skin.darkened(by: 0.90)
+        let colors = [
+            warm.withAlphaComponent(0.45).cgColor,
+            warm.withAlphaComponent(0).cgColor,
+        ] as CFArray
+
+        guard let gradient = CGGradient(colorsSpace: space, colors: colors, locations: [0, 1]) else { return }
+
+        cg.saveGState()
+        cg.clip(to: rect)
+        let center = CGPoint(x: rect.midX, y: rect.midY)
+        cg.drawRadialGradient(
+            gradient,
+            startCenter: center,
+            startRadius: 0,
+            endCenter: center,
+            endRadius: rect.width / 2,
+            options: []
+        )
+        cg.restoreGState()
     }
 
     // MARK: - Geometry Helpers
@@ -379,14 +444,12 @@ enum ScreenshotAvatarFactory {
     }
 
     private static func fill(_ cg: CGContext, rounded rect: CGRect, radius: CGFloat) {
-        let path = UIBezierPath(roundedRect: rect, cornerRadius: radius * side)
-        cg.addPath(path.cgPath)
+        cg.addPath(UIBezierPath(roundedRect: rect, cornerRadius: radius * side).cgPath)
         cg.fillPath()
     }
 
     private static func stroke(_ cg: CGContext, rounded rect: CGRect, radius: CGFloat) {
-        let path = UIBezierPath(roundedRect: rect, cornerRadius: radius * side)
-        cg.addPath(path.cgPath)
+        cg.addPath(UIBezierPath(roundedRect: rect, cornerRadius: radius * side).cgPath)
         cg.strokePath()
     }
 }
