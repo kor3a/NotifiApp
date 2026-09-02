@@ -417,7 +417,10 @@ struct ReminderView: View {
             }
     }
 
-    private var coreView: some View {
+    /// The screen's content. Split out from `coreView` so the stack and the
+    /// long chain of lifecycle modifiers applied to it type-check as two
+    /// expressions — together they exceed the type-checker's budget.
+    private var coreStack: some View {
         ZStack {
             // The user's chosen background for this store, falling back to the
             // paper canvas. It sits here rather than on the list so the empty
@@ -514,39 +517,18 @@ struct ReminderView: View {
                 }
             }
         }
-        // The drop target for press-and-drag reordering sits on this container
-        // rather than on the List: a List swallows the drag before its rows see
-        // it, and the whole screen being a target means a drop just short of a
-        // row still lands. Drop locations arrive in this container's own
-        // coordinates, so its origin is recorded to convert them to the global
-        // frames the rows report.
-        .background(
-            GeometryReader { geo in
-                Color.clear
-                    .onAppear { dragTargets.containerOrigin = geo.frame(in: .global).origin }
-                    .onChange(of: geo.frame(in: .global)) { _, frame in
-                        dragTargets.containerOrigin = frame.origin
-                    }
-            }
-        )
-        .onDrop(
-            of: [UTType.plainText, UTType.utf8PlainText, UTType.text],
-            delegate: ReminderListDropDelegate(
+    }
+
+    private var coreView: some View {
+        coreStack
+        .modifier(
+            DragReorderDropTarget(
                 viewModel: viewModel,
                 targets: dragTargets,
                 draggedCategory: $draggedCategory,
                 draggedReminderId: $draggedReminderId
             )
         )
-        // The watchdog cancels a drag that never reached a drop target (dropped
-        // outside the app, interrupted by a call); clear the view's own drag
-        // state with it so rows don't stay dimmed.
-        .onChange(of: viewModel.isDragging) { _, isDragging in
-            guard !isDragging else { return }
-            draggedCategory = nil
-            draggedReminderId = nil
-            dragTargets.reset()
-        }
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(OrganicPalette.canvas(colorScheme), for: .navigationBar)
         .tint(OrganicPalette.terracotta(colorScheme))
@@ -2082,6 +2064,54 @@ final class DragTargetFrameStore {
     func reset() {
         frames.removeAll()
         lastHandled = nil
+    }
+}
+
+/// Installs the screen-wide drop target for press-and-drag reordering.
+///
+/// It goes on the screen's container rather than on the List: a List swallows
+/// the drag before its rows can see it, and a target covering the whole screen
+/// means a drop that lands just short of a row still counts. Packaged as one
+/// modifier because `coreView`'s chain is long enough that three more links
+/// pushed it past the type-checker's budget.
+struct DragReorderDropTarget: ViewModifier {
+    @ObservedObject var viewModel: ReminderViewModel
+    let targets: DragTargetFrameStore
+    @Binding var draggedCategory: String?
+    @Binding var draggedReminderId: String?
+
+    func body(content: Content) -> some View {
+        content
+            // Drop locations arrive in this container's own coordinates, so its
+            // origin is recorded to convert them to the global frames the rows
+            // and headers report.
+            .background(
+                GeometryReader { geo in
+                    Color.clear
+                        .onAppear { targets.containerOrigin = geo.frame(in: .global).origin }
+                        .onChange(of: geo.frame(in: .global)) { _, frame in
+                            targets.containerOrigin = frame.origin
+                        }
+                }
+            )
+            .onDrop(
+                of: [UTType.plainText, UTType.utf8PlainText, UTType.text],
+                delegate: ReminderListDropDelegate(
+                    viewModel: viewModel,
+                    targets: targets,
+                    draggedCategory: $draggedCategory,
+                    draggedReminderId: $draggedReminderId
+                )
+            )
+            // The watchdog cancels a drag that never reached a drop target
+            // (dropped outside the app, interrupted by a call); clear the view's
+            // own drag state with it so rows don't stay dimmed.
+            .onChange(of: viewModel.isDragging) { _, isDragging in
+                guard !isDragging else { return }
+                draggedCategory = nil
+                draggedReminderId = nil
+                targets.reset()
+            }
     }
 }
 
