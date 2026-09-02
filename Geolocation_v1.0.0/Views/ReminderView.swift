@@ -66,6 +66,8 @@ struct ReminderView: View {
     @State private var draggedCategory: String?
     /// Reminder lifted by a press-and-drag, if any.
     @State private var draggedReminderId: String?
+    /// Frames of every drop target, kept while a drag is in flight.
+    @State private var dragTargets = DragTargetFrameStore()
     /// Set once a backlog categorization pass has been requested for this
     /// appearance, so routine list changes don't keep re-requesting one. Cleared
     /// when Smart Category becomes available again (subscription or toggle).
@@ -512,6 +514,39 @@ struct ReminderView: View {
                 }
             }
         }
+        // The drop target for press-and-drag reordering sits on this container
+        // rather than on the List: a List swallows the drag before its rows see
+        // it, and the whole screen being a target means a drop just short of a
+        // row still lands. Drop locations arrive in this container's own
+        // coordinates, so its origin is recorded to convert them to the global
+        // frames the rows report.
+        .background(
+            GeometryReader { geo in
+                Color.clear
+                    .onAppear { dragTargets.containerOrigin = geo.frame(in: .global).origin }
+                    .onChange(of: geo.frame(in: .global)) { _, frame in
+                        dragTargets.containerOrigin = frame.origin
+                    }
+            }
+        )
+        .onDrop(
+            of: [UTType.plainText, UTType.utf8PlainText, UTType.text],
+            delegate: ReminderListDropDelegate(
+                viewModel: viewModel,
+                targets: dragTargets,
+                draggedCategory: $draggedCategory,
+                draggedReminderId: $draggedReminderId
+            )
+        )
+        // The watchdog cancels a drag that never reached a drop target (dropped
+        // outside the app, interrupted by a call); clear the view's own drag
+        // state with it so rows don't stay dimmed.
+        .onChange(of: viewModel.isDragging) { _, isDragging in
+            guard !isDragging else { return }
+            draggedCategory = nil
+            draggedReminderId = nil
+            dragTargets.reset()
+        }
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(OrganicPalette.canvas(colorScheme), for: .navigationBar)
         .tint(OrganicPalette.terracotta(colorScheme))
@@ -765,14 +800,6 @@ struct ReminderView: View {
             .listStyle(.plain)
             .listSectionSpacing(10)
             .scrollContentBackground(.hidden)
-            .onDrop(
-                of: [UTType.text],
-                delegate: ListDropDelegate(
-                    viewModel: viewModel,
-                    draggedCategory: $draggedCategory,
-                    draggedReminderId: $draggedReminderId
-                )
-            )
             .safeAreaInset(edge: .bottom) {
                 Color.clear.frame(height: 50)
             }
@@ -823,6 +850,51 @@ struct ReminderView: View {
         userStoreItem.permission != .view && !isReorderMode
     }
 
+    private var isDragActive: Bool {
+        draggedCategory != nil || draggedReminderId != nil
+    }
+
+    /// The payload isn't read on drop — what's in flight is tracked in view
+    /// state — but the drag needs *something* registered under a type the list's
+    /// drop target accepts, so it's registered explicitly rather than left to
+    /// conformance matching.
+    private func dragItemProvider(_ value: String) -> NSItemProvider {
+        NSItemProvider(item: value as NSString, typeIdentifier: UTType.plainText.identifier)
+    }
+
+    private func startDrag(category: String?, reminderId: String?) {
+        dragTargets.reset()
+        draggedCategory = category
+        draggedReminderId = reminderId
+        viewModel.beginDrag()
+    }
+
+    /// Records where a header or row sits so the drop delegate can work out what
+    /// the finger is over. Global coordinates, like the swipe rail's checkbox
+    /// frames — a named space declared outside the List doesn't reliably resolve
+    /// from inside its cells.
+    ///
+    /// Installed only while a drag is in flight: `geo.frame` recomputes on every
+    /// displayed frame while the list scrolls, and this list already learned
+    /// that lesson with the swipe rail.
+    @ViewBuilder
+    private func dragTargetFrameReader(_ key: DragTargetKey) -> some View {
+        if isDragActive {
+            GeometryReader { geo in
+                Color.clear
+                    .onAppear {
+                        dragTargets.frames[key] = geo.frame(in: .global)
+                    }
+                    .onChange(of: geo.frame(in: .global)) { _, frame in
+                        dragTargets.frames[key] = frame
+                    }
+                    .onDisappear {
+                        dragTargets.frames.removeValue(forKey: key)
+                    }
+            }
+        }
+    }
+
     /// Rows are dimmed while they're being dragged — either the row itself, or
     /// every row of a category whose header is in flight, so it reads as the
     /// whole section moving.
@@ -839,21 +911,11 @@ struct ReminderView: View {
         if canDragReorder {
             header
                 .opacity(draggedCategory == category ? 0.4 : 1)
+                .background(dragTargetFrameReader(.header(category)))
                 .onDrag {
-                    draggedReminderId = nil
-                    draggedCategory = category
-                    viewModel.beginDrag()
-                    return NSItemProvider(object: category as NSString)
+                    startDrag(category: category, reminderId: nil)
+                    return dragItemProvider(category)
                 }
-                .onDrop(
-                    of: [UTType.text],
-                    delegate: CategoryDropDelegate(
-                        category: category,
-                        viewModel: viewModel,
-                        draggedCategory: $draggedCategory,
-                        draggedReminderId: $draggedReminderId
-                    )
-                )
         } else {
             header
         }
@@ -915,21 +977,11 @@ struct ReminderView: View {
         if canDragReorder {
             row
                 .opacity(isInFlight(reminder) ? 0.4 : 1)
+                .background(dragTargetFrameReader(.row(reminder.id)))
                 .onDrag {
-                    draggedCategory = nil
-                    draggedReminderId = reminder.id
-                    viewModel.beginDrag()
-                    return NSItemProvider(object: reminder.id as NSString)
+                    startDrag(category: nil, reminderId: reminder.id)
+                    return dragItemProvider(reminder.id)
                 }
-                .onDrop(
-                    of: [UTType.text],
-                    delegate: ReminderDropDelegate(
-                        reminder: reminder,
-                        viewModel: viewModel,
-                        draggedCategory: $draggedCategory,
-                        draggedReminderId: $draggedReminderId
-                    )
-                )
         } else {
             row
         }
@@ -1994,88 +2046,108 @@ struct FavoriteTagView: View {
     ))
 }
 
-// MARK: - Drag Reordering Drop Targets
+// MARK: - Drag Reordering Drop Target
 
-/// Hovering a lifted row or category over a section header. A category dropped
-/// here takes this section's place; an item dropped here moves into this
-/// section — which is the only way to reach a collapsed section, since it shows
-/// no rows to aim at.
-private struct CategoryDropDelegate: DropDelegate {
-    let category: String
-    let viewModel: ReminderViewModel
-    @Binding var draggedCategory: String?
-    @Binding var draggedReminderId: String?
+/// Identifies something a dragged row or category can be dropped onto.
+enum DragTargetKey: Hashable {
+    case header(String)
+    case row(String)
+}
 
-    func dropEntered(info: DropInfo) {
-        withAnimation(.easeInOut(duration: 0.2)) {
-            if let dragged = draggedCategory {
-                viewModel.moveCategory(dragged, before: category)
-            } else if let draggedId = draggedReminderId {
-                viewModel.moveReminder(id: draggedId, toCategory: category)
-            }
+/// Where each drop target sits inside the list while a drag is in flight.
+///
+/// A reference type for the same reason as `CheckboxFrameStore`: every visible
+/// row rewrites its frame on each displayed frame, and these are only ever read
+/// inside the drop delegate, never during rendering, so they must not invalidate
+/// the body.
+final class DragTargetFrameStore {
+    var frames: [DragTargetKey: CGRect] = [:]
+    /// Global origin of the view carrying the drop target, so the local drop
+    /// locations it reports can be compared against the global row frames.
+    var containerOrigin: CGPoint = .zero
+    /// The target the last move acted on. A finger held still keeps delivering
+    /// drop callbacks, and re-running the same move would swap the row back and
+    /// forth under it.
+    var lastHandled: DragTargetKey?
+
+    func target(at point: CGPoint) -> (key: DragTargetKey, belowMidpoint: Bool)? {
+        for (key, frame) in frames where frame.contains(point) {
+            return (key, point.y > frame.midY)
         }
+        return nil
     }
 
-    func dropUpdated(info: DropInfo) -> DropProposal? {
-        DropProposal(operation: .move)
-    }
-
-    func performDrop(info: DropInfo) -> Bool {
-        viewModel.commitDrag()
-        draggedCategory = nil
-        draggedReminderId = nil
-        return true
+    /// Clears per-drag state. `containerOrigin` survives: it describes the
+    /// screen, not the drag.
+    func reset() {
+        frames.removeAll()
+        lastHandled = nil
     }
 }
 
-/// Hovering a lifted row or category over a row. A dragged item takes the
-/// target's place, adopting the target's category when they're in different
-/// sections. A dragged category moves to wherever this row's section sits, so
-/// aiming at a tall section's body works as well as aiming at its header.
-private struct ReminderDropDelegate: DropDelegate {
-    let reminder: Reminder
+/// The screen's single drop target.
+///
+/// Drop targets on the individual rows never saw the drag — the List accepts it
+/// first — so hit-testing happens here instead: rows and headers record their
+/// global frames while a drag is in flight, and the drag location picks out
+/// whichever one is under the finger.
+struct ReminderListDropDelegate: DropDelegate {
     let viewModel: ReminderViewModel
+    let targets: DragTargetFrameStore
     @Binding var draggedCategory: String?
     @Binding var draggedReminderId: String?
 
-    func dropEntered(info: DropInfo) {
+    /// Only ever accept a drag this list started — not text dropped in from
+    /// another app.
+    func validateDrop(info: DropInfo) -> Bool {
+        draggedCategory != nil || draggedReminderId != nil
+    }
+
+    func dropUpdated(info: DropInfo) -> DropProposal? {
+        applyMove(at: info.location)
+        return DropProposal(operation: .move)
+    }
+
+    func dropExited(info: DropInfo) {
+        targets.lastHandled = nil
+    }
+
+    func performDrop(info: DropInfo) -> Bool {
+        applyMove(at: info.location)
+        viewModel.commitDrag()
+        targets.reset()
+        draggedCategory = nil
+        draggedReminderId = nil
+        return true
+    }
+
+    private func applyMove(at location: CGPoint) {
+        let point = CGPoint(
+            x: location.x + targets.containerOrigin.x,
+            y: location.y + targets.containerOrigin.y
+        )
+        guard let hit = targets.target(at: point), hit.key != targets.lastHandled else { return }
+        targets.lastHandled = hit.key
+
         withAnimation(.easeInOut(duration: 0.2)) {
-            if let dragged = draggedCategory {
-                viewModel.moveCategory(dragged, before: viewModel.categoryName(for: reminder))
-            } else if let draggedId = draggedReminderId {
-                viewModel.moveReminder(id: draggedId, onto: reminder)
+            switch hit.key {
+            case .header(let category):
+                if let draggedCategory = draggedCategory {
+                    viewModel.moveCategory(draggedCategory, before: category)
+                } else if let draggedReminderId = draggedReminderId {
+                    viewModel.moveReminder(id: draggedReminderId, toCategory: category)
+                }
+            case .row(let id):
+                guard let target = viewModel.reminders.first(where: { $0.id == id }) else { return }
+                if let draggedCategory = draggedCategory {
+                    // Aiming anywhere in a section's body moves the dragged
+                    // category to that section, so a tall section is as easy to
+                    // hit as its header.
+                    viewModel.moveCategory(draggedCategory, before: viewModel.categoryName(for: target))
+                } else if let draggedReminderId = draggedReminderId {
+                    viewModel.moveReminder(id: draggedReminderId, onto: target, placeAfter: hit.belowMidpoint)
+                }
             }
         }
-    }
-
-    func dropUpdated(info: DropInfo) -> DropProposal? {
-        DropProposal(operation: .move)
-    }
-
-    func performDrop(info: DropInfo) -> Bool {
-        viewModel.commitDrag()
-        draggedCategory = nil
-        draggedReminderId = nil
-        return true
-    }
-}
-
-/// Catches a drop that lands in the list but not on a row or header (the gap
-/// below the last section, say) so the rearrangement the hover already made is
-/// still persisted instead of being left uncommitted.
-private struct ListDropDelegate: DropDelegate {
-    let viewModel: ReminderViewModel
-    @Binding var draggedCategory: String?
-    @Binding var draggedReminderId: String?
-
-    func dropUpdated(info: DropInfo) -> DropProposal? {
-        DropProposal(operation: .move)
-    }
-
-    func performDrop(info: DropInfo) -> Bool {
-        viewModel.commitDrag()
-        draggedCategory = nil
-        draggedReminderId = nil
-        return true
     }
 }

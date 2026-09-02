@@ -816,12 +816,14 @@ class ReminderViewModel: ObservableObject {
     /// paused and freeze the list.
     private var dragWatchdog: DispatchWorkItem?
 
-    /// True while a category or row is in flight.
-    var isDragging: Bool { dragBaseline != nil }
+    /// True while a category or row is in flight. Published so the view can drop
+    /// its own drag state when the watchdog cancels a drag it never saw end.
+    @Published private(set) var isDragging = false
 
     func beginDrag() {
         guard dragBaseline == nil else { return }
         dragBaseline = reminders
+        isDragging = true
         // Hold snapshot rebuilds so a listener callback mid-drag can't yank the
         // rows out from under the finger.
         isReordering = true
@@ -835,6 +837,7 @@ class ReminderViewModel: ObservableObject {
         dragWatchdog = nil
         reminders = baseline
         dragBaseline = nil
+        isDragging = false
         isReordering = false
     }
 
@@ -858,15 +861,18 @@ class ReminderViewModel: ObservableObject {
         armDragWatchdog()
     }
 
-    /// Move a dragged item into `target`'s place, adopting `target`'s category
-    /// when they differ. Local only; `commitDrag()` persists.
-    func moveReminder(id: String, onto target: Reminder) {
+    /// Move a dragged item to `target`'s position, adopting `target`'s category
+    /// when they differ. `placeAfter` puts it below the target rather than above,
+    /// which is what makes the bottom of a section reachable. Local only;
+    /// `commitDrag()` persists.
+    func moveReminder(id: String, onto target: Reminder, placeAfter: Bool = false) {
         guard id != target.id,
               let from = reminders.firstIndex(where: { $0.id == id }) else { return }
         var updated = reminders
         var moved = updated.remove(at: from)
         moved.category = target.category
-        let to = updated.firstIndex(where: { $0.id == target.id }) ?? updated.count
+        var to = updated.firstIndex(where: { $0.id == target.id }) ?? updated.count
+        if placeAfter, to < updated.count { to += 1 }
         updated.insert(moved, at: to)
         reminders = regrouped(updated, byCategoryOrder: orderedCategories(in: updated))
         armDragWatchdog()
@@ -910,6 +916,7 @@ class ReminderViewModel: ObservableObject {
         dragWatchdog?.cancel()
         dragWatchdog = nil
         dragBaseline = nil
+        isDragging = false
 
         let before = Dictionary(baseline.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
 
