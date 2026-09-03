@@ -21,6 +21,9 @@ struct HomeView: View {
     @StateObject private var smartRecipeViewModel = SmartRecipeViewModel()
     @ObservedObject private var subscriptionManager = SubscriptionManager.shared
     @ObservedObject private var tutorialManager = TutorialManager.shared
+    #if DEBUG
+    @ObservedObject private var screenshotMocks = ScreenshotMockStore.shared
+    #endif
     @State private var selectedTab = 0
     @State private var showRecipePaywall = false
     /// Set by a friend-request notification. Friends lives under Profile now,
@@ -41,6 +44,10 @@ struct HomeView: View {
     @State private var showNotificationsDeniedAlert = false
     @Environment(\.colorScheme) private var colorScheme
 
+    /// The Debug tab's tag, named because the tab, the bar's list and the
+    /// selection fallback all have to agree on it.
+    private static let debugTabTag = 4
+
     @ViewBuilder
     private var debugTab: some View {
         #if DEBUG
@@ -53,7 +60,7 @@ struct HomeView: View {
             Image(systemName: "bell.badge")
             Text("Debug")
         }
-        .tag(4)
+        .tag(Self.debugTabTag)
         #endif
     }
 
@@ -120,21 +127,42 @@ struct HomeView: View {
             ),
         ]
         #if DEBUG
-        tabs.append(
-            OrganicTab(
-                tag: 4,
-                title: "Debug",
-                systemImage: "bell.badge",
-                selectedImage: "bell.badge.fill"
+        // Mock Friends is on for App Store screenshots, and Debug has no place
+        // in one, so the bar drops it for as long as the toggle is on.
+        if !screenshotMocks.isEnabled {
+            tabs.append(
+                OrganicTab(
+                    tag: Self.debugTabTag,
+                    title: "Debug",
+                    systemImage: "bell.badge",
+                    selectedImage: "bell.badge.fill"
+                )
             )
-        )
+        }
         #endif
         return tabs
     }
 
+    /// Reading the selection through this keeps the app off a tab the bar is
+    /// no longer drawing: turn the screenshot mocks on while Debug is open and
+    /// it falls back to Stores instead of leaving the bar with nothing lit.
+    private var tabSelection: Binding<Int> {
+        Binding(
+            get: {
+                #if DEBUG
+                if screenshotMocks.isEnabled && selectedTab == Self.debugTabTag {
+                    return 0
+                }
+                #endif
+                return selectedTab
+            },
+            set: { selectedTab = $0 }
+        )
+    }
+
     var body: some View {
         ZStack {
-            TabView(selection: $selectedTab) {
+            TabView(selection: tabSelection) {
                 // Stores draws its own greeting, title and profile button in
                 // the content, so this stack is here only to push from — the
                 // screen hides its navigation bar.
@@ -216,7 +244,7 @@ struct HomeView: View {
                 if selectedTab != 3 {
                     OrganicTabBar(
                         tabs: organicTabs,
-                        selection: $selectedTab,
+                        selection: tabSelection,
                         onReselect: popTabToRoot
                     )
                         // Pinned to the bottom while a keyboard is up, the way
