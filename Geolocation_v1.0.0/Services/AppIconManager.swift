@@ -43,16 +43,29 @@ final class AppIconManager: ObservableObject {
 
     /// Every icon the app offers. Order is the order they appear in the grid,
     /// with the shipped icon first.
+    ///
+    /// All three wear the same storefront mark and differ only in colour, so
+    /// the names are colours rather than shapes.
+    ///
+    /// Pink's `alternateName` still says "Storefront" — that is the name iOS
+    /// has recorded for everyone already using it, and renaming the asset would
+    /// quietly reset them to the shipped icon on the next launch. The asset
+    /// keeps the old name; only what the user hears changed.
     static let options: [AppIconOption] = [
         AppIconOption(
             alternateName: nil,
-            displayName: "Allim",
+            displayName: "Teal",
             previewAssetName: "AppIconPreview-Default"
         ),
         AppIconOption(
             alternateName: "AppIcon-Storefront",
-            displayName: "Storefront",
+            displayName: "Pink",
             previewAssetName: "AppIconPreview-Storefront"
+        ),
+        AppIconOption(
+            alternateName: "AppIcon-Wash",
+            displayName: "Wash",
+            previewAssetName: "AppIconPreview-Wash"
         )
     ]
 
