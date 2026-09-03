@@ -10,6 +10,7 @@ import SwiftUI
 struct NotificationLogView: View {
     @ObservedObject private var logStore = NotificationLogStore.shared
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         NavigationStack {
@@ -18,13 +19,13 @@ struct NotificationLogView: View {
                     VStack(spacing: 16) {
                         Image(systemName: "bell.slash")
                             .font(.system(size: 60))
-                            .foregroundColor(.gray)
+                            .foregroundColor(OrganicPalette.inkMuted(colorScheme))
                         Text("No Notifications Yet")
                             .font(.title2)
-                            .foregroundColor(.gray)
+                            .foregroundColor(OrganicPalette.ink(colorScheme))
                         Text("Notification alarms will appear here when you get close to stores with reminders.")
                             .font(.subheadline)
-                            .foregroundColor(.secondary)
+                            .foregroundColor(OrganicPalette.inkSoft(colorScheme))
                             .multilineTextAlignment(.center)
                             .padding(.horizontal, 32)
                     }
@@ -53,7 +54,7 @@ struct NotificationLogView: View {
                             logStore.clearAll()
                         } label: {
                             Text("Clear All")
-                                .foregroundColor(.red)
+                                .foregroundColor(OrganicPalette.rust(colorScheme))
                         }
                     }
                 }
@@ -65,27 +66,32 @@ struct NotificationLogView: View {
 struct NotificationLogRowView: View {
     let entry: NotificationLogEntry
 
+    @Environment(\.colorScheme) private var colorScheme
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
+                // The warm accent: a log entry is a reminder that fired, which
+                // is exactly what the palette holds that tone back for.
                 Image(systemName: "bell.fill")
-                    .foregroundColor(.blue)
+                    .foregroundColor(OrganicPalette.highlight(colorScheme))
                     .font(.title3)
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(entry.storeName)
                         .font(.headline)
+                        .foregroundColor(OrganicPalette.ink(colorScheme))
 
                     Text(reminderText)
                         .font(.subheadline)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(OrganicPalette.inkSoft(colorScheme))
                 }
 
                 Spacer()
 
                 Text(entry.timeAgoString)
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(OrganicPalette.inkMuted(colorScheme))
             }
         }
         .padding(.vertical, 4)

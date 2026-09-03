@@ -142,7 +142,7 @@ private struct SwipeToRemoveRow<Content: View>: View {
                 .overlay(
                     Image(systemName: "person.fill.badge.minus")
                         .font(.system(size: 17))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(OrganicPalette.onRust(colorScheme))
                 )
                 .frame(width: actionWidth)
         }
@@ -199,10 +199,13 @@ struct ShareStoreView: View {
                 : OrganicPalette.terracotta(scheme)
         }
 
-        /// Type that sits on `fill`. Sage is a pale wash and needs dark ink;
-        /// terracotta is saturated and needs white.
+        /// Type that sits on `fill`. Sage is a pale wash and needs the deep
+        /// green ink; the accent is saturated and takes the ink the palette
+        /// pairs with it.
         func ink(_ scheme: ColorScheme) -> Color {
-            self == .family ? OrganicPalette.sageInk(scheme) : .white
+            self == .family
+                ? OrganicPalette.sageInk(scheme)
+                : OrganicPalette.onTerracotta(scheme)
         }
     }
 
@@ -701,7 +704,7 @@ struct ShareStoreView: View {
                 Text(title)
                     .font(OrganicPalette.title(13))
             }
-            .foregroundColor(isSelected ? .white : OrganicPalette.inkSoft(colorScheme))
+            .foregroundColor(isSelected ? OrganicPalette.onTerracotta(colorScheme) : OrganicPalette.inkSoft(colorScheme))
             .frame(maxWidth: .infinity)
             .padding(.vertical, 9)
             .background(

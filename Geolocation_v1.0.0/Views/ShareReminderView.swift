@@ -14,6 +14,7 @@ struct ShareReminderView: View {
     @StateObject private var friendsViewModel = FriendsViewModel()
     @ObservedObject private var sessionManager = UserSessionManager.shared
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var colorScheme
     @State private var searchEmail = ""
     @State private var selectedContact: Contact?
     @State private var customMessage = ""
@@ -35,9 +36,9 @@ struct ShareReminderView: View {
 
                         HStack {
                             Image(systemName: "storefront")
-                                .foregroundColor(.secondary)
+                                .foregroundColor(.secondaryText)
                             Text(store.name)
-                                .foregroundColor(.secondary)
+                                .foregroundColor(.secondaryText)
                         }
                         .font(.subheadline)
                     }
@@ -52,7 +53,7 @@ struct ShareReminderView: View {
                             Spacer()
                             Button(action: { selectedContact = nil }) {
                                 Image(systemName: "xmark.circle.fill")
-                                    .foregroundColor(.secondary)
+                                    .foregroundColor(.secondaryText)
                             }
                         }
                     } else {
@@ -95,14 +96,14 @@ struct ShareReminderView: View {
                                     Spacer()
                                     Image(systemName: "house.fill")
                                         .font(.caption)
-                                        .foregroundColor(.purple)
+                                        .foregroundColor(OrganicPalette.sageInk(colorScheme))
                                 }
                             }
                         }
                     } header: {
                         HStack(spacing: 4) {
                             Image(systemName: "house.fill")
-                                .foregroundColor(.purple)
+                                .foregroundColor(OrganicPalette.sageInk(colorScheme))
                             Text("Family")
                         }
                     }
@@ -140,7 +141,7 @@ struct ShareReminderView: View {
                 // Preview
                 Section("Preview") {
                     Text(messagePreview)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(.secondaryText)
                         .font(.subheadline)
                 }
             }

@@ -1110,7 +1110,7 @@ struct ReminderView: View {
                     case .failure:
                         Image(systemName: "photo")
                             .font(.system(size: 60))
-                            .foregroundColor(.gray)
+                            .foregroundColor(OrganicPalette.inkMuted(.dark))
                     case .empty:
                         ProgressView()
                             .tint(.white)
@@ -1131,7 +1131,7 @@ struct ReminderView: View {
                             Text("Delete")
                                 .font(.caption)
                         }
-                        .foregroundColor(.red)
+                        .foregroundColor(OrganicPalette.rust(.dark))
                     }
 
                     Button {
@@ -1873,7 +1873,7 @@ struct FavoriteTagView: View {
             .font(.system(size: 13, weight: .semibold))
             .lineLimit(1)
             .foregroundColor(
-                isActive ? .white : OrganicPalette.inkSoft(colorScheme)
+                isActive ? OrganicPalette.onTerracotta(colorScheme) : OrganicPalette.inkSoft(colorScheme)
             )
             .padding(.horizontal, 14)
             .padding(.vertical, 8)

@@ -486,7 +486,7 @@ struct BackgroundPickerView: View {
                         Image(systemName: "checkmark.circle.fill")
                             .font(.system(size: 20))
                             .symbolRenderingMode(.palette)
-                            .foregroundStyle(.white, OrganicPalette.terracotta(colorScheme))
+                            .foregroundStyle(OrganicPalette.onTerracotta(colorScheme), OrganicPalette.terracotta(colorScheme))
                     }
                 }
                 .frame(height: 56)

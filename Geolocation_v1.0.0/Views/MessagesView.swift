@@ -128,7 +128,7 @@ struct MessagesView: View {
             Button(action: { showNewMessage = true }) {
                 Image(systemName: "square.and.pencil")
                     .font(.system(size: 21, weight: .semibold))
-                    .foregroundColor(.white)
+                    .foregroundColor(OrganicPalette.onTerracotta(colorScheme))
                     .frame(width: 54, height: 54)
                     .background(Circle().fill(OrganicPalette.terracotta(colorScheme)))
                     .shadow(color: OrganicPalette.terracotta(colorScheme).opacity(0.35), radius: 10, x: 0, y: 5)
@@ -163,7 +163,7 @@ struct MessagesView: View {
             Button(action: { showNewMessage = true }) {
                 Text("New message")
                     .font(OrganicPalette.title(17))
-                    .foregroundColor(.white)
+                    .foregroundColor(OrganicPalette.onTerracotta(colorScheme))
                     .padding(.horizontal, 32)
                     .frame(height: 52)
                     .background(Capsule().fill(OrganicPalette.terracotta(colorScheme)))
@@ -318,7 +318,7 @@ struct ConversationRow: View {
                     if isUnread {
                         Text("\(unreadCount)")
                             .font(OrganicPalette.title(13))
-                            .foregroundColor(.white)
+                            .foregroundColor(OrganicPalette.onTerracotta(colorScheme))
                             .padding(.horizontal, 8)
                             .padding(.vertical, 2)
                             .background(Capsule().fill(OrganicPalette.terracotta(colorScheme)))
@@ -465,7 +465,7 @@ struct NewMessageView: View {
                 Button(action: runSearch) {
                     Text("Search")
                         .font(OrganicPalette.title(15))
-                        .foregroundColor(.white)
+                        .foregroundColor(OrganicPalette.onTerracotta(colorScheme))
                         .padding(.horizontal, 16)
                         .frame(height: 38)
                         .background(Capsule().fill(OrganicPalette.terracotta(colorScheme)))
@@ -514,11 +514,11 @@ struct ContactRow: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(contact.name)
                     .font(.body)
-                    .foregroundColor(.primary)
+                    .foregroundColor(.primaryText)
 
                 Text(contact.email)
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(.secondaryText)
             }
 
             Spacer()

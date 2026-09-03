@@ -141,7 +141,7 @@ struct OrganicTabBar: View {
     private func badge(_ count: Int) -> some View {
         Text(count > 99 ? "99+" : "\(count)")
             .font(OrganicPalette.title(10))
-            .foregroundColor(.white)
+            .foregroundColor(OrganicPalette.onTerracotta(colorScheme))
             .padding(.horizontal, 5)
             .padding(.vertical, 2)
             .background(Capsule().fill(OrganicPalette.terracotta(colorScheme)))

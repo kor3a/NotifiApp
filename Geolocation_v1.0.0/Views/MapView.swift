@@ -347,10 +347,10 @@ struct MapView: View {
                                 if messagesViewModel.totalUnreadCount > 0 {
                                     Text("\(messagesViewModel.totalUnreadCount)")
                                         .font(OrganicPalette.title(10))
-                                        .foregroundColor(.white)
+                                        .foregroundColor(OrganicPalette.onHighlight(colorScheme))
                                         .padding(.horizontal, 5)
                                         .padding(.vertical, 2)
-                                        .background(OrganicPalette.terracotta(colorScheme))
+                                        .background(OrganicPalette.highlight(colorScheme))
                                         .clipShape(Capsule())
                                         .offset(x: 10, y: -8)
                                 }
@@ -731,12 +731,12 @@ struct StoreIconView: View {
             if reminderCount > 0 {
                 Text("\(reminderCount)")
                     .font(OrganicPalette.title(10))
-                    .foregroundColor(.white)
+                    .foregroundColor(OrganicPalette.onHighlight(colorScheme))
                     .padding(.horizontal, 4)
                     .padding(.vertical, 1)
                     .background(
                         Capsule()
-                            .fill(OrganicPalette.terracotta(colorScheme))
+                            .fill(OrganicPalette.highlight(colorScheme))
                     )
                     .overlay(Capsule().strokeBorder(.white, lineWidth: 1.5))
                     .offset(x: 8, y: -6)
@@ -761,9 +761,10 @@ struct SearchResultPinView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Flat terracotta rather than an orange-to-red gradient with a
+            // Flat accent rather than an orange-to-red gradient with a
             // highlight on top. The white ring and the shadow stay: this pin
-            // lands on map imagery, not on paper.
+            // lands on map imagery, not on one of the palette's surfaces, and
+            // white is what separates it from whatever is underneath.
             ZStack {
                 Circle()
                     .fill(OrganicPalette.terracotta(colorScheme))
@@ -771,7 +772,7 @@ struct SearchResultPinView: View {
 
                 Image(systemName: "mappin")
                     .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(.white)
+                    .foregroundColor(OrganicPalette.onTerracotta(colorScheme))
             }
             .overlay(Circle().strokeBorder(.white, lineWidth: 2))
             .shadow(color: Color.black.opacity(0.28), radius: 4, x: 0, y: 3)
@@ -826,14 +827,14 @@ struct Triangle: Shape {
 
 #Preview("Search Pin") {
     ZStack {
-        Color.gray.opacity(0.3)
+        OrganicPalette.canvas(.light)
         SearchResultPinView(name: "Coffee Shop")
     }
 }
 
 #Preview("Store Icon") {
     ZStack {
-        Color.gray.opacity(0.3)
+        OrganicPalette.canvas(.light)
         HStack(spacing: 20) {
             StoreIconView(storeName: "Walmart", reminderCount: 3)
             StoreIconView(storeName: "Target", reminderCount: 0)

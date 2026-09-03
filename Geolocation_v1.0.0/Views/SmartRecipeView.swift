@@ -9,17 +9,24 @@ import SwiftUI
 
 // MARK: - Recipe Palette
 
-/// The recipe screens run on their own warm, kitchen-toned accent rather than
-/// the app's blue. They sit on a culinary backdrop image, and the cool system
-/// blue reads as foreign against it.
+/// The recipe screens run on the palette's *warm* accent rather than its brand
+/// teal. They sit on a culinary backdrop image, and a cool teal reads as
+/// foreign against it — while the warm accent is already the tone the palette
+/// reserves for the thing a recipe screen is about.
+///
+/// Every value is an `AllimColor` token; the old kitchen names are kept because
+/// the screens below read far better for them.
 enum RecipePalette {
-    static let apricot = Color(red: 1.00, green: 0.60, blue: 0.24)
-    static let paprika = Color(red: 0.90, green: 0.32, blue: 0.23)
-    static let basil = Color(red: 0.33, green: 0.60, blue: 0.36)
+    static let apricot = AllimColor.warning.color
+    static let paprika = AllimColor.accent.color
+    static let basil = AllimColor.success.color
 
     /// Flat fill for the accented surfaces — avatar, send button, user bubbles,
     /// primary action buttons.
     static let accent = paprika
+
+    /// What a label is drawn in on top of `accent`.
+    static let onAccent = AllimColor.onAccent.color
 
     /// Wash laid over the backdrop art so message text keeps its contrast.
     static func scrim(for colorScheme: ColorScheme) -> Color {
@@ -42,9 +49,7 @@ enum RecipePalette {
     }
 
     static func shadow(for colorScheme: ColorScheme) -> Color {
-        colorScheme == .dark
-            ? Color.black.opacity(0.45)
-            : Color(red: 0.45, green: 0.26, blue: 0.12).opacity(0.16)
+        AllimColor.shadow(colorScheme)
     }
 }
 
@@ -88,7 +93,7 @@ private struct RecipeAssistantAvatar: View {
     var body: some View {
         Image(systemName: "fork.knife")
             .font(.system(size: 12, weight: .bold))
-            .foregroundColor(.white)
+            .foregroundColor(RecipePalette.onAccent)
             .frame(width: 26, height: 26)
             .background(Circle().fill(RecipePalette.accent))
             .padding(.top, 2)
@@ -216,7 +221,7 @@ struct SmartRecipeView: View {
                 if let error = viewModel.errorMessage {
                     statusBanner(
                         icon: "exclamationmark.triangle.fill",
-                        tint: .orange,
+                        tint: RecipePalette.apricot,
                         text: error
                     ) {
                         viewModel.errorMessage = nil
@@ -263,7 +268,7 @@ struct SmartRecipeView: View {
 
             Text(text)
                 .font(.footnote)
-                .foregroundColor(.primary)
+                .foregroundColor(.primaryText)
                 .fixedSize(horizontal: false, vertical: true)
 
             Spacer(minLength: 8)
@@ -334,7 +339,7 @@ struct SmartRecipeView: View {
             .padding(.horizontal, 16)
             .padding(.vertical, 10)
             .background(Capsule().fill(fill))
-            .foregroundColor(.white)
+            .foregroundColor(RecipePalette.onAccent)
             .shadow(color: RecipePalette.shadow(for: colorScheme), radius: 6, x: 0, y: 3)
         }
         .buttonStyle(.plain)
@@ -346,7 +351,7 @@ struct SmartRecipeView: View {
         VStack(spacing: 18) {
             Image(systemName: "fork.knife")
                 .font(.system(size: 36, weight: .semibold))
-                .foregroundColor(.white)
+                .foregroundColor(RecipePalette.onAccent)
                 .frame(width: 84, height: 84)
                 .background(Circle().fill(RecipePalette.accent))
                 .overlay(Circle().stroke(Color.white.opacity(0.4), lineWidth: 1))
@@ -360,7 +365,7 @@ struct SmartRecipeView: View {
 
                 Text("Ask for any recipe — meal ideas, step-by-step instructions, ingredient swaps — then send the ingredients straight to a store list.")
                     .font(.subheadline)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(.secondaryText)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 32)
             }
@@ -391,14 +396,14 @@ struct SmartRecipeView: View {
 
                 Text(text)
                     .font(.subheadline)
-                    .foregroundColor(.primary)
+                    .foregroundColor(.primaryText)
                     .multilineTextAlignment(.leading)
 
                 Spacer(minLength: 4)
 
                 Image(systemName: "arrow.up.right")
                     .font(.system(size: 11, weight: .bold))
-                    .foregroundColor(.secondary)
+                    .foregroundColor(.secondaryText)
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 12)
@@ -435,11 +440,11 @@ struct SmartRecipeView: View {
             } label: {
                 Image(systemName: "arrow.up")
                     .font(.system(size: 17, weight: .bold))
-                    .foregroundColor(.white)
+                    .foregroundColor(isSendDisabled ? Color.mutedText : RecipePalette.onAccent)
                     .frame(width: 42, height: 42)
                     .background(
                         Circle().fill(isSendDisabled
-                            ? AnyShapeStyle(Color.secondary.opacity(0.4))
+                            ? AnyShapeStyle(AllimColor.field(colorScheme))
                             : AnyShapeStyle(RecipePalette.accent))
                     )
                     .shadow(
@@ -488,12 +493,12 @@ struct StorePickerView: View {
                     VStack(spacing: 16) {
                         Image(systemName: "storefront")
                             .font(.system(size: 40))
-                            .foregroundColor(.secondary)
+                            .foregroundColor(.secondaryText)
                         Text("No stores yet")
                             .font(.headline)
                         Text("Add a store first, then you can save recipe ingredients to it.")
                             .font(.subheadline)
-                            .foregroundColor(.secondary)
+                            .foregroundColor(.secondaryText)
                             .multilineTextAlignment(.center)
                             .padding(.horizontal, 32)
                     }
@@ -514,7 +519,7 @@ struct StorePickerView: View {
                                             if item.store.reminderCount > 0 {
                                                 Text("\(item.store.reminderCount) item\(item.store.reminderCount == 1 ? "" : "s")")
                                                     .font(.caption)
-                                                    .foregroundColor(.secondary)
+                                                    .foregroundColor(.secondaryText)
                                             }
                                         }
 
@@ -522,11 +527,11 @@ struct StorePickerView: View {
 
                                         Image(systemName: "chevron.right")
                                             .font(.caption)
-                                            .foregroundColor(.secondary)
+                                            .foregroundColor(.secondaryText)
                                     }
                                     .padding(.vertical, 4)
                                 }
-                                .foregroundColor(.primary)
+                                .foregroundColor(.primaryText)
                             }
                         } header: {
                             Text("Select a store to add ingredients")
@@ -563,7 +568,7 @@ struct MessageBubbleView: View {
                     .padding(.horizontal, 16)
                     .padding(.vertical, 12)
                     .background { recipeSurface(for: colorScheme) }
-                    .foregroundColor(.primary)
+                    .foregroundColor(.primaryText)
 
                 Spacer(minLength: 40)
             } else {
@@ -577,7 +582,7 @@ struct MessageBubbleView: View {
                         RoundedRectangle(cornerRadius: 20, style: .continuous)
                             .fill(RecipePalette.accent)
                     )
-                    .foregroundColor(.white)
+                    .foregroundColor(RecipePalette.onAccent)
                     .shadow(color: RecipePalette.paprika.opacity(0.28), radius: 8, x: 0, y: 4)
             }
         }

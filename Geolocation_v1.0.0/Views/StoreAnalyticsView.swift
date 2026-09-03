@@ -127,7 +127,9 @@ struct StoreAnalyticsView: View {
                     Text(range.rawValue)
                         .font(.system(size: 14, weight: .semibold))
                         .foregroundColor(
-                            isSelected ? .white : OrganicPalette.inkSoft(colorScheme)
+                            isSelected
+                                ? OrganicPalette.onTerracotta(colorScheme)
+                                : OrganicPalette.inkSoft(colorScheme)
                         )
                         .frame(maxWidth: .infinity)
                         .frame(height: 38)
@@ -322,7 +324,9 @@ struct StoreAnalyticsView: View {
                     Text("\(index + 1)")
                         .font(OrganicPalette.title(12))
                         .foregroundColor(
-                            index < 3 ? .white : OrganicPalette.inkSoft(colorScheme)
+                            index < 3
+                                ? OrganicPalette.onTerracotta(colorScheme)
+                                : OrganicPalette.inkSoft(colorScheme)
                         )
                         .frame(width: 26, height: 26)
                         .background(

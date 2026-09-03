@@ -120,6 +120,12 @@ enum OrganicPalette {
         AllimColor.success(scheme)
     }
 
+    /// Type and glyphs drawn on a filled `sageInk` surface — the accept button
+    /// on a friend request, a "done" pill.
+    static func onSageInk(_ scheme: ColorScheme) -> Color {
+        AllimColor.onSuccess(scheme)
+    }
+
     /// Destructive and out-of-stock states — a delete, a failed send, an item
     /// the store is out of.
     static func rust(_ scheme: ColorScheme) -> Color {

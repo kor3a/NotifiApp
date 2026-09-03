@@ -306,7 +306,7 @@ private struct OrganicActionButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(OrganicPalette.title(17))
-            .foregroundStyle(.white)
+            .foregroundStyle(OrganicPalette.onTerracotta(colorScheme))
             .frame(maxWidth: .infinity)
             .frame(height: 52)
             .background(Capsule().fill(OrganicPalette.terracotta(colorScheme)))

@@ -21,6 +21,8 @@ extension Color {
     // else on these screens.
     static let primaryText = AllimColor.textPrimary.color
     static let secondaryText = AllimColor.textSecondary.color
+    /// The quietest readable tier — a timestamp, a hint, a disabled row.
+    static let mutedText = AllimColor.textMuted.color
 
     // MARK: - Accent Colors
     static let appAccent = AllimColor.primary.color

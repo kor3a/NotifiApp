@@ -489,7 +489,7 @@ struct SharedBadge: View {
                 // Shared but nobody known — keep a visible indicator.
                 Image(systemName: "person.fill")
                     .font(.system(size: 11, weight: .bold))
-                    .foregroundColor(.white)
+                    .foregroundColor(OrganicPalette.onTerracotta(colorScheme))
                     .frame(width: 22, height: 22)
                     .background(Circle().fill(OrganicPalette.terracotta(colorScheme)))
                     .overlay(Circle().stroke(OrganicPalette.surface(colorScheme), lineWidth: 1.5))
@@ -582,10 +582,10 @@ struct InitialAvatar: View {
     var body: some View {
         Text(initial)
             .font(OrganicPalette.title(size * 0.5))
-            .foregroundColor(.white)
+            .foregroundColor(AllimAvatarFill.ink)
             .frame(width: size, height: size)
             .background(Circle().fill(fillColor))
-            // Separator ring in the card's own paper, so the avatar reads as
+            // Separator ring in the card's own surface, so the avatar reads as
             // punched out of the row rather than outlined against it.
             .overlay(Circle().strokeBorder(OrganicPalette.surface(colorScheme), lineWidth: 1.5))
             // The viewer's own items get a bold accent "story" ring around the
@@ -606,22 +606,10 @@ struct InitialAvatar: View {
 /// djb2 hash (not `String.hashValue`, which is randomized per launch) so a
 /// given name maps to the same color across app launches and devices.
 enum SharedAvatarPalette {
-    /// Ten muted, earthy fills rather than the system's saturated set — these
-    /// avatars sit on paper cards, and a full-strength `.cyan` next to a
-    /// terracotta badge reads as a different app. Kept in the same order as
-    /// `colorFamilies` below, which the collision solver indexes into.
-    static let colors: [Color] = [
-        Color(red: 0.35, green: 0.47, blue: 0.60), // dusty blue
-        Color(red: 0.40, green: 0.51, blue: 0.33), // olive
-        Color(red: 0.76, green: 0.42, blue: 0.21), // terracotta
-        Color(red: 0.47, green: 0.36, blue: 0.53), // plum
-        Color(red: 0.72, green: 0.44, blue: 0.43), // clay rose
-        Color(red: 0.26, green: 0.49, blue: 0.48), // deep teal
-        Color(red: 0.35, green: 0.36, blue: 0.55), // slate indigo
-        Color(red: 0.66, green: 0.26, blue: 0.20), // brick
-        Color(red: 0.38, green: 0.54, blue: 0.62), // steel blue
-        Color(red: 0.47, green: 0.60, blue: 0.44), // moss
-    ]
+    /// The palette's own avatar fills — one hue per category family, pitched
+    /// deep enough in both schemes to carry white type. Kept in the same order
+    /// as `colorFamilies` below, which the collision solver indexes into.
+    static let colors: [Color] = AllimAvatarFill.all.map(\.color)
 
     /// Perceptual family for each palette color, parallel to `colors`. Colors in
     /// the same family look alike (e.g. red/pink/orange are all "warm"), so when
@@ -629,16 +617,16 @@ enum SharedAvatarPalette {
     /// families — otherwise "James" in red and "John" in pink still read as the
     /// same avatar. Families: 0 = cool, 1 = green, 2 = warm, 3 = purple.
     private static let colorFamilies: [Int] = [
-        0, // dusty blue   → cool
-        1, // olive        → green
-        2, // terracotta   → warm
-        3, // plum         → purple
-        2, // clay rose    → warm
-        0, // deep teal    → cool
-        0, // slate indigo → cool
-        2, // brick        → warm
-        0, // steel blue   → cool
-        1  // moss         → green
+        0, // dairy blue        → cool
+        1, // produce green     → green
+        2, // meat red          → warm
+        3, // household violet  → purple
+        2, // snacks rose       → warm
+        0, // beverages teal    → cool
+        0, // frozen blue       → cool
+        2, // pantry amber      → warm
+        0, // neutral slate     → cool
+        2  // bakery brown      → warm
     ]
 
     /// Normalized lookup key for a display name.

@@ -403,7 +403,7 @@ struct StoresView: View {
                                     : "\(friendRequestService.pendingRequestCount)"
                             )
                             .font(OrganicPalette.title(11))
-                            .foregroundColor(.white)
+                            .foregroundColor(OrganicPalette.onTerracotta(colorScheme))
                             .padding(.horizontal, 5)
                             .padding(.vertical, 2)
                             .background(Capsule().fill(OrganicPalette.terracotta(colorScheme)))
@@ -431,7 +431,7 @@ struct StoresView: View {
                 } label: {
                     Text("Done")
                         .font(OrganicPalette.title(16))
-                        .foregroundColor(.white)
+                        .foregroundColor(OrganicPalette.onTerracotta(colorScheme))
                         .padding(.horizontal, 22)
                         .frame(height: 48)
                         .background(Capsule().fill(OrganicPalette.terracotta(colorScheme)))

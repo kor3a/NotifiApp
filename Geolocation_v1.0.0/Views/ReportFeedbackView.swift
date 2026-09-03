@@ -123,7 +123,7 @@ struct ReportFeedbackView: View {
             Image(systemName: category.icon)
                 .font(.system(size: 15, weight: .semibold))
                 .foregroundColor(
-                    isSelected ? .white : OrganicPalette.terracotta(colorScheme)
+                    isSelected ? OrganicPalette.onTerracotta(colorScheme) : OrganicPalette.terracotta(colorScheme)
                 )
                 .frame(width: 38, height: 38)
                 .background(

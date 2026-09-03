@@ -132,7 +132,7 @@ struct NewGroupView: View {
                     Button(action: search) {
                         Text("Search")
                             .font(OrganicPalette.title(15))
-                            .foregroundColor(.white)
+                            .foregroundColor(OrganicPalette.onTerracotta(colorScheme))
                             .padding(.horizontal, 16)
                             .frame(height: 38)
                             .background(Capsule().fill(OrganicPalette.terracotta(colorScheme)))

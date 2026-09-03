@@ -220,7 +220,7 @@ struct MembershipBarcodeTopSheet: View {
                 Text(number)
                     .font(.footnote.monospaced())
                     .fontWeight(.medium)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.secondaryText)
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
                     .textSelection(.enabled)
@@ -239,7 +239,7 @@ struct MembershipBarcodeTopSheet: View {
                 .minimumScaleFactor(0.7)
             Text("This number can't be rendered as a \(card?.effectiveSymbology.displayName ?? "barcode"). Try another format or add a photo of the card.")
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.secondaryText)
                 .multilineTextAlignment(.center)
             Button("Edit") { showingEditor = true }
                 .font(.caption.weight(.semibold))
@@ -253,7 +253,7 @@ struct MembershipBarcodeTopSheet: View {
         VStack(spacing: 10) {
             Text("No membership card saved for this store")
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.secondaryText)
                 .multilineTextAlignment(.center)
 
             HStack(spacing: 10) {
@@ -332,6 +332,7 @@ struct MembershipCardEditorView: View {
     let storeName: String
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var colorScheme
     @ObservedObject private var cardStore = MembershipCardStore.shared
 
     @State private var number: String = ""
@@ -406,7 +407,7 @@ struct MembershipCardEditorView: View {
                             Text("Format")
                             Spacer()
                             Text(trimmedNumber.isEmpty ? "—" : effectiveSymbology.displayName)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(Color.secondaryText)
                         }
                     } else {
                         Picker("Format", selection: $symbology) {
@@ -418,7 +419,7 @@ struct MembershipCardEditorView: View {
 
                     Text(effectiveSymbology.detail)
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.secondaryText)
                 } header: {
                     Text("Barcode format")
                 } footer: {
@@ -442,18 +443,18 @@ struct MembershipCardEditorView: View {
                     } else if trimmedNumber.isEmpty {
                         Text("Enter a number to see the barcode.")
                             .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Color.secondaryText)
                     } else {
                         Label(unencodableReason, systemImage: "exclamationmark.triangle")
                             .font(.caption)
-                            .foregroundStyle(.orange)
+                            .foregroundStyle(OrganicPalette.caution(colorScheme))
                     }
                 }
 
                 Section {
                     Text("Saved on this device only — it isn't shared with anyone this store is shared with, and it stays put if you reinstall the app.")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.secondaryText)
                 }
 
                 if cardStore.card(forStoreNamed: storeName) != nil {

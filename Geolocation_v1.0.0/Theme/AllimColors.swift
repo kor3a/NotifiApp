@@ -106,6 +106,7 @@ enum AllimColor {
     static let dangerWash = AllimToken(light: 0xFBEAE9, dark: 0x3A1614)
     static let onDanger = AllimToken(light: 0xFFFFFF, dark: 0x1A0605)
     static let success = AllimToken(light: 0x1C6640, dark: 0x5FCB90)
+    static let onSuccess = AllimToken(light: 0xFFFFFF, dark: 0x08160E)
     /// The wash under `success`, borrowed from the produce category so a
     /// "done" state and a produce chip read as the same green.
     static let successWash = AllimToken(light: 0xE7F4EC, dark: 0x14301F)
@@ -278,6 +279,36 @@ enum GroceryCategory: String, CaseIterable, Codable {
 
         return .other
     }
+}
+
+// MARK: - Participant fills
+
+/// The fills a participant avatar cycles through — the initial discs on a
+/// shared store's reminders.
+///
+/// One hue per category family, so the set is the palette's own rather than a
+/// second one to keep in step, but pitched deeper than the category `dot`: an
+/// avatar carries white type at 22 points, and a chip's dot carries none. Every
+/// entry clears 4.5:1 against white in both schemes, which is why the dark
+/// variants are lifted rather than reused — a light-mode fill deep enough for
+/// white type disappears into a dark card.
+enum AllimAvatarFill {
+    static let all: [AllimToken] = [
+        AllimToken(light: 0x1F5490, dark: 0x2F6FB5), // dairy blue
+        AllimToken(light: 0x1C6640, dark: 0x2A8155), // produce green
+        AllimToken(light: 0x8A2F28, dark: 0xA84A41), // meat red
+        AllimToken(light: 0x4E4090, dark: 0x6555B0), // household violet
+        AllimToken(light: 0x8A3660, dark: 0xA9497B), // snacks rose
+        AllimToken(light: 0x075661, dark: 0x0E7080), // beverages teal
+        AllimToken(light: 0x1B5D74, dark: 0x2A7B96), // frozen blue
+        AllimToken(light: 0x7A5410, dark: 0x9A6E1E), // pantry amber
+        AllimToken(light: 0x4A535B, dark: 0x5E6972), // neutral slate
+        AllimToken(light: 0x7A5432, dark: 0x966C45), // bakery brown
+    ]
+
+    /// Type drawn on any of them. White in both schemes: every fill above is
+    /// deep enough to carry it, which is the point of the set.
+    static let ink = Color.white
 }
 
 // MARK: - Category chip

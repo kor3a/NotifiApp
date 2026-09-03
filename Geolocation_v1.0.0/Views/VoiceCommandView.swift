@@ -163,7 +163,7 @@ struct VoiceCommandView: View {
                      ? "Try “add milk and eggs” or “check off bread”"
                      : "Pause when you're done, or tap the mic.")
                     .font(.footnote)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(.secondaryText)
                     .multilineTextAlignment(.center)
             }
             .padding(.horizontal, 32)
@@ -214,7 +214,7 @@ struct VoiceCommandView: View {
                         ForEach(viewModel.notes, id: \.self) { note in
                             Label(note, systemImage: "info.circle")
                                 .font(.footnote)
-                                .foregroundColor(.secondary)
+                                .foregroundColor(.secondaryText)
                         }
                     }
                 }
@@ -232,7 +232,7 @@ struct VoiceCommandView: View {
 
             Text(action.summary)
                 .font(.body)
-                .foregroundColor(.primary)
+                .foregroundColor(.primaryText)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
             Button {
@@ -242,7 +242,7 @@ struct VoiceCommandView: View {
             } label: {
                 Image(systemName: "xmark")
                     .font(.system(size: 13, weight: .semibold))
-                    .foregroundColor(.secondary)
+                    .foregroundColor(.secondaryText)
                     .padding(6)
                     .contentShape(Rectangle())
             }
@@ -256,7 +256,7 @@ struct VoiceCommandView: View {
     private func transcriptBubble(_ text: String) -> some View {
         Label(text, systemImage: "quote.opening")
             .font(.subheadline)
-            .foregroundColor(.secondary)
+            .foregroundColor(.secondaryText)
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -277,7 +277,7 @@ struct VoiceCommandView: View {
             if let detail {
                 Text(detail)
                     .font(.subheadline)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(.secondaryText)
                     .multilineTextAlignment(.center)
             }
         }

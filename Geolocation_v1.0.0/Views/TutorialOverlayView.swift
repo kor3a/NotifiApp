@@ -113,8 +113,16 @@ struct TutorialOverlayView: View {
     private func highlightBorder(rect: CGRect) -> some View {
         RoundedRectangle(cornerRadius: 14)
             .strokeBorder(
+                // The overlay always draws on a dark scrim, whatever the
+                // user's appearance is set to, so the accent is resolved
+                // against `.dark` rather than the environment: the light teal
+                // is what reads against black, and the deep one vanishes.
                 LinearGradient(
-                    colors: [Color.white, Color.blue.opacity(0.9), Color.white],
+                    colors: [
+                        Color.white,
+                        OrganicPalette.terracotta(.dark).opacity(0.9),
+                        Color.white,
+                    ],
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
                 ),
@@ -125,7 +133,7 @@ struct TutorialOverlayView: View {
             // Pulse via opacity and glow only — no scaleEffect so the border
             // never moves outside the cutout hole regardless of element size.
             .opacity(borderOpacity)
-            .shadow(color: Color.blue.opacity(glowOpacity), radius: glowRadius, x: 0, y: 0)
+            .shadow(color: OrganicPalette.terracotta(.dark).opacity(glowOpacity), radius: glowRadius, x: 0, y: 0)
             .shadow(color: Color.white.opacity(glowOpacity * 0.5), radius: glowRadius * 0.5, x: 0, y: 0)
     }
 
@@ -201,12 +209,12 @@ struct TutorialOverlayView: View {
                                 .font(.system(size: 12, weight: .bold))
                         }
                     }
-                    .foregroundColor(.white)
+                    .foregroundColor(OrganicPalette.onTerracotta(.dark))
                     .padding(.horizontal, 20)
                     .padding(.vertical, 10)
                     .background(
                         Capsule()
-                            .fill(Color.blue)
+                            .fill(OrganicPalette.terracotta(.dark))
                     )
                 }
                 .buttonStyle(.plain)
@@ -282,7 +290,7 @@ struct TutorialOverlayView: View {
 
 #Preview {
     ZStack {
-        Color.blue.opacity(0.3).ignoresSafeArea()
+        OrganicPalette.canvas(.light).ignoresSafeArea()
         Text("App content here")
         TutorialOverlayView()
     }

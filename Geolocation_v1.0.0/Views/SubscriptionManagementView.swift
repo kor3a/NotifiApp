@@ -191,21 +191,31 @@ struct SubscriptionManagementView: View {
                         Text("Current Plan")
                             .font(.system(size: 12, weight: .semibold))
                     }
-                    .foregroundColor(.white)
+                    .foregroundColor(OrganicPalette.onTerracotta(colorScheme))
                 }
 
                 Text(title)
                     .font(.system(size: 15, weight: .semibold))
-                    .foregroundColor(isActive ? .white : OrganicPalette.inkSoft(colorScheme))
+                    .foregroundColor(
+                        isActive
+                            ? OrganicPalette.onTerracotta(colorScheme)
+                            : OrganicPalette.inkSoft(colorScheme)
+                    )
 
                 Text(price)
                     .font(OrganicPalette.display(24))
-                    .foregroundColor(isActive ? .white : OrganicPalette.ink(colorScheme))
+                    .foregroundColor(
+                        isActive
+                            ? OrganicPalette.onTerracotta(colorScheme)
+                            : OrganicPalette.ink(colorScheme)
+                    )
 
                 Text(period)
                     .font(.system(size: 13))
                     .foregroundColor(
-                        isActive ? .white.opacity(0.8) : OrganicPalette.inkSoft(colorScheme)
+                        isActive
+                            ? OrganicPalette.onTerracotta(colorScheme).opacity(0.8)
+                            : OrganicPalette.inkSoft(colorScheme)
                     )
             }
             .frame(maxWidth: .infinity)

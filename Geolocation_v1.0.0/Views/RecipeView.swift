@@ -134,7 +134,7 @@ struct RecipeView: View {
             .fontWeight(.semibold)
             .textCase(.uppercase)
             .tracking(1.1)
-            .foregroundStyle(.secondary)
+            .foregroundStyle(Color.secondaryText)
     }
 
     // MARK: - Empty State
@@ -155,7 +155,7 @@ struct RecipeView: View {
                     .fontWeight(.semibold)
                 Text("Tap  +  to create your first recipe\nand save your favourite ingredient lists.")
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.secondaryText)
                     .multilineTextAlignment(.center)
             }
         }
@@ -200,7 +200,7 @@ private struct RecipeRowView: View {
                     Text(recipe.name)
                         .font(.title3)
                         .fontWeight(.semibold)
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(Color.primaryText)
                         .lineLimit(1)
 
                     Spacer(minLength: 4)
@@ -214,7 +214,7 @@ private struct RecipeRowView: View {
                 if recipe.ingredients.isEmpty {
                     Text("No ingredients yet")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.secondaryText)
                 } else {
                     HStack(spacing: 6) {
                         ForEach(visibleIngredients, id: \.offset) { _, ingredient in
@@ -224,7 +224,7 @@ private struct RecipeRowView: View {
                             Text("+\(hiddenCount)")
                                 .font(.caption2)
                                 .fontWeight(.semibold)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(Color.secondaryText)
                                 .fixedSize()
                         }
                         Spacer(minLength: 0)
@@ -245,7 +245,7 @@ private struct IngredientChip: View {
     var body: some View {
         Text(text)
             .font(.caption2)
-            .foregroundStyle(.primary)
+            .foregroundStyle(Color.primaryText)
             .lineLimit(1)
             .truncationMode(.tail)
             .padding(.vertical, 4)
@@ -429,7 +429,7 @@ struct RecipeEditView: View {
             Button(action: addIngredient) {
                 Image(systemName: "plus")
                     .font(.system(size: 20, weight: .semibold))
-                    .foregroundColor(.white)
+                    .foregroundColor(OrganicPalette.onTerracotta(colorScheme))
                     .frame(width: 54, height: 54)
                     .background(Circle().fill(OrganicPalette.terracotta(colorScheme)))
                     .opacity(isEmpty ? 0.4 : 1)
