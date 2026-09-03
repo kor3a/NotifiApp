@@ -263,6 +263,21 @@ class NotificationManager: NSObject, ObservableObject {
 
     // MARK: - Communication Notifications
 
+    /// The app's own mark, for banners that would otherwise lead with the
+    /// system's grey silhouette.
+    ///
+    /// This is the same artwork `NotifiNotificationService` puts on message
+    /// pushes (`AllimNotificationAvatar`), so a notification looks like Allim
+    /// whether the app scheduled it or the extension rewrote it. Loaded once —
+    /// a banner is scheduled from a Firestore listener callback, and re-reading
+    /// the asset on every one of them buys nothing.
+    private static let allimAvatar: INImage? = {
+        guard let data = UIImage(named: "AllimNotificationAvatar")?.pngData() else {
+            return nil
+        }
+        return INImage(imageData: data)
+    }()
+
     /// Wraps a notification in an INSendMessageIntent so iOS treats it as a communication
     /// notification: the sender's name and avatar lead the banner instead of the app icon.
     ///
@@ -277,19 +292,23 @@ class NotificationManager: NSObject, ObservableObject {
     /// scheduled plainly so their title keeps naming the store — CarPlay renders the
     /// title and never the body. Messages use this helper, where sender-led
     /// presentation is the point.
+    ///
+    /// - Parameter avatar: The image the banner leads with. Passing nil leaves
+    ///   iOS to draw its own placeholder for the sender.
     private func scheduleAsCommunicationNotification(
         content: UNMutableNotificationContent,
         identifier: String,
         trigger: UNTimeIntervalNotificationTrigger,
         senderDisplayName: String,
         conversationIdentifier: String,
+        avatar: INImage? = nil,
         onScheduled: ((Bool) -> Void)? = nil
     ) {
         let sender = INPerson(
             personHandle: INPersonHandle(value: conversationIdentifier, type: .unknown),
             nameComponents: nil,
             displayName: senderDisplayName,
-            image: nil,
+            image: avatar,
             contactIdentifier: nil,
             customIdentifier: conversationIdentifier
         )
@@ -627,7 +646,8 @@ class NotificationManager: NSObject, ObservableObject {
                 identifier: identifier,
                 trigger: trigger,
                 senderDisplayName: senderName,
-                conversationIdentifier: "on-my-way-\(storeName)"
+                conversationIdentifier: "on-my-way-\(storeName)",
+                avatar: Self.allimAvatar
             )
         }
     }
