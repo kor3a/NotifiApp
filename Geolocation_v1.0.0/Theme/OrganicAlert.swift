@@ -2,7 +2,7 @@
 //  OrganicAlert.swift
 //  Geolocation_v1.0.0
 //
-//  The paper-and-clay replacement for the system alert.
+//  The app's own replacement for the system alert, drawn from the palette.
 //
 
 import SwiftUI
@@ -17,10 +17,10 @@ import SwiftUI
 /// stated up front and the surface draws it.
 struct OrganicAlertAction: Identifiable {
     enum Kind {
-        /// The one thing the alert is asking for — a filled terracotta pill.
+        /// The one thing the alert is asking for — a filled accent pill.
         case primary
         /// Something that removes or ends what the user is looking at — the
-        /// palette's brick, kept off the system red siren.
+        /// palette's danger tone, kept off the system red siren.
         case destructive
         /// Backing out. Quiet and recessed, so the eye lands on the action
         /// above it.
@@ -62,7 +62,7 @@ enum OrganicAlertTone {
     case accent
     /// Something is about to be removed, or something went wrong.
     case destructive
-    /// It worked. The one sage moment these screens allow themselves.
+    /// It worked. The one green moment these screens allow themselves.
     case success
 }
 
@@ -109,9 +109,9 @@ extension View {
     /// The organic replacement for `.alert(_:isPresented:actions:message:)`.
     ///
     /// Same shape as the system modifier — a title, a binding, a line of
-    /// explanation and the buttons — but drawn as a paper card on a warm scrim
-    /// instead of the system's frosted rectangle, so a confirmation looks like
-    /// the screen that raised it.
+    /// explanation and the buttons — but drawn as a palette card on the
+    /// palette's scrim instead of the system's frosted rectangle, so a
+    /// confirmation looks like the screen that raised it.
     ///
     /// Presented through a `fullScreenCover` with a clear background rather than
     /// an overlay: an overlay is clipped to the view it is attached to, which
@@ -334,15 +334,11 @@ private struct OrganicAlertSurface<Content: View>: View {
 
     // MARK: Pieces
 
-    /// Warm dark rather than black: the card lands on paper, and a neutral
-    /// scrim greys the cream showing around it.
+    /// The palette's own scrim rather than flat black — it dims the canvas
+    /// showing around the card without casting a color over it.
     private var scrim: some View {
         Rectangle()
-            .fill(
-                colorScheme == .dark
-                    ? Color.black.opacity(0.55)
-                    : Color(red: 0.20, green: 0.14, blue: 0.08).opacity(0.34)
-            )
+            .fill(OrganicPalette.scrim(colorScheme))
             .ignoresSafeArea()
             .opacity(isShowing ? 1 : 0)
             .contentShape(Rectangle())
@@ -435,7 +431,8 @@ private struct OrganicAlertSurface<Content: View>: View {
 
     private var discColor: Color {
         switch tone {
-        case .accent, .destructive: return OrganicPalette.blush(colorScheme)
+        case .accent: return OrganicPalette.blush(colorScheme)
+        case .destructive: return OrganicPalette.rustWash(colorScheme)
         case .success: return OrganicPalette.sage(colorScheme)
         }
     }
@@ -461,7 +458,8 @@ private struct OrganicAlertSurface<Content: View>: View {
 
     private func labelColor(for kind: OrganicAlertAction.Kind) -> Color {
         switch kind {
-        case .primary, .destructive: return .white
+        case .primary: return OrganicPalette.onTerracotta(colorScheme)
+        case .destructive: return OrganicPalette.onRust(colorScheme)
         case .cancel: return OrganicPalette.ink(colorScheme)
         }
     }
