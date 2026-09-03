@@ -27,6 +27,7 @@
 //  notification types pass straight through untouched.
 //
 
+import Foundation
 import UserNotifications
 import Intents
 
@@ -34,6 +35,30 @@ final class NotificationService: UNNotificationServiceExtension {
 
     private var contentHandler: ((UNNotificationContent) -> Void)?
     private var bestAttemptContent: UNMutableNotificationContent?
+
+    /// The avatar iOS draws on the communication notification.
+    ///
+    /// An `INPerson` carrying no image leaves the banner with the system's
+    /// generic placeholder — a grey silhouette that says neither who sent the
+    /// message nor which app it came from. The app's own mark stands in, so a
+    /// message from Allim looks like Allim on the Lock Screen.
+    ///
+    /// A fixed mark rather than the sender's own photo on purpose: the push
+    /// payload carries no avatar URL (see `functions/index.js`), and an
+    /// extension has neither the time budget nor a network guarantee to fetch
+    /// one before the banner has to be handed back.
+    ///
+    /// Loaded once and held for the extension's short life. Failing to load is
+    /// not an error worth dropping a notification over — the banner simply
+    /// falls back to the placeholder it shows today.
+    private static let avatar: INImage? = {
+        guard let url = Bundle.main.url(
+            forResource: "AllimNotificationAvatar",
+            withExtension: "png"
+        ), let data = try? Data(contentsOf: url) else { return nil }
+
+        return INImage(imageData: data)
+    }()
 
     override func didReceive(
         _ request: UNNotificationRequest,
@@ -73,7 +98,7 @@ final class NotificationService: UNNotificationServiceExtension {
             personHandle: handle,
             nameComponents: nil,
             displayName: senderName,
-            image: nil,
+            image: Self.avatar,
             contactIdentifier: nil,
             customIdentifier: conversationId
         )

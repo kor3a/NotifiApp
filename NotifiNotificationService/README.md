@@ -11,6 +11,8 @@ sender/group name — never the message body — per Apple's CarPlay guidelines.
 - [x] `NotificationService.swift` — real implementation (re-donates
       `INSendMessageIntent`, calls `content.updating(from:)`). Non-message
       notification types pass through untouched.
+- [x] `AllimNotificationAvatar.png` — the app's mark, handed to the `INPerson`
+      as its image. Without one the banner draws the system's grey silhouette.
 - [x] `CODE_SIGN_ENTITLEMENTS` points at `NotifiNotificationService.entitlements`
       (app group only) for Debug and Release. The Communication Notifications
       capability stays on the **app** target — it's not valid in an extension's
@@ -49,6 +51,20 @@ sender/group name — never the message body — per Apple's CarPlay guidelines.
 3. The extension builds an `INSendMessageIntent` describing the sender (and
    group, if any), donates it, and calls `content.updating(from: intent)`.
 4. The system now treats the notification as a communication notification:
-   iPhone shows sender avatar + full preview; CarPlay shows sender/group name
+   iPhone shows the avatar + full preview; CarPlay shows sender/group name
    only. On any error the original content is delivered so banners are never
    dropped.
+
+## The avatar
+
+The avatar is the app's mark, bundled as `AllimNotificationAvatar.png` (180px,
+the teal app icon downscaled) and loaded once into an `INImage`. It is not the
+sender's own photo: the push payload carries no avatar URL, and an extension has
+neither the time budget nor a network guarantee to fetch one before the banner
+has to be handed back.
+
+Giving each sender their own face would mean adding a photo URL to the message
+push in `functions/index.js` and fetching it here under the extension's time
+limit — or drawing the same monogram the Messages list draws, from the sender's
+initial and the app's avatar tints, which needs no network at all. Either is a
+better banner than one mark for everyone; neither is done.
