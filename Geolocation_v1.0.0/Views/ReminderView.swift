@@ -702,6 +702,9 @@ struct ReminderView: View {
         // reminders.
         let avatarColors = avatarColorMap
         let memberNames = storeMemberNames
+        // Resolved once and used for both the rows and the move handler, so the
+        // indices onMove reports always refer to the rows on screen.
+        let entries = listEntries
         return ScrollViewReader { proxy in
             List {
                 // Favorite tags section
@@ -727,7 +730,7 @@ struct ReminderView: View {
                 // focused TextField in inlineAddSection isn't torn down — and
                 // the keyboard dropped — when the first AI categorization lands
                 // mid-typing.
-                ForEach(listEntries) { entry in
+                ForEach(entries) { entry in
                     switch entry {
                     case .header(let category):
                         categoryHeader(for: category)
@@ -741,7 +744,7 @@ struct ReminderView: View {
                         )
                     }
                 }
-                .onMove(perform: moveHandler)
+                .onMove(perform: moveHandler(for: entries))
                 .deleteDisabled(true)
 
                 // Inline add reminder row (hidden during reorder mode)
@@ -801,8 +804,13 @@ struct ReminderView: View {
     /// `destination` is where the row should be inserted in the pre-move list,
     /// so counting what sits above it — excluding the row itself — gives the
     /// landing position directly, whichever direction the drag went.
-    private func handleMove(from source: IndexSet, to destination: Int) {
-        let entries = listEntries
+    ///
+    /// `entries` must be the exact array the `ForEach` rendered, not a freshly
+    /// derived one: a Firestore snapshot landing mid-drag shifts the rows, and
+    /// re-deriving here made `source` point at a different row than the one the
+    /// user picked up — a header drag would run as an item move and silently
+    /// re-file that item into another category.
+    private func handleMove(_ entries: [ReminderListEntry], from source: IndexSet, to destination: Int) {
         guard let sourceIndex = source.first, sourceIndex < entries.count else { return }
         let above = entries[0..<min(destination, entries.count)]
 
@@ -843,10 +851,10 @@ struct ReminderView: View {
     }
 
     /// Nil for view-only members, which is what leaves their rows undraggable.
-    private var moveHandler: ((IndexSet, Int) -> Void)? {
+    private func moveHandler(for entries: [ReminderListEntry]) -> ((IndexSet, Int) -> Void)? {
         guard userStoreItem.permission != .view else { return nil }
         return { source, destination in
-            handleMove(from: source, to: destination)
+            handleMove(entries, from: source, to: destination)
         }
     }
 
