@@ -112,15 +112,19 @@ enum PortraitAvatar {
         UIColor(red: 0.33, green: 0.33, blue: 0.35, alpha: 1),
     ]
 
-    /// Soft studio backdrops in the app's own palette. The first colour pools
-    /// behind the head, the second sits at the edges.
+    /// Soft studio backdrops, one per category wash. The first colour pools
+    /// behind the head, the second — a shade deeper — sits at the edges.
+    ///
+    /// Fixed values rather than dynamic tokens: a portrait is rendered once
+    /// and cached as a bitmap, so it can't follow the user flipping appearance.
+    /// The light washes are the ones that read behind a face in either scheme.
     private static let backdrops: [(UIColor, UIColor)] = [
-        (UIColor(red: 0.98, green: 0.91, blue: 0.83, alpha: 1), UIColor(red: 0.94, green: 0.83, blue: 0.72, alpha: 1)),
-        (UIColor(red: 0.89, green: 0.92, blue: 0.85, alpha: 1), UIColor(red: 0.78, green: 0.85, blue: 0.76, alpha: 1)),
-        (UIColor(red: 0.93, green: 0.90, blue: 0.87, alpha: 1), UIColor(red: 0.84, green: 0.80, blue: 0.76, alpha: 1)),
-        (UIColor(red: 0.97, green: 0.88, blue: 0.80, alpha: 1), UIColor(red: 0.91, green: 0.76, blue: 0.65, alpha: 1)),
-        (UIColor(red: 0.87, green: 0.90, blue: 0.94, alpha: 1), UIColor(red: 0.76, green: 0.82, blue: 0.89, alpha: 1)),
-        (UIColor(red: 0.95, green: 0.93, blue: 0.86, alpha: 1), UIColor(red: 0.88, green: 0.84, blue: 0.73, alpha: 1)),
+        (UIColor(hex: 0xE7F4EC), UIColor(hex: 0xCFE8DA)), // produce
+        (UIColor(hex: 0xE7F0FA), UIColor(hex: 0xCFE0F3)), // dairy
+        (UIColor(hex: 0xF8EAE8), UIColor(hex: 0xEFD3CF)), // meat
+        (UIColor(hex: 0xF8EFDD), UIColor(hex: 0xEEDFBD)), // pantry
+        (UIColor(hex: 0xF8E9F0), UIColor(hex: 0xEED2E0)), // snacks
+        (UIColor(hex: 0xEEEBF8), UIColor(hex: 0xDCD6F0)), // household
     ]
 
     /// One line per portrait, picked by hand rather than mixed from a seed:
@@ -168,9 +172,9 @@ enum PortraitAvatar {
     /// on a 3x screen without holding a camera-sized bitmap per person.
     private static let side: CGFloat = 240
 
-    /// A warm near-black for the features, so faces don't go colder than the
-    /// rest of the palette.
-    private static let ink = UIColor(red: 0.22, green: 0.16, blue: 0.14, alpha: 1)
+    /// The palette's own near-black for the features, so a face doesn't run
+    /// warmer than the type beside it.
+    private static let ink = UIColor(hex: 0x16191C)
 
     private static func render(_ traits: Traits) -> UIImage {
         let format = UIGraphicsImageRendererFormat.default()

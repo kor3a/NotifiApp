@@ -120,7 +120,7 @@ struct NotifiWidget: Widget {
 
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: kind, provider: StoreWidgetProvider()) { entry in
-            // The paper canvas is the entry view's own containerBackground, so
+            // The canvas is the entry view's own containerBackground, so
             // it can read the color scheme; and the system's content margins
             // are off so the widget's padding is the padding you see rather
             // than a second inset on top of Apple's.

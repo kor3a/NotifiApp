@@ -59,7 +59,7 @@ struct StoresView: View {
     var body: some View {
         ZStack {
             // Background always visible — the user's chosen color for
-            // subscribers, the paper canvas otherwise.
+            // subscribers, the canvas otherwise.
             SurfaceBackground(
                 surface: .stores,
                 systemDefault: OrganicPalette.canvas(colorScheme)
@@ -403,7 +403,7 @@ struct StoresView: View {
                                     : "\(friendRequestService.pendingRequestCount)"
                             )
                             .font(OrganicPalette.title(11))
-                            .foregroundColor(.white)
+                            .foregroundColor(OrganicPalette.onTerracotta(colorScheme))
                             .padding(.horizontal, 5)
                             .padding(.vertical, 2)
                             .background(Capsule().fill(OrganicPalette.terracotta(colorScheme)))
@@ -431,7 +431,7 @@ struct StoresView: View {
                 } label: {
                     Text("Done")
                         .font(OrganicPalette.title(16))
-                        .foregroundColor(.white)
+                        .foregroundColor(OrganicPalette.onTerracotta(colorScheme))
                         .padding(.horizontal, 22)
                         .frame(height: 48)
                         .background(Capsule().fill(OrganicPalette.terracotta(colorScheme)))
@@ -512,7 +512,7 @@ struct StoresView: View {
 
     // MARK: - Store Row Card
 
-    /// The full rectangular store row — the store info on its own paper card.
+    /// The full rectangular store row — the store info on its own card.
     /// Used as the Button label so the entire block (not just the text)
     /// participates in the press animation.
     @ViewBuilder
@@ -753,7 +753,7 @@ struct StoresView: View {
         }
     }
 
-    /// One row of the FAB menu: a paper card carrying a terracotta glyph, so the
+    /// One row of the FAB menu: a card carrying an accent glyph, so the
     /// menu reads as a stack of the same cards the list is made of rather than a
     /// frosted panel floating over them.
     private func fabMenuItem(

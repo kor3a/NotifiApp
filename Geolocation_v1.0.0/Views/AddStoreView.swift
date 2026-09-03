@@ -149,7 +149,7 @@ struct AddStoreView: View {
             } label: {
                 Text("Enable Location")
                     .font(OrganicPalette.title(15))
-                    .foregroundColor(.white)
+                    .foregroundColor(OrganicPalette.onTerracotta(colorScheme))
                     .padding(.horizontal, 22)
                     .frame(height: 44)
                     .background(Capsule().fill(OrganicPalette.terracotta(colorScheme)))

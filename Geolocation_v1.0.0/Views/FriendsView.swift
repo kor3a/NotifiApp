@@ -212,7 +212,7 @@ struct FriendsView: View {
                     Button(action: { showAddFriend = true }) {
                         Image(systemName: "person.badge.plus")
                             .font(.system(size: 22, weight: .semibold))
-                            .foregroundColor(.white)
+                            .foregroundColor(OrganicPalette.onTerracotta(colorScheme))
                             .frame(width: 54, height: 54)
                             .background(Circle().fill(OrganicPalette.terracotta(colorScheme)))
                             .shadow(color: OrganicPalette.terracotta(colorScheme).opacity(0.35), radius: 10, x: 0, y: 5)
@@ -502,7 +502,7 @@ struct FriendsView: View {
             if highlighted {
                 Text("\(count)")
                     .font(OrganicPalette.title(14))
-                    .foregroundColor(.white)
+                    .foregroundColor(OrganicPalette.onTerracotta(colorScheme))
                     .padding(.horizontal, 10)
                     .padding(.vertical, 3)
                     .background(Capsule().fill(OrganicPalette.terracotta(colorScheme)))
@@ -540,7 +540,7 @@ struct FriendsView: View {
             Button(action: { showAddFriend = true }) {
                 Text("Add a friend")
                     .font(OrganicPalette.title(17))
-                    .foregroundColor(.white)
+                    .foregroundColor(OrganicPalette.onTerracotta(colorScheme))
                     .padding(.horizontal, 32)
                     .frame(height: 52)
                     .background(Capsule().fill(OrganicPalette.terracotta(colorScheme)))
@@ -694,7 +694,7 @@ struct FriendCard: View {
             Button(action: onToggleFamily) {
                 Image(systemName: "house.slash.fill")
                     .font(.system(size: 15, weight: .semibold))
-                    .foregroundColor(.white)
+                    .foregroundColor(OrganicPalette.onSageInk(colorScheme))
                     .frame(width: 40, height: 40)
                     .background(Circle().fill(OrganicPalette.sageInk(colorScheme)))
             }
@@ -719,7 +719,7 @@ struct FriendCard: View {
 // MARK: - Request Card
 
 /// An incoming friend request. It sits on the blush tint rather than the plain
-/// paper surface so the rows that need an answer stand out from the ones that
+/// surface so the rows that need an answer stand out from the ones that
 /// don't, and it leads with a full Accept pill because that's the likely answer.
 struct RequestCard: View {
     let friendship: Friendship
@@ -760,7 +760,7 @@ struct RequestCard: View {
                 Button(action: onAccept) {
                     Text("Accept")
                         .font(OrganicPalette.title(15))
-                        .foregroundColor(.white)
+                        .foregroundColor(OrganicPalette.onTerracotta(colorScheme))
                         .padding(.horizontal, 16)
                         .frame(height: 42)
                         .background(Capsule().fill(OrganicPalette.terracotta(colorScheme)))
@@ -963,7 +963,7 @@ struct AddFriendView: View {
                 Button(action: runSearch) {
                     Text("Search")
                         .font(OrganicPalette.title(15))
-                        .foregroundColor(.white)
+                        .foregroundColor(OrganicPalette.onTerracotta(colorScheme))
                         .padding(.horizontal, 16)
                         .frame(height: 38)
                         .background(Capsule().fill(OrganicPalette.terracotta(colorScheme)))
@@ -1063,7 +1063,7 @@ struct SearchResultCard: View {
         Button(action: onAdd) {
             Text("Add")
                 .font(OrganicPalette.title(15))
-                .foregroundColor(.white)
+                .foregroundColor(OrganicPalette.onTerracotta(colorScheme))
                 .padding(.horizontal, 20)
                 .frame(height: 38)
                 .background(Capsule().fill(OrganicPalette.terracotta(colorScheme)))

@@ -22,7 +22,7 @@ import SwiftUI
 /// in flight, which is why the background is optional — inside Stores the
 /// user's own chosen background is already drawn behind it.
 struct LaunchLoadingView: View {
-    /// Draw the paper canvas behind the content. False when the caller has
+    /// Draw the canvas behind the content. False when the caller has
     /// already laid down a background of its own.
     var drawsBackground: Bool = true
 
@@ -111,7 +111,7 @@ struct LaunchLoadingView: View {
     // MARK: - Skeleton Rows
 
     /// A store row with its content replaced by blocks: the logo disc, the
-    /// name, and the reminder badge, at the same sizes and on the same paper
+    /// name, and the reminder badge, at the same sizes and on the same surface
     /// card `StoreItemView` uses, so the real rows land where these sat.
     private func skeletonRow(nameWidth: CGFloat, index: Int) -> some View {
         HStack(spacing: 14) {
@@ -137,7 +137,7 @@ struct LaunchLoadingView: View {
     }
 
     /// The blocks are a shade of the canvas rather than grey — a system
-    /// placeholder grey reads as a broken image on paper.
+    /// placeholder grey reads as a broken image on the canvas.
     private var placeholder: Color {
         OrganicPalette.field(colorScheme)
     }

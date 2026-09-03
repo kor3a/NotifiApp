@@ -24,8 +24,6 @@
 		011CF6002ED638DD009A31A6 /* ShareStoreView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 011CF5FF2ED638DD009A31A6 /* ShareStoreView.swift */; };
 		011CF6022ED638E4009A31A6 /* SharedStoreGroup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 011CF6012ED638E4009A31A6 /* SharedStoreGroup.swift */; };
 		011CF6072ED638F9009A31A6 /* ForgotPasswordViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 011CF6062ED638F9009A31A6 /* ForgotPasswordViewModel.swift */; };
-		011CF6092ED63945009A31A6 /* Notifi.icon in Resources */ = {isa = PBXBuildFile; fileRef = 011CF6082ED63945009A31A6 /* Notifi.icon */; };
-		011CF60D2ED63A69009A31A6 /* NotifiApp.icon in Resources */ = {isa = PBXBuildFile; fileRef = 011CF60C2ED63A69009A31A6 /* NotifiApp.icon */; };
 		0125A7A32F68345D0089F321 /* GoogleMobileAds in Frameworks */ = {isa = PBXBuildFile; productRef = 0125A7A22F68345D0089F321 /* GoogleMobileAds */; };
 		012FB6952F6AED5C0020BB90 /* TutorialMockData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 012FB6942F6AED5C0020BB90 /* TutorialMockData.swift */; };
 		AA1234560001AABB00CC0091 /* ScreenshotMockData.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0090 /* ScreenshotMockData.swift */; };
@@ -226,8 +224,6 @@
 		011CF5FF2ED638DD009A31A6 /* ShareStoreView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareStoreView.swift; sourceTree = "<group>"; };
 		011CF6012ED638E4009A31A6 /* SharedStoreGroup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedStoreGroup.swift; sourceTree = "<group>"; };
 		011CF6062ED638F9009A31A6 /* ForgotPasswordViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForgotPasswordViewModel.swift; sourceTree = "<group>"; };
-		011CF6082ED63945009A31A6 /* Notifi.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = Notifi.icon; sourceTree = "<group>"; };
-		011CF60C2ED63A69009A31A6 /* NotifiApp.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = NotifiApp.icon; sourceTree = "<group>"; };
 		012FB6942F6AED5C0020BB90 /* TutorialMockData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TutorialMockData.swift; sourceTree = "<group>"; };
 		AA1234560001AABB00CC0090 /* ScreenshotMockData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenshotMockData.swift; sourceTree = "<group>"; };
 		013324352FDCAE0D0074A818 /* NotifiNotificationService.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = NotifiNotificationService.appex; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -506,8 +502,6 @@
 				016FC87D2F97EACF005AD716 /* Allim.icon */,
 				DF66A9992E24C86100C15DA9 /* Geolocation_v1.0.0.entitlements */,
 				018D77DF2ED7C43C00E767D6 /* Info.plist */,
-				011CF60C2ED63A69009A31A6 /* NotifiApp.icon */,
-				011CF6082ED63945009A31A6 /* Notifi.icon */,
 				011CF6042ED638ED009A31A6 /* Theme */,
 				01FB27582EC2A7490038E406 /* Services */,
 				82D289B12C61D3F3009F357F /* Extensions */,
@@ -891,8 +885,6 @@
 				8278FDFF2C5DD1CB0017EB72 /* Preview Assets.xcassets in Resources */,
 				8278FDFC2C5DD1CB0017EB72 /* Assets.xcassets in Resources */,
 				016FC87E2F97EACF005AD716 /* Allim.icon in Resources */,
-				011CF60D2ED63A69009A31A6 /* NotifiApp.icon in Resources */,
-				011CF6092ED63945009A31A6 /* Notifi.icon in Resources */,
 				FF0200000001AABB00CC0001 /* SpecialElite-Regular.ttf in Resources */,
 				FF0200000002AABB00CC0001 /* Commissioner-Regular.ttf in Resources */,
 				FF0200000003AABB00CC0001 /* Commissioner-Medium.ttf in Resources */,
@@ -1398,8 +1390,11 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 01B408212F3BEC7F00EA1F25 /* Secrets.xcconfig */;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES = "AppIcon-Storefront";
-				ASSETCATALOG_COMPILER_APPICON_NAME = NotifiApp;
+				ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES = (
+					"AppIcon-Storefront",
+					"AppIcon-Wash",
+				);
+				ASSETCATALOG_COMPILER_APPICON_NAME = Allim;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = AllimRelease.entitlements;
@@ -1430,8 +1425,11 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 01B408212F3BEC7F00EA1F25 /* Secrets.xcconfig */;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES = "AppIcon-Storefront";
-				ASSETCATALOG_COMPILER_APPICON_NAME = NotifiApp;
+				ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES = (
+					"AppIcon-Storefront",
+					"AppIcon-Wash",
+				);
+				ASSETCATALOG_COMPILER_APPICON_NAME = Allim;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = AllimRelease.entitlements;

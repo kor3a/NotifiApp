@@ -2,9 +2,9 @@
 //  NotifiWidgetViews.swift
 //  NotifiWidget
 //
-//  The widget wearing the app's organic look: a cream paper canvas, store rows
-//  as raised paper cards, tinted initial discs and terracotta count badges —
-//  the same shapes and palette as the Stores list inside the app.
+//  The widget wearing the app's look: the palette's canvas, store rows as
+//  raised cards, tinted initial discs and accent count badges — the same shapes
+//  and palette as the Stores list inside the app.
 //
 //  All three families draw the same view; only `WidgetMetrics` differs, so a
 //  change to the row shape lands on every size at once.
@@ -13,9 +13,9 @@
 //  different height on every phone (a 4.7" device gives the medium widget 141pt
 //  where a 6.9" gives 170), so the rows are handed the space that's left after
 //  the header and count the cards that fit in it. Cards keep a fixed height on
-//  every device — the slack buys another store rather than taller paper.
+//  every device — the slack buys another store rather than a taller widget.
 //
-//  The widget also turns off the system's content margins, so the paper runs to
+//  The widget also turns off the system's content margins, so the canvas runs to
 //  the edge and the padding below is the real padding.
 //
 
@@ -225,7 +225,7 @@ struct WidgetHeader: View {
 
 // MARK: - Store Row
 
-/// One store on its own paper card: the tinted initial disc the app gives a
+/// One store on its own card: the tinted initial disc the app gives a
 /// store without a logo, its name in the body tier, and what's waiting there.
 struct StoreRow: View {
     let store: WidgetStoreData
@@ -347,7 +347,9 @@ struct StoreLogoDisc: View {
 
 // MARK: - Count Badge
 
-/// The filled terracotta capsule the app puts a number in.
+/// The filled capsule the app puts a number in. Takes the warm accent rather
+/// than the brand teal: a badge is the widget saying something is waiting for
+/// you, which is the one thing the accent is reserved for.
 struct CountBadge: View {
     let count: Int
     let fontSize: CGFloat
@@ -357,10 +359,10 @@ struct CountBadge: View {
     var body: some View {
         Text("\(count)")
             .font(OrganicPalette.title(fontSize))
-            .foregroundColor(.white)
+            .foregroundColor(OrganicPalette.onHighlight(colorScheme))
             .padding(.horizontal, 6)
             .padding(.vertical, 1)
-            .background(Capsule().fill(OrganicPalette.terracotta(colorScheme)))
+            .background(Capsule().fill(OrganicPalette.highlight(colorScheme)))
     }
 }
 

@@ -297,7 +297,7 @@ struct ConversationView: View {
                     Button(action: sendMessage) {
                         Image(systemName: "arrow.up")
                             .font(.system(size: 16, weight: .bold))
-                            .foregroundColor(.white)
+                            .foregroundColor(OrganicPalette.onTerracotta(colorScheme))
                             .frame(width: 34, height: 34)
                             .background(
                                 Circle().fill(
@@ -432,7 +432,9 @@ struct MessageBubble: View {
                                 .shadow(color: OrganicPalette.shadow(colorScheme), radius: 6, x: 0, y: 2)
                         )
                         .foregroundColor(
-                            isFromCurrentUser ? .white : OrganicPalette.ink(colorScheme)
+                            isFromCurrentUser
+                                ? OrganicPalette.onTerracotta(colorScheme)
+                                : OrganicPalette.ink(colorScheme)
                         )
                 }
 
@@ -502,7 +504,7 @@ private struct ShareActionButtons: View {
                 HStack(spacing: 5) {
                     if isProcessing {
                         ProgressView()
-                            .tint(.white)
+                            .tint(OrganicPalette.onSageInk(colorScheme))
                             .scaleEffect(0.7)
                     } else {
                         Image(systemName: "checkmark")
@@ -511,7 +513,7 @@ private struct ShareActionButtons: View {
                     Text("Accept")
                         .font(OrganicPalette.title(14))
                 }
-                .foregroundColor(.white)
+                .foregroundColor(OrganicPalette.onSageInk(colorScheme))
                 .frame(maxWidth: .infinity)
                 .frame(height: 36)
                 .background(Capsule().fill(OrganicPalette.sageInk(colorScheme)))

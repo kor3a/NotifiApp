@@ -172,30 +172,42 @@ struct SubscriptionPaywallView: View {
                 VStack(spacing: 6) {
                     Text(title)
                         .font(.system(size: 15, weight: .semibold))
-                        .foregroundColor(isSelected ? .white : OrganicPalette.inkSoft(colorScheme))
+                        .foregroundColor(
+                            isSelected
+                                ? OrganicPalette.onTerracotta(colorScheme)
+                                : OrganicPalette.inkSoft(colorScheme)
+                        )
 
                     Text(price)
                         .font(OrganicPalette.display(24))
-                        .foregroundColor(isSelected ? .white : OrganicPalette.ink(colorScheme))
+                        .foregroundColor(
+                            isSelected
+                                ? OrganicPalette.onTerracotta(colorScheme)
+                                : OrganicPalette.ink(colorScheme)
+                        )
 
                     Text(period)
                         .font(.system(size: 13))
                         .foregroundColor(
-                            isSelected ? .white.opacity(0.8) : OrganicPalette.inkSoft(colorScheme)
+                            isSelected
+                                ? OrganicPalette.onTerracotta(colorScheme).opacity(0.8)
+                                : OrganicPalette.inkSoft(colorScheme)
                         )
 
                     if let trialText {
                         Text(trialText)
                             .font(.system(size: 11, weight: .semibold))
                             .foregroundColor(
-                                isSelected ? .white : OrganicPalette.sageInk(colorScheme)
+                                isSelected
+                                    ? OrganicPalette.onTerracotta(colorScheme)
+                                    : OrganicPalette.sageInk(colorScheme)
                             )
                             .padding(.horizontal, 8)
                             .padding(.vertical, 3)
                             .background(
                                 Capsule().fill(
                                     isSelected
-                                        ? Color.white.opacity(0.25)
+                                        ? OrganicPalette.onTerracotta(colorScheme).opacity(0.22)
                                         : OrganicPalette.sage(colorScheme)
                                 )
                             )
@@ -231,7 +243,7 @@ struct SubscriptionPaywallView: View {
     // MARK: - Subscribe
 
     /// Two lines of type, so `OrganicPillButton` (which carries one) doesn't
-    /// fit — but the same terracotta capsule it draws.
+    /// fit — but the same accent capsule it draws.
     private var subscribeButton: some View {
         Button {
             Task {
@@ -246,7 +258,7 @@ struct SubscriptionPaywallView: View {
             Group {
                 if subscriptionManager.isPurchasing {
                     ProgressView()
-                        .tint(.white)
+                        .tint(OrganicPalette.onTerracotta(colorScheme))
                 } else {
                     VStack(spacing: 2) {
                         Text("Start Free Trial")
@@ -257,7 +269,7 @@ struct SubscriptionPaywallView: View {
                     }
                 }
             }
-            .foregroundColor(.white)
+            .foregroundColor(OrganicPalette.onTerracotta(colorScheme))
             .frame(maxWidth: .infinity)
             .padding(.vertical, 16)
             .background(Capsule().fill(OrganicPalette.terracotta(colorScheme)))

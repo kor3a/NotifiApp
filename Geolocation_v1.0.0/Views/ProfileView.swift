@@ -181,7 +181,7 @@ struct ProfileView: View {
                     .overlay(alignment: .bottomTrailing) {
                         Image(systemName: "camera.fill")
                             .font(.system(size: 12, weight: .semibold))
-                            .foregroundColor(.white)
+                            .foregroundColor(OrganicPalette.onTerracotta(colorScheme))
                             .frame(width: 30, height: 30)
                             .background(Circle().fill(OrganicPalette.terracotta(colorScheme)))
                             .overlay(

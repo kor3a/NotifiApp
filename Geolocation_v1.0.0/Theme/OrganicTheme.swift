@@ -2,103 +2,183 @@
 //  OrganicTheme.swift
 //  Geolocation_v1.0.0
 //
-//  The warm, paper-toned look shared by the people-facing screens.
+//  The look shared by every screen in the app.
 //
 
 import SwiftUI
 import UIKit
 
-// MARK: - Organic Palette
+// MARK: - Palette
 
-/// The palette behind Friends, Messages, Conversations, Stores and Reminders.
+/// The palette behind Friends, Messages, Conversations, Stores and Reminders —
+/// and, through `AppTheme`, everything else.
 ///
-/// The app runs on paper and clay rather than its old cool gradient: a cream
-/// canvas, a terracotta accent, and a sage green kept for the one idea that
-/// isn't terracotta — Family in Friends, a store share in a chat, a shared
-/// store in the list. The system blue and the frosted material cards read as
-/// clinical beside the soft, rounded shapes these screens are built from.
+/// Every value here is an `AllimColor` token; nothing in this file names a
+/// color of its own. The app used to run on paper and clay — a cream canvas and
+/// a terracotta accent — and now runs on the Allim aisle palette: quiet neutral
+/// chrome, one saturated brand teal for the things you can act on, and a warm
+/// accent held back for the moments that are actually about a reminder (a badge
+/// with something waiting in it, "you're near Trader Joe's"). Category color is
+/// the only other saturated thing allowed on screen.
+///
+/// The names below are the old ones on purpose. Roughly a thousand call sites
+/// across forty files ask for `terracotta` and `blush`, and renaming them would
+/// have been a thousand-line diff that changed no pixels — so the names stayed
+/// and the values moved. Read `terracotta` as "the accent that acts" and
+/// `sage` as "the one non-accent hue"; `AllimColor` underneath says what each
+/// one actually is. New code can reach for either.
 enum OrganicPalette {
-    /// Full-bleed paper backdrop behind a whole screen.
+    /// Full-bleed backdrop behind a whole screen.
     static func canvas(_ scheme: ColorScheme) -> Color {
-        scheme == .dark
-            ? Color(red: 0.10, green: 0.09, blue: 0.08)
-            : Color(red: 0.95, green: 0.91, blue: 0.84)
+        AllimColor.canvas(scheme)
     }
 
-    /// Card and row surfaces — a shade lifted off the canvas, no border needed.
+    /// Card and row surfaces — a shade lifted off the canvas.
     static func surface(_ scheme: ColorScheme) -> Color {
-        scheme == .dark
-            ? Color(red: 0.15, green: 0.13, blue: 0.11)
-            : Color(red: 0.98, green: 0.96, blue: 0.93)
+        AllimColor.card(scheme)
+    }
+
+    /// A card sitting on another card — a sheet's inner panel, a menu.
+    static func surfaceRaised(_ scheme: ColorScheme) -> Color {
+        AllimColor.cardRaised(scheme)
     }
 
     /// Recessed inputs — search pills, the message field. Sunk into the canvas
     /// rather than raised off it.
     static func field(_ scheme: ColorScheme) -> Color {
-        scheme == .dark
-            ? Color(red: 0.18, green: 0.16, blue: 0.14)
-            : Color(red: 0.91, green: 0.87, blue: 0.82)
+        AllimColor.field(scheme)
     }
 
     static func ink(_ scheme: ColorScheme) -> Color {
-        scheme == .dark
-            ? Color(red: 0.95, green: 0.91, blue: 0.84)
-            : Color(red: 0.14, green: 0.12, blue: 0.10)
+        AllimColor.textPrimary(scheme)
     }
 
     static func inkSoft(_ scheme: ColorScheme) -> Color {
-        scheme == .dark
-            ? Color(red: 0.66, green: 0.60, blue: 0.53)
-            : Color(red: 0.42, green: 0.36, blue: 0.30)
+        AllimColor.textSecondary(scheme)
     }
 
-    /// Primary accent — add buttons, sent bubbles, badges, action glyphs.
+    /// The quietest readable tier — a timestamp, a disabled row, a hint.
+    static func inkMuted(_ scheme: ColorScheme) -> Color {
+        AllimColor.textMuted(scheme)
+    }
+
+    /// Primary action color — add buttons, sent bubbles, action glyphs, the
+    /// selected tab. The brand teal.
     static func terracotta(_ scheme: ColorScheme) -> Color {
-        scheme == .dark
-            ? Color(red: 0.85, green: 0.48, blue: 0.27)
-            : Color(red: 0.74, green: 0.39, blue: 0.19)
+        AllimColor.primary(scheme)
     }
 
-    /// Tinted wash of the accent, for cards that need answering and quiet
-    /// icon buttons.
+    /// The pressed state of `terracotta`, for a surface that draws its own
+    /// press feedback rather than fading.
+    static func terracottaPressed(_ scheme: ColorScheme) -> Color {
+        AllimColor.primaryPressed(scheme)
+    }
+
+    /// Type and glyphs drawn *on* `terracotta`. Not white: in dark mode the
+    /// accent is a light teal, and white on it is barely legible.
+    static func onTerracotta(_ scheme: ColorScheme) -> Color {
+        AllimColor.onPrimary(scheme)
+    }
+
+    /// Tinted wash of the accent, for cards that need answering and quiet icon
+    /// buttons.
     static func blush(_ scheme: ColorScheme) -> Color {
-        scheme == .dark
-            ? Color(red: 0.21, green: 0.14, blue: 0.10)
-            : Color(red: 0.98, green: 0.92, blue: 0.87)
+        AllimColor.primaryWash(scheme)
     }
 
-    /// The one non-terracotta hue, kept for a single idea per screen.
+    /// Type drawn on `blush` — a shade deeper than the accent itself, so a
+    /// label on a wash keeps its contrast in both schemes.
+    static func inkOnBlush(_ scheme: ColorScheme) -> Color {
+        AllimColor.textOnWash(scheme)
+    }
+
+    /// The warm accent, held back for the app's one subject: a reminder. Unread
+    /// badges, "you're near <store>", a list with something waiting in it.
+    /// Everything you can *press* is `terracotta`; this is what the app is
+    /// telling you about.
+    static func highlight(_ scheme: ColorScheme) -> Color {
+        AllimColor.accent(scheme)
+    }
+
+    /// The wash under `highlight`.
+    static func highlightWash(_ scheme: ColorScheme) -> Color {
+        AllimColor.accentWash(scheme)
+    }
+
+    /// Type and glyphs drawn on `highlight`.
+    static func onHighlight(_ scheme: ColorScheme) -> Color {
+        AllimColor.onAccent(scheme)
+    }
+
+    /// The one non-accent hue, kept for a single idea per screen — Family in
+    /// Friends, a store share in a chat, a list someone else shared with you.
     static func sage(_ scheme: ColorScheme) -> Color {
-        scheme == .dark
-            ? Color(red: 0.15, green: 0.21, blue: 0.12)
-            : Color(red: 0.85, green: 0.91, blue: 0.78)
+        AllimColor.successWash(scheme)
     }
 
     static func sageInk(_ scheme: ColorScheme) -> Color {
-        scheme == .dark
-            ? Color(red: 0.78, green: 0.86, blue: 0.68)
-            : Color(red: 0.18, green: 0.29, blue: 0.13)
+        AllimColor.success(scheme)
     }
 
-    /// A deep brick, kept for the destructive and out-of-stock states that
-    /// would otherwise reach for the system red — a siren tone that pulls the
-    /// eye far harder than these states deserve on a paper background.
+    /// Type and glyphs drawn on a filled `sageInk` surface — the accept button
+    /// on a friend request, a "done" pill.
+    static func onSageInk(_ scheme: ColorScheme) -> Color {
+        AllimColor.onSuccess(scheme)
+    }
+
+    /// Destructive and out-of-stock states — a delete, a failed send, an item
+    /// the store is out of.
     static func rust(_ scheme: ColorScheme) -> Color {
-        scheme == .dark
-            ? Color(red: 0.85, green: 0.38, blue: 0.31)
-            : Color(red: 0.69, green: 0.22, blue: 0.16)
+        AllimColor.danger(scheme)
     }
 
-    /// Hairline used to outline ghost buttons and quiet rows.
+    /// The wash under `rust`, for a card carrying a warning rather than a
+    /// button that does something irreversible.
+    static func rustWash(_ scheme: ColorScheme) -> Color {
+        AllimColor.dangerWash(scheme)
+    }
+
+    /// Type and glyphs drawn on `rust`.
+    static func onRust(_ scheme: ColorScheme) -> Color {
+        AllimColor.onDanger(scheme)
+    }
+
+    /// Something that needs attention but isn't an error — a lapsed
+    /// subscription, a permission the app is missing.
+    static func caution(_ scheme: ColorScheme) -> Color {
+        AllimColor.warning(scheme)
+    }
+
+    static func cautionWash(_ scheme: ColorScheme) -> Color {
+        AllimColor.warningWash(scheme)
+    }
+
+    /// Hairline used to outline ghost buttons and quiet rows. Translucent, so
+    /// it works on cards, washes and photo backgrounds alike.
     static func outline(_ scheme: ColorScheme) -> Color {
-        scheme == .dark ? Color.white.opacity(0.16) : Color.black.opacity(0.14)
+        AllimColor.hairline(scheme)
     }
 
-    /// Cards sit on paper, so their shadow is a warm brown rather than black.
+    /// The opaque divider between rows inside one card, where a translucent
+    /// hairline would show the shadow through it.
+    static func divider(_ scheme: ColorScheme) -> Color {
+        AllimColor.border(scheme)
+    }
+
+    /// The heavier border, for a control that has to read as an edge — a
+    /// segmented picker, an unselected swatch.
+    static func outlineStrong(_ scheme: ColorScheme) -> Color {
+        AllimColor.borderStrong(scheme)
+    }
+
+    /// Cards sit on a neutral canvas, so their shadow is neutral.
     static func shadow(_ scheme: ColorScheme) -> Color {
-        scheme == .dark
-            ? Color.black.opacity(0.40)
-            : Color(red: 0.35, green: 0.22, blue: 0.10).opacity(0.10)
+        AllimColor.shadow(scheme)
+    }
+
+    /// The scrim behind a modal.
+    static func scrim(_ scheme: ColorScheme) -> Color {
+        AllimColor.scrim(scheme)
     }
 
     /// The face behind every organic title — Commissioner, bundled in `Fonts/`
@@ -160,15 +240,15 @@ enum OrganicPalette {
         }
     }
 
-    /// Dresses UIKit's tab bar in the same paper the screens above it are drawn
-    /// on: a canvas background under a warm hairline, terracotta for the
-    /// selected tab, soft ink for the rest, and terracotta badges in place of
-    /// the system red siren.
+    /// Dresses UIKit's tab bar in the same palette the screens above it are
+    /// drawn from: a canvas background under a hairline, the accent for the
+    /// selected tab, soft ink for the rest, and the warm highlight on badges in
+    /// place of the system red siren.
     ///
     /// A backstop rather than the bar the user navigates from. `OrganicTabBar`
     /// is what they see and HomeView hides this one under it — built against
     /// the current SDK it renders as system glass, and the appearance proxy can
-    /// only tint that glass, never turn it into paper. What this still buys is
+    /// only tint that glass, never turn it into canvas. What this still buys is
     /// the frame or two before the hide takes effect, and anywhere a tab bar
     /// slips out from under the SwiftUI modifier.
     ///
@@ -179,12 +259,12 @@ enum OrganicPalette {
         let unselected = uiColor(inkSoft)
 
         let appearance = UITabBarAppearance()
-        // Opaque rather than the default blur: these screens are paper, and a
-        // frosted bar smearing the list underneath is the one piece of glass the
-        // rest of the app dropped.
+        // Opaque rather than the default blur: these screens are flat surfaces
+        // on a flat canvas, and a frosted bar smearing the list underneath is
+        // the one piece of glass the rest of the app dropped.
         appearance.configureWithOpaqueBackground()
-        appearance.backgroundColor = uiColor(canvas)
-        appearance.shadowColor = uiColor(outline)
+        appearance.backgroundColor = AllimColor.canvas.uiColor
+        appearance.shadowColor = AllimColor.border.uiColor
 
         let titleFont = UIFont(name: commissioner(.medium), size: 10)
         let badgeFont = UIFont(name: commissioner(.bold), size: 12)
@@ -203,11 +283,11 @@ enum OrganicPalette {
                 }
                 state.titleTextAttributes = title
 
-                state.badgeBackgroundColor = selected
+                state.badgeBackgroundColor = AllimColor.accent.uiColor
                 if let badgeFont {
                     state.badgeTextAttributes = [
                         .font: badgeFont,
-                        .foregroundColor: UIColor.white,
+                        .foregroundColor: AllimColor.onAccent.uiColor,
                     ]
                 }
             }
@@ -222,39 +302,32 @@ enum OrganicPalette {
 
 // MARK: - Avatar Tints
 
-/// A fill and its matching glyph color, picked together so an initial always has
-/// contrast — a light peach circle needs dark type, a saturated terracotta one
-/// needs white.
+/// A fill and its matching glyph color, picked together so an initial always
+/// has contrast.
+///
+/// Both come straight out of the category palette — a category's `tint` behind
+/// its `label` — which is what keeps an avatar quiet next to the one saturated
+/// thing on the row, and what guarantees the pair reads in both schemes
+/// without a second set of numbers to keep in step.
 struct OrganicAvatarTint {
     let fill: Color
     let glyph: Color
 
-    /// The muted, earthy set the avatars cycle through.
+    private init(_ category: GroceryCategory) {
+        let palette = category.palette
+        self.fill = palette.tint.color
+        self.glyph = palette.label.color
+    }
+
+    /// The set the avatars cycle through. Six hue families, far enough apart
+    /// that two people in the same conversation never look like each other.
     static let all: [OrganicAvatarTint] = [
-        OrganicAvatarTint(
-            fill: Color(red: 0.96, green: 0.73, blue: 0.59),
-            glyph: Color(red: 0.55, green: 0.26, blue: 0.11)
-        ),
-        OrganicAvatarTint(
-            fill: Color(red: 0.64, green: 0.74, blue: 0.53),
-            glyph: Color(red: 0.15, green: 0.25, blue: 0.10)
-        ),
-        OrganicAvatarTint(
-            fill: Color(red: 0.78, green: 0.75, blue: 0.68),
-            glyph: Color(red: 0.28, green: 0.24, blue: 0.19)
-        ),
-        OrganicAvatarTint(
-            fill: Color(red: 0.79, green: 0.45, blue: 0.24),
-            glyph: .white
-        ),
-        OrganicAvatarTint(
-            fill: Color(red: 0.87, green: 0.68, blue: 0.40),
-            glyph: Color(red: 0.40, green: 0.25, blue: 0.07)
-        ),
-        OrganicAvatarTint(
-            fill: Color(red: 0.55, green: 0.62, blue: 0.44),
-            glyph: .white
-        ),
+        OrganicAvatarTint(.produce),
+        OrganicAvatarTint(.dairy),
+        OrganicAvatarTint(.meat),
+        OrganicAvatarTint(.pantry),
+        OrganicAvatarTint(.snacks),
+        OrganicAvatarTint(.household),
     ]
 
     /// The tint for a name. Keyed off the name so the same person keeps the same
@@ -335,7 +408,7 @@ struct OrganicAvatar: View {
 
 // MARK: - Card Surface
 
-/// The raised paper surface shared by rows and cards on these screens.
+/// The raised surface shared by rows and cards on these screens.
 struct OrganicCardBackground: View {
     let colorScheme: ColorScheme
     var fill: Color?
@@ -363,7 +436,7 @@ extension View {
 
     /// A section title rendered as an ordinary row. A `.plain` list pins its
     /// headers and draws its own backing behind them, which puts a grey bar
-    /// across the cream canvas as soon as the list scrolls.
+    /// across the canvas as soon as the list scrolls.
     func organicSectionLabelRow() -> some View {
         self
             .listRowInsets(EdgeInsets(top: 6, leading: 20, bottom: 2, trailing: 20))
@@ -401,7 +474,7 @@ struct OrganicCircleButton: View {
 
 // MARK: - Pill Button
 
-/// The filled terracotta pill these screens use for the one action that commits
+/// The filled accent pill these screens use for the one action that commits
 /// something — save, submit, subscribe.
 ///
 /// Reads `isEnabled` from the environment, so callers gate it with the ordinary
@@ -424,7 +497,7 @@ struct OrganicPillButton: View {
             HStack(spacing: 8) {
                 if isLoading {
                     ProgressView()
-                        .tint(.white)
+                        .tint(OrganicPalette.onTerracotta(colorScheme))
                 } else if let systemImage {
                     Image(systemName: systemImage)
                         .font(.system(size: 15, weight: .semibold))
@@ -433,7 +506,7 @@ struct OrganicPillButton: View {
                 Text(title)
                     .font(OrganicPalette.title(17))
             }
-            .foregroundColor(.white)
+            .foregroundColor(OrganicPalette.onTerracotta(colorScheme))
             .padding(.horizontal, 32)
             .frame(maxWidth: fillsWidth ? .infinity : nil)
             .frame(height: 54)
@@ -446,7 +519,7 @@ struct OrganicPillButton: View {
 
 // MARK: - Navigation Row
 
-/// A row that leads somewhere: a terracotta glyph on a blush disc, a title, an
+/// A row that leads somewhere: an accent glyph on a blush disc, a title, an
 /// optional line of explanation, and a chevron.
 ///
 /// Content only — the caller wraps it in the `NavigationLink` or `Button` that
@@ -537,6 +610,9 @@ extension View {
 
 /// The small filled capsule carrying a number — unread messages, items waiting
 /// in a store, the size of a category.
+///
+/// Takes the warm highlight rather than the accent: a badge is the app telling
+/// you something is waiting, not a thing you press.
 struct OrganicCountBadge: View {
     let count: Int
     var fontSize: CGFloat = 13
@@ -546,10 +622,10 @@ struct OrganicCountBadge: View {
     var body: some View {
         Text("\(count)")
             .font(OrganicPalette.title(fontSize))
-            .foregroundColor(.white)
+            .foregroundColor(OrganicPalette.onHighlight(colorScheme))
             .padding(.horizontal, 8)
             .padding(.vertical, 2)
-            .background(Capsule().fill(OrganicPalette.terracotta(colorScheme)))
+            .background(Capsule().fill(OrganicPalette.highlight(colorScheme)))
     }
 }
 
@@ -557,7 +633,7 @@ struct OrganicCountBadge: View {
 
 /// The shape an empty screen takes here: a glyph inside a blush disc, a display
 /// line naming what is missing, a sentence of context, and — when there is
-/// something to do about it — one terracotta pill.
+/// something to do about it — one accent pill.
 struct OrganicEmptyState: View {
     let systemImage: String
     let title: String
@@ -593,7 +669,7 @@ struct OrganicEmptyState: View {
                 Button(action: action) {
                     Text(actionTitle)
                         .font(OrganicPalette.title(17))
-                        .foregroundColor(.white)
+                        .foregroundColor(OrganicPalette.onTerracotta(colorScheme))
                         .padding(.horizontal, 32)
                         .frame(height: 52)
                         .background(Capsule().fill(OrganicPalette.terracotta(colorScheme)))

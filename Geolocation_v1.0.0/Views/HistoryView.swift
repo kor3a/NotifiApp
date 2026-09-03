@@ -93,7 +93,7 @@ struct HistoryView: View {
                     // The date label is an ordinary row rather than a section
                     // header: a `.plain` list pins its headers and draws its own
                     // backing behind them, which puts a grey bar across the
-                    // paper canvas as soon as the list scrolls.
+                    // canvas as soon as the list scrolls.
                     dateDivider(for: group.day)
                         .organicSectionLabelRow()
 

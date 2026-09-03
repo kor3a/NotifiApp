@@ -445,7 +445,7 @@ struct BackgroundPickerView: View {
     }
 
     /// The hairline between rows inside a card. `Divider` draws the system's
-    /// grey, which reads as a seam across the paper.
+    /// grey, which reads as a seam across the canvas.
     private var cardRule: some View {
         Rectangle()
             .fill(OrganicPalette.outline(colorScheme).opacity(0.5))
@@ -486,7 +486,7 @@ struct BackgroundPickerView: View {
                         Image(systemName: "checkmark.circle.fill")
                             .font(.system(size: 20))
                             .symbolRenderingMode(.palette)
-                            .foregroundStyle(.white, OrganicPalette.terracotta(colorScheme))
+                            .foregroundStyle(OrganicPalette.onTerracotta(colorScheme), OrganicPalette.terracotta(colorScheme))
                     }
                 }
                 .frame(height: 56)

@@ -4,31 +4,43 @@
 //
 //  Created on 11/13/24.
 //
+//  The general-purpose styling the app had before the palette existed. Every
+//  value here now resolves to an `AllimColor` token, so the handful of screens
+//  still on these helpers (Voice Commands, the share sheets) sit in the same
+//  palette as the ones drawn from `OrganicPalette`.
+//
 
 import SwiftUI
 
 // MARK: - App Theme
 extension Color {
     // MARK: - Text Colors
-    static let primaryText = Color.primary
-    static let secondaryText = Color.secondary
+    //
+    // The palette's own ink rather than `.primary` / `.secondary`: the system
+    // pair is pure black on pure white, which is a shade harder than anything
+    // else on these screens.
+    static let primaryText = AllimColor.textPrimary.color
+    static let secondaryText = AllimColor.textSecondary.color
+    /// The quietest readable tier — a timestamp, a hint, a disabled row.
+    static let mutedText = AllimColor.textMuted.color
 
     // MARK: - Accent Colors
-    static let appAccent = Color.blue
-    static let appSuccess = Color.green
-    static let appError = Color.red
-    static let appWarning = Color.orange
+    static let appAccent = AllimColor.primary.color
+    static let appSuccess = AllimColor.success.color
+    static let appError = AllimColor.danger.color
+    static let appWarning = AllimColor.warning.color
 
     // MARK: - Gradients
-    /// The app's default backdrop. `shade` deepens (positive) or lifts
-    /// (negative) both stops so the default look can be tuned like any other
-    /// background color — see `Color.shaded(by:)`.
+
+    /// The app's default backdrop — the palette's canvas, with the faintest
+    /// fall toward the bottom of the screen so a full-bleed background isn't a
+    /// flat wall of one value. `shade` deepens (positive) or lifts (negative)
+    /// both stops so the default look can be tuned like any other background
+    /// color — see `Color.shaded(by:)`.
     static func backgroundGradient(for colorScheme: ColorScheme, shade: Double = 0) -> LinearGradient {
         let stops: [Color] = colorScheme == .dark
-            ? [Color(red: 0.1, green: 0.1, blue: 0.15),
-               Color(red: 0.15, green: 0.15, blue: 0.2)]
-            : [Color(red: 0.95, green: 0.96, blue: 0.98),
-               Color(red: 0.88, green: 0.92, blue: 0.96)]
+            ? [Color(hex: 0x121417), Color(hex: 0x171B1F)]
+            : [Color(hex: 0xF8F9FA), Color(hex: 0xEFF1F3)]
 
         return LinearGradient(
             colors: stops.map { $0.shaded(by: shade) },
@@ -37,59 +49,48 @@ extension Color {
         )
     }
 
+    /// The brand gradient behind a large glyph. Two tones of the one accent
+    /// rather than two different hues — the palette keeps saturation for
+    /// category color.
     static let iconGradient = LinearGradient(
-        colors: [.blue, .purple],
+        colors: [AllimColor.primary.color, AllimColor.primaryPressed.color],
         startPoint: .topLeading,
         endPoint: .bottomTrailing
     )
 
     // MARK: - Card Surfaces
 
-    /// A white wash laid over a card's `.ultraThinMaterial` fill in light mode.
+    /// The fill laid over a card's `.ultraThinMaterial`.
     ///
-    /// Material takes on whatever sits behind it, and every screen's backdrop is
-    /// near-white in light mode, so an untinted card ends up the same brightness
-    /// as the page and its edges vanish. Dark mode already separates cleanly and
-    /// gets no tint.
+    /// Opaque on purpose. Material takes on whatever sits behind it, and the
+    /// palette's cards are flat surfaces at a stated value — a card that
+    /// half-dissolves into the canvas is the look this palette replaced. The
+    /// material underneath is left in place so a card over a photo background
+    /// still blurs it before the fill covers it.
     static func cardFillTint(for colorScheme: ColorScheme) -> Color {
-        colorScheme == .dark ? .clear : Color.white.opacity(0.7)
+        AllimColor.card(colorScheme)
     }
 
-    /// The card outline. `cardBorder` is a white gradient, which is invisible
-    /// against the lightened light-mode card, so light mode gets a soft dark
-    /// hairline instead.
+    /// The card outline — the palette's hairline, in both schemes. The old
+    /// white gradient only read against a dark backdrop.
     static func cardBorderStyle(for colorScheme: ColorScheme) -> AnyShapeStyle {
-        colorScheme == .dark
-            ? AnyShapeStyle(cardBorder(for: colorScheme))
-            : AnyShapeStyle(Color.black.opacity(0.12))
+        AnyShapeStyle(AllimColor.border(colorScheme))
     }
 
-    /// Drop-shadow opacity that pairs with the card fill above.
+    /// Drop-shadow opacity that pairs with the card fill above. Lighter than it
+    /// was: these cards carry a border now, so the shadow only has to lift them
+    /// off the canvas rather than draw their edge.
     static func cardShadowOpacity(for colorScheme: ColorScheme) -> Double {
-        colorScheme == .dark ? 0.3 : 0.14
+        colorScheme == .dark ? 0.34 : 0.07
     }
 
     // MARK: - Border Colors
     static func cardBorder(for colorScheme: ColorScheme) -> LinearGradient {
-        if colorScheme == .dark {
-            return LinearGradient(
-                colors: [
-                    Color.white.opacity(0.2),
-                    Color.white.opacity(0.05)
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-        } else {
-            return LinearGradient(
-                colors: [
-                    Color.white.opacity(0.6),
-                    Color.white.opacity(0.2)
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-        }
+        LinearGradient(
+            colors: [AllimColor.border(colorScheme), AllimColor.border(colorScheme)],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
     }
 }
 
@@ -100,37 +101,39 @@ struct CardStyle: ViewModifier {
     func body(content: Content) -> some View {
         content
             .background(
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(.ultraThinMaterial)
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(AllimColor.card(colorScheme))
                     .overlay(
-                        RoundedRectangle(cornerRadius: 16)
-                            .fill(Color.cardFillTint(for: colorScheme))
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .stroke(AllimColor.border(colorScheme), lineWidth: 1)
                     )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 16)
-                            .stroke(
-                                Color.cardBorderStyle(for: colorScheme),
-                                lineWidth: 1.5
-                            )
+                    .shadow(
+                        color: AllimColor.shadow(colorScheme),
+                        radius: 8,
+                        x: 0,
+                        y: 4
                     )
-                    .shadow(color: Color.black.opacity(Color.cardShadowOpacity(for: colorScheme)), radius: 8, x: 0, y: 4)
-                    .shadow(color: Color.white.opacity(colorScheme == .dark ? 0.05 : 0.5), radius: 2, x: 0, y: -2)
                     .padding(.vertical, 4)
             )
     }
 }
 
 struct PrimaryButtonStyle: ButtonStyle {
-    var color: Color = .blue
+    /// Defaults to the brand accent. Callers that pass a color of their own
+    /// should pass a palette token, not a system color.
+    var color: Color = AllimColor.primary.color
+    /// What the label is drawn in on top of `color`. Not white: in dark mode
+    /// the accent is a light teal and white type on it barely reads.
+    var labelColor: Color = AllimColor.onPrimary.color
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.system(size: 17))
-            .foregroundColor(.white)
+            .foregroundColor(labelColor)
             .frame(maxWidth: .infinity)
             .frame(height: 50)
             .background(
-                RoundedRectangle(cornerRadius: 10)
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
                     .fill(color)
             )
             .opacity(configuration.isPressed ? 0.7 : 1.0)
@@ -139,7 +142,7 @@ struct PrimaryButtonStyle: ButtonStyle {
 }
 
 struct SecondaryButtonStyle: ButtonStyle {
-    var color: Color = .red
+    var color: Color = AllimColor.danger.color
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
@@ -148,8 +151,8 @@ struct SecondaryButtonStyle: ButtonStyle {
             .frame(maxWidth: .infinity)
             .frame(height: 50)
             .background(
-                RoundedRectangle(cornerRadius: 10)
-                    .fill(color.opacity(0.1))
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(color.opacity(0.12))
             )
             .opacity(configuration.isPressed ? 0.7 : 1.0)
             .scaleEffect(configuration.isPressed ? 0.98 : 1.0)

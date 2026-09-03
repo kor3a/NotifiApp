@@ -106,7 +106,7 @@ struct AppIconsView: View {
                     if isSelected {
                         Image(systemName: "checkmark")
                             .font(.system(size: 11, weight: .bold))
-                            .foregroundColor(.white)
+                            .foregroundColor(OrganicPalette.onTerracotta(colorScheme))
                             .frame(width: 26, height: 26)
                             .background(Circle().fill(OrganicPalette.terracotta(colorScheme)))
                             // Reads against the canvas now that the cards are

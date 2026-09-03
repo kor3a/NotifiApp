@@ -1,23 +1,15 @@
 {
   "fill" : {
-    "automatic-gradient" : "extended-srgb:0.00000,0.53333,1.00000,1.00000"
+    "automatic-gradient" : "extended-srgb:0.04314,0.44706,0.52157,1.00000"
   },
   "groups" : [
     {
       "layers" : [
         {
-          "image-name" : "Allim-Route-A-1024.png",
+          "image-name" : "allim-icon-teal-1024.png",
           "name" : "Allim"
         }
-      ],
-      "shadow" : {
-        "kind" : "neutral",
-        "opacity" : 0.5
-      },
-      "translucency" : {
-        "enabled" : true,
-        "value" : 0.5
-      }
+      ]
     }
   ],
   "supported-platforms" : {

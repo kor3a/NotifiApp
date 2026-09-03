@@ -37,7 +37,7 @@ struct SubscriptionDebugView: View {
                     row("adminSubscribed",     value: describe(user.adminSubscribed))
                     row("subscriptionToken",   value: user.subscriptionToken ?? "nil (legacy — no token yet)")
                 } else {
-                    Text("No user logged in").foregroundStyle(.secondary)
+                    Text("No user logged in").foregroundStyle(Color.secondaryText)
                 }
             }
 
@@ -47,7 +47,7 @@ struct SubscriptionDebugView: View {
                     Text("isSubscribed")
                     Spacer()
                     Text(sub.isSubscribed ? "true ✓" : "false")
-                        .foregroundStyle(sub.isSubscribed ? .green : .primary)
+                        .foregroundStyle(sub.isSubscribed ? Color.appSuccess : Color.primaryText)
                         .fontWeight(sub.isSubscribed ? .semibold : .regular)
                 }
                 row("activeProductID", value: sub.activeProductID ?? "nil")
@@ -59,7 +59,7 @@ struct SubscriptionDebugView: View {
                     ProgressView("Loading StoreKit entitlements…")
                 } else if entitlements.isEmpty {
                     Text("No active entitlements on this Apple ID")
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.secondaryText)
                 } else {
                     ForEach(entitlements) { entry in
                         VStack(alignment: .leading, spacing: 6) {
@@ -69,7 +69,7 @@ struct SubscriptionDebugView: View {
 
                             HStack(alignment: .top) {
                                 Text("appAccountToken:")
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(Color.secondaryText)
                                     .font(.caption2)
                                 Text(entry.appAccountToken.map { $0.uuidString } ?? "nil  (legacy — no token)")
                                     .font(.caption2.monospaced())
@@ -110,7 +110,7 @@ struct SubscriptionDebugView: View {
                     step(6, "Check StoreKit entitlement above — token should match User A's subscriptionToken, NOT User B's")
                 }
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.secondaryText)
             } header: {
                 Text("Multi-User Isolation Checklist")
             }
@@ -127,7 +127,7 @@ struct SubscriptionDebugView: View {
             Text(label)
             Spacer()
             Text(value)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.secondaryText)
                 .font(.caption.monospaced())
                 .lineLimit(1)
                 .truncationMode(.middle)
@@ -151,12 +151,12 @@ struct SubscriptionDebugView: View {
         )
         HStack(spacing: 4) {
             Image(systemName: belongs ? "checkmark.circle.fill" : "xmark.circle.fill")
-                .foregroundStyle(belongs ? .green : .red)
+                .foregroundStyle(belongs ? Color.appSuccess : Color.appError)
             Text(belongs
                  ? (entry.appAccountToken == nil ? "Legacy purchase — gated by Firestore" : "Belongs to current user ✓")
                  : "BELONGS TO A DIFFERENT USER — will be ignored")
                 .font(.caption2)
-                .foregroundStyle(belongs ? .green : .red)
+                .foregroundStyle(belongs ? Color.appSuccess : Color.appError)
         }
     }
 

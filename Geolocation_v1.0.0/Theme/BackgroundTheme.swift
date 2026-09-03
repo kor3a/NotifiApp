@@ -80,17 +80,17 @@ enum BackgroundSurface: Hashable, Identifiable {
 /// photo backgrounds need a subscription.
 ///
 /// Every color ships a light and a dark variant. The variants are deliberately
-/// low-saturation — content sits on `.ultraThinMaterial` cards, which pick up
-/// the backdrop, so anything vivid would bleed into the cards and hurt text
-/// contrast. These stay light in light mode and deep in dark mode so
-/// `.primary` / `.secondary` text keeps its system contrast on both.
+/// low-saturation: these sit *behind* the palette's cards, and a vivid backdrop
+/// around a neutral card reads as a mistake rather than as a choice. They stay
+/// light in light mode and deep in dark mode so the palette's ink keeps its
+/// contrast on both.
 ///
 /// That light-mode variant is why "Midnight" can land on screen looking pale:
 /// the palette starts from what keeps text readable, not from what the name
 /// suggests. Every fill therefore takes a `shade`, letting the user push the
 /// color deeper (or lighter) from that starting point — see `Color.shaded(by:)`.
 enum AppBackgroundColor: String, CaseIterable, Identifiable {
-    /// The app's original gradient. Also what a surface falls back to when a
+    /// The palette's own canvas. Also what a surface falls back to when a
     /// photo is set but the subscription behind it has lapsed.
     case system
 
@@ -167,8 +167,9 @@ enum AppBackgroundColor: String, CaseIterable, Identifiable {
         let isDark = colorScheme == .dark
         switch self {
         case .system:
-            return isDark ? Color(red: 0.12, green: 0.12, blue: 0.17)
-                          : Color(red: 0.92, green: 0.94, blue: 0.97)
+            // The palette's canvas, so the "Default" swatch and the real
+            // backdrop it stands for are the same color.
+            return isDark ? Color(hex: 0x121417) : Color(hex: 0xF6F7F8)
         case .graphite:
             return isDark ? Color(red: 0.11, green: 0.11, blue: 0.12)
                           : Color(red: 0.93, green: 0.93, blue: 0.95)
