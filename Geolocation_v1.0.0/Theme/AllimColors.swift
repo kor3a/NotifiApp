@@ -335,21 +335,22 @@ struct CategoryChip: View {
 
 /// The filled brand button, for a label that isn't already an
 /// `OrganicPillButton` — a `Button` inside a form, a sheet's confirm.
+/// Reads the palette through the tokens' dynamic form rather than
+/// `@Environment(\.colorScheme)`: a `ButtonStyle` is not a view, so a property
+/// wrapper on it is never fed the environment and would silently resolve light
+/// in both schemes. The dynamic colors follow the trait collection the label is
+/// actually drawn in, which is the same answer by a route that works here.
 struct AllimPrimaryButtonStyle: ButtonStyle {
-    @Environment(\.colorScheme) private var colorScheme
-    @Environment(\.isEnabled) private var isEnabled
-
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(OrganicPalette.title(16, weight: .medium))
-            .foregroundStyle(AllimColor.onPrimary(colorScheme))
+            .foregroundStyle(AllimColor.onPrimary.color)
             .frame(maxWidth: .infinity, minHeight: 50)
             .background(
                 configuration.isPressed
-                    ? AllimColor.primaryPressed(colorScheme)
-                    : AllimColor.primary(colorScheme),
+                    ? AllimColor.primaryPressed.color
+                    : AllimColor.primary.color,
                 in: RoundedRectangle(cornerRadius: 12, style: .continuous)
             )
-            .opacity(isEnabled ? 1 : 0.4)
     }
 }
