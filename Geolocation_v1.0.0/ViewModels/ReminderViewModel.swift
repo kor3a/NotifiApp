@@ -748,37 +748,7 @@ class ReminderViewModel: ObservableObject {
         }
     }
 
-    /// Move a reminder from one position to another and persist the new sort order
-    func moveReminder(from source: IndexSet, to destination: Int) {
-        isReordering = true
-        reminders.move(fromOffsets: source, toOffset: destination)
-
-        // Assign new sort orders based on current positions
-        let batch = db.batch()
-        for (index, reminder) in reminders.enumerated() {
-            reminders[index].sortOrder = index
-            let ref = db.collection("reminders").document(reminder.id)
-            batch.updateData(["sortOrder": index], forDocument: ref)
-        }
-
-        batch.commit { [weak self] error in
-            DispatchQueue.main.async {
-                self?.isReordering = false
-                if let error = error {
-                    #if DEBUG
-                    print("ReminderViewModel: Error updating sort orders: \(error.localizedDescription)")
-                    #endif
-                    self?.errorMessage = "Failed to update sort order: \(error.localizedDescription)"
-                } else {
-                    #if DEBUG
-                    print("ReminderViewModel: Sort orders updated successfully")
-                    #endif
-                }
-            }
-        }
-    }
-
-    // MARK: - Drag Reordering (categories and items)
+    // MARK: - Manual Ordering (categories and items)
 
     /// Display name for items that carry no category of their own.
     static let uncategorizedCategoryName = "Uncategorized"
@@ -792,8 +762,8 @@ class ReminderViewModel: ObservableObject {
     /// Section order for a list of reminders: the order their categories first
     /// appear. Because `reminders` is kept sorted by `sortOrder`, this makes the
     /// section order a function of the same persisted field that orders the rows
-    /// inside a section — dragging a category is just a renumbering, and it
-    /// syncs to every device and shared-list member for free.
+    /// inside a section — moving a category is just a renumbering, and it syncs
+    /// to every device and shared-list member for free.
     private func orderedCategories(in list: [Reminder]) -> [String] {
         var seen = Set<String>()
         var order: [String] = []
@@ -806,163 +776,100 @@ class ReminderViewModel: ObservableObject {
         return order
     }
 
-    /// Snapshot of `reminders` taken when a drag lifts off. Hover moves
-    /// rearrange `reminders` in place so the list animates under the finger;
-    /// this is what the drop diffs against, and what an abandoned drag restores.
-    private var dragBaseline: [Reminder]?
-
-    /// Fires if a lifted drag never reaches a drop target (dropped outside the
-    /// app, cancelled by a call), so the paused snapshot listener can't stay
-    /// paused and freeze the list.
-    private var dragWatchdog: DispatchWorkItem?
-
-    /// True while a category or row is in flight. Published so the view can drop
-    /// its own drag state when the watchdog cancels a drag it never saw end.
-    @Published private(set) var isDragging = false
-
-    func beginDrag() {
-        guard dragBaseline == nil else { return }
-        dragBaseline = reminders
-        isDragging = true
-        // Hold snapshot rebuilds so a listener callback mid-drag can't yank the
-        // rows out from under the finger.
-        isReordering = true
-        armDragWatchdog()
-    }
-
-    /// Restore the pre-drag order and let snapshots through again.
-    func cancelDrag() {
-        guard let baseline = dragBaseline else { return }
-        dragWatchdog?.cancel()
-        dragWatchdog = nil
-        reminders = baseline
-        dragBaseline = nil
-        isDragging = false
-        isReordering = false
-    }
-
-    private func armDragWatchdog() {
-        dragWatchdog?.cancel()
-        let work = DispatchWorkItem { [weak self] in self?.cancelDrag() }
-        dragWatchdog = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + 20, execute: work)
-    }
-
-    /// Move a whole category — header and every item under it — into the
-    /// position `target` currently occupies. Local only; `commitDrag()` persists.
-    func moveCategory(_ category: String, before target: String) {
-        guard category != target else { return }
+    /// Move a whole category — its header and every item under it — to `index`
+    /// in the section order.
+    func moveCategory(_ category: String, toIndex index: Int) {
         var order = orderedCategories(in: reminders)
-        guard let from = order.firstIndex(of: category),
-              let to = order.firstIndex(of: target) else { return }
+        guard let from = order.firstIndex(of: category) else { return }
+        let destination = min(max(index, 0), order.count - 1)
+        guard destination != from else { return }
+
         order.remove(at: from)
-        order.insert(category, at: to)
+        order.insert(category, at: destination)
         reminders = regrouped(reminders, byCategoryOrder: order)
-        armDragWatchdog()
+        persistOrder(categoryChange: nil)
     }
 
-    /// Move a dragged item to `target`'s position, adopting `target`'s category
-    /// when they differ. `placeAfter` puts it below the target rather than above,
-    /// which is what makes the bottom of a section reachable. Local only;
-    /// `commitDrag()` persists.
-    func moveReminder(id: String, onto target: Reminder, placeAfter: Bool = false) {
-        guard id != target.id,
-              let from = reminders.firstIndex(where: { $0.id == id }) else { return }
-        var updated = reminders
-        var moved = updated.remove(at: from)
-        moved.category = target.category
-        var to = updated.firstIndex(where: { $0.id == target.id }) ?? updated.count
-        if placeAfter, to < updated.count { to += 1 }
-        updated.insert(moved, at: to)
-        reminders = regrouped(updated, byCategoryOrder: orderedCategories(in: updated))
-        armDragWatchdog()
-    }
+    /// Move an item to `index` within `category`, carrying it between sections
+    /// when that isn't the category it came from.
+    func moveReminder(id: String, toCategory category: String, atIndex index: Int) {
+        guard let from = reminders.firstIndex(where: { $0.id == id }) else { return }
+        let original = reminders[from]
 
-    /// Move a dragged item to the top of `category`. This is the drop that lands
-    /// on a section header, so it also works for a collapsed section that shows
-    /// no rows to aim at. Local only; `commitDrag()` persists.
-    func moveReminder(id: String, toCategory category: String) {
-        guard let from = reminders.firstIndex(where: { $0.id == id }),
-              categoryName(for: reminders[from]) != category else { return }
-        var updated = reminders
-        var moved = updated.remove(at: from)
+        var remaining = reminders
+        var moved = remaining.remove(at: from)
         moved.category = (category == Self.uncategorizedCategoryName) ? nil : category
-        if let first = updated.firstIndex(where: { categoryName(for: $0) == category }) {
-            updated.insert(moved, at: first)
-        } else {
-            updated.append(moved)
+
+        var order = orderedCategories(in: remaining)
+        if !order.contains(category) {
+            order.append(category)
         }
-        reminders = regrouped(updated, byCategoryOrder: orderedCategories(in: updated))
-        armDragWatchdog()
+        var sections: [String: [Reminder]] = [:]
+        for reminder in remaining {
+            sections[categoryName(for: reminder), default: []].append(reminder)
+        }
+        var destination = sections[category] ?? []
+        destination.insert(moved, at: min(max(index, 0), destination.count))
+        sections[category] = destination
+
+        reminders = order.flatMap { sections[$0] ?? [] }
+
+        let categoryChange: (reminder: Reminder, newCategory: String?)? =
+            original.category == moved.category ? nil : (original, moved.category)
+        persistOrder(categoryChange: categoryChange)
     }
 
     /// Reorders `list` so every category's items sit together in `order`, each
     /// section keeping its internal order. Legacy lists can have a category's
     /// items scattered across the global order; this makes the flat array match
-    /// what the sectioned list actually shows, so the sort orders written on
-    /// drop describe that same arrangement.
+    /// what the list actually shows, so the sort orders written below describe
+    /// that same arrangement.
     private func regrouped(_ list: [Reminder], byCategoryOrder order: [String]) -> [Reminder] {
-        var buckets: [String: [Reminder]] = [:]
+        var sections: [String: [Reminder]] = [:]
         for reminder in list {
-            buckets[categoryName(for: reminder), default: []].append(reminder)
+            sections[categoryName(for: reminder), default: []].append(reminder)
         }
-        return order.flatMap { buckets[$0] ?? [] }
+        return order.flatMap { sections[$0] ?? [] }
     }
 
-    /// Persist what the drag rearranged: a new `sortOrder` for every row that
-    /// moved, plus a category change for any item dragged into another section.
-    func commitDrag() {
-        guard let baseline = dragBaseline else { return }
-        dragWatchdog?.cancel()
-        dragWatchdog = nil
-        dragBaseline = nil
-        isDragging = false
-
-        let before = Dictionary(baseline.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
-
-        // Category changes go through the normal path so linked copies on a
-        // shared list follow along and the edit is attributed to this user.
-        var categoryChanges: [(reminder: Reminder, newCategory: String?)] = []
-        for reminder in reminders {
-            guard let old = before[reminder.id], old.category != reminder.category else { continue }
-            categoryChanges.append((old, reminder.category))
+    /// Write the rearranged order: a `sortOrder` for every row whose position
+    /// changed, plus the category change when a row moved between sections.
+    ///
+    /// The category change goes through the normal path so linked copies on a
+    /// shared list follow along and the edit is attributed to this user.
+    private func persistOrder(categoryChange: (reminder: Reminder, newCategory: String?)?) {
+        if let change = categoryChange {
+            updateReminderCategory(change.reminder, newCategory: change.newCategory)
         }
 
         let batch = db.batch()
-        var hasSortChanges = false
         var renumbered = reminders
+        var hasChanges = false
         for index in renumbered.indices where renumbered[index].sortOrder != index {
             renumbered[index].sortOrder = index
-            hasSortChanges = true
+            hasChanges = true
             batch.updateData(
                 ["sortOrder": index],
                 forDocument: db.collection("reminders").document(renumbered[index].id)
             )
         }
-        if hasSortChanges {
-            reminders = renumbered
-        }
+        guard hasChanges else { return }
 
-        for (reminder, newCategory) in categoryChanges {
-            updateReminderCategory(reminder, newCategory: newCategory)
-        }
-
-        guard hasSortChanges else {
-            isReordering = false
-            return
-        }
-
+        reminders = renumbered
+        // Hold snapshot rebuilds until the write lands, so a listener callback
+        // carrying the old order can't undo the move on screen.
+        isReordering = true
         batch.commit { [weak self] error in
             DispatchQueue.main.async {
                 self?.isReordering = false
                 if let error = error {
                     #if DEBUG
-                    print("ReminderViewModel: Error persisting drag order: \(error.localizedDescription)")
+                    print("ReminderViewModel: Error persisting order: \(error.localizedDescription)")
                     #endif
                     self?.errorMessage = "Failed to update sort order: \(error.localizedDescription)"
                 } else {
                     #if DEBUG
-                    print("ReminderViewModel: Drag order persisted")
+                    print("ReminderViewModel: Order persisted")
                     #endif
                 }
             }
