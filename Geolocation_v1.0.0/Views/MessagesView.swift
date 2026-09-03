@@ -105,7 +105,7 @@ struct MessagesView: View {
     }
 
     /// Title and actions, drawn in the content rather than the navigation bar.
-    /// Compose is the primary action and gets the terracotta disc; the group
+    /// Compose is the primary action and gets the accent disc; the group
     /// button sits beside it in the quieter blush treatment.
     private var header: some View {
         HStack(alignment: .center, spacing: 12) {

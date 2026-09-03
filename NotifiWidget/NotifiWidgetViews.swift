@@ -13,9 +13,9 @@
 //  different height on every phone (a 4.7" device gives the medium widget 141pt
 //  where a 6.9" gives 170), so the rows are handed the space that's left after
 //  the header and count the cards that fit in it. Cards keep a fixed height on
-//  every device — the slack buys another store rather than taller paper.
+//  every device — the slack buys another store rather than a taller widget.
 //
-//  The widget also turns off the system's content margins, so the paper runs to
+//  The widget also turns off the system's content margins, so the canvas runs to
 //  the edge and the padding below is the real padding.
 //
 
@@ -225,7 +225,7 @@ struct WidgetHeader: View {
 
 // MARK: - Store Row
 
-/// One store on its own paper card: the tinted initial disc the app gives a
+/// One store on its own card: the tinted initial disc the app gives a
 /// store without a logo, its name in the body tier, and what's waiting there.
 struct StoreRow: View {
     let store: WidgetStoreData

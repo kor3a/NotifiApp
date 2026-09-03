@@ -590,7 +590,7 @@ struct ShareStoreView: View {
 
     /// The hairline between recipients. The rows sit on one card, so they are
     /// divided by a rule in the palette's own outline rather than by the
-    /// system separator, which is a cool grey on the cream surface.
+    /// system separator, which is a cool grey on the palette's surface.
     private var rowSeparator: some View {
         Rectangle()
             .fill(OrganicPalette.outline(colorScheme))
@@ -746,7 +746,7 @@ struct ShareStoreView: View {
 
     // MARK: - Reusable building blocks
 
-    /// The titled card the Shared By section sits in: a terracotta glyph on a
+    /// The titled card the Shared By section sits in: an accent glyph on a
     /// blush disc, the title beside it, and the content below — the same header
     /// shape `OrganicNavRow` uses, so a card and a row read as one family.
     private func sectionContainer<Content: View>(

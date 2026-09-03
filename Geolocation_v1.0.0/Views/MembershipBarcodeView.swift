@@ -195,7 +195,7 @@ struct MembershipBarcodeTopSheet: View {
     private func barcodeCard(image: UIImage) -> some View {
         VStack(spacing: 8) {
             // Always on white: scanners read a dark-on-light code, and the panel
-            // behind it is cream in light mode and near-black in dark.
+            // behind it is near-white in light mode and near-black in dark.
             // `.high` interpolation, not `.none` — the image is generated wider
             // than it's shown, and nearest-neighbour downscaling drops whole
             // columns, which can merge adjacent bars and break the scan.

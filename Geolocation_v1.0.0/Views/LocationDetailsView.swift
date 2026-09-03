@@ -297,7 +297,7 @@ struct LocationDetailsView: View {
 
 // MARK: - Button Styles
 
-/// The sheet's primary action: the same terracotta pill the rest of the app
+/// The sheet's primary action: the same accent pill the rest of the app
 /// commits with. A `ButtonStyle` rather than `OrganicPillButton` because these
 /// buttons carry a `Label`, not a bare title.
 private struct OrganicActionButtonStyle: ButtonStyle {

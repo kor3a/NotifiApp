@@ -115,7 +115,7 @@ struct StoreAnalyticsView: View {
     }
 
     /// The range filter, in one row above the charts. A segmented control keeps
-    /// the system's grey capsule on the paper canvas, so it is three pills.
+    /// the system's grey capsule on the canvas, so it is three pills.
     private var timeRangePicker: some View {
         HStack(spacing: 6) {
             ForEach(AnalyticsTimeRange.allCases) { range in
@@ -259,11 +259,16 @@ struct StoreAnalyticsView: View {
             sectionHeader(icon: "square.grid.2x2", title: "By Category")
 
             ForEach(categories) { stat in
+                // Each aisle in its own hue, matching the section headers in
+                // the reminder list this breakdown is counting.
+                let palette = GroceryCategory.matching(stat.category).palette
+
                 HStack(spacing: 10) {
                     Image(systemName: CategoryIcon.symbol(for: stat.category))
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundColor(OrganicPalette.terracotta(colorScheme))
-                        .frame(width: 20)
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(palette.label(colorScheme))
+                        .frame(width: 24, height: 24)
+                        .background(Circle().fill(palette.tint(colorScheme)))
 
                     VStack(alignment: .leading, spacing: 5) {
                         HStack {
@@ -283,7 +288,7 @@ struct StoreAnalyticsView: View {
                                 .frame(width: 44, alignment: .trailing)
                         }
 
-                        proportionBar(count: stat.count, max: maxCount)
+                        proportionBar(count: stat.count, max: maxCount, fill: palette.dot(colorScheme))
                     }
                 }
             }
@@ -298,13 +303,20 @@ struct StoreAnalyticsView: View {
         return "\(Int((Double(count) / Double(total) * 100).rounded()))%"
     }
 
-    private func proportionBar(count: Int, max maxCount: Int) -> some View {
+    /// `fill` carries the category's own hue where the caller has one, so a
+    /// row's bar and its glyph agree; the accent is the fallback for the bars
+    /// that aren't about a category.
+    private func proportionBar(
+        count: Int,
+        max maxCount: Int,
+        fill: Color? = nil
+    ) -> some View {
         GeometryReader { geo in
             ZStack(alignment: .leading) {
                 Capsule()
                     .fill(OrganicPalette.field(colorScheme))
                 Capsule()
-                    .fill(OrganicPalette.terracotta(colorScheme))
+                    .fill(fill ?? OrganicPalette.terracotta(colorScheme))
                     .frame(width: geo.size.width * CGFloat(count) / CGFloat(max(maxCount, 1)))
             }
         }

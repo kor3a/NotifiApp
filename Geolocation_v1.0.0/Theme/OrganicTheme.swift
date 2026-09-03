@@ -248,7 +248,7 @@ enum OrganicPalette {
     /// A backstop rather than the bar the user navigates from. `OrganicTabBar`
     /// is what they see and HomeView hides this one under it — built against
     /// the current SDK it renders as system glass, and the appearance proxy can
-    /// only tint that glass, never turn it into paper. What this still buys is
+    /// only tint that glass, never turn it into canvas. What this still buys is
     /// the frame or two before the hide takes effect, and anywhere a tab bar
     /// slips out from under the SwiftUI modifier.
     ///
@@ -408,7 +408,7 @@ struct OrganicAvatar: View {
 
 // MARK: - Card Surface
 
-/// The raised paper surface shared by rows and cards on these screens.
+/// The raised surface shared by rows and cards on these screens.
 struct OrganicCardBackground: View {
     let colorScheme: ColorScheme
     var fill: Color?
@@ -436,7 +436,7 @@ extension View {
 
     /// A section title rendered as an ordinary row. A `.plain` list pins its
     /// headers and draws its own backing behind them, which puts a grey bar
-    /// across the cream canvas as soon as the list scrolls.
+    /// across the canvas as soon as the list scrolls.
     func organicSectionLabelRow() -> some View {
         self
             .listRowInsets(EdgeInsets(top: 6, leading: 20, bottom: 2, trailing: 20))
@@ -474,7 +474,7 @@ struct OrganicCircleButton: View {
 
 // MARK: - Pill Button
 
-/// The filled terracotta pill these screens use for the one action that commits
+/// The filled accent pill these screens use for the one action that commits
 /// something — save, submit, subscribe.
 ///
 /// Reads `isEnabled` from the environment, so callers gate it with the ordinary
@@ -519,7 +519,7 @@ struct OrganicPillButton: View {
 
 // MARK: - Navigation Row
 
-/// A row that leads somewhere: a terracotta glyph on a blush disc, a title, an
+/// A row that leads somewhere: an accent glyph on a blush disc, a title, an
 /// optional line of explanation, and a chevron.
 ///
 /// Content only — the caller wraps it in the `NavigationLink` or `Button` that
@@ -633,7 +633,7 @@ struct OrganicCountBadge: View {
 
 /// The shape an empty screen takes here: a glyph inside a blush disc, a display
 /// line naming what is missing, a sentence of context, and — when there is
-/// something to do about it — one terracotta pill.
+/// something to do about it — one accent pill.
 struct OrganicEmptyState: View {
     let systemImage: String
     let title: String

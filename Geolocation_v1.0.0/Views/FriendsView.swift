@@ -719,7 +719,7 @@ struct FriendCard: View {
 // MARK: - Request Card
 
 /// An incoming friend request. It sits on the blush tint rather than the plain
-/// paper surface so the rows that need an answer stand out from the ones that
+/// surface so the rows that need an answer stand out from the ones that
 /// don't, and it leads with a full Accept pill because that's the likely answer.
 struct RequestCard: View {
     let friendship: Friendship

@@ -411,7 +411,7 @@ struct ReminderView: View {
     private var coreView: some View {
         ZStack {
             // The user's chosen background for this store, falling back to the
-            // paper canvas. It sits here rather than on the list so the empty
+            // canvas. It sits here rather than on the list so the empty
             // and loading states stand on the same ground.
             SurfaceBackground(
                 surface: .reminders(storeId: userStoreItem.id),
@@ -718,7 +718,7 @@ struct ReminderView: View {
                             // The title is a row rather than a section header: a
                             // `.plain` list pins its headers and draws its own
                             // backing behind them, which puts a grey bar across
-                            // the paper canvas as soon as the list scrolls.
+                            // the canvas as soon as the list scrolls.
                             if showsCategoryHeaders {
                                 categoryHeader(for: category)
                                     .organicSectionLabelRow()
@@ -813,10 +813,16 @@ struct ReminderView: View {
             }
         } label: {
             HStack(spacing: 10) {
+                // The one saturated thing on the row. Everything else in this
+                // list is the palette's neutral chrome, so an aisle is told
+                // apart by its own hue rather than by reading its name.
+                let palette = GroceryCategory.matching(category).palette
+
                 Image(systemName: categoryIcon(for: category))
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(OrganicPalette.terracotta(colorScheme))
-                    .frame(width: 20)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(palette.label(colorScheme))
+                    .frame(width: 26, height: 26)
+                    .background(Circle().fill(palette.tint(colorScheme)))
 
                 Text(category)
                     .font(OrganicPalette.display(20))
@@ -1508,7 +1514,7 @@ struct ReminderView: View {
     // MARK: - Undo Toast View
 
     private func undoToastView(message: String, onUndo: @escaping () -> Void) -> some View {
-        // The toast is inverted paper — ink where the screen is canvas — so its
+        // The toast is inverted canvas — ink where the screen is canvas — so its
         // accent has to come from the opposite appearance to stay legible.
         let inverted: ColorScheme = colorScheme == .dark ? .light : .dark
         return VStack {
@@ -1536,7 +1542,7 @@ struct ReminderView: View {
             }
             .padding(.horizontal, 18)
             .padding(.vertical, 14)
-            // Inverted paper: ink for the fill, canvas for the type, so the
+            // Inverted canvas: ink for the fill, canvas for the type, so the
             // toast reads as part of the same palette rather than a grey slab.
             .background(
                 Capsule()
@@ -1696,7 +1702,7 @@ struct ReminderView: View {
         }
     }
 
-    /// One row of the settings sheet: a terracotta glyph on blush, a title, the
+    /// One row of the settings sheet: an accent glyph on blush, a title, the
     /// line of explanation under it, and whatever the row does on the right.
     ///
     /// `action` runs only once the sheet has finished dismissing — every row

@@ -243,7 +243,7 @@ struct SubscriptionPaywallView: View {
     // MARK: - Subscribe
 
     /// Two lines of type, so `OrganicPillButton` (which carries one) doesn't
-    /// fit — but the same terracotta capsule it draws.
+    /// fit — but the same accent capsule it draws.
     private var subscribeButton: some View {
         Button {
             Task {

@@ -701,7 +701,7 @@ struct StoreIconView: View {
 
     var body: some View {
         ZStack(alignment: .topTrailing) {
-            // Main pin content. These sit on map imagery rather than the paper
+            // Main pin content. These sit on map imagery rather than the app's own
             // canvas, so the white ring and the shadow stay — they are what
             // separates a pin from whatever is under it.
             ZStack {

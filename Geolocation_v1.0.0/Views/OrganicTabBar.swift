@@ -28,12 +28,12 @@ struct OrganicTab: Identifiable {
 
 // MARK: - Tab Bar
 
-/// The floating paper bar the app navigates from.
+/// The floating bar the app navigates from.
 ///
 /// UIKit's bar is hidden behind this one rather than restyled: built against
 /// the current SDK it renders as system glass, and the appearance proxy can
-/// only tint that glass, never turn it into paper. Everything the palette says
-/// about a surface — the cream fill, the warm shadow, terracotta on blush,
+/// only tint that glass, never turn it into canvas. Everything the palette says
+/// about a surface — the canvas fill, the shadow, the accent on its wash,
 /// Commissioner labels — has to be drawn here to be true.
 ///
 /// Deliberately the same capsule the map screen floats over its imagery, so
@@ -138,14 +138,17 @@ struct OrganicTabBar: View {
         .contentShape(Capsule())
     }
 
+    /// The warm highlight rather than the accent the selected tab takes: a
+    /// badge is the app saying something is waiting for you, not a control.
+    /// Matches the badge on the UIKit bar underneath.
     private func badge(_ count: Int) -> some View {
         Text(count > 99 ? "99+" : "\(count)")
             .font(OrganicPalette.title(10))
-            .foregroundColor(OrganicPalette.onTerracotta(colorScheme))
+            .foregroundColor(OrganicPalette.onHighlight(colorScheme))
             .padding(.horizontal, 5)
             .padding(.vertical, 2)
-            .background(Capsule().fill(OrganicPalette.terracotta(colorScheme)))
-            // A ring in the bar's own paper, so a badge overhanging the glyph
+            .background(Capsule().fill(OrganicPalette.highlight(colorScheme)))
+            // A ring in the bar's own surface, so a badge overhanging the glyph
             // reads as sitting on top of it rather than merging into it.
             .overlay(
                 Capsule().strokeBorder(OrganicPalette.surface(colorScheme), lineWidth: 1.5)
