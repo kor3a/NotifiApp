@@ -59,10 +59,6 @@ struct ReminderView: View {
     @State private var reminderForCategory: Reminder?
     @State private var customCategoryText = ""
     @State private var collapsedCategories: Set<String> = []
-    /// Set by holding a category name. While it's on, the list shows nothing
-    /// but the category names, so a dragged category can only come to rest
-    /// between other categories rather than somewhere down inside a section.
-    @State private var isSortingCategories = false
     /// Set once a backlog categorization pass has been requested for this
     /// appearance, so routine list changes don't keep re-requesting one. Cleared
     /// when Smart Category becomes available again (subscription or toggle).
@@ -737,24 +733,19 @@ struct ReminderView: View {
                         categoryHeader(for: category)
                             .padding(.top, 8)
                             .organicSectionLabelRow()
-                            // Category names are draggable only while sorting
-                            // them; outside that mode a hold on one opens the
-                            // mode instead, so the two never both fire.
-                            .moveDisabled(!isSortingCategories)
                     case .item(let reminder):
                         reminderRow(
                             for: reminder,
                             avatarColors: avatarColors,
                             memberNames: memberNames
                         )
-                        .moveDisabled(isSortingCategories)
                     }
                 }
                 .onMove(perform: moveHandler)
                 .deleteDisabled(true)
 
-                // Inline add reminder row (hidden while reordering)
-                if userStoreItem.permission != .view && !isReorderMode && !isSortingCategories {
+                // Inline add reminder row (hidden during reorder mode)
+                if userStoreItem.permission != .view && !isReorderMode {
                     inlineAddSection
                 }
             }
@@ -864,9 +855,6 @@ struct ReminderView: View {
     /// collapsed.
     private var listEntries: [ReminderListEntry] {
         let showsCategoryHeaders = viewModel.hasDisplayedCategorizedReminders
-        if isSortingCategories {
-            return viewModel.displayedCategoryOrder.map { .header($0) }
-        }
         var entries: [ReminderListEntry] = []
         for category in viewModel.displayedCategoryOrder {
             if showsCategoryHeaders {
@@ -879,39 +867,8 @@ struct ReminderView: View {
         return entries
     }
 
-    /// Whether holding a category name should drop into category-sorting mode:
-    /// only for members who can edit, and only when there is more than one
-    /// category to put in an order.
-    private var canSortCategories: Bool {
-        userStoreItem.permission != .view
-            && viewModel.hasDisplayedCategorizedReminders
-            && viewModel.displayedCategoryOrder.count > 1
-    }
-
-    @ViewBuilder
     private func categoryHeader(for category: String) -> some View {
-        let header = categoryHeaderButton(for: category)
-
-        if isSortingCategories {
-            // No gesture of ours here: inside sorting mode the List needs the
-            // long press itself to start the drag, and one attached here would
-            // swallow it.
-            header
-        } else {
-            header.onLongPressGesture {
-                guard canSortCategories else { return }
-                withAnimation {
-                    isSortingCategories = true
-                    isAddingNewReminder = false
-                    editingReminderId = nil
-                }
-            }
-        }
-    }
-
-    private func categoryHeaderButton(for category: String) -> some View {
         Button {
-            guard !isSortingCategories else { return }
             withAnimation {
                 if collapsedCategories.contains(category) {
                     collapsedCategories.remove(category)
@@ -937,9 +894,7 @@ struct ReminderView: View {
 
                 Spacer()
 
-                // A grip while the categories are being sorted — the chevron
-                // would promise a collapse that does nothing there.
-                Image(systemName: sortingCategoriesGlyph(for: category))
+                Image(systemName: collapsedCategories.contains(category) ? "chevron.right" : "chevron.down")
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundColor(OrganicPalette.inkSoft(colorScheme))
             }
@@ -947,11 +902,6 @@ struct ReminderView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-    }
-
-    private func sortingCategoriesGlyph(for category: String) -> String {
-        if isSortingCategories { return "line.3.horizontal" }
-        return collapsedCategories.contains(category) ? "chevron.right" : "chevron.down"
     }
 
     private func categoryIcon(for category: String) -> String {
@@ -1324,11 +1274,10 @@ struct ReminderView: View {
         }
 
         ToolbarItem(placement: .navigationBarTrailing) {
-            if isReorderMode || isSortingCategories {
+            if isReorderMode {
                 Button("Done") {
                     withAnimation {
                         isReorderMode = false
-                        isSortingCategories = false
                     }
                 }
                 .font(OrganicPalette.title(16))
@@ -1342,7 +1291,7 @@ struct ReminderView: View {
 
         // Membership barcode
         ToolbarItem(placement: .navigationBarTrailing) {
-            if !isReorderMode && !isSortingCategories {
+            if !isReorderMode {
                 Button {
                     withAnimation(.easeInOut(duration: 0.25)) {
                         showBarcodePanel.toggle()
@@ -1364,7 +1313,7 @@ struct ReminderView: View {
         }
 
         ToolbarItem(placement: .navigationBarTrailing) {
-            if !isReorderMode && !isSortingCategories {
+            if !isReorderMode {
                 Button {
                     withAnimation(.easeInOut(duration: 0.18)) {
                         showBarcodePanel = false
@@ -1384,7 +1333,6 @@ struct ReminderView: View {
     /// "4 reminders remaining", counting only the unchecked ones, or
     /// "All done" once everything on the list is checked off.
     private var remainingCountSubtitle: String {
-        if isSortingCategories { return "Drag to reorder categories" }
         let remaining = viewModel.displayedReminders.filter { !$0.isDone }.count
         guard remaining > 0 else { return "All done" }
         return "\(remaining) reminder\(remaining == 1 ? "" : "s") remaining"
