@@ -217,8 +217,9 @@ struct LoginView: View {
 
     /// The app's own mark on a blush disc, with the name below.
     ///
-    /// `AllimMark` is the app icon's artwork recoloured into the palette —
-    /// terracotta storefront, the badge in sage — and carries light and dark
+    /// `AllimMark` is the app icon's artwork recoloured into the palette — the
+    /// storefront in the accent, its check disc in the warm highlight, the same
+    /// pairing the Home Screen icon wears — and carries light and dark
     /// variants, so the disc behind it and the mark on it change scheme
     /// together. Its ground is transparent because the disc is the ground.
     private var wordmark: some View {
