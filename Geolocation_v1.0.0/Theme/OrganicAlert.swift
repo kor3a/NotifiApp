@@ -341,7 +341,7 @@ private struct OrganicAlertSurface<Content: View>: View {
             .fill(
                 colorScheme == .dark
                     ? Color.black.opacity(0.55)
-                    : Color(red: 0.20, green: 0.14, blue: 0.08).opacity(0.34)
+                    : Color.black.opacity(0.30)
             )
             .ignoresSafeArea()
             .opacity(isShowing ? 1 : 0)

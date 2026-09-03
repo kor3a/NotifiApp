@@ -120,23 +120,9 @@ struct CardStyle: ViewModifier {
     }
 }
 
-struct PrimaryButtonStyle: ButtonStyle {
-    var color: Color = .blue
-
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .font(.system(size: 17))
-            .foregroundColor(.white)
-            .frame(maxWidth: .infinity)
-            .frame(height: 50)
-            .background(
-                RoundedRectangle(cornerRadius: 10)
-                    .fill(color)
-            )
-            .opacity(configuration.isPressed ? 0.7 : 1.0)
-            .scaleEffect(configuration.isPressed ? 0.98 : 1.0)
-    }
-}
+// PrimaryButtonStyle now lives in AllimColors.swift, which draws it in the
+// Allim palette. The unused blue one that stood here would have been a
+// duplicate declaration once that file joined the target.
 
 struct SecondaryButtonStyle: ButtonStyle {
     var color: Color = .red

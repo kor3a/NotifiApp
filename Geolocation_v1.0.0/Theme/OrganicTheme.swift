@@ -12,93 +12,92 @@ import UIKit
 
 /// The palette behind Friends, Messages, Conversations, Stores and Reminders.
 ///
-/// The app runs on paper and clay rather than its old cool gradient: a cream
-/// canvas, a terracotta accent, and a sage green kept for the one idea that
-/// isn't terracotta — Family in Friends, a store share in a chat, a shared
-/// store in the list. The system blue and the frosted material cards read as
-/// clinical beside the soft, rounded shapes these screens are built from.
+/// The colors themselves now live in `AllimColors.swift`; this is the adapter
+/// that keeps the app's ~700 existing call sites working while they draw in the
+/// new palette. Each token below names the Allim token it maps onto, so the
+/// mapping is the thing to edit — never a value.
+///
+/// The names stayed as they were. `terracotta` no longer names a clay orange
+/// and `sage` no longer names a green, which reads oddly up close, but renaming
+/// them would have meant rewriting every view to no visual end; the mapping is
+/// what a reader needs and it is right here.
 enum OrganicPalette {
-    /// Full-bleed paper backdrop behind a whole screen.
-    static func canvas(_ scheme: ColorScheme) -> Color {
-        scheme == .dark
-            ? Color(red: 0.10, green: 0.09, blue: 0.08)
-            : Color(red: 0.95, green: 0.91, blue: 0.84)
+    /// Allim tokens are dynamic — they resolve against whatever trait
+    /// collection they are drawn in — while every token here takes an explicit
+    /// `ColorScheme`. A view that hands over a scheme other than its
+    /// environment's (a preview, a card pinned to one appearance) has to get
+    /// the scheme it asked for, so each token is resolved once per appearance
+    /// and then picked by branch, as cheap as the literals it replaces.
+    private struct Appearances {
+        let light: Color
+        let dark: Color
+
+        init(_ color: Color) {
+            let ui = UIColor(color)
+            light = Color(ui.resolvedColor(with: UITraitCollection(userInterfaceStyle: .light)))
+            dark = Color(ui.resolvedColor(with: UITraitCollection(userInterfaceStyle: .dark)))
+        }
+
+        func callAsFunction(_ scheme: ColorScheme) -> Color {
+            scheme == .dark ? dark : light
+        }
     }
 
-    /// Card and row surfaces — a shade lifted off the canvas, no border needed.
-    static func surface(_ scheme: ColorScheme) -> Color {
-        scheme == .dark
-            ? Color(red: 0.15, green: 0.13, blue: 0.11)
-            : Color(red: 0.98, green: 0.96, blue: 0.93)
-    }
+    /// Full-bleed backdrop behind a whole screen.
+    private static let canvasColor = Appearances(AllimColor.canvas)
+    static func canvas(_ scheme: ColorScheme) -> Color { canvasColor(scheme) }
 
-    /// Recessed inputs — search pills, the message field. Sunk into the canvas
-    /// rather than raised off it.
-    static func field(_ scheme: ColorScheme) -> Color {
-        scheme == .dark
-            ? Color(red: 0.18, green: 0.16, blue: 0.14)
-            : Color(red: 0.91, green: 0.87, blue: 0.82)
-    }
+    /// Card and row surfaces, lifted off the canvas.
+    private static let surfaceColor = Appearances(AllimColor.card)
+    static func surface(_ scheme: ColorScheme) -> Color { surfaceColor(scheme) }
 
-    static func ink(_ scheme: ColorScheme) -> Color {
-        scheme == .dark
-            ? Color(red: 0.95, green: 0.91, blue: 0.84)
-            : Color(red: 0.14, green: 0.12, blue: 0.10)
-    }
+    /// Recessed inputs — search pills, the message field. `itemCheckedFill` is
+    /// the palette's one quiet sunken grey, a shade under the canvas, which is
+    /// exactly what a field sunk into it needs.
+    private static let fieldColor = Appearances(AllimColor.itemCheckedFill)
+    static func field(_ scheme: ColorScheme) -> Color { fieldColor(scheme) }
 
-    static func inkSoft(_ scheme: ColorScheme) -> Color {
-        scheme == .dark
-            ? Color(red: 0.66, green: 0.60, blue: 0.53)
-            : Color(red: 0.42, green: 0.36, blue: 0.30)
-    }
+    private static let inkColor = Appearances(AllimColor.textPrimary)
+    static func ink(_ scheme: ColorScheme) -> Color { inkColor(scheme) }
 
-    /// Primary accent — add buttons, sent bubbles, badges, action glyphs.
-    static func terracotta(_ scheme: ColorScheme) -> Color {
-        scheme == .dark
-            ? Color(red: 0.85, green: 0.48, blue: 0.27)
-            : Color(red: 0.74, green: 0.39, blue: 0.19)
-    }
+    private static let inkSoftColor = Appearances(AllimColor.textSecondary)
+    static func inkSoft(_ scheme: ColorScheme) -> Color { inkSoftColor(scheme) }
 
-    /// Tinted wash of the accent, for cards that need answering and quiet
+    /// The app's action color — add buttons, sent bubbles, badges, action
+    /// glyphs. The Allim brand teal, not the accent: the accent is reserved for
+    /// the few places the new palette wants a saturated orange, and this token
+    /// is used on nearly every screen.
+    private static let terracottaColor = Appearances(AllimColor.primary)
+    static func terracotta(_ scheme: ColorScheme) -> Color { terracottaColor(scheme) }
+
+    /// Tinted wash of the action color, for cards that need answering and quiet
     /// icon buttons.
-    static func blush(_ scheme: ColorScheme) -> Color {
-        scheme == .dark
-            ? Color(red: 0.21, green: 0.14, blue: 0.10)
-            : Color(red: 0.98, green: 0.92, blue: 0.87)
-    }
+    private static let blushColor = Appearances(AllimColor.primaryWash)
+    static func blush(_ scheme: ColorScheme) -> Color { blushColor(scheme) }
 
-    /// The one non-terracotta hue, kept for a single idea per screen.
-    static func sage(_ scheme: ColorScheme) -> Color {
-        scheme == .dark
-            ? Color(red: 0.15, green: 0.21, blue: 0.12)
-            : Color(red: 0.85, green: 0.91, blue: 0.78)
-    }
+    /// The one hue that isn't the action color, kept for a single idea per
+    /// screen — Family in Friends, a store share in a chat, a shared store in
+    /// the list. That is the sparing use the Allim accent is meant for.
+    private static let sageColor = Appearances(AllimColor.accentWash)
+    static func sage(_ scheme: ColorScheme) -> Color { sageColor(scheme) }
 
-    static func sageInk(_ scheme: ColorScheme) -> Color {
-        scheme == .dark
-            ? Color(red: 0.78, green: 0.86, blue: 0.68)
-            : Color(red: 0.18, green: 0.29, blue: 0.13)
-    }
+    private static let sageInkColor = Appearances(AllimColor.textOnAccentWash)
+    static func sageInk(_ scheme: ColorScheme) -> Color { sageInkColor(scheme) }
 
-    /// A deep brick, kept for the destructive and out-of-stock states that
-    /// would otherwise reach for the system red — a siren tone that pulls the
-    /// eye far harder than these states deserve on a paper background.
-    static func rust(_ scheme: ColorScheme) -> Color {
-        scheme == .dark
-            ? Color(red: 0.85, green: 0.38, blue: 0.31)
-            : Color(red: 0.69, green: 0.22, blue: 0.16)
-    }
+    /// Destructive and out-of-stock states.
+    private static let rustColor = Appearances(AllimColor.danger)
+    static func rust(_ scheme: ColorScheme) -> Color { rustColor(scheme) }
 
     /// Hairline used to outline ghost buttons and quiet rows.
-    static func outline(_ scheme: ColorScheme) -> Color {
-        scheme == .dark ? Color.white.opacity(0.16) : Color.black.opacity(0.14)
-    }
+    private static let outlineColor = Appearances(AllimColor.border)
+    static func outline(_ scheme: ColorScheme) -> Color { outlineColor(scheme) }
 
-    /// Cards sit on paper, so their shadow is a warm brown rather than black.
+    /// Neutral rather than the warm brown the paper canvas took: the new
+    /// surfaces are cool greys, and a brown shadow under them reads as grime.
     static func shadow(_ scheme: ColorScheme) -> Color {
         scheme == .dark
             ? Color.black.opacity(0.40)
-            : Color(red: 0.35, green: 0.22, blue: 0.10).opacity(0.10)
+            : Color.black.opacity(0.08)
     }
 
     /// The face behind every organic title — Commissioner, bundled in `Fonts/`

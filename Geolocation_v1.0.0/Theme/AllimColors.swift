@@ -53,6 +53,11 @@ enum AllimColor {
     static let accent = Color.dynamic(light: 0xD94F16, dark: 0xFF7A45)
     static let accentWash = Color.dynamic(light: 0xFCEAE1, dark: 0x3A1B0E)
     static let onAccent = Color.dynamic(light: 0xFFFFFF, dark: 0x1A0A04)
+    // Text and glyphs on accentWash. `accent` itself only reaches about 3.5:1
+    // against that tint — fine for a large glyph, short of the 4.5:1 the small
+    // labels that sit on it need — so it darkens the way `textOnWash` does for
+    // primaryWash.
+    static let textOnAccentWash = Color.dynamic(light: 0x8A3510, dark: 0xFFC3A6)
 
     // Text
     static let textPrimary = Color.dynamic(light: 0x16191C, dark: 0xECEFF2)

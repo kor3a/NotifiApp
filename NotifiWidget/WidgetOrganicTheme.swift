@@ -2,7 +2,7 @@
 //  WidgetOrganicTheme.swift
 //  NotifiWidget
 //
-//  The widget's copy of the app's organic look.
+//  The widget's copy of the app's look.
 //
 //  Theme/OrganicTheme.swift can't be compiled into this target: it reaches for
 //  UIKit's tab bar appearance proxy and for app types (Contact,
@@ -10,64 +10,75 @@
 //  the widget actually draws with — the same palette values, the same
 //  Commissioner scale, the same avatar tints — and nothing else.
 //
-//  Keep the numbers below in step with Theme/OrganicTheme.swift; a store row on
-//  the home screen and the same row inside the app should be the same paper.
+//  Keep the numbers below in step with Theme/AllimColors.swift, which the app
+//  target draws from; a store row on the home screen and the same row inside
+//  the app should be the same surface.
 //
 
 import SwiftUI
 
 // MARK: - Organic Palette
 
-/// The cream-and-terracotta palette the app runs on, as far as the widget
-/// needs it.
+/// The Allim palette the app runs on, as far as the widget needs it.
+///
+/// `Theme/AllimColors.swift` belongs to the app target, so the values are
+/// repeated here rather than shared. They are the same hexes: a store row on
+/// the home screen and the same row inside the app should be the same surface.
 enum OrganicPalette {
-    /// Full-bleed paper backdrop behind the whole widget.
+    /// Light and dark for one token, picked by the scheme the widget is drawn
+    /// in. Mirrors `Color.dynamic(light:dark:)` in the app's AllimColors.
+    private static func hex(_ value: UInt32) -> Color {
+        Color(
+            red: Double((value >> 16) & 0xFF) / 255.0,
+            green: Double((value >> 8) & 0xFF) / 255.0,
+            blue: Double(value & 0xFF) / 255.0
+        )
+    }
+
+    private static func dynamic(_ scheme: ColorScheme, light: UInt32, dark: UInt32) -> Color {
+        hex(scheme == .dark ? dark : light)
+    }
+
+    /// Full-bleed backdrop behind the whole widget. AllimColor.canvas.
     static func canvas(_ scheme: ColorScheme) -> Color {
-        scheme == .dark
-            ? Color(red: 0.10, green: 0.09, blue: 0.08)
-            : Color(red: 0.95, green: 0.91, blue: 0.84)
+        dynamic(scheme, light: 0xF6F7F8, dark: 0x121417)
     }
 
-    /// Store rows — a shade lifted off the canvas, no border needed.
+    /// Store rows, lifted off the canvas. AllimColor.card.
     static func surface(_ scheme: ColorScheme) -> Color {
-        scheme == .dark
-            ? Color(red: 0.15, green: 0.13, blue: 0.11)
-            : Color(red: 0.98, green: 0.96, blue: 0.93)
+        dynamic(scheme, light: 0xFFFFFF, dark: 0x1B1F23)
     }
 
+    /// AllimColor.textPrimary.
     static func ink(_ scheme: ColorScheme) -> Color {
-        scheme == .dark
-            ? Color(red: 0.95, green: 0.91, blue: 0.84)
-            : Color(red: 0.14, green: 0.12, blue: 0.10)
+        dynamic(scheme, light: 0x16191C, dark: 0xECEFF2)
     }
 
+    /// AllimColor.textSecondary.
     static func inkSoft(_ scheme: ColorScheme) -> Color {
-        scheme == .dark
-            ? Color(red: 0.66, green: 0.60, blue: 0.53)
-            : Color(red: 0.42, green: 0.36, blue: 0.30)
+        dynamic(scheme, light: 0x5A6570, dark: 0x9BA6B0)
     }
 
-    /// Primary accent — the header glyph, the reminder badges.
+    /// The action color — the header glyph, the reminder badges.
+    /// AllimColor.primary.
     static func terracotta(_ scheme: ColorScheme) -> Color {
-        scheme == .dark
-            ? Color(red: 0.85, green: 0.48, blue: 0.27)
-            : Color(red: 0.74, green: 0.39, blue: 0.19)
+        dynamic(scheme, light: 0x0B7285, dark: 0x3EB8CC)
     }
 
-    /// Tinted wash of the accent, behind quiet glyph discs.
+    /// Tinted wash of the action color, behind quiet glyph discs.
+    /// AllimColor.primaryWash.
     static func blush(_ scheme: ColorScheme) -> Color {
-        scheme == .dark
-            ? Color(red: 0.21, green: 0.14, blue: 0.10)
-            : Color(red: 0.98, green: 0.92, blue: 0.87)
+        dynamic(scheme, light: 0xE0F1F4, dark: 0x12303A)
     }
 
-    /// Rows sit on paper, so their shadow is a warm brown rather than black.
-    /// Lighter than the app's — a widget row is a third the height of a list
-    /// row, and the app's radius would smear across the gap between two of them.
+    /// Neutral, matching the app's: the new surfaces are cool greys and a warm
+    /// brown shadow under them reads as grime. Lighter than the app's — a
+    /// widget row is a third the height of a list row, and the app's radius
+    /// would smear across the gap between two of them.
     static func shadow(_ scheme: ColorScheme) -> Color {
         scheme == .dark
             ? Color.black.opacity(0.30)
-            : Color(red: 0.35, green: 0.22, blue: 0.10).opacity(0.09)
+            : Color.black.opacity(0.07)
     }
 
     /// Commissioner ships in this target's bundle and is registered in the

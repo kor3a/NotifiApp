@@ -44,7 +44,7 @@ enum RecipePalette {
     static func shadow(for colorScheme: ColorScheme) -> Color {
         colorScheme == .dark
             ? Color.black.opacity(0.45)
-            : Color(red: 0.45, green: 0.26, blue: 0.12).opacity(0.16)
+            : Color.black.opacity(0.10)
     }
 }
 
