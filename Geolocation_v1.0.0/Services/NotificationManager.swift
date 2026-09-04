@@ -263,28 +263,6 @@ class NotificationManager: NSObject, ObservableObject {
 
     // MARK: - Communication Notifications
 
-    /// The app's own mark, for banners that would otherwise lead with the
-    /// system's grey silhouette.
-    ///
-    /// Read from the App Group container rather than held, so the banner wears
-    /// whichever icon the user picked on the App Icons screen — including one
-    /// they picked a moment ago, which a cached image would miss. The file is
-    /// a few kilobytes and a banner is a rare thing to schedule.
-    ///
-    /// The shipped teal mark stands in until the first export lands, and
-    /// `NotifiNotificationService` reads the same file for message pushes, so
-    /// a notification looks like Allim whether the app scheduled it or the
-    /// extension rewrote it.
-    private static var allimAvatar: INImage? {
-        if let data = NotificationAvatarStore.currentAvatarData {
-            return INImage(imageData: data)
-        }
-        guard let data = UIImage(named: "AllimNotificationAvatar")?.pngData() else {
-            return nil
-        }
-        return INImage(imageData: data)
-    }
-
     /// Wraps a notification in an INSendMessageIntent so iOS treats it as a communication
     /// notification: the sender's name and avatar lead the banner instead of the app icon.
     ///
@@ -299,23 +277,19 @@ class NotificationManager: NSObject, ObservableObject {
     /// scheduled plainly so their title keeps naming the store — CarPlay renders the
     /// title and never the body. Messages use this helper, where sender-led
     /// presentation is the point.
-    ///
-    /// - Parameter avatar: The image the banner leads with. Passing nil leaves
-    ///   iOS to draw its own placeholder for the sender.
     private func scheduleAsCommunicationNotification(
         content: UNMutableNotificationContent,
         identifier: String,
         trigger: UNTimeIntervalNotificationTrigger,
         senderDisplayName: String,
         conversationIdentifier: String,
-        avatar: INImage? = nil,
         onScheduled: ((Bool) -> Void)? = nil
     ) {
         let sender = INPerson(
             personHandle: INPersonHandle(value: conversationIdentifier, type: .unknown),
             nameComponents: nil,
             displayName: senderDisplayName,
-            image: avatar,
+            image: nil,
             contactIdentifier: nil,
             customIdentifier: conversationIdentifier
         )
@@ -644,18 +618,35 @@ class NotificationManager: NSObject, ObservableObject {
             content.relevanceScore = 0.9
             content.categoryIdentifier = "ON_MY_WAY"
             content.userInfo = ["storeName": storeName]
+            // The same thread the push carries, so a banner scheduled here and
+            // one delivered by the Cloud Function stack together rather than
+            // sitting apart in Notification Centre. The intent used to set this
+            // from its conversation identifier; a plain notification has to say
+            // it outright.
+            content.threadIdentifier = "on-my-way-\(storeName)"
 
             let identifier = "omw_\(notificationId)"
             let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
 
-            self.scheduleAsCommunicationNotification(
-                content: content,
-                identifier: identifier,
-                trigger: trigger,
-                senderDisplayName: senderName,
-                conversationIdentifier: "on-my-way-\(storeName)",
-                avatar: Self.allimAvatar
-            )
+            // Scheduled plainly, NOT through scheduleAsCommunicationNotification.
+            //
+            // A communication notification leads with an image the app supplies,
+            // and iOS stamps the app's own icon into the corner of it regardless.
+            // With the app's mark as that image the banner wore the same
+            // storefront twice, at two sizes. A plain banner carries the one icon
+            // iOS draws for the app, which is the icon this notification wanted
+            // all along — and it keeps the title naming the event rather than
+            // handing it to the sender's name.
+            let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
+            self.notificationCenter.add(request) { addError in
+                #if DEBUG
+                if let addError {
+                    print("   ❌ Error scheduling on-my-way notification: \(addError)")
+                } else {
+                    print("   ✅ Scheduled on-my-way notification — id=\(identifier)")
+                }
+                #endif
+            }
         }
     }
 

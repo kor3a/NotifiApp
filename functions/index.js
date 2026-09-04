@@ -306,20 +306,10 @@ exports.onMyWayNotification = onDocumentCreated(
         await sendFCM(tokenEntry.token, '🚗 On My Way', body, {
             type: 'on_my_way',
             storeName: storeName || '',
-            // Sender forwarded so NotifiNotificationService can build the
-            // INSendMessageIntent without parsing the title.
-            senderName: displayName,
         }, {
             // ON_MY_WAY is registered with .allowInCarPlay — shows on CarPlay.
             category: 'ON_MY_WAY',
             threadId: `on-my-way-${storeName || ''}`,
-            // Rewritten by NotifiNotificationService into a communication
-            // notification, so the banner leads with the mark of whichever app
-            // icon the recipient picked rather than the icon iOS draws for a
-            // plain push. The trade is what CarPlay reads out: a communication
-            // notification surfaces the sender's name where this one surfaced
-            // the title, so the store name no longer reaches that screen.
-            mutableContent: true,
             ownerDocRef: tokenEntry.userDocRef,
         });
     }
