@@ -26,7 +26,6 @@
 		011CF6072ED638F9009A31A6 /* ForgotPasswordViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 011CF6062ED638F9009A31A6 /* ForgotPasswordViewModel.swift */; };
 		0125A7A32F68345D0089F321 /* GoogleMobileAds in Frameworks */ = {isa = PBXBuildFile; productRef = 0125A7A22F68345D0089F321 /* GoogleMobileAds */; };
 		012FB6952F6AED5C0020BB90 /* TutorialMockData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 012FB6942F6AED5C0020BB90 /* TutorialMockData.swift */; };
-		AA1234560001AABB00CC0091 /* ScreenshotMockData.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0090 /* ScreenshotMockData.swift */; };
 		0133243C2FDCAE0D0074A818 /* NotifiNotificationService.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = 013324352FDCAE0D0074A818 /* NotifiNotificationService.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		0138242D2EDCD05F0069F38C /* NotificationLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0138242C2EDCD05F0069F38C /* NotificationLog.swift */; };
 		0138242F2EDCD08C0069F38C /* NotificationLogView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0138242E2EDCD08C0069F38C /* NotificationLogView.swift */; };
@@ -118,6 +117,7 @@
 		AA1234560001AABB00CC0028 /* StoreLogoProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0018 /* StoreLogoProvider.swift */; };
 		AA1234560001AABB00CC0029 /* UserSessionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0019 /* UserSessionManager.swift */; };
 		AA1234560001AABB00CC0031 /* SubscriptionPaywallView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0030 /* SubscriptionPaywallView.swift */; };
+		AA1234560001AABB00CC0091 /* ScreenshotMockData.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0090 /* ScreenshotMockData.swift */; };
 		AA1234560001AABB00CC0302 /* ReminderHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0301 /* ReminderHistory.swift */; };
 		AA1234560001AABB00CC0304 /* ReminderHistoryViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0303 /* ReminderHistoryViewModel.swift */; };
 		AA1234560001AABB00CC0306 /* HistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234560001AABB00CC0305 /* HistoryView.swift */; };
@@ -225,7 +225,6 @@
 		011CF6012ED638E4009A31A6 /* SharedStoreGroup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedStoreGroup.swift; sourceTree = "<group>"; };
 		011CF6062ED638F9009A31A6 /* ForgotPasswordViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForgotPasswordViewModel.swift; sourceTree = "<group>"; };
 		012FB6942F6AED5C0020BB90 /* TutorialMockData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TutorialMockData.swift; sourceTree = "<group>"; };
-		AA1234560001AABB00CC0090 /* ScreenshotMockData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenshotMockData.swift; sourceTree = "<group>"; };
 		013324352FDCAE0D0074A818 /* NotifiNotificationService.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = NotifiNotificationService.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		0138242C2EDCD05F0069F38C /* NotificationLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationLog.swift; sourceTree = "<group>"; };
 		0138242E2EDCD08C0069F38C /* NotificationLogView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationLogView.swift; sourceTree = "<group>"; };
@@ -314,6 +313,7 @@
 		AA1234560001AABB00CC0018 /* StoreLogoProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoreLogoProvider.swift; sourceTree = "<group>"; };
 		AA1234560001AABB00CC0019 /* UserSessionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserSessionManager.swift; sourceTree = "<group>"; };
 		AA1234560001AABB00CC0030 /* SubscriptionPaywallView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionPaywallView.swift; sourceTree = "<group>"; };
+		AA1234560001AABB00CC0090 /* ScreenshotMockData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenshotMockData.swift; sourceTree = "<group>"; };
 		AA1234560001AABB00CC0301 /* ReminderHistory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderHistory.swift; sourceTree = "<group>"; };
 		AA1234560001AABB00CC0303 /* ReminderHistoryViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderHistoryViewModel.swift; sourceTree = "<group>"; };
 		AA1234560001AABB00CC0305 /* HistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryView.swift; sourceTree = "<group>"; };
@@ -1390,10 +1390,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 01B408212F3BEC7F00EA1F25 /* Secrets.xcconfig */;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES = (
-					"AppIcon-Storefront",
-					"AppIcon-Wash",
-				);
+				ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES = "AppIcon-Storefront AppIcon-Wash";
 				ASSETCATALOG_COMPILER_APPICON_NAME = Allim;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
@@ -1410,7 +1407,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.4;
+				MARKETING_VERSION = 1.4.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.kor3a.nearbuy;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -1425,10 +1422,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 01B408212F3BEC7F00EA1F25 /* Secrets.xcconfig */;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES = (
-					"AppIcon-Storefront",
-					"AppIcon-Wash",
-				);
+				ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES = "AppIcon-Storefront AppIcon-Wash";
 				ASSETCATALOG_COMPILER_APPICON_NAME = Allim;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
@@ -1447,7 +1441,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.4;
+				MARKETING_VERSION = 1.4.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.kor3a.nearbuy;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
