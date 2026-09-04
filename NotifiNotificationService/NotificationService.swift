@@ -4,8 +4,8 @@
 //
 //  Created by James Jeon on 6/12/26.
 //
-//  Upgrades incoming *message* pushes into communication notifications
-//  (via INSendMessageIntent) before they are shown.
+//  Upgrades incoming *message* and *On My Way* pushes into communication
+//  notifications (via INSendMessageIntent) before they are shown.
 //
 //  WHY THIS EXISTS
 //  ---------------
@@ -23,8 +23,16 @@
 //  TRIGGERING
 //  ----------
 //  This extension only runs when the push payload contains `mutable-content: 1`
-//  (set server-side in functions/index.js for message pushes). All other
-//  notification types pass straight through untouched.
+//  (set server-side in functions/index.js for message and On My Way pushes).
+//  All other notification types pass straight through untouched.
+//
+//  WHY ON MY WAY IS HERE
+//  ---------------------
+//  Not for CarPlay's sake but for the icon: iOS draws a plain push with the
+//  app's primary icon, so an On My Way banner ignored whichever icon the
+//  recipient picked on the App Icons screen. A communication notification leads
+//  with an image this extension supplies instead, which is the mark of the
+//  icon they are actually wearing.
 //
 
 import Foundation
@@ -97,16 +105,28 @@ final class NotificationService: UNNotificationServiceExtension {
 
         let userInfo = bestAttemptContent.userInfo
 
-        // Only message notifications are converted into communication
-        // notifications. Everything else is delivered unchanged.
-        guard (userInfo["type"] as? String) == "message" else {
+        // Only the pushes that should lead with a person are converted into
+        // communication notifications. Everything else is delivered unchanged.
+        //
+        // On My Way joins messages here so its banner leads with the app's
+        // current mark: a plain push is drawn with the icon iOS holds for the
+        // app, which is always the primary one, so the recipient's chosen icon
+        // never reached it. What this costs is the CarPlay reading — that
+        // screen surfaces the sender rather than the title, so it now says who
+        // is on their way and not which store.
+        let type = (userInfo["type"] as? String) ?? ""
+        guard type == "message" || type == "on_my_way" else {
             contentHandler(bestAttemptContent)
             return
         }
 
-        let isGroup = (userInfo["isGroup"] as? String) == "true"
+        // On My Way has no group form — it is one person heading to one store.
+        let isGroup = type == "message" && (userInfo["isGroup"] as? String) == "true"
         // conversationId groups all banners for one thread; fall back to the
-        // thread identifier the push already set.
+        // thread identifier the push already set. On My Way has no id of its
+        // own and rides that fallback, which the Cloud Function sets to the
+        // same `on-my-way-<store>` string NotificationManager gives the
+        // foreground banner, so the two group together.
         let conversationId = (userInfo["conversationId"] as? String)
             ?? bestAttemptContent.threadIdentifier
         // The push title already holds the sender name (1:1) or group name
@@ -129,8 +149,9 @@ final class NotificationService: UNNotificationServiceExtension {
             recipients: nil,
             outgoingMessageType: .outgoingMessageText,
             // Intentionally pass no content: the message text must never reach
-            // the CarPlay screen. The iPhone preview is preserved on the
-            // notification body itself (bestAttemptContent.body), untouched.
+            // the CarPlay screen, and On My Way follows the same rule rather
+            // than carving out an exception. The iPhone preview is preserved on
+            // the notification body itself (bestAttemptContent.body), untouched.
             content: nil,
             speakableGroupName: isGroup ? INSpeakableString(spokenPhrase: displayName) : nil,
             conversationIdentifier: conversationId,
