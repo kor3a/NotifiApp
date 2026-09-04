@@ -48,19 +48,21 @@ changed. Leave it alone unless you're willing to reset those users.
 
 ## The palette
 
-The teal and wash variants are recolours of the pink original, mapped onto
-`AllimColor` tokens. Four flat colours, plus antialiased blends between
+The teal and wash variants are recolours of the original pink artwork, mapped
+onto `AllimColor` tokens. Four flat colours, plus antialiased blends between
 whichever two regions meet at an edge:
 
-| Region     | Pink (original) | Teal                   | Wash                   |
+| Region     | Pink            | Teal                   | Wash                   |
 |------------|-----------------|------------------------|------------------------|
-| background | `#FBD2E2`       | `#0B7285` `primary`    | `#E0F1F4` `primaryWash`|
-| storefront | `#CE2178`       | `#E0F1F4` `primaryWash`| `#0B7285` `primary`    |
+| background | `#CE2178`       | `#0B7285` `primary`    | `#E0F1F4` `primaryWash`|
+| storefront | `#FBD2E2`       | `#E0F1F4` `primaryWash`| `#0B7285` `primary`    |
 | check disc | `#FB2D57`       | `#D94F16` `accent`     | `#D94F16` `accent`     |
 | checkmark  | `#FFFFFF`       | `#FFFFFF`              | `#FFFFFF`              |
 
-Pink predates the palette and is off it deliberately — Home Screen artwork
-doesn't have to obey the in-app tokens.
+Pink now runs inverted from the artwork the other two were recoloured from: the
+deep pink fills the canvas and the storefront is drawn in the pale one, the two
+swapped. It predates the palette and is off it deliberately — Home Screen
+artwork doesn't have to obey the in-app tokens.
 
 ## Adding another icon
 
@@ -114,11 +116,20 @@ Assets.xcassets/AppIcon-Wash.appiconset/AppIcon-Wash-1024.png
 Assets.xcassets/AppIconPreview-Wash.imageset/AppIconPreview-Wash.png
 ```
 
-For the shipped icon, that's the layer inside the bundle plus its thumbnail:
+Then redraw the notification avatar to match — a 180×180 copy of the same
+artwork, which is what push banners carry when that icon is the chosen one:
+
+```
+Assets.xcassets/AllimNotificationAvatar-Wash.imageset/AllimNotificationAvatar-Wash.png
+```
+
+For the shipped icon, that's the layer inside the bundle, its thumbnail and its
+avatar:
 
 ```
 Allim.icon/Assets/allim-icon-teal-1024.png
 Assets.xcassets/AppIconPreview-Default.imageset/AppIconPreview-Default.png
+Assets.xcassets/AllimNotificationAvatar.imageset/AllimNotificationAvatar.png
 ```
 
 Nothing in the code refers to a filename, only to asset names, so there's
