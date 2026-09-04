@@ -618,17 +618,35 @@ class NotificationManager: NSObject, ObservableObject {
             content.relevanceScore = 0.9
             content.categoryIdentifier = "ON_MY_WAY"
             content.userInfo = ["storeName": storeName]
+            // The same thread the push carries, so a banner scheduled here and
+            // one delivered by the Cloud Function stack together rather than
+            // sitting apart in Notification Centre. The intent used to set this
+            // from its conversation identifier; a plain notification has to say
+            // it outright.
+            content.threadIdentifier = "on-my-way-\(storeName)"
 
             let identifier = "omw_\(notificationId)"
             let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
 
-            self.scheduleAsCommunicationNotification(
-                content: content,
-                identifier: identifier,
-                trigger: trigger,
-                senderDisplayName: senderName,
-                conversationIdentifier: "on-my-way-\(storeName)"
-            )
+            // Scheduled plainly, NOT through scheduleAsCommunicationNotification.
+            //
+            // A communication notification leads with an image the app supplies,
+            // and iOS stamps the app's own icon into the corner of it regardless.
+            // With the app's mark as that image the banner wore the same
+            // storefront twice, at two sizes. A plain banner carries the one icon
+            // iOS draws for the app, which is the icon this notification wanted
+            // all along — and it keeps the title naming the event rather than
+            // handing it to the sender's name.
+            let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
+            self.notificationCenter.add(request) { addError in
+                #if DEBUG
+                if let addError {
+                    print("   ❌ Error scheduling on-my-way notification: \(addError)")
+                } else {
+                    print("   ✅ Scheduled on-my-way notification — id=\(identifier)")
+                }
+                #endif
+            }
         }
     }
 
