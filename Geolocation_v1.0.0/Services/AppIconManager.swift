@@ -22,8 +22,61 @@ struct AppIconOption: Identifiable, Equatable {
     /// loadable by name at runtime, so every option carries a plain imageset
     /// holding the same artwork.
     let previewAssetName: String
+    /// The same artwork at banner size, for the notifications that lead with
+    /// the app's mark rather than the system's grey silhouette.
+    let notificationAvatarAssetName: String
 
     var id: String { alternateName ?? "primary" }
+}
+
+/// Where the notification banners read the current icon's mark from.
+///
+/// Neither reader can ask UIKit which icon is on. `NotificationManager`
+/// schedules its banners from Firestore listener callbacks, off the main
+/// thread; `NotifiNotificationService` is a separate process with no
+/// `UIApplication` at all. So the app exports the chosen mark into the shared
+/// App Group container — the same route `WidgetDataStore` sends store logos —
+/// and both read the file from there.
+///
+/// The reading half of this lives in `NotificationService.swift` too, and the
+/// two have to keep naming the same file.
+enum NotificationAvatarStore {
+
+    private static let appGroupSuite = "group.com.kor3a.nearbuy"
+    /// Deliberately one fixed name rather than one file per icon: the reader
+    /// wants the current mark, not a choice, and a single file leaves nothing
+    /// behind when the user switches icons.
+    static let fileName = "NotificationAvatar.png"
+
+    static var fileURL: URL? {
+        FileManager.default
+            .containerURL(forSecurityApplicationGroupIdentifier: appGroupSuite)?
+            .appendingPathComponent(fileName)
+    }
+
+    /// The exported mark, or nil before the first export — on a fresh install,
+    /// or when the container is unavailable. Callers fall back to the artwork
+    /// they ship with.
+    static var currentAvatarData: Data? {
+        guard let fileURL else { return nil }
+        return try? Data(contentsOf: fileURL)
+    }
+
+    /// Writes `assetName`'s artwork out as the mark banners will wear.
+    ///
+    /// Off the main thread: the caller is a launch path or an icon tap, and
+    /// neither should wait on a file write. Failing is quiet — a banner with
+    /// the previously exported mark, or the shipped one, beats no banner.
+    static func export(assetName: String) {
+        DispatchQueue.global(qos: .utility).async {
+            guard
+                let fileURL,
+                let data = UIImage(named: assetName)?.pngData()
+            else { return }
+
+            try? data.write(to: fileURL, options: .atomic)
+        }
+    }
 }
 
 /// Reads and writes the app's icon.
@@ -55,17 +108,20 @@ final class AppIconManager: ObservableObject {
         AppIconOption(
             alternateName: nil,
             displayName: "Teal",
-            previewAssetName: "AppIconPreview-Default"
+            previewAssetName: "AppIconPreview-Default",
+            notificationAvatarAssetName: "AllimNotificationAvatar"
         ),
         AppIconOption(
             alternateName: "AppIcon-Storefront",
             displayName: "Pink",
-            previewAssetName: "AppIconPreview-Storefront"
+            previewAssetName: "AppIconPreview-Storefront",
+            notificationAvatarAssetName: "AllimNotificationAvatar-Storefront"
         ),
         AppIconOption(
             alternateName: "AppIcon-Wash",
             displayName: "Wash",
-            previewAssetName: "AppIconPreview-Wash"
+            previewAssetName: "AppIconPreview-Wash",
+            notificationAvatarAssetName: "AllimNotificationAvatar-Wash"
         )
     ]
 
@@ -77,6 +133,18 @@ final class AppIconManager: ObservableObject {
 
     private init() {
         currentIconName = UIApplication.shared.alternateIconName
+    }
+
+    /// Re-exports the current icon's mark for the notification banners.
+    ///
+    /// Called at launch as well as on every change: the picker is not the only
+    /// way an icon arrives — someone already wearing Pink before the banners
+    /// followed the icon has never tapped anything for this to hang off, and a
+    /// reinstall empties the container.
+    func exportNotificationAvatar() {
+        let option = Self.options.first { $0.alternateName == currentIconName }
+            ?? Self.options[0]
+        NotificationAvatarStore.export(assetName: option.notificationAvatarAssetName)
     }
 
     func isSelected(_ option: AppIconOption) -> Bool {
@@ -108,6 +176,9 @@ final class AppIconManager: ObservableObject {
                 } else {
                     self.currentIconName = UIApplication.shared.alternateIconName
                 }
+                // Either way: the notification banners follow whichever icon
+                // the app actually ended up wearing.
+                self.exportNotificationAvatar()
             }
         }
     }

@@ -266,17 +266,24 @@ class NotificationManager: NSObject, ObservableObject {
     /// The app's own mark, for banners that would otherwise lead with the
     /// system's grey silhouette.
     ///
-    /// This is the same artwork `NotifiNotificationService` puts on message
-    /// pushes (`AllimNotificationAvatar`), so a notification looks like Allim
-    /// whether the app scheduled it or the extension rewrote it. Loaded once —
-    /// a banner is scheduled from a Firestore listener callback, and re-reading
-    /// the asset on every one of them buys nothing.
-    private static let allimAvatar: INImage? = {
+    /// Read from the App Group container rather than held, so the banner wears
+    /// whichever icon the user picked on the App Icons screen — including one
+    /// they picked a moment ago, which a cached image would miss. The file is
+    /// a few kilobytes and a banner is a rare thing to schedule.
+    ///
+    /// The shipped teal mark stands in until the first export lands, and
+    /// `NotifiNotificationService` reads the same file for message pushes, so
+    /// a notification looks like Allim whether the app scheduled it or the
+    /// extension rewrote it.
+    private static var allimAvatar: INImage? {
+        if let data = NotificationAvatarStore.currentAvatarData {
+            return INImage(imageData: data)
+        }
         guard let data = UIImage(named: "AllimNotificationAvatar")?.pngData() else {
             return nil
         }
         return INImage(imageData: data)
-    }()
+    }
 
     /// Wraps a notification in an INSendMessageIntent so iOS treats it as a communication
     /// notification: the sender's name and avatar lead the banner instead of the app icon.

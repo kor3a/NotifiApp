@@ -36,6 +36,12 @@ final class NotificationService: UNNotificationServiceExtension {
     private var contentHandler: ((UNNotificationContent) -> Void)?
     private var bestAttemptContent: UNMutableNotificationContent?
 
+    /// The App Group the app exports the current icon's mark into. Kept in
+    /// step with `NotificationAvatarStore` in the app target, which writes the
+    /// file this reads.
+    private static let appGroupSuite = "group.com.kor3a.nearbuy"
+    private static let avatarFileName = "NotificationAvatar.png"
+
     /// The avatar iOS draws on the communication notification.
     ///
     /// An `INPerson` carrying no image leaves the banner with the system's
@@ -43,22 +49,38 @@ final class NotificationService: UNNotificationServiceExtension {
     /// message nor which app it came from. The app's own mark stands in, so a
     /// message from Allim looks like Allim on the Lock Screen.
     ///
+    /// It is the mark of whichever icon the user picked on the App Icons
+    /// screen: this process has no `UIApplication` to ask, so the app exports
+    /// the artwork into the shared container and this reads it back. The
+    /// bundled teal mark covers the gap before the first export — a fresh
+    /// install, or a container this extension can't reach.
+    ///
     /// A fixed mark rather than the sender's own photo on purpose: the push
     /// payload carries no avatar URL (see `functions/index.js`), and an
     /// extension has neither the time budget nor a network guarantee to fetch
     /// one before the banner has to be handed back.
     ///
-    /// Loaded once and held for the extension's short life. Failing to load is
-    /// not an error worth dropping a notification over — the banner simply
-    /// falls back to the placeholder it shows today.
-    private static let avatar: INImage? = {
+    /// Read per notification rather than held: an extension process outlives a
+    /// single push, and a held image would keep drawing the icon the user has
+    /// since changed. Failing to load is not an error worth dropping a
+    /// notification over — the banner simply falls back to the placeholder it
+    /// shows today.
+    private static var avatar: INImage? {
+        let sharedURL = FileManager.default
+            .containerURL(forSecurityApplicationGroupIdentifier: appGroupSuite)?
+            .appendingPathComponent(avatarFileName)
+
+        if let sharedURL, let data = try? Data(contentsOf: sharedURL) {
+            return INImage(imageData: data)
+        }
+
         guard let url = Bundle.main.url(
             forResource: "AllimNotificationAvatar",
             withExtension: "png"
         ), let data = try? Data(contentsOf: url) else { return nil }
 
         return INImage(imageData: data)
-    }()
+    }
 
     override func didReceive(
         _ request: UNNotificationRequest,

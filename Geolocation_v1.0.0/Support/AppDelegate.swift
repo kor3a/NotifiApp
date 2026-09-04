@@ -45,6 +45,14 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         // in didRegisterForRemoteNotificationsWithDeviceToken below.
         application.registerForRemoteNotifications()
 
+        // Notification banners lead with the mark of whichever app icon the
+        // user picked, and read it from the App Group container. Exporting at
+        // launch covers the two ways that file goes missing or stale: an icon
+        // chosen before this existed, and a reinstall.
+        Task { @MainActor in
+            AppIconManager.shared.exportNotificationAvatar()
+        }
+
         return true
     }
 
