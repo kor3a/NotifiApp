@@ -1,65 +1,60 @@
-import { MapPin, ShoppingCart } from "lucide-react";
-import HeroBackground from "./HeroBackground";
-import { APP_STORE_URL } from "../constants/links";
+import AppStoreButton from "./AppStoreButton";
+import { AisleLegend } from "./AisleDots";
+import PhoneFrame from "./PhoneFrame";
+import StoresScreen from "./screens/StoresScreen";
+import { PushBanner } from "./screens/parts";
 
 export default function Hero() {
   return (
-    <section className="relative min-h-screen flex items-center justify-center overflow-hidden bg-allim-dark pt-16">
-      <HeroBackground />
+    <section id="top" className="border-b border-line bg-canvas pt-16">
+      <div className="mx-auto max-w-6xl px-6">
+        <div className="grid items-center gap-14 py-16 md:py-20 lg:grid-cols-12 lg:gap-10 lg:py-24">
+          {/* Type */}
+          <div className="lg:col-span-7">
+            <p className="eyebrow text-teal">
+              Allim &middot; 알림 &middot; Korean for &ldquo;to inform&rdquo;
+            </p>
 
-      <div className="relative z-10 mx-auto w-full max-w-7xl px-6 py-24">
-        <div className="max-w-2xl text-center lg:max-w-2xl lg:text-left">
-          {/* Badge */}
-          <div className="inline-flex items-center gap-2 mb-8">
-            <MapPin size={15} className="text-allim-accent" />
-            <span className="text-[13px] font-medium uppercase tracking-[0.14em] text-allim-accent">
-              Grocery lists that know where you are
-            </span>
+            <h1 className="display mt-6 text-[clamp(2.6rem,8.5vw,4.6rem)] text-ink">
+              Never forget your
+              <br />
+              groceries again.
+            </h1>
+
+            <p className="mt-7 max-w-lg text-[17px] leading-relaxed text-ink-2">
+              Keep a grocery list for every store you shop at. Allim pings you the
+              moment you&apos;re near one, so the milk gets bought on the way home
+              instead of on a second trip.
+            </p>
+
+            <div className="mt-9 flex flex-wrap items-center gap-x-6 gap-y-4">
+              <AppStoreButton />
+              <p className="text-[13px] text-ink-3">
+                Free &middot; iOS 17 and later
+              </p>
+            </div>
+
+            {/* The aisle legend, doubling as proof of what Smart Category does. */}
+            <div className="mt-14 border-t border-line pt-6">
+              <p className="eyebrow mb-4 text-ink-3">Sorted into aisles, automatically</p>
+              <AisleLegend />
+            </div>
           </div>
 
-          {/* Headline */}
-          <h1 className="text-[clamp(1.75rem,8.6vw,3rem)] sm:text-6xl xl:text-[4.25rem] font-bold text-white leading-tight tracking-tight">
-            <span className="block">Never forget your</span>
-            <span className="block">
-              <span className="text-allim-accent">groceries</span> again
-            </span>
-          </h1>
-
-          {/* Subheadline */}
-          <p
-            className="mt-6 text-lg sm:text-xl text-white/95 max-w-xl mx-auto lg:mx-0 leading-relaxed"
-            style={{ textShadow: "0 1px 3px rgba(0,0,0,0.55), 0 0 18px rgba(0,0,0,0.35)" }}
-          >
-            Keep a grocery list for every store you shop at. Allim pings you
-            the moment you're near one, so the milk gets bought on the way home
-            instead of on a second trip. Share the list with your family and
-            let AI sort it by aisle.
-          </p>
-
-          {/* CTA Buttons */}
-          <div className="mt-10 flex flex-col sm:flex-row items-center lg:items-start justify-center lg:justify-start gap-4">
-            <a
-              href={APP_STORE_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 px-8 py-4 rounded-xl bg-allim-accent text-allim-dark font-semibold text-lg hover:bg-white transition-colors"
+          {/* Phone, with the nudge arriving over it */}
+          <div className="flex justify-center lg:col-span-5 lg:justify-end">
+            <PhoneFrame
+              overlay={
+                <div className="nudge-in pt-11">
+                  <PushBanner
+                    title="You're near Walmart"
+                    body="5 groceries are waiting on this list."
+                  />
+                </div>
+              }
             >
-              <svg
-                className="w-6 h-6"
-                viewBox="0 0 24 24"
-                fill="currentColor"
-              >
-                <path d="M18.71 19.5C17.88 20.74 17 21.95 15.66 21.97C14.32 21.99 13.89 21.18 12.37 21.18C10.84 21.18 10.37 21.95 9.09997 21.99C7.78997 22.03 6.79997 20.68 5.95997 19.47C4.24997 17 2.93997 12.45 4.69997 9.39C5.56997 7.87 7.12997 6.91 8.81997 6.88C10.1 6.86 11.32 7.75 12.11 7.75C12.89 7.75 14.37 6.68 15.92 6.84C16.57 6.87 18.39 7.1 19.56 8.82C19.47 8.88 17.39 10.1 17.41 12.63C17.44 15.65 20.06 16.66 20.09 16.67C20.06 16.74 19.67 18.11 18.71 19.5ZM13 3.5C13.73 2.67 14.94 2.04 15.94 2C16.07 3.17 15.6 4.35 14.9 5.19C14.21 6.04 13.07 6.7 11.95 6.61C11.8 5.46 12.36 4.26 13 3.5Z" />
-              </svg>
-              Download for iOS
-            </a>
-            <a
-              href="#features"
-              className="inline-flex items-center gap-2 px-8 py-4 rounded-xl border border-white/30 bg-black/20 text-white font-semibold text-lg backdrop-blur-sm hover:bg-black/40 transition-colors"
-            >
-              <ShoppingCart size={20} />
-              See Features
-            </a>
+              <StoresScreen />
+            </PhoneFrame>
           </div>
         </div>
       </div>

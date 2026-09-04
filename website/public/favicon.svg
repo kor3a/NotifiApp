@@ -1,4 +1,22 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-  <rect width="32" height="32" rx="8" fill="#302567"/>
-  <text x="16" y="22" font-family="system-ui" font-size="18" font-weight="bold" fill="#f19953" text-anchor="middle">A</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-label="Allim">
+  <defs>
+    <clipPath id="a"><rect width="1024" height="1024" rx="230" ry="230"/></clipPath>
+  </defs>
+  <g clip-path="url(#a)">
+    <rect width="1024" height="1024" fill="#0B7285"/>
+    <g transform="translate(512 512) scale(1.1) translate(-512 -512)">
+      <g fill="none" stroke="#E0F1F4" stroke-width="26" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M184.5 389.5 L258.2 258.1 A84.9 84.9 0 0 1 332.1 215 L691.6 215 A84.9 84.9 0 0 1 765.7 258 L839.5 389.5"/>
+        <path d="M184.5 389.5 H839.5"/>
+        <path d="M184.5 389.5 V474.8 A65.5 65.5 0 0 0 315.5 474.8 V389.5"/>
+        <path d="M315.5 389.5 V474.8 A65.5 65.5 0 0 0 446.5 474.8 V389.5"/>
+        <path d="M446.5 389.5 V474.8 A65.5 65.5 0 0 0 577.5 474.8 V389.5"/>
+        <path d="M577.5 389.5 V474.8 A65.5 65.5 0 0 0 708.5 474.8 V389.5"/>
+        <path d="M708.5 389.5 V474.8 A65.5 65.5 0 0 0 839.5 474.8 V389.5"/>
+        <path d="M250.5 540.3 V752 A46 46 0 0 0 296.5 798 H728 A46 46 0 0 0 774 752 V540.3"/>
+      </g>
+      <circle cx="721.5" cy="751.5" r="96.5" fill="#D94F16"/>
+      <path d="M670 754 L706 791 L779 717" fill="none" stroke="#fff" stroke-width="28" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+  </g>
 </svg>

@@ -7,68 +7,62 @@ interface Props {
   screenBackgroundClassName?: string;
   screenBackgroundStyle?: CSSProperties;
   statusBarTone?: "dark" | "light";
+  /** Rendered above the screen, inside the bezel — notification banners and
+   *  anything else that should overlap the status bar. */
+  overlay?: ReactNode;
 }
 
 export default function PhoneFrame({
   children,
   className = "",
   screenClassName = "pt-9",
-  screenBackgroundClassName = "bg-slate-50",
+  screenBackgroundClassName = "bg-canvas",
   screenBackgroundStyle,
   statusBarTone = "dark",
+  overlay,
 }: Props) {
-  const statusTextClass =
-    statusBarTone === "light" ? "text-white/90" : "text-black/80";
-  const statusIconClass =
-    statusBarTone === "light" ? "text-white/90" : "text-black/80";
-  const batteryClass =
-    statusBarTone === "light" ? "border-white/45" : "border-black/30";
-  const batteryFillClass =
-    statusBarTone === "light" ? "bg-white/90" : "bg-black/80";
-  const batteryCapClass =
-    statusBarTone === "light" ? "bg-white/45" : "bg-black/30";
+  const light = statusBarTone === "light";
+  const tone = light ? "text-white/90" : "text-ink/80";
+  const batteryEdge = light ? "border-white/45" : "border-ink/30";
+  const batteryFill = light ? "bg-white/90" : "bg-ink/80";
+  const batteryCap = light ? "bg-white/45" : "bg-ink/30";
 
   return (
-    <div className={`relative w-[280px] h-[572px] mx-auto ${className}`}>
-      {/* Outer bezel */}
-      <div className="absolute inset-0 rounded-[44px] bg-[#1a1a1e] shadow-[0_25px_60px_rgba(0,0,0,0.5)]">
-        {/* Inner screen */}
+    <div className={`relative mx-auto h-[560px] w-[274px] ${className}`}>
+      <div className="absolute inset-0 rounded-[42px] bg-ink shadow-[0_18px_40px_-16px_rgba(22,25,28,0.35)]">
         <div
-          className={`absolute inset-[3px] rounded-[41px] overflow-hidden ${screenBackgroundClassName}`}
+          className={`absolute inset-[3px] overflow-hidden rounded-[39px] ${screenBackgroundClassName}`}
           style={screenBackgroundStyle}
         >
-          {/* Screen content */}
-          <div className="w-full h-full flex flex-col relative">
+          <div className="relative flex h-full w-full flex-col">
             <div className={`absolute inset-0 flex flex-col ${screenClassName}`}>
               {children}
             </div>
 
             {/* Status bar */}
-            <div className="flex justify-between items-center px-6 pt-3 pb-1 relative z-20 pointer-events-none">
-              <span className={`text-[11px] font-semibold ${statusTextClass}`}>
-                9:41
-              </span>
-              <div className="w-[90px] h-[26px] bg-black rounded-full absolute left-1/2 -translate-x-1/2 top-2" />
-              <div className={`flex items-center gap-1 ${statusIconClass}`}>
-                <svg className="w-[14px] h-[10px]" viewBox="0 0 16 12" fill="currentColor">
+            <div className="pointer-events-none relative z-20 flex items-center justify-between px-6 pt-3 pb-1">
+              <span className={`text-[11px] font-semibold ${tone}`}>9:41</span>
+              <div className="absolute left-1/2 top-2 h-[26px] w-[88px] -translate-x-1/2 rounded-full bg-ink" />
+              <div className={`flex items-center gap-1 ${tone}`}>
+                <svg className="h-[10px] w-[14px]" viewBox="0 0 16 12" fill="currentColor" aria-hidden="true">
                   <rect x="0" y="5" width="3" height="7" rx="0.5" />
                   <rect x="4.5" y="3" width="3" height="9" rx="0.5" />
                   <rect x="9" y="1" width="3" height="11" rx="0.5" />
                   <rect x="13" y="0" width="3" height="12" rx="0.5" />
                 </svg>
-                <svg className="w-[12px] h-[10px]" viewBox="0 0 16 12" fill="currentColor">
+                <svg className="h-[10px] w-[12px]" viewBox="0 0 16 12" fill="currentColor" aria-hidden="true">
                   <path d="M8 3C10.7 3 13.1 4.3 14.5 6.3L16 4.5C14.1 2 11.2 0.5 8 0.5S1.9 2 0 4.5L1.5 6.3C2.9 4.3 5.3 3 8 3z" />
                   <path d="M8 6.5C9.8 6.5 11.4 7.4 12.3 8.7L13.8 6.9C12.5 5.2 10.4 4 8 4S3.5 5.2 2.2 6.9L3.7 8.7C4.6 7.4 6.2 6.5 8 6.5z" />
                   <circle cx="8" cy="11" r="1.5" />
                 </svg>
-                <div
-                  className={`w-[22px] h-[10px] rounded-[2px] border relative ml-0.5 ${batteryClass}`}
-                >
-                  <div className={`absolute inset-[1.5px] right-[2px] rounded-[1px] ${batteryFillClass}`} />
-                  <div className={`absolute right-[-3px] top-[2.5px] w-[1.5px] h-[5px] rounded-r-sm ${batteryCapClass}`} />
+                <div className={`relative ml-0.5 h-[10px] w-[22px] rounded-[2px] border ${batteryEdge}`}>
+                  <div className={`absolute inset-[1.5px] right-[2px] rounded-[1px] ${batteryFill}`} />
+                  <div className={`absolute right-[-3px] top-[2.5px] h-[5px] w-[1.5px] rounded-r-sm ${batteryCap}`} />
                 </div>
               </div>
             </div>
+
+            {overlay && <div className="absolute inset-x-0 top-0 z-30">{overlay}</div>}
           </div>
         </div>
       </div>

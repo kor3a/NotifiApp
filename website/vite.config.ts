@@ -12,7 +12,6 @@ export default defineConfig(({ isSsrBuild }) => ({
           output: {
             manualChunks: {
               react: ['react', 'react-dom'],
-              icons: ['lucide-react'],
             },
           },
         },

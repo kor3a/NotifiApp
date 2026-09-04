@@ -1,38 +1,37 @@
 import { useEffect, useRef, useState } from "react";
-import { MapPin, Users, Tag, ChefHat } from "lucide-react";
 
 const features = [
   {
     n: "01",
-    icon: MapPin,
-    title: "Location-based alerts",
+    title: "Location alerts",
     kicker: "You're near Whole Foods.",
     description:
       "Save the grocery stores you actually shop at. Allim watches for them in the background and pings you when you're close enough to stop in — no app to open, nothing to remember.",
+    dot: "bg-beverages",
   },
   {
     n: "02",
-    icon: ChefHat,
     title: "Smart Recipe",
     kicker: "Dinner, minus the planning.",
     description:
       "Ask for a recipe, get the steps, and push every ingredient onto the grocery list for the store you'd buy it at. One tap, no retyping.",
+    dot: "bg-meat",
   },
   {
     n: "03",
-    icon: Users,
     title: "Shared lists",
     kicker: "One list, whole household.",
     description:
       "Give a grocery list to your partner, roommate, or family. Edits sync live, and you decide who can change things and who can only look.",
+    dot: "bg-dairy",
   },
   {
     n: "04",
-    icon: Tag,
     title: "Smart Category",
     kicker: "Produce with produce.",
     description:
       "Groceries sort themselves into aisle groups as they're added, so the list is already in walking order by the time you're pushing a cart.",
+    dot: "bg-produce",
   },
 ];
 
@@ -41,8 +40,8 @@ export default function Features() {
   const [pinned, setPinned] = useState(false);
   const stepRefs = useRef<(HTMLDivElement | null)[]>([]);
 
-  // The pinned panel only exists at lg and up. Track that so the
-  // cross-fade's aria-hidden matches what is actually on screen.
+  // The pinned panel only exists at lg and up. Track that so the cross-fade's
+  // aria-hidden matches what is actually on screen.
   useEffect(() => {
     const query = window.matchMedia("(min-width: 1024px)");
     const sync = () => setPinned(query.matches);
@@ -51,8 +50,8 @@ export default function Features() {
     return () => query.removeEventListener("change", sync);
   }, []);
 
-  // A step sentinel is "active" while it straddles the middle of the
-  // viewport, which is exactly where the pinned panel sits.
+  // A step sentinel is "active" while it straddles the middle of the viewport,
+  // which is exactly where the pinned panel sits.
   useEffect(() => {
     if (!pinned) return;
 
@@ -74,8 +73,7 @@ export default function Features() {
   }, [pinned]);
 
   return (
-    <section id="features" className="bg-allim-dark">
-      {/* Scroll stage: sticky panel + one sentinel per feature */}
+    <section id="features" className="border-b border-line bg-canvas">
       <div
         className="feature-stage relative"
         style={{ "--step-count": features.length } as React.CSSProperties}
@@ -94,45 +92,38 @@ export default function Features() {
           ))}
         </div>
 
-        <div className="lg:sticky lg:top-0 lg:flex lg:h-screen lg:items-center">
-          <div className="mx-auto w-full max-w-6xl px-6 py-24 lg:py-0">
-            <div className="grid gap-12 lg:grid-cols-12 lg:gap-16">
-              {/* Persistent frame — intro and rail hold still while
-                  the copy on the right swaps out. */}
+        <div className="lg:sticky lg:top-16 lg:flex lg:h-[calc(100vh-4rem)] lg:items-center">
+          <div className="mx-auto w-full max-w-6xl px-6 py-20 lg:py-0">
+            <div className="grid gap-14 lg:grid-cols-12 lg:gap-12">
+              {/* The frame holds still while the copy swaps out. */}
               <div className="lg:col-span-4">
-                <h2 className="mb-4 text-2xl font-semibold uppercase tracking-[0.08em] text-allim-accent sm:text-3xl">
-                  What it does
-                </h2>
-                <p className="max-w-xs text-[15px] leading-relaxed text-allim-muted">
-                  A grocery list for every store you shop at, a nudge the
-                  moment you're near one, and a shared list the rest of the
-                  household can add to.
+                <h2 className="eyebrow text-teal">What it does</h2>
+                <p className="mt-5 max-w-xs text-[15px] leading-relaxed text-ink-2">
+                  A grocery list for every store you shop at, a nudge the moment
+                  you&apos;re near one, and a shared list the rest of the household
+                  can add to.
                 </p>
 
-                <ul className="mt-10 hidden space-y-1 lg:block">
+                <ol className="mt-10 hidden lg:block">
                   {features.map((feature, index) => {
                     const isActive = index === active;
                     return (
                       <li key={feature.n}>
                         <div
                           className={`flex items-center gap-4 border-l-2 py-3 pl-5 transition-colors duration-300 ${
-                            isActive
-                              ? "border-allim-accent"
-                              : "border-allim-line"
+                            isActive ? "border-teal" : "border-line"
                           }`}
                         >
                           <span
-                            className={`font-display text-sm tabular-nums transition-colors duration-300 ${
-                              isActive ? "text-allim-accent" : "text-allim-faint"
+                            className={`figure text-[13px] transition-colors duration-300 ${
+                              isActive ? "text-teal" : "text-ink-3"
                             }`}
                           >
                             {feature.n}
                           </span>
                           <span
                             className={`text-[15px] transition-colors duration-300 ${
-                              isActive
-                                ? "font-medium text-white"
-                                : "text-allim-faint"
+                              isActive ? "font-semibold text-ink" : "text-ink-3"
                             }`}
                           >
                             {feature.title}
@@ -141,44 +132,42 @@ export default function Features() {
                       </li>
                     );
                   })}
-                </ul>
+                </ol>
               </div>
 
-              {/* Cross-fading copy. All four stay in the DOM — they stack
-                  into one grid cell at lg and flow normally below it. */}
-              <div className="grid gap-16 lg:col-span-7 lg:col-start-6 lg:gap-0">
+              {/* Cross-fading copy. All four stay in the DOM — they stack into
+                  one grid cell at lg and flow normally below it. */}
+              <div className="grid gap-14 lg:col-span-7 lg:col-start-6 lg:gap-0">
                 {features.map((feature, index) => {
                   const isActive = index === active;
                   return (
-                    <div
+                    <article
                       key={feature.n}
                       aria-hidden={pinned && !isActive}
                       className={`feature-panel-item lg:col-start-1 lg:row-start-1 ${
                         isActive
                           ? "lg:translate-y-0 lg:opacity-100"
-                          : "lg:pointer-events-none lg:translate-y-3 lg:opacity-0"
+                          : "lg:pointer-events-none lg:translate-y-2 lg:opacity-0"
                       }`}
                     >
-                      <div className="flex items-center gap-4">
-                        <feature.icon
-                          size={22}
-                          strokeWidth={1.75}
-                          className="text-allim-accent"
+                      <div className="flex items-center gap-3 border-b border-line pb-4">
+                        <span
+                          className={`h-2.5 w-2.5 rounded-full ${feature.dot}`}
+                          aria-hidden="true"
                         />
-                        <span className="font-display text-sm tabular-nums text-allim-faint lg:hidden">
-                          {feature.n}
-                        </span>
+                        <span className="figure text-[13px] text-ink-3">{feature.n}</span>
                       </div>
-                      <h3 className="mt-6 text-3xl font-bold leading-tight tracking-tight text-white sm:text-4xl">
+
+                      <h3 className="display mt-7 text-[clamp(2rem,5.5vw,3.25rem)] text-ink">
                         {feature.title}
                       </h3>
-                      <p className="mt-3 text-xl text-allim-accent">
+                      <p className="mt-4 text-[19px] font-medium text-teal">
                         {feature.kicker}
                       </p>
-                      <p className="mt-6 max-w-lg text-lg leading-relaxed text-allim-muted">
+                      <p className="mt-6 max-w-lg text-[17px] leading-relaxed text-ink-2">
                         {feature.description}
                       </p>
-                    </div>
+                    </article>
                   );
                 })}
               </div>
