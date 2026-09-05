@@ -143,26 +143,30 @@ body {
   transform: none;
 }
 
+/* The banner slides in from above the screen and back out again, the way iOS
+   delivers one. It travels far enough to clear the top edge, where the phone
+   frame's overflow clips it — so it is either fully on screen or fully gone,
+   never dissolved at half opacity over the app's own header. */
 @keyframes nudge-in {
   0%,
-  8% {
+  6% {
     opacity: 0;
-    transform: translateY(-14px);
+    transform: translateY(-130%);
   }
-  16%,
-  72% {
+  15%,
+  70% {
     opacity: 1;
-    transform: none;
+    transform: translateY(0);
   }
-  84%,
+  82%,
   100% {
     opacity: 0;
-    transform: translateY(-14px);
+    transform: translateY(-130%);
   }
 }
 
 .nudge-in {
-  animation: nudge-in 7s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+  animation: nudge-in 7s cubic-bezier(0.32, 0.9, 0.32, 1) infinite;
   will-change: opacity, transform;
 }
 

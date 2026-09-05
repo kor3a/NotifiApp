@@ -1,8 +1,17 @@
 import AppStoreButton from "./AppStoreButton";
 import { AisleLegend } from "./AisleDots";
 import PhoneFrame from "./PhoneFrame";
-import StoresScreen from "./screens/StoresScreen";
 import { PushBanner } from "./screens/parts";
+
+/* The hero phone is a real screenshot of the app rather than a rebuilt
+   facsimile: it is the actual stores list, with the real retailer marks the app
+   pulls in, which is the one place on the page those belong. It carries its own
+   status bar and Dynamic Island, so the frame draws neither, and the bezel is
+   sized to the image's 920x2000 so nothing is stretched. */
+const SHOT = { src: "/allim-stores-screen.webp", width: 920, height: 2000 };
+
+// 274 - 6px of bezel = 268 of screen; 268 / (920/2000) = 583 of screen height.
+const FRAME = { width: 274, height: 589 };
 
 export default function Hero() {
   return (
@@ -29,9 +38,7 @@ export default function Hero() {
 
             <div className="mt-9 flex flex-wrap items-center gap-x-6 gap-y-4">
               <AppStoreButton />
-              <p className="text-[13px] text-ink-3">
-                Free &middot; iOS 17 and later
-              </p>
+              <p className="text-[13px] text-ink-3">Free &middot; iOS 17 and later</p>
             </div>
 
             {/* The aisle legend, doubling as proof of what Smart Category does. */}
@@ -44,16 +51,30 @@ export default function Hero() {
           {/* Phone, with the nudge arriving over it */}
           <div className="flex justify-center lg:col-span-5 lg:justify-end">
             <PhoneFrame
+              chrome={false}
+              width={FRAME.width}
+              height={FRAME.height}
+              screenBackgroundClassName="bg-canvas"
               overlay={
-                <div className="nudge-in pt-11">
+                /* Sits where iOS drops a banner — clear of the Dynamic Island,
+                   over the top of the list. */
+                <div className="nudge-in pt-10">
                   <PushBanner
-                    title="You're near Walmart"
-                    body="5 groceries are waiting on this list."
+                    title="You're near Costco Wholesale"
+                    body="14 groceries are waiting on this list."
                   />
                 </div>
               }
             >
-              <StoresScreen />
+              <img
+                src={SHOT.src}
+                width={SHOT.width}
+                height={SHOT.height}
+                alt="The Allim stores screen: Costco Wholesale, Walmart, Trader Joe's, H Mart and other saved stores, each showing how many groceries are still on its list."
+                className="h-full w-full object-cover"
+                fetchPriority="high"
+                draggable={false}
+              />
             </PhoneFrame>
           </div>
         </div>
