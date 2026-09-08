@@ -1,5 +1,6 @@
 import PhoneFrame from "./PhoneFrame";
 import Rise from "./Rise";
+import SwipePhone from "./screens/SwipePhone";
 import {
   CountBadge,
   GroceryRow,
@@ -144,22 +145,30 @@ const beats = [
     label: "The shared list",
     title: "Everyone adds during the week",
     desc: "Mom, Dad, and Sister put groceries on one shared Walmart list as they run out — milk, sourdough, paper towels.",
-    screen: <SharedListScreen />,
+    phone: (
+      <PhoneFrame>
+        <SharedListScreen />
+      </PhoneFrame>
+    ),
   },
   {
     n: "02",
     label: "The swipe",
     title: "John is driving past anyway",
     desc: "He opens Allim and swipes the Walmart row. That is the whole interaction.",
-    screen: <SwipeScreen />,
+    /* The screenshots, with the drawn screen above as the fallback. */
+    phone: <SwipePhone fallback={<SwipeScreen />} />,
   },
   {
     n: "03",
     label: "The heads-up",
     title: "The family gets seven minutes",
     desc: "Everyone on the list hears that John is going and roughly when he'll arrive — time enough to add one more thing.",
-    screen: <LockScreen />,
-    frame: { statusBarTone: "light" as const, screenBackgroundClassName: "bg-teal-deep" },
+    phone: (
+      <PhoneFrame statusBarTone="light" screenBackgroundClassName="bg-teal-deep">
+        <LockScreen />
+      </PhoneFrame>
+    ),
   },
 ];
 
@@ -196,9 +205,7 @@ export default function UseCases() {
                   {beat.title}
                 </h3>
                 <p className="mt-3 text-[15px] leading-relaxed text-ink-2">{beat.desc}</p>
-                <div className="mt-auto flex justify-center pt-10">
-                  <PhoneFrame {...(beat.frame ?? {})}>{beat.screen}</PhoneFrame>
-                </div>
+                <div className="mt-auto flex justify-center pt-10">{beat.phone}</div>
               </Rise>
             </li>
           ))}

@@ -55,3 +55,20 @@ mark and should never disagree.
 Store tiles in the phone mockups are monograms, not brand logos: Allim works
 with whatever store you pin, so real marks would be both a trademark problem
 and a claim the app doesn't make.
+
+The one exception is the hero phone and the swipe in **In practice**, which are
+real device screenshots — the actual stores list, real retailer marks and all.
+The swipe needs two of them, both taken on the same device at the same list
+state so they line up exactly:
+
+| File | What to capture |
+| --- | --- |
+| `public/allim-swipe-rest.webp` | the stores list, untouched |
+| `public/allim-swipe-action.webp` | the same list with one row swiped right and its "On My Way" action showing |
+
+`src/components/screens/SwipePhone.tsx` plays the swipe out of those two shots —
+it clips both to the swiped row's band and slides the resting row off the action
+underneath, so every frame is pixels the app drew. Four numbers at the top of
+that file locate the row in the images and must be re-measured whenever the
+screenshots are replaced; the file says how. Until both files exist the section
+falls back to the hand-drawn swipe screen, so nothing breaks in the meantime.

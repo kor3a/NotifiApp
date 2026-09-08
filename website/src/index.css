@@ -190,6 +190,29 @@ body {
   will-change: transform;
 }
 
+/* The same beat, played on the real screenshots. The travel is set per-instance
+   in --swipe-travel, as a share of the phone's width, because it is measured off
+   the shots rather than chosen here. */
+@keyframes swipe-shot {
+  0%,
+  12% {
+    transform: translateX(0);
+  }
+  38%,
+  72% {
+    transform: translateX(var(--swipe-travel, 30%));
+  }
+  92%,
+  100% {
+    transform: translateX(0);
+  }
+}
+
+.swipe-shot {
+  animation: swipe-shot 3.6s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+  will-change: transform;
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
@@ -206,6 +229,10 @@ body {
   .swipe-right {
     animation: none;
     transform: translateX(76px);
+  }
+  .swipe-shot {
+    animation: none;
+    transform: translateX(var(--swipe-travel, 30%));
   }
 }
 
