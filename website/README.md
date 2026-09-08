@@ -1,119 +1,57 @@
-# React + TypeScript + Vite
+# Allim — marketing site
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
-
-Currently, two official plugins are available:
-
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
-
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
-
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
-
-## Build for AWS S3 + CloudFront
-
-This project is configured to output production files into `out/`.
-
-1. Build:
+React + TypeScript + Vite, Tailwind v4, prerendered to static HTML for S3.
 
 ```bash
 npm install
-npm run build
+npm run dev      # local dev server
+npm run build    # → out/ (client bundle, then SSR render, then prerender)
+npm run lint
 ```
 
-2. Upload the contents of `out/` to your S3 bucket (not the folder itself, the files inside it).
-### Current production setup (nearbuyallim.com)
+`npm run build` runs three steps: the client bundle, an SSR bundle, and
+`prerender.js`, which renders the app to HTML and splices it into
+`out/index.html` so the page is readable with JavaScript off and paints before
+hydration. `prerender.js` replaces the whole `#root` element rather than just
+its contents — leaving the template's indentation inside `#root` puts
+whitespace-only text nodes where React expects the server's markup, which fails
+hydration.
 
-This site is **not** a single-page app — it ships two real, separate pages:
-`/index.html` (homepage) and `/verify/index.html` (the email-verification
-landing page). Because of that, the usual SPA "map every 403/404 to
-`/index.html`" trick is **wrong here** — it would serve the homepage when
-someone visits `/verify`.
+## Design system
 
-- **S3 bucket** `nearbuyallim.com` (region `us-east-1`), kept **private**
-  and served through CloudFront via Origin Access Control (OAC). The
-  CloudFront origin is the S3 **REST** endpoint
-  (`nearbuyallim.com.s3.us-east-1.amazonaws.com`).
-- **CloudFront** distribution `E1MCDD8F88E6T8`
-  - Default root object: `index.html`
-  - **Viewer-request function** `rewrite-index` (see
-    [`cloudfront-function.js`](./cloudfront-function.js)) that appends
-    `index.html` to directory-style URLs so `/verify/` resolves to
-    `/verify/index.html`. The REST origin does not do this on its own; the
-    S3 *website* endpoint would, but that requires a public bucket.
+The site takes its colour and type from the app rather than inventing its own,
+so the two don't drift apart.
 
-After changing files in the bucket, invalidate the edge cache (the
-`deploy.sh` script does this automatically):
+**Colour** is the app's aisle palette, copied from
+`Geolocation_v1.0.0/Theme/AllimColors.swift` (light values) into the `@theme`
+block at the top of `src/index.css`. Teal `#0B7285` is the brand; orange
+`#D94F16` is the accent and, as in the app, is used sparingly — reminders,
+"you're near <store>", unread counts. The nine grocery-category hues
+(`--color-produce`, `--color-dairy`, …) are the site's signature: they come
+from `GroceryCategory.palette` and appear as the aisle rail under the masthead,
+as the legend in the hero, and as the dot next to every feature. **If a colour
+changes in Swift, change it here and nowhere else.**
 
-```bash
-aws cloudfront create-invalidation --distribution-id E1MCDD8F88E6T8 --paths "/*"
-```
+**Type** is Commissioner, the face the app sets everything in
+(`OrganicTheme.swift`), loaded from Google Fonts in `index.html`. Three helper
+classes in `index.css` carry the hierarchy: `.display` for tight, heavy
+headlines, `.eyebrow` for the small tracked-out labels, `.figure` for the
+tabular numerals that index each section.
 
-### Generic S3 + CloudFront notes (for a pure SPA)
+There are deliberately **no icon-set icons**. Category dots, numerals and
+hairline rules do that work instead.
 
-If you ever convert this to a true client-side-routed SPA, the simpler
-config is S3 static website hosting (index + error document both
-`index.html`) or CloudFront custom error responses mapping `403`/`404` to
-`/index.html` with response code `200`.
+## Assets
+
+`public/allim-icon.svg` is the shipped app icon redrawn as vector — traced from
+`Geolocation_v1.0.0/Allim.icon/Assets/allim-icon-teal-1024.png` and checked
+against it pixel for pixel. `favicon.svg` is the same mark inside the rounded
+square iOS masks it to, and `apple-touch-icon.png` is that rendered at 180×180.
+`og-image.png` is the social card referenced from `index.html`.
+
+If the app icon changes, redraw these from the new artwork — they are the same
+mark and should never disagree.
+
+Store tiles in the phone mockups are monograms, not brand logos: Allim works
+with whatever store you pin, so real marks would be both a trademark problem
+and a claim the app doesn't make.

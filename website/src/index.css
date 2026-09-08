@@ -1,276 +1,226 @@
 @import "tailwindcss";
 
+/* ---------------------------------------------------------------------------
+   The aisle palette, lifted verbatim from the app's own source of truth
+   (Geolocation_v1.0.0/Theme/AllimColors.swift, light values). The site and the
+   app should not be two different brands, so nothing here is invented: if a
+   colour changes in Swift, change it here and nowhere else.
+   --------------------------------------------------------------------------- */
 @theme {
-  /* Deep indigo ground from the Allim app icon, with a warm amber accent. */
-  --color-allim-dark: #0D0A1A;
-  --color-allim-surface: #13102A;
-  --color-allim-card: #191436;
-  --color-allim-line: #272049;
-  --color-allim-line-strong: #372E63;
-  --color-allim-accent: #f19953;
-  --color-allim-accent-dim: #C2762F;
-  --color-allim-indigo: #302567;
-  --color-allim-muted: #c2c5bb;
-  --color-allim-faint: #6E678C;
-  --font-display: "SF Pro Display", system-ui, -apple-system, sans-serif;
-  --font-body: "SF Pro Text", system-ui, -apple-system, sans-serif;
+  /* Surfaces */
+  --color-canvas: #f6f7f8;
+  --color-card: #ffffff;
+  --color-field: #eef0f2;
+  --color-line: #e3e6e9;
+  --color-line-strong: #ced4d9;
+
+  /* Brand */
+  --color-teal: #0b7285;
+  --color-teal-deep: #075661;
+  --color-wash: #e0f1f4;
+  --color-on-wash: #075661;
+
+  /* Accent — reminders and "you're near <store>". Used sparingly, as in the app. */
+  --color-orange: #d94f16;
+  --color-orange-wash: #fceae1;
+
+  /* Ink */
+  --color-ink: #16191c;
+  --color-ink-2: #5a6570;
+  --color-ink-3: #8a939c;
+
+  /* The nine aisle hues. These are the app's category dots and they are the
+     one saturated thing the design allows itself besides the brand teal. */
+  --color-produce: #3fa96b;
+  --color-dairy: #4c8dd6;
+  --color-meat: #c4574f;
+  --color-bakery: #b98a5a;
+  --color-pantry: #c08a22;
+  --color-frozen: #4fa8c4;
+  --color-beverages: #0b7285;
+  --color-snacks: #c96a93;
+  --color-household: #8a7bc8;
+
+  --font-sans: "Commissioner", ui-sans-serif, system-ui, -apple-system, sans-serif;
 }
+
+/* ---------------------------------------------------------------------------
+   Base
+   --------------------------------------------------------------------------- */
 
 html {
   scroll-behavior: smooth;
+  /* The sticky masthead is 4rem; stop anchored sections underneath it. */
+  scroll-padding-top: 4rem;
 }
 
-.fade-in-up {
+body {
+  margin: 0;
+  background-color: var(--color-canvas);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-synthesis-weight: none;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+::selection {
+  background: var(--color-wash);
+  color: var(--color-teal-deep);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-teal);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+/* ---------------------------------------------------------------------------
+   Type
+   Commissioner is the app's typeface. Display sizes want tight tracking and
+   optical alignment; the eyebrow labels want the opposite.
+   --------------------------------------------------------------------------- */
+
+.display {
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  line-height: 0.98;
+  text-wrap: balance;
+}
+
+.eyebrow {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+/* Tabular figures for the numerals that index the sections. They are set as
+   ornament at large sizes, so they have to line up column to column. */
+.figure {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+/* ---------------------------------------------------------------------------
+   The aisle rail — nine category hues as a specimen strip. Used as a section
+   rule so the palette itself does the dividing.
+   --------------------------------------------------------------------------- */
+.aisle-rail {
+  height: 3px;
+  background: linear-gradient(
+    to right,
+    var(--color-produce) 0 11.11%,
+    var(--color-dairy) 11.11% 22.22%,
+    var(--color-meat) 22.22% 33.33%,
+    var(--color-bakery) 33.33% 44.44%,
+    var(--color-pantry) 44.44% 55.55%,
+    var(--color-frozen) 55.55% 66.66%,
+    var(--color-beverages) 66.66% 77.77%,
+    var(--color-snacks) 77.77% 88.88%,
+    var(--color-household) 88.88% 100%
+  );
+}
+
+/* ---------------------------------------------------------------------------
+   Motion. Deliberately sparse: one entrance transition, reused, and two
+   loops that only ever run inside a phone screen.
+   --------------------------------------------------------------------------- */
+
+.rise {
   opacity: 0;
-  transform: translateY(24px);
-  transition: opacity 700ms cubic-bezier(0.22, 1, 0.36, 1),
-    transform 700ms cubic-bezier(0.22, 1, 0.36, 1);
+  transform: translateY(18px);
+  transition:
+    opacity 620ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 620ms cubic-bezier(0.22, 1, 0.36, 1);
   will-change: opacity, transform;
 }
 
-.fade-in-up.is-visible {
+.rise.is-visible {
   opacity: 1;
-  transform: translateY(0);
+  transform: none;
+}
+
+/* The banner slides in from above the screen and back out again, the way iOS
+   delivers one. It travels far enough to clear the top edge, where the phone
+   frame's overflow clips it — so it is either fully on screen or fully gone,
+   never dissolved at half opacity over the app's own header. */
+@keyframes nudge-in {
+  0%,
+  6% {
+    opacity: 0;
+    transform: translateY(-130%);
+  }
+  15%,
+  70% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  82%,
+  100% {
+    opacity: 0;
+    transform: translateY(-130%);
+  }
+}
+
+.nudge-in {
+  animation: nudge-in 7s cubic-bezier(0.32, 0.9, 0.32, 1) infinite;
+  will-change: opacity, transform;
+}
+
+@keyframes swipe-right {
+  0%,
+  12% {
+    transform: translateX(0);
+  }
+  38%,
+  72% {
+    transform: translateX(76px);
+  }
+  92%,
+  100% {
+    transform: translateX(0);
+  }
+}
+
+.swipe-right {
+  animation: swipe-right 3.6s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+  will-change: transform;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .fade-in-up {
+  html {
+    scroll-behavior: auto;
+  }
+  .rise {
     opacity: 1;
     transform: none;
     transition: none;
   }
-}
-
-@keyframes swipe-right {
-  0%, 10% {
-    transform: translateX(0);
-  }
-  35%, 70% {
-    transform: translateX(72px);
-  }
-  90%, 100% {
-    transform: translateX(0);
-  }
-}
-
-.animate-swipe-right {
-  animation: swipe-right 3.2s cubic-bezier(0.65, 0, 0.35, 1) infinite;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .animate-swipe-right {
+  .nudge-in {
     animation: none;
-    transform: translateX(72px);
+    opacity: 1;
   }
-}
-
-@keyframes features-phone-carousel {
-  0%, 20% {
-    transform: translateX(0);
-  }
-  25%, 45% {
-    transform: translateX(-100%);
-  }
-  50%, 70% {
-    transform: translateX(-200%);
-  }
-  75%, 95% {
-    transform: translateX(-300%);
-  }
-  100% {
-    transform: translateX(0);
-  }
-}
-
-.features-phone-carousel-track {
-  animation: features-phone-carousel 20s ease-in-out infinite;
-  will-change: transform;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .features-phone-carousel-track {
+  .swipe-right {
     animation: none;
+    transform: translateX(76px);
   }
 }
 
-@keyframes hero-map-drift {
-  0%, 100% {
-    transform: translate(-50%, -50%) scale(1);
-  }
-  50% {
-    transform: translate(-53%, -51%) scale(1.035);
-  }
-}
-
-@keyframes hero-route-draw {
-  0% {
-    stroke-dashoffset: 700;
-    opacity: 0;
-  }
-  5% {
-    stroke-dashoffset: 700;
-    opacity: 1;
-  }
-  70%, 82% {
-    stroke-dashoffset: 0;
-    opacity: 1;
-  }
-  86% {
-    stroke-dashoffset: 0;
-    opacity: 0;
-  }
-  100% {
-    stroke-dashoffset: 700;
-    opacity: 0;
-  }
-}
-
-@keyframes hero-pin-pulse {
-  0%, 42%, 100% {
-    transform: translate(610px, 206px) scale(1);
-  }
-  48%, 60% {
-    transform: translate(610px, 206px) scale(1.08);
-  }
-}
-
-@keyframes hero-arrival-toast {
-  0%, 46%, 100% {
-    opacity: 0;
-    transform: translateY(14px) scale(0.98);
-  }
-  54%, 78% {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-@keyframes hero-phone-notification {
-  0%, 68%, 100% {
-    opacity: 0;
-    transform: translateY(-4px) scale(0.995);
-  }
-  70%, 90% {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-@keyframes hero-phone-route-draw {
-  0% {
-    stroke-dashoffset: 700;
-    opacity: 0;
-  }
-  5% {
-    stroke-dashoffset: 700;
-    opacity: 1;
-  }
-  70%, 82% {
-    stroke-dashoffset: 0;
-    opacity: 1;
-  }
-  86% {
-    stroke-dashoffset: 0;
-    opacity: 0;
-  }
-  100% {
-    stroke-dashoffset: 700;
-    opacity: 0;
-  }
-}
-
-.hero-map-drift {
-  animation: hero-map-drift 18s ease-in-out infinite;
-  will-change: transform;
-}
-
-.hero-route-base {
-  opacity: 0.88;
-}
-
-.hero-route-line {
-  stroke-dasharray: 700;
-  stroke-dashoffset: 700;
-  animation: hero-route-draw 8s linear infinite;
-  will-change: stroke-dashoffset, opacity;
-  transform: translateZ(0);
-  -webkit-transform: translateZ(0);
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
-}
-
-.hero-destination-pin {
-  animation: hero-pin-pulse 8s ease-in-out infinite;
-  transform-box: fill-box;
-  transform-origin: center;
-}
-
-.hero-arrival-toast {
-  animation: hero-arrival-toast 8s ease-in-out infinite;
-  will-change: opacity, transform;
-}
-
-.hero-phone-notification {
-  animation: hero-phone-notification 8s linear infinite;
-  transform-origin: top center;
-  will-change: opacity, transform;
-}
-
-.hero-phone-route {
-  animation: hero-phone-route-draw 8s linear infinite;
-  stroke-dasharray: 700;
-  stroke-dashoffset: 700;
-  will-change: stroke-dashoffset, opacity;
-  transform: translateZ(0);
-  -webkit-transform: translateZ(0);
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .hero-map-drift,
-  .hero-route-line,
-  .hero-destination-pin,
-  .hero-arrival-toast,
-  .hero-phone-notification,
-  .hero-phone-route {
-    animation: none;
-  }
-
-  .hero-route-line {
-    stroke-dashoffset: 0;
-  }
-
-  .hero-arrival-toast {
-    opacity: 1;
-    transform: none;
-  }
-
-  .hero-phone-notification {
-    opacity: 1;
-    transform: none;
-  }
-
-  .hero-phone-route {
-    stroke-dashoffset: 0;
-  }
-
-}
-
-/* --- Features scroll stage -------------------------------------------
-   The stage is tall enough for one viewport-height "step" per feature.
-   A sticky panel stays pinned inside it while the step sentinels scroll
-   past, so the frame holds still and only the feature text cross-fades.
-   Below the lg breakpoint the stage collapses and every feature is laid
-   out in normal flow. ------------------------------------------------ */
+/* ---------------------------------------------------------------------------
+   The pinned feature stage. One viewport-height step per feature drives which
+   entry is lit; the panel itself holds still. Below lg the stage collapses and
+   every feature is laid out in normal flow.
+   --------------------------------------------------------------------------- */
 .feature-stage {
-  --step-height: 88vh;
+  --step-height: 86vh;
 }
 
 @media (min-width: 1024px) {
-  /* Half a viewport of tail so the last step gets the same pinned dwell as
-     the others — the sentinels only tile the first (count * step) of this. */
   .feature-stage {
+    /* Half a viewport of tail so the last step dwells like the others. */
     height: calc(var(--step-count, 4) * var(--step-height) + 50vh);
   }
 }
@@ -280,19 +230,13 @@ html {
 }
 
 .feature-panel-item {
-  transition: opacity 450ms cubic-bezier(0.22, 1, 0.36, 1),
-    transform 450ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition:
+    opacity 420ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 420ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 @media (prefers-reduced-motion: reduce) {
   .feature-panel-item {
     transition: none;
   }
-}
-
-body {
-  margin: 0;
-  font-family: var(--font-body);
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
 }

@@ -1,31 +1,26 @@
-import { Store, ListChecks, MapPin, Bell } from "lucide-react";
-import FadeIn from "./FadeIn";
+import Rise from "./Rise";
 
 const steps = [
   {
-    step: "01",
-    icon: Store,
+    n: "01",
     title: "Add your stores",
     description:
       "Search the grocery stores near you and pin the ones you actually shop at. Allim looks within a 5 km radius.",
   },
   {
-    step: "02",
-    icon: ListChecks,
-    title: "Fill your grocery lists",
+    n: "02",
+    title: "Fill your lists",
     description:
       "Add the groceries you need at each store. Smart Category groups them by aisle as you type.",
   },
   {
-    step: "03",
-    icon: MapPin,
+    n: "03",
     title: "Get on with your day",
     description:
       "Allim watches your location in the background. Nothing to open, nothing to remember.",
   },
   {
-    step: "04",
-    icon: Bell,
+    n: "04",
     title: "Get the nudge",
     description:
       "You're near a store with groceries waiting. Tap the notification and the list is right there.",
@@ -34,52 +29,27 @@ const steps = [
 
 export default function HowItWorks() {
   return (
-    <section
-      id="how-it-works"
-      className="border-y border-allim-line bg-allim-surface py-24 md:py-28"
-    >
+    <section id="how-it-works" className="border-b border-line bg-wash py-20 md:py-28">
       <div className="mx-auto max-w-6xl px-6">
-        <FadeIn>
-          <h2 className="text-2xl font-semibold uppercase tracking-[0.08em] text-allim-accent sm:text-3xl">
-            How it works
-          </h2>
-        </FadeIn>
+        <Rise>
+          <h2 className="eyebrow text-teal-deep">How it works</h2>
+        </Rise>
 
-        {/* Timeline rail */}
-        <div className="mt-16">
-          <ol className="grid gap-12 sm:grid-cols-2 lg:grid-cols-4 lg:gap-8">
-            {steps.map((item, index) => (
-              <FadeIn key={item.step} delay={index * 110}>
-                <li className="relative list-none">
-                  <div className="mb-7 flex h-[52px] items-center">
-                    <span className="flex h-[52px] w-[52px] shrink-0 items-center justify-center border border-allim-line-strong bg-allim-dark">
-                      <item.icon
-                        size={20}
-                        strokeWidth={1.75}
-                        className="text-allim-accent"
-                      />
-                    </span>
-                    <span className="ml-4 font-display text-sm tabular-nums tracking-[0.1em] text-allim-faint">
-                      {item.step}
-                    </span>
-                    {index < steps.length - 1 && (
-                      <span
-                        className="ml-4 -mr-8 hidden h-px flex-1 bg-allim-line-strong lg:block"
-                        aria-hidden="true"
-                      />
-                    )}
-                  </div>
-                  <h3 className="mb-2 text-lg font-semibold text-white">
-                    {item.title}
-                  </h3>
-                  <p className="max-w-xs text-[15px] leading-relaxed text-allim-muted">
-                    {item.description}
-                  </p>
-                </li>
-              </FadeIn>
-            ))}
-          </ol>
-        </div>
+        <ol className="mt-12 grid gap-px overflow-hidden border border-line-strong bg-line-strong sm:grid-cols-2 lg:grid-cols-4">
+          {steps.map((step, index) => (
+            <li key={step.n} className="bg-wash">
+              <Rise delay={index * 90} className="flex h-full flex-col p-7 lg:p-8">
+                <span className="figure text-[13px] text-teal">{step.n}</span>
+                <h3 className="mt-9 text-[20px] font-bold tracking-[-0.02em] text-ink">
+                  {step.title}
+                </h3>
+                <p className="mt-3 text-[15px] leading-relaxed text-on-wash/75">
+                  {step.description}
+                </p>
+              </Rise>
+            </li>
+          ))}
+        </ol>
       </div>
     </section>
   );

@@ -2,43 +2,83 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/allimIcon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Allim - Never forget your groceries again. Keep a grocery list for every store, get a reminder the moment you are nearby, share lists with your family, and let AI sort every item by aisle." />
-    <meta name="theme-color" content="#0D0A1A" />
-    <title>Allim - Grocery Lists with Location Reminders</title>
+
+    <title>Allim — a grocery list for every store, and a nudge when you're near one</title>
+    <meta
+      name="description"
+      content="Allim keeps a grocery list for every store you shop at and pings you the moment you're near one. Share a list with your family and let it sort itself by aisle. Free on iOS."
+    />
+    <link rel="canonical" href="https://allimapp.com/" />
+
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta name="theme-color" content="#f6f7f8" />
+    <meta name="apple-mobile-web-app-title" content="Allim" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Allim" />
+    <meta property="og:title" content="Allim — never forget your groceries again" />
+    <meta
+      property="og:description"
+      content="A grocery list for every store you shop at, and a nudge the moment you're near one. Share with your family; let it sort itself by aisle."
+    />
+    <meta property="og:image" content="https://allimapp.com/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Commissioner:wght@300;400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+
     <style>
       html,
       body {
         margin: 0;
-        background-color: #0d0a1a;
+        background-color: #f6f7f8;
       }
+      /* Painted only until the bundle hydrates the prerendered markup. The
+         prerender step swaps this out, so it is seen almost exclusively on a
+         cold, JS-disabled load. */
       #app-splash {
         position: fixed;
         inset: 0;
         display: flex;
         align-items: center;
         justify-content: center;
-        background-color: #0d0a1a;
+        background-color: #f6f7f8;
       }
-      #app-splash .spinner {
-        width: 40px;
-        height: 40px;
-        border-radius: 50%;
-        border: 3px solid rgba(255, 255, 255, 0.15);
-        border-top-color: #f19953;
-        animation: app-splash-spin 0.8s linear infinite;
+      #app-splash .mark {
+        width: 44px;
+        height: 44px;
+        border-radius: 10px;
+        animation: app-splash-pulse 1.4s ease-in-out infinite;
       }
-      @keyframes app-splash-spin {
-        to {
-          transform: rotate(360deg);
+      @keyframes app-splash-pulse {
+        0%,
+        100% {
+          opacity: 0.35;
+        }
+        50% {
+          opacity: 1;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        #app-splash .mark {
+          animation: none;
         }
       }
     </style>
   </head>
   <body>
     <div id="root">
-      <div id="app-splash"><div class="spinner"></div></div>
+      <div id="app-splash">
+        <img class="mark" src="/allim-icon.svg" alt="Allim" width="44" height="44" />
+      </div>
     </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
