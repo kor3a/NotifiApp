@@ -20,11 +20,7 @@ export default function Hero() {
         <div className="grid items-center gap-14 py-16 md:py-20 lg:grid-cols-12 lg:gap-10 lg:py-24">
           {/* Type */}
           <div className="lg:col-span-7">
-            <p className="eyebrow text-teal">
-              Allim &middot; 알림 &middot; Korean for &ldquo;to inform&rdquo;
-            </p>
-
-            <h1 className="display mt-6 text-[clamp(2.6rem,8.5vw,4.6rem)] text-ink">
+            <h1 className="display text-[clamp(2.6rem,8.5vw,4.6rem)] text-ink">
               Never forget your
               <br />
               groceries again.
