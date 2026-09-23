@@ -6,6 +6,7 @@ import Footer from "./components/Footer";
 import Hero from "./components/Hero";
 import HowItWorks from "./components/HowItWorks";
 import Navbar from "./components/Navbar";
+import ShelfStrip from "./components/ShelfStrip";
 import SupportPage from "./components/SupportPage";
 import UseCases from "./components/UseCases";
 
@@ -27,6 +28,7 @@ export default function App({ pathname }: { pathname?: string }) {
       <Navbar />
       <main>
         <Hero />
+        <ShelfStrip />
         <Features />
         <HowItWorks />
         <UseCases />

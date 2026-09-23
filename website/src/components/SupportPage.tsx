@@ -49,8 +49,8 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section className="border-t border-line py-10">
-      <h2 className="eyebrow mb-6 text-teal">{title}</h2>
+    <section className="border-t-2 border-ink/80 py-10">
+      <h2 className="mb-6 text-[22px] font-extrabold tracking-[-0.02em] text-ink">{title}</h2>
       {children}
     </section>
   );
@@ -61,7 +61,7 @@ function Bullets({ items }: { items: string[] }) {
     <ul className="space-y-2.5">
       {items.map((item) => (
         <li key={item} className="flex gap-3 text-[15px] leading-relaxed text-ink-2">
-          <span className="mt-[9px] h-[5px] w-[5px] shrink-0 rounded-full bg-line-strong" aria-hidden="true" />
+          <span className="mt-[9px] h-[6px] w-[6px] shrink-0 rounded-full bg-teal" aria-hidden="true" />
           {item}
         </li>
       ))}
@@ -72,8 +72,6 @@ function Bullets({ items }: { items: string[] }) {
 export default function SupportPage() {
   return (
     <div className="min-h-screen bg-canvas">
-      <div className="aisle-rail" aria-hidden="true" />
-
       <div className="border-b border-line">
         <div className="mx-auto flex h-16 max-w-3xl items-center px-6">
           <a href="/" className="flex items-center gap-2.5" aria-label="Allim, home">
@@ -91,8 +89,8 @@ export default function SupportPage() {
 
       <main className="mx-auto max-w-3xl px-6 pb-24">
         <header className="py-16">
-          <p className="eyebrow text-ink-3">Support</p>
-          <h1 className="display mt-5 text-[clamp(2.2rem,7vw,3.25rem)] text-ink">
+          <p className="hand -rotate-1 text-[30px] text-orange">support</p>
+          <h1 className="display mt-3 text-[clamp(2.2rem,7vw,3.25rem)] text-ink">
             Something not firing?
           </h1>
           <p className="mt-6 max-w-xl text-[17px] leading-relaxed text-ink-2">
@@ -127,7 +125,7 @@ export default function SupportPage() {
             {topics.map((topic) => (
               <div key={topic.n}>
                 <div className="mb-4 flex items-baseline gap-4">
-                  <span className="figure text-[13px] text-ink-3">{topic.n}</span>
+                  <span className="mono text-[13px] text-ink-3">{topic.n}</span>
                   <h3 className="text-[18px] font-semibold text-ink">{topic.title}</h3>
                 </div>
                 <Bullets items={topic.items} />

@@ -1,16 +1,41 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { APP_STORE_URL } from "../constants/links";
+import { gsap, MOTION_OK, ScrollTrigger, useGSAP } from "../lib/gsap";
 
 const links = [
-  { label: "Features", href: "#features" },
+  { label: "What it does", href: "#features" },
   { label: "How it works", href: "#how-it-works" },
-  { label: "In practice", href: "#story" },
-  { label: "Closer look", href: "#capabilities" },
+  { label: "A real Tuesday", href: "#story" },
+  { label: "Details", href: "#capabilities" },
   { label: "FAQ", href: "#faq" },
 ];
 
 export default function Navbar() {
   const [open, setOpen] = useState(false);
+  const header = useRef<HTMLElement>(null);
+
+  // Slides away while you read down the page and comes back the moment you
+  // scroll up, so it's there when you're looking for it and gone otherwise.
+  useGSAP(() => {
+    const mm = gsap.matchMedia();
+    mm.add(MOTION_OK, () => {
+      const hide = gsap.to(header.current, {
+        yPercent: -100,
+        duration: 0.35,
+        ease: "power2.out",
+        paused: true,
+      });
+      const st = ScrollTrigger.create({
+        start: 0,
+        end: "max",
+        onUpdate: (self) => {
+          if (self.direction === 1 && self.scroll() > 240) hide.play();
+          else if (self.direction === -1) hide.reverse();
+        },
+      });
+      return () => st.kill();
+    });
+  });
 
   // Lock the page while the mobile sheet is up, or the sheet scrolls the
   // masthead off behind it.
@@ -24,11 +49,8 @@ export default function Navbar() {
   }, [open]);
 
   return (
-    <header className="fixed inset-x-0 top-0 z-50">
-      {/* The aisle rail runs the full width of the page, above everything. */}
-      <div className="aisle-rail" aria-hidden="true" />
-
-      <nav className="border-b border-line bg-canvas/92 backdrop-blur-md">
+    <header ref={header} className="fixed inset-x-0 top-0 z-50">
+      <nav className="border-b border-line/70 bg-canvas/85 backdrop-blur-md">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
           <a href="#top" className="flex items-center gap-2.5" aria-label="Allim, home">
             <img
@@ -38,7 +60,7 @@ export default function Navbar() {
               height="30"
               className="h-[30px] w-[30px] rounded-[7px]"
             />
-            <span className="text-[19px] font-bold tracking-[-0.02em] text-ink">
+            <span className="text-[21px] font-extrabold tracking-[-0.03em] text-ink">
               Allim
             </span>
           </a>
@@ -57,7 +79,7 @@ export default function Navbar() {
               href={APP_STORE_URL}
               target="_blank"
               rel="noopener noreferrer"
-              className="rounded-[3px] bg-teal px-4 py-2 text-[14px] font-semibold text-white transition-colors hover:bg-teal-deep"
+              className="rounded-full bg-ink px-5 py-2 text-[14px] font-semibold text-canvas transition-colors hover:bg-teal"
             >
               Get Allim
             </a>
@@ -105,7 +127,7 @@ export default function Navbar() {
               target="_blank"
               rel="noopener noreferrer"
               onClick={() => setOpen(false)}
-              className="my-4 block rounded-[3px] bg-teal py-3.5 text-center text-[16px] font-semibold text-white"
+              className="my-4 block rounded-full bg-ink py-3.5 text-center text-[16px] font-semibold text-white"
             >
               Get Allim
             </a>

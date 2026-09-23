@@ -1,90 +1,106 @@
-import { useState } from "react";
-import Rise from "./Rise";
+import { useRef, useState } from "react";
+import { gsap, MOTION_OK, useGSAP } from "../lib/gsap";
 
 const faqs = [
   {
     q: "What does “Allim” mean?",
-    a: "Allim (알림) means “to inform” in Korean. It is what the app does: it tells you the thing you would otherwise have forgotten, at the one moment the information is useful.",
+    a: "Allim (알림) means \u201cto inform\u201d in Korean. That's the job: it tells you the thing you'd otherwise forget, at the one moment it's useful.",
   },
   {
-    q: "Why does it need “Always” location access?",
-    a: "A nearby alert has to fire while the app is closed — that's the point of it. Without background location permission, iOS won't hand Allim the crossing event, and the reminder never arrives.",
+    q: "Why does it want “Always” location access?",
+    a: "Because the alert has to fire while the app is closed, which is the entire point. Without background location, iOS never tells Allim you've crossed into a store's area, and the reminder never arrives.",
   },
   {
     q: "What's free and what's paid?",
-    a: "Grocery lists, stores, location alerts, and sharing are free. Premium is $0.99/month and adds Smart Recipe, Smart Category, and removes ads.",
+    a: "Lists, stores, location alerts and sharing are free. Premium is $0.99 a month and adds Smart Recipe and Smart Category, and removes the ads.",
   },
   {
     q: "Do the people I share with need Premium?",
-    a: "No. Sharing works on the free tier for everyone on the grocery list, in both “can edit” and “view only” modes.",
+    a: "No. Sharing works on the free tier for everyone on the list, in both “can edit” and “view only”.",
   },
   {
-    q: "My alerts aren't firing. What now?",
-    a: "Nine times out of ten it's permissions: location set to Always, Precise Location on, and notifications enabled for Allim. The support page walks through the rest.",
+    q: "My alerts aren't showing up. What now?",
+    a: "Almost always permissions: location set to Always, Precise Location on, and notifications allowed for Allim. The support page walks through the rest.",
   },
 ];
 
 export default function FAQ() {
-  // The first answer is open on arrival, so the pattern is legible without a
-  // click and the section is never a wall of unexplained headings.
+  // The first answer starts open, so it's obvious the questions expand.
   const [open, setOpen] = useState<number | null>(0);
+  const root = useRef<HTMLElement>(null);
+
+  useGSAP(
+    () => {
+      const mm = gsap.matchMedia();
+      mm.add(MOTION_OK, () => {
+        gsap.from(".faq-row", {
+          x: -24,
+          autoAlpha: 0,
+          stagger: 0.07,
+          duration: 0.7,
+          ease: "power3.out",
+          scrollTrigger: { trigger: ".faq-list", start: "top 80%" },
+        });
+      });
+    },
+    { scope: root },
+  );
 
   return (
-    <section id="faq" className="border-b border-line bg-canvas py-20 md:py-28">
+    <section ref={root} id="faq" className="py-24 md:py-32">
       <div className="mx-auto max-w-6xl px-6">
-        <div className="grid gap-10 lg:grid-cols-12 lg:gap-16">
-          <Rise className="lg:col-span-4">
-            <h2 className="eyebrow text-teal">Questions</h2>
-            <p className="display mt-5 text-[clamp(1.8rem,4vw,2.4rem)] text-ink">
-              Answered plainly.
+        <div className="grid gap-12 lg:grid-cols-12 lg:gap-16">
+          <div className="lg:col-span-4">
+            <h2 className="display text-[clamp(2.3rem,5vw,3.4rem)] text-ink">
+              Questions people actually ask.
+            </h2>
+            <p className="mt-6 max-w-xs text-[15px] leading-relaxed text-ink-2">
+              Anything else,{" "}
+              <a href="/support" className="font-semibold text-teal underline decoration-2 underline-offset-4">
+                the support page
+              </a>{" "}
+              has it, or you can email.
             </p>
-          </Rise>
-
-          <div className="lg:col-span-7 lg:col-start-6">
-            <dl className="border-t border-line">
-              {faqs.map((faq, index) => {
-                const isOpen = open === index;
-                return (
-                  <div key={faq.q} className="border-b border-line">
-                    <dt>
-                      <button
-                        type="button"
-                        onClick={() => setOpen(isOpen ? null : index)}
-                        aria-expanded={isOpen}
-                        className="flex w-full items-start justify-between gap-6 py-6 text-left"
-                      >
-                        <span className="text-[17px] font-semibold text-ink">{faq.q}</span>
-                        {/* A rule that becomes a cross — the same hairline the
-                            page is drawn with, doing double duty. */}
-                        <span
-                          className="relative mt-2.5 block h-[11px] w-[11px] shrink-0 text-teal"
-                          aria-hidden="true"
-                        >
-                          <span className="absolute top-[5px] left-0 block h-[1.5px] w-full bg-current" />
-                          <span
-                            className={`absolute top-[5px] left-0 block h-[1.5px] w-full bg-current transition-transform duration-200 ${
-                              isOpen ? "rotate-0" : "rotate-90"
-                            }`}
-                          />
-                        </span>
-                      </button>
-                    </dt>
-                    <dd
-                      className={`grid transition-[grid-template-rows] duration-300 ease-out ${
-                        isOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
-                      }`}
-                    >
-                      <div className="overflow-hidden">
-                        <p className="max-w-xl pb-7 text-[15px] leading-relaxed text-ink-2">
-                          {faq.a}
-                        </p>
-                      </div>
-                    </dd>
-                  </div>
-                );
-              })}
-            </dl>
           </div>
+
+          <dl className="faq-list lg:col-span-8">
+            {faqs.map((faq, index) => {
+              const isOpen = open === index;
+              return (
+                <div key={faq.q} className="faq-row border-b-2 border-ink/80 first:border-t-2">
+                  <dt>
+                    <button
+                      type="button"
+                      onClick={() => setOpen(isOpen ? null : index)}
+                      aria-expanded={isOpen}
+                      className="group flex w-full items-center justify-between gap-6 py-6 text-left"
+                    >
+                      <span className="text-[clamp(1.1rem,2.2vw,1.35rem)] font-bold tracking-[-0.015em] text-ink transition-colors group-hover:text-teal">
+                        {faq.q}
+                      </span>
+                      <span
+                        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 border-ink text-[20px] leading-none font-bold transition-[transform,background-color,color] duration-300 ${
+                          isOpen ? "rotate-45 bg-ink text-canvas" : "text-ink"
+                        }`}
+                        aria-hidden="true"
+                      >
+                        +
+                      </span>
+                    </button>
+                  </dt>
+                  <dd
+                    className={`grid transition-[grid-template-rows] duration-400 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                      isOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+                    }`}
+                  >
+                    <div className="overflow-hidden">
+                      <p className="max-w-2xl pb-7 text-[16px] leading-relaxed text-ink-2">{faq.a}</p>
+                    </div>
+                  </dd>
+                </div>
+              );
+            })}
+          </dl>
         </div>
       </div>
     </section>
