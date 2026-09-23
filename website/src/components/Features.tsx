@@ -236,13 +236,7 @@ export default function Features() {
   return (
     <section ref={root} id="features" className="relative lg:flex lg:min-h-screen lg:flex-col lg:justify-center">
       <div className="mx-auto w-full max-w-6xl px-6 pt-24 pb-12 lg:pt-20 lg:pb-8">
-        <div className="flex flex-wrap items-end justify-between gap-6">
-          <h2 className="display text-[clamp(2.4rem,6vw,4rem)] text-ink">Walk the aisles.</h2>
-          <p className="max-w-sm text-[16px] leading-relaxed text-ink-2">
-            Four things Allim does. Two are free for everyone; two come with
-            Premium, which is 99&cent; a month.
-          </p>
-        </div>
+        <h2 className="display text-[clamp(2.4rem,6vw,4rem)] text-ink">Walk the aisles.</h2>
       </div>
 
       <div className="aisle-track-wrap">
