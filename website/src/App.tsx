@@ -5,6 +5,7 @@ import Features from "./components/Features";
 import Footer from "./components/Footer";
 import Hero from "./components/Hero";
 import HowItWorks from "./components/HowItWorks";
+import Marquee from "./components/Marquee";
 import Navbar from "./components/Navbar";
 import SupportPage from "./components/SupportPage";
 import UseCases from "./components/UseCases";
@@ -27,6 +28,7 @@ export default function App({ pathname }: { pathname?: string }) {
       <Navbar />
       <main>
         <Hero />
+        <Marquee />
         <Features />
         <HowItWorks />
         <UseCases />

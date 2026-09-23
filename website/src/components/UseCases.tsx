@@ -1,9 +1,11 @@
+import { animate } from "animejs";
 import PhoneFrame from "./PhoneFrame";
 import Rise from "./Rise";
 import ShotPhone from "./screens/ShotPhone";
 import SwipePhone from "./screens/SwipePhone";
 import { SHOT_FRAME } from "./screens/shot";
 import { HomeBar, PushBanner } from "./screens/parts";
+import { ScrollTrigger, gsap, useGsap } from "../lib/motion";
 
 /* -- 03 · the heads-up ---------------------------------------------------- */
 
@@ -19,7 +21,7 @@ function LockScreen() {
         </p>
       </div>
 
-      <div className="mt-6">
+      <div className="uc-banner mt-6">
         <PushBanner
           title="Mom is going to Walmart"
           body="Arriving in about 7 minutes. Add anything you need."
@@ -45,6 +47,7 @@ const beats = [
     label: "The shared list",
     title: "Everyone adds during the week",
     desc: "Mom, Dad, and Sister put groceries on one shared Walmart list as they run out — milk, sourdough, paper towels.",
+    speed: -46,
     phone: (
       <ShotPhone
         src="/allim-reminderview.png"
@@ -57,6 +60,7 @@ const beats = [
     label: "The swipe",
     title: "Mom is driving past anyway",
     desc: "One swipe on the Walmart row, and the list knows. That is the whole interaction.",
+    speed: 0,
     phone: <SwipePhone />,
   },
   {
@@ -64,6 +68,7 @@ const beats = [
     label: "The heads-up",
     title: "The family gets seven minutes",
     desc: "Everyone on the list hears that Mom is going, and roughly when — time enough to add one more thing.",
+    speed: 46,
     /* Drawn rather than captured — there is no screenshot of someone else's
        lock screen — but sized to match the two real phones beside it. */
     phone: (
@@ -80,6 +85,35 @@ const beats = [
 ];
 
 export default function UseCases() {
+  useGsap(() => {
+    /* The three phones drift at different speeds — parallax, scrubbed. */
+    gsap.utils.toArray<HTMLElement>(".uc-phone").forEach((el) => {
+      gsap.to(el, {
+        y: parseFloat(el.dataset.speed || "0"),
+        ease: "none",
+        scrollTrigger: {
+          trigger: el,
+          start: "top bottom",
+          end: "bottom top",
+          scrub: 1.2,
+        },
+      });
+    });
+
+    /* The heads-up banner hops for attention the first time it's seen. */
+    ScrollTrigger.create({
+      trigger: ".uc-banner",
+      start: "top 80%",
+      once: true,
+      onEnter: () =>
+        animate(".uc-banner", {
+          translateY: [0, -14, 0],
+          duration: 950,
+          easing: "easeOutElastic(1, 0.42)",
+        }),
+    });
+  });
+
   return (
     <section id="story" className="border-b border-line bg-canvas py-20 md:py-28">
       <div className="mx-auto max-w-6xl px-6">
@@ -112,7 +146,11 @@ export default function UseCases() {
                   {beat.title}
                 </h3>
                 <p className="mt-3 text-[15px] leading-relaxed text-ink-2">{beat.desc}</p>
-                <div className="mt-auto flex justify-center pt-10">{beat.phone}</div>
+                <div className="mt-auto flex justify-center pt-10">
+                  <div className="uc-phone" data-speed={beat.speed}>
+                    {beat.phone}
+                  </div>
+                </div>
               </Rise>
             </li>
           ))}

@@ -1,4 +1,6 @@
+import { useRef } from "react";
 import { APP_STORE_URL, SUPPORT_EMAIL } from "../constants/links";
+import { gsap, ScrollTrigger, useGsap } from "../lib/motion";
 
 const sections = [
   {
@@ -29,12 +31,52 @@ const sections = [
 ];
 
 export default function Footer() {
+  const footerRef = useRef<HTMLElement | null>(null);
+  const railRef = useRef<HTMLDivElement | null>(null);
+
+  useGsap(() => {
+    /* The aisle rail redraws itself as the footer arrives. */
+    gsap.fromTo(
+      railRef.current,
+      { scaleX: 0 },
+      {
+        scaleX: 1,
+        ease: "none",
+        scrollTrigger: {
+          trigger: footerRef.current,
+          start: "top 92%",
+          end: "top 45%",
+          scrub: 0.6,
+        },
+      }
+    );
+
+    /* Link columns settle in, one after another. */
+    const cols = gsap.utils.toArray<HTMLElement>(".footer-col");
+    gsap.set(cols, { opacity: 0, y: 24 });
+    ScrollTrigger.create({
+      trigger: footerRef.current,
+      start: "top 80%",
+      once: true,
+      onEnter: () =>
+        gsap.to(cols, {
+          opacity: 1,
+          y: 0,
+          duration: 0.8,
+          stagger: 0.1,
+          ease: "power3.out",
+        }),
+    });
+  });
+
   return (
-    <footer className="bg-canvas">
-      <div className="aisle-rail" aria-hidden="true" />
+    <footer ref={footerRef} className="bg-canvas">
+      <div className="overflow-hidden" aria-hidden="true">
+        <div ref={railRef} className="aisle-rail origin-left" />
+      </div>
       <div className="mx-auto max-w-6xl px-6 py-16">
         <div className="grid gap-12 md:grid-cols-12">
-          <div className="md:col-span-4">
+          <div className="footer-col md:col-span-4">
             <div className="flex items-center gap-2.5">
               <img
                 src="/allim-icon.svg"
@@ -54,7 +96,7 @@ export default function Footer() {
           </div>
 
           {sections.map((section) => (
-            <div key={section.title} className="md:col-span-2">
+            <div key={section.title} className="footer-col md:col-span-2">
               <h3 className="eyebrow mb-5 text-ink-3">{section.title}</h3>
               <ul className="space-y-3">
                 {section.links.map((link) => (
