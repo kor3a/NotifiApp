@@ -56,24 +56,25 @@ Store tiles in the phone mockups are monograms, not brand logos: Allim works
 with whatever store you pin, so real marks would be both a trademark problem
 and a claim the app doesn't make.
 
-The one exception is the hero phone and the swipe in **In practice**, which are
-real device screenshots — the actual stores list, real retailer marks and all.
-The swipe needs two of them, both taken on the same device at the same list
-state so they line up exactly:
+Three phones on the page are real device screenshots rather than rebuilt
+facsimiles — the hero, and the first two beats of **In practice** — so the
+retailer marks and the app's own chrome are the genuine article:
 
-| File | What to capture |
+| File | What it shows |
 | --- | --- |
-| `public/allim-swipe-rest.webp` | the stores list, untouched |
-| `public/allim-swipe-action.webp` | the same list with one row swiped right and its "On My Way" action showing |
+| `public/allim-stores-screen.webp` | the hero: the stores list |
+| `public/allim-reminderview.png` | a shared Walmart list, sorted into aisles |
+| `public/allim-swipe-rest.png` | the stores list, untouched |
+| `public/allim-swipe-action.png` | the same list with a row swiped and its "On My Way" action showing |
 
-`src/components/screens/SwipePhone.tsx` plays the swipe out of those two shots —
-it clips both to the swiped row's band and slides the resting row off the action
-underneath, so every frame is pixels the app drew. Four numbers at the top of
-that file locate the row in the images and must be re-measured whenever the
-screenshots are replaced; the file says how.
+The last two are a matched pair: `src/components/screens/SwipePhone.tsx` plays
+the swipe out of them, clipping both to the swiped row's band and sliding the
+resting row off the action underneath, so every frame is pixels the app drew.
+Its two calibration constants — where the row sits, and how far it moved — were
+measured by diffing the pair, and are stored as shares of the image, so
+re-exporting the screenshots at another resolution leaves them correct as long
+as the aspect holds. Replace the pair with a differently cropped one and they
+need re-measuring; the file says how they were derived.
 
-Until both files exist the section falls back to the hand-drawn swipe screen, so
-nothing breaks in the meantime. `vite.config.ts` checks for the pair at build
-time and hands the answer to the component, which keeps the fallback out of the
-prerendered HTML rather than shipping markup that points at missing files —
-which also means adding the screenshots needs a dev-server restart to show up.
+All shots come out of the app at 920x2000, which `screens/shot.ts` turns into
+the bezel size so no image is ever stretched.
