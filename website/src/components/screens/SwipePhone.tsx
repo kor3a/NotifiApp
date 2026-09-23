@@ -1,4 +1,3 @@
-import { useEffect, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
 
 import PhoneFrame from "../PhoneFrame";
@@ -71,31 +70,10 @@ interface Props {
 }
 
 export default function SwipePhone({ fallback }: Props) {
-  const [shotsPresent, setShotsPresent] = useState(true);
-
-  /* The markup is prerendered, so a missing file has already failed by the time
-     React hydrates and no onError of ours would ever fire. Ask the browser
-     directly instead — both shots are in cache by then, so this costs nothing. */
-  useEffect(() => {
-    let live = true;
-    const loads = (src: string) =>
-      new Promise<boolean>((resolve) => {
-        const probe = new Image();
-        probe.onload = () => resolve(true);
-        probe.onerror = () => resolve(false);
-        probe.src = src;
-      });
-
-    Promise.all([loads(REST), loads(ACTION)]).then((found) => {
-      if (live && !found.every(Boolean)) setShotsPresent(false);
-    });
-
-    return () => {
-      live = false;
-    };
-  }, []);
-
-  if (!shotsPresent) return <PhoneFrame>{fallback}</PhoneFrame>;
+  /* Whether the two shots exist is settled by vite.config.ts at build time, so
+     a missing pair prerenders the drawn screen rather than markup pointing at
+     files that aren't there. */
+  if (!__SWIPE_SHOTS__) return <PhoneFrame>{fallback}</PhoneFrame>;
 
   return (
     <PhoneFrame chrome={false} width={FRAME.width} height={FRAME.height}>

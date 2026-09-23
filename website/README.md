@@ -70,5 +70,10 @@ state so they line up exactly:
 it clips both to the swiped row's band and slides the resting row off the action
 underneath, so every frame is pixels the app drew. Four numbers at the top of
 that file locate the row in the images and must be re-measured whenever the
-screenshots are replaced; the file says how. Until both files exist the section
-falls back to the hand-drawn swipe screen, so nothing breaks in the meantime.
+screenshots are replaced; the file says how.
+
+Until both files exist the section falls back to the hand-drawn swipe screen, so
+nothing breaks in the meantime. `vite.config.ts` checks for the pair at build
+time and hands the answer to the component, which keeps the fallback out of the
+prerendered HTML rather than shipping markup that points at missing files —
+which also means adding the screenshots needs a dev-server restart to show up.
