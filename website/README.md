@@ -19,27 +19,61 @@ hydration.
 
 ## Design system
 
-The site takes its colour and type from the app rather than inventing its own,
-so the two don't drift apart.
+The page is built out of the things a grocery run is actually made of, not a
+generic product-page kit: a handwritten list on a notepad, a yellow shelf-edge
+price strip, hanging aisle signs, shelf tags, a map of the drive home, and a
+till receipt. If a new section needs a visual, reach for the same shelf first.
 
-**Colour** is the app's aisle palette, copied from
-`Geolocation_v1.0.0/Theme/AllimColors.swift` (light values) into the `@theme`
-block at the top of `src/index.css`. Teal `#0B7285` is the brand; orange
-`#D94F16` is the accent and, as in the app, is used sparingly — reminders,
-"you're near <store>", unread counts. The nine grocery-category hues
-(`--color-produce`, `--color-dairy`, …) are the site's signature: they come
-from `GroceryCategory.palette` and appear as the aisle rail under the masthead,
-as the legend in the hero, and as the dot next to every feature. **If a colour
-changes in Swift, change it here and nowhere else.**
+**Colour.** Brand teal `#0B7285`, accent orange `#D94F16`, the ink tones and
+the nine grocery-category hues (`--color-produce`, `--color-dairy`, …) are the
+app's own, copied from `Geolocation_v1.0.0/Theme/AllimColors.swift` into the
+`@theme` block at the top of `src/index.css`. **If one changes in Swift, change
+it there too.** The paper tones (`canvas`, `paper`, `kraft`), shelf-tag yellow
+(`tag`) and pen blue (`pen`) belong to the site alone.
 
-**Type** is Commissioner, the face the app sets everything in
-(`OrganicTheme.swift`), loaded from Google Fonts in `index.html`. Three helper
-classes in `index.css` carry the hierarchy: `.display` for tight, heavy
-headlines, `.eyebrow` for the small tracked-out labels, `.figure` for the
-tabular numerals that index each section.
+**Type.** Three faces, loaded from Google Fonts in `index.html`:
+Commissioner (the app's typeface) for everything by default, with `.display`
+for the heavy, tightly tracked headlines; IBM Plex Mono (`.mono`) for shelf tags
+and the receipt; and Nanum Pen Script (`.hand`), a Korean handwriting face, for
+anything written by a person: the list, the timestamps, the section notes.
 
-There are deliberately **no icon-set icons**. Category dots, numerals and
-hairline rules do that work instead.
+Deliberately absent: tracked-out uppercase "eyebrow" labels over every heading,
+"01 / 02 / 03" section numbering, and icon-set icons. Those are what made the
+previous version read as a template.
+
+## Motion
+
+Animation is [GSAP](https://gsap.com) with ScrollTrigger, SplitText, DrawSVG
+and MotionPath, registered once in `src/lib/gsap.ts`. Each section runs its own
+`useGSAP` hook, scoped to the section's ref, so everything is cleaned up on
+unmount.
+
+| Section | What moves |
+| --- | --- |
+| Hero | Headline plays in word by word, the highlighter stroke draws under "the store", the notepad drops in and items are crossed off in pen, then the push banner drops onto the phone on a loop. The note and phone part at different speeds as you scroll away. |
+| Shelf strip | Marquee whose speed and direction follow your scroll velocity. |
+| Walk the aisles | At `lg` the section pins and the aisles walk sideways as you scroll down; each sign swings on its wires as it comes into view. |
+| How it works | Pinned at `md`+ and scrubbed: the pin drops, the list fills, the route draws and the car follows it (MotionPath) until it crosses the store's circle and the notification fires. |
+| A real Tuesday | Timestamps, copy and phones play in per beat; a pen line connecting them draws with scroll. |
+| The details | At `lg` one phone stays put and swaps screens as each block reaches the middle of the viewport. |
+| Download | Headline lines rise, and the receipt feeds out of the printer slot in steps. |
+| Navbar | Hides while scrolling down, comes back on scroll up. |
+
+Rules the motion follows:
+
+- **The prerendered HTML is always the finished page.** Every animation is a
+  `gsap.from`/`fromTo` applied on the client, so with JavaScript off the page is
+  complete and readable. The hero is the one exception: it's above the fold, so
+  it is held back with `.pre-reveal` (only when the inline script has added
+  `.js` to `<html>`) and a CSS fallback reveals it after 2.5s if the bundle
+  never runs.
+- **Reduced motion gets the static page.** Everything runs inside
+  `gsap.matchMedia()` against `MOTION_OK`. The two places where a reduced-motion
+  visitor still needs a result (the map's final frame, the sticky phone's screen
+  swap) set it without tweening.
+- **Pinned layouts degrade to normal ones.** Without the pin, the aisles are a
+  swipeable scroller at `lg` and a stack below it, and every "details" block
+  carries its own phone.
 
 ## Assets
 

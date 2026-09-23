@@ -13,7 +13,7 @@
 
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <meta name="theme-color" content="#f6f7f8" />
+    <meta name="theme-color" content="#f4f1ea" />
     <meta name="apple-mobile-web-app-title" content="Allim" />
 
     <meta property="og:type" content="website" />
@@ -31,15 +31,22 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Commissioner:wght@300;400;500;600;700;800&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Commissioner:wght@300;400;500;600;700;800;900&family=IBM+Plex+Mono:wght@400;500;600&family=Nanum+Pen+Script&display=swap"
       rel="stylesheet"
     />
+
+    <!-- Lets the stylesheet hold back the hero until GSAP plays it in, so the
+         prerendered headline doesn't paint, vanish, then animate. Without JS the
+         class never lands and nothing is ever hidden. -->
+    <script>
+      document.documentElement.classList.add("js");
+    </script>
 
     <style>
       html,
       body {
         margin: 0;
-        background-color: #f6f7f8;
+        background-color: #f4f1ea;
       }
       /* Painted only until the bundle hydrates the prerendered markup. The
          prerender step swaps this out, so it is seen almost exclusively on a
@@ -50,7 +57,7 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        background-color: #f6f7f8;
+        background-color: #f4f1ea;
       }
       #app-splash .mark {
         width: 44px;

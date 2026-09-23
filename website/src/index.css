@@ -1,22 +1,26 @@
 @import "tailwindcss";
 
 /* ---------------------------------------------------------------------------
-   The aisle palette, lifted verbatim from the app's own source of truth
-   (Geolocation_v1.0.0/Theme/AllimColors.swift, light values). The site and the
-   app should not be two different brands, so nothing here is invented: if a
-   colour changes in Swift, change it here and nowhere else.
+   Colour. Brand, accent, ink and the nine aisle hues are the app's own
+   (Geolocation_v1.0.0/Theme/AllimColors.swift, light values): if one changes in
+   Swift, change it here too. The paper tones are the site's alone. They are what
+   a grocery list is actually written on, and they keep the page from reading as
+   a cold product template.
    --------------------------------------------------------------------------- */
 @theme {
   /* Surfaces */
-  --color-canvas: #f6f7f8;
+  --color-canvas: #f4f1ea;
+  --color-paper: #fbf9f4;
+  --color-kraft: #e9e2d3;
   --color-card: #ffffff;
   --color-field: #eef0f2;
-  --color-line: #e3e6e9;
-  --color-line-strong: #ced4d9;
+  --color-line: #dcd6c9;
+  --color-line-strong: #c4bcab;
 
   /* Brand */
   --color-teal: #0b7285;
   --color-teal-deep: #075661;
+  --color-teal-night: #053f47;
   --color-wash: #e0f1f4;
   --color-on-wash: #075661;
 
@@ -24,13 +28,16 @@
   --color-orange: #d94f16;
   --color-orange-wash: #fceae1;
 
+  /* Shelf-tag yellow: the one colour every supermarket prices things in. */
+  --color-tag: #ffd84d;
+
   /* Ink */
   --color-ink: #16191c;
-  --color-ink-2: #5a6570;
-  --color-ink-3: #8a939c;
+  --color-ink-2: #545a60;
+  --color-ink-3: #8a8f94;
+  --color-pen: #1d3a8a;
 
-  /* The nine aisle hues. These are the app's category dots and they are the
-     one saturated thing the design allows itself besides the brand teal. */
+  /* The nine aisle hues. */
   --color-produce: #3fa96b;
   --color-dairy: #4c8dd6;
   --color-meat: #c4574f;
@@ -42,6 +49,10 @@
   --color-household: #8a7bc8;
 
   --font-sans: "Commissioner", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  /* Nanum Pen is a Korean handwriting face. Allim is Korean for "to inform",
+     so the handwriting on the page comes from the same place the name does. */
+  --font-hand: "Nanum Pen Script", "Bradley Hand", "Segoe Print", cursive;
 }
 
 /* ---------------------------------------------------------------------------
@@ -49,8 +60,7 @@
    --------------------------------------------------------------------------- */
 
 html {
-  scroll-behavior: smooth;
-  /* The sticky masthead is 4rem; stop anchored sections underneath it. */
+  /* The masthead is 4rem; stop anchored sections underneath it. */
   scroll-padding-top: 4rem;
 }
 
@@ -62,11 +72,25 @@ body {
   font-synthesis-weight: none;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  overflow-x: clip;
+}
+
+/* A faint paper grain over everything. Flat #f4f1ea reads as a screen colour;
+   with a little tooth it reads as a thing you could write on. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  pointer-events: none;
+  opacity: 0.35;
+  mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.35  0 0 0 0 0.3  0 0 0 0 0.22  0 0 0 0.09 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
 }
 
 ::selection {
-  background: var(--color-wash);
-  color: var(--color-teal-deep);
+  background: var(--color-tag);
+  color: var(--color-ink);
 }
 
 :focus-visible {
@@ -77,122 +101,184 @@ body {
 
 /* ---------------------------------------------------------------------------
    Type
-   Commissioner is the app's typeface. Display sizes want tight tracking and
-   optical alignment; the eyebrow labels want the opposite.
    --------------------------------------------------------------------------- */
 
 .display {
   font-weight: 800;
-  letter-spacing: -0.035em;
-  line-height: 0.98;
+  letter-spacing: -0.04em;
+  line-height: 0.95;
   text-wrap: balance;
 }
 
-.eyebrow {
-  font-size: 0.6875rem;
-  font-weight: 600;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
+.hand {
+  font-family: var(--font-hand);
+  font-weight: 400;
+  letter-spacing: 0;
+  line-height: 1;
 }
 
-/* Tabular figures for the numerals that index the sections. They are set as
-   ornament at large sizes, so they have to line up column to column. */
-.figure {
-  font-variant-numeric: tabular-nums;
-  font-feature-settings: "tnum" 1;
-  font-weight: 500;
-  letter-spacing: 0.02em;
+.mono {
+  font-family: var(--font-mono);
+  letter-spacing: 0.01em;
 }
 
-/* ---------------------------------------------------------------------------
-   The aisle rail — nine category hues as a specimen strip. Used as a section
-   rule so the palette itself does the dividing.
-   --------------------------------------------------------------------------- */
-.aisle-rail {
-  height: 3px;
-  background: linear-gradient(
-    to right,
-    var(--color-produce) 0 11.11%,
-    var(--color-dairy) 11.11% 22.22%,
-    var(--color-meat) 22.22% 33.33%,
-    var(--color-bakery) 33.33% 44.44%,
-    var(--color-pantry) 44.44% 55.55%,
-    var(--color-frozen) 55.55% 66.66%,
-    var(--color-beverages) 66.66% 77.77%,
-    var(--color-snacks) 77.77% 88.88%,
-    var(--color-household) 88.88% 100%
-  );
+/* A word in a headline marked the way you'd mark it on a list: a loose,
+   hand-drawn highlighter stroke behind it rather than a colour change. */
+.marker {
+  position: relative;
+  white-space: nowrap;
+  z-index: 0;
+}
+.marker > svg {
+  position: absolute;
+  left: -4%;
+  bottom: 0.02em;
+  width: 108%;
+  height: 0.42em;
+  z-index: -1;
+  overflow: visible;
 }
 
 /* ---------------------------------------------------------------------------
-   Motion. Deliberately sparse: one entrance transition, reused, and two
-   loops that only ever run inside a phone screen.
+   Hero reveal. With JS on, the pieces GSAP is about to play in start hidden so
+   the prerendered copy doesn't flash first. If the bundle never runs, the
+   fallback animation shows them anyway after a beat.
+   --------------------------------------------------------------------------- */
+.js .pre-reveal {
+  visibility: hidden;
+  animation: reveal-fallback 0s 2.5s forwards;
+}
+@keyframes reveal-fallback {
+  to {
+    visibility: visible;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .js .pre-reveal {
+    visibility: visible;
+    animation: none;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   The handwritten list in the hero: a notepad sheet with a ruled grid and a
+   torn top edge.
+   --------------------------------------------------------------------------- */
+.notepad {
+  background-color: var(--color-paper);
+  background-image:
+    linear-gradient(to right, transparent 38px, rgba(217, 79, 22, 0.35) 38px 39px, transparent 39px),
+    repeating-linear-gradient(to bottom, transparent 0 33px, rgba(76, 141, 214, 0.22) 33px 34px);
+  background-position: 0 0, 0 20px;
+  box-shadow:
+    0 1px 0 rgba(0, 0, 0, 0.04),
+    0 24px 40px -22px rgba(60, 48, 30, 0.45);
+}
+.notepad::before {
+  content: "";
+  position: absolute;
+  inset: -7px 0 auto 0;
+  height: 8px;
+  background: var(--color-paper);
+  mask: radial-gradient(circle at 5px 8px, transparent 4px, #000 4.5px) 0 0 / 10px 8px repeat-x;
+}
+
+/* ---------------------------------------------------------------------------
+   Shelf-edge strip: the yellow price rail under every supermarket shelf, used
+   as the running marquee.
+   --------------------------------------------------------------------------- */
+.shelf-strip {
+  background: var(--color-tag);
+  box-shadow:
+    inset 0 2px 0 rgba(0, 0, 0, 0.08),
+    inset 0 -3px 0 rgba(0, 0, 0, 0.12);
+}
+
+/* ---------------------------------------------------------------------------
+   A shelf tag: the little price card clipped to the shelf edge.
+   --------------------------------------------------------------------------- */
+.shelf-tag {
+  background: var(--color-tag);
+  color: var(--color-ink);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.15);
+}
+.shelf-tag.is-premium {
+  background: var(--color-card);
+  box-shadow:
+    inset 0 0 0 1.5px var(--color-ink),
+    0 1px 0 rgba(0, 0, 0, 0.15);
+}
+
+/* ---------------------------------------------------------------------------
+   Aisle signs hang from two wires, so they swing about the top edge.
+   --------------------------------------------------------------------------- */
+.aisle-sign {
+  transform-origin: 50% -40px;
+}
+
+/* At lg the aisles are one long row. GSAP pins the section and walks it
+   sideways (adding .is-pinned); without that — no JS, or reduced motion — it is
+   an ordinary horizontal scroller you can swipe or trackpad through. */
+@media (min-width: 1024px) {
+  .aisle-track-wrap {
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+  }
+  .aisle-track-wrap::-webkit-scrollbar {
+    display: none;
+  }
+  .aisle-panel {
+    scroll-snap-align: center;
+  }
+  .aisle-track-wrap.is-pinned {
+    overflow: visible;
+    scroll-snap-type: none;
+  }
+  .aisle-track-wrap:not(.is-pinned) + .aisle-meter {
+    visibility: hidden;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Closer look: one sticky phone at lg once JS can swap its screens; otherwise
+   every block keeps its own phone inline.
+   --------------------------------------------------------------------------- */
+.closer-sticky {
+  display: none;
+}
+@media (min-width: 1024px) {
+  .js .closer-sticky {
+    display: block;
+  }
+  .js .closer-inline {
+    display: none;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Receipt: thermal-paper white, zigzag tear on both ends.
+   --------------------------------------------------------------------------- */
+.receipt {
+  --tooth: 9px;
+  background: #fffdf8;
+  color: #23262a;
+  mask:
+    conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) bottom / calc(var(--tooth) * 2) var(--tooth) repeat-x,
+    conic-gradient(from 135deg at top, #0000, #000 1deg 89deg, #0000 90deg) top / calc(var(--tooth) * 2) var(--tooth) repeat-x,
+    linear-gradient(#000 0 0) center / 100% calc(100% - var(--tooth) * 2) no-repeat;
+}
+.receipt-rule {
+  border-top: 1.5px dashed rgba(35, 38, 42, 0.35);
+}
+
+/* ---------------------------------------------------------------------------
+   Loops that only ever run inside a phone screen.
    --------------------------------------------------------------------------- */
 
-.rise {
-  opacity: 0;
-  transform: translateY(18px);
-  transition:
-    opacity 620ms cubic-bezier(0.22, 1, 0.36, 1),
-    transform 620ms cubic-bezier(0.22, 1, 0.36, 1);
-  will-change: opacity, transform;
-}
-
-.rise.is-visible {
-  opacity: 1;
-  transform: none;
-}
-
-/* The banner slides in from above the screen and back out again, the way iOS
-   delivers one. It travels far enough to clear the top edge, where the phone
-   frame's overflow clips it — so it is either fully on screen or fully gone,
-   never dissolved at half opacity over the app's own header. */
-@keyframes nudge-in {
-  0%,
-  6% {
-    opacity: 0;
-    transform: translateY(-130%);
-  }
-  15%,
-  70% {
-    opacity: 1;
-    transform: translateY(0);
-  }
-  82%,
-  100% {
-    opacity: 0;
-    transform: translateY(-130%);
-  }
-}
-
-.nudge-in {
-  animation: nudge-in 7s cubic-bezier(0.32, 0.9, 0.32, 1) infinite;
-  will-change: opacity, transform;
-}
-
-@keyframes swipe-right {
-  0%,
-  12% {
-    transform: translateX(0);
-  }
-  38%,
-  72% {
-    transform: translateX(76px);
-  }
-  92%,
-  100% {
-    transform: translateX(0);
-  }
-}
-
-.swipe-right {
-  animation: swipe-right 3.6s cubic-bezier(0.65, 0, 0.35, 1) infinite;
-  will-change: transform;
-}
-
-/* The same beat, played on the real screenshots. The travel is set per-instance
-   in --swipe-travel, as a share of the phone's width, because it is measured off
-   the shots rather than chosen here. */
+/* The same swipe the app does, played on the real screenshots. The travel is
+   set per-instance in --swipe-travel, as a share of the phone's width, because
+   it is measured off the shots rather than chosen here. */
 @keyframes swipe-shot {
   0%,
   12% {
@@ -214,56 +300,8 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  html {
-    scroll-behavior: auto;
-  }
-  .rise {
-    opacity: 1;
-    transform: none;
-    transition: none;
-  }
-  .nudge-in {
-    animation: none;
-    opacity: 1;
-  }
-  .swipe-right {
-    animation: none;
-    transform: translateX(76px);
-  }
   .swipe-shot {
     animation: none;
     transform: translateX(var(--swipe-travel, 30%));
-  }
-}
-
-/* ---------------------------------------------------------------------------
-   The pinned feature stage. One viewport-height step per feature drives which
-   entry is lit; the panel itself holds still. Below lg the stage collapses and
-   every feature is laid out in normal flow.
-   --------------------------------------------------------------------------- */
-.feature-stage {
-  --step-height: 86vh;
-}
-
-@media (min-width: 1024px) {
-  .feature-stage {
-    /* Half a viewport of tail so the last step dwells like the others. */
-    height: calc(var(--step-count, 4) * var(--step-height) + 50vh);
-  }
-}
-
-.feature-step {
-  height: var(--step-height);
-}
-
-.feature-panel-item {
-  transition:
-    opacity 420ms cubic-bezier(0.22, 1, 0.36, 1),
-    transform 420ms cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .feature-panel-item {
-    transition: none;
   }
 }
