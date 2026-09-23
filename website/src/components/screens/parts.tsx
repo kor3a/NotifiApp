@@ -47,15 +47,6 @@ export function StoreLogo({
   );
 }
 
-/** The unread-count pill on a store row. Accent, as in the app. */
-export function CountBadge({ n }: { n: number }) {
-  return (
-    <span className="flex h-[21px] min-w-[21px] items-center justify-center rounded-full bg-orange px-1.5 text-[11px] font-semibold text-white">
-      {n}
-    </span>
-  );
-}
-
 /** An Allim push banner, drawn the way iOS stacks it over the screen. */
 export function PushBanner({
   title,
