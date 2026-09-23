@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from "react";
+import { animate } from "animejs";
+import { gsap, reducedMotion, useGsap } from "../lib/motion";
 
 const features = [
   {
@@ -39,6 +41,9 @@ export default function Features() {
   const [active, setActive] = useState(0);
   const [pinned, setPinned] = useState(false);
   const stepRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const itemRefs = useRef<(HTMLLIElement | null)[]>([]);
+  const stageRef = useRef<HTMLDivElement | null>(null);
+  const barRef = useRef<HTMLDivElement | null>(null);
 
   // The pinned panel only exists at lg and up. Track that so the cross-fade's
   // aria-hidden matches what is actually on screen.
@@ -72,9 +77,36 @@ export default function Features() {
     return () => observer.disconnect();
   }, [pinned]);
 
+  // The newly lit step nudges in — a small anime.js knock, not a re-layout.
+  useEffect(() => {
+    if (!pinned || reducedMotion()) return;
+    const el = itemRefs.current[active];
+    if (el) animate(el, { translateX: [-10, 0], duration: 480, easing: "easeOutCubic" });
+  }, [active, pinned]);
+
+  // A teal progress bar fills across the pinned panel as the four steps
+  // scroll past, scrubbed to the stage.
+  useGsap(() => {
+    gsap.fromTo(
+      barRef.current,
+      { scaleX: 0 },
+      {
+        scaleX: 1,
+        ease: "none",
+        scrollTrigger: {
+          trigger: stageRef.current,
+          start: "top 70%",
+          end: "bottom 55%",
+          scrub: 0.6,
+        },
+      }
+    );
+  });
+
   return (
     <section id="features" className="border-b border-line bg-canvas">
       <div
+        ref={stageRef}
         className="feature-stage relative"
         style={{ "--step-count": features.length } as React.CSSProperties}
       >
@@ -92,7 +124,14 @@ export default function Features() {
           ))}
         </div>
 
-        <div className="lg:sticky lg:top-16 lg:flex lg:h-[calc(100vh-4rem)] lg:items-center">
+        <div className="relative lg:sticky lg:top-16 lg:flex lg:h-[calc(100vh-4rem)] lg:items-center">
+          {/* Scroll progress across the pinned panel. */}
+          <div
+            ref={barRef}
+            className="absolute inset-x-0 top-0 hidden h-[2px] origin-left bg-teal lg:block"
+            aria-hidden="true"
+          />
+
           <div className="mx-auto w-full max-w-6xl px-6 py-20 lg:py-0">
             <div className="grid gap-14 lg:grid-cols-12 lg:gap-12">
               {/* The frame holds still while the copy swaps out. */}
@@ -108,7 +147,12 @@ export default function Features() {
                   {features.map((feature, index) => {
                     const isActive = index === active;
                     return (
-                      <li key={feature.n}>
+                      <li
+                        key={feature.n}
+                        ref={(el) => {
+                          itemRefs.current[index] = el;
+                        }}
+                      >
                         <div
                           className={`flex items-center gap-4 border-l-2 py-3 pl-5 transition-colors duration-300 ${
                             isActive ? "border-teal" : "border-line"
@@ -152,7 +196,7 @@ export default function Features() {
                     >
                       <div className="flex items-center gap-3 border-b border-line pb-4">
                         <span
-                          className={`h-2.5 w-2.5 rounded-full ${feature.dot}`}
+                          className={`feature-dot h-2.5 w-2.5 rounded-full ${feature.dot}`}
                           aria-hidden="true"
                         />
                         <span className="figure text-[13px] text-ink-3">{feature.n}</span>

@@ -1,9 +1,11 @@
 import type { ReactNode } from "react";
+import { animate, stagger } from "animejs";
 import PhoneFrame from "./PhoneFrame";
 import Rise from "./Rise";
 import ReminderScreen from "./screens/ReminderScreen";
 import ShareScreen from "./screens/ShareScreen";
 import SmartRecipeScreen from "./screens/SmartRecipeScreen";
+import { ScrollTrigger, gsap, useGsap } from "../lib/motion";
 
 type Row = {
   id: string;
@@ -90,6 +92,45 @@ const rows: Row[] = [
 ];
 
 export default function CloserLook() {
+  useGsap(() => {
+    /* Each row's copy and phone slide in from opposite sides; the bullet
+       points then cascade with anime.js. */
+    gsap.utils.toArray<HTMLElement>(".cl-row").forEach((row) => {
+      const text = row.querySelector(".cl-text") as HTMLElement;
+      const phone = row.querySelector(".cl-phone") as HTMLElement;
+      const points = row.querySelectorAll(".cl-point");
+      const dir = row.dataset.flip === "1" ? 1 : -1;
+
+      gsap.set(text, { opacity: 0, x: -56 * dir });
+      gsap.set(phone, { opacity: 0, x: 56 * dir, rotation: 4 * dir });
+      gsap.set(points, { opacity: 0 });
+
+      ScrollTrigger.create({
+        trigger: row,
+        start: "top 76%",
+        once: true,
+        onEnter: () => {
+          gsap.to(text, { opacity: 1, x: 0, duration: 1, ease: "power3.out" });
+          gsap.to(phone, {
+            opacity: 1,
+            x: 0,
+            rotation: 0,
+            duration: 1.15,
+            delay: 0.14,
+            ease: "power3.out",
+          });
+          animate(points, {
+            opacity: [0, 1],
+            translateX: [-16, 0],
+            delay: stagger(110, { start: 420 }),
+            duration: 560,
+            easing: "easeOutCubic",
+          });
+        },
+      });
+    });
+  });
+
   return (
     <section id="capabilities" className="border-b border-line bg-canvas py-20 md:py-28">
       <div className="mx-auto max-w-6xl px-6">
@@ -101,10 +142,10 @@ export default function CloserLook() {
           {rows.map((row, index) => {
             const flipped = index % 2 === 1;
             return (
-              <div key={row.id} className="py-16 md:py-20">
+              <div key={row.id} className="cl-row py-16 md:py-20" data-flip={flipped ? "1" : "0"}>
                 <div className="grid items-center gap-12 lg:grid-cols-12 lg:gap-16">
-                  <Rise
-                    className={`lg:col-span-6 ${flipped ? "lg:order-2 lg:col-start-7" : ""}`}
+                  <div
+                    className={`cl-text lg:col-span-6 ${flipped ? "lg:order-2 lg:col-start-7" : ""}`}
                   >
                     <div className="flex items-baseline gap-4">
                       <span className="figure text-[13px] text-ink-3">
@@ -122,7 +163,7 @@ export default function CloserLook() {
 
                     <dl className="mt-9 space-y-6">
                       {row.points.map((point) => (
-                        <div key={point.title} className="border-l-2 border-line pl-5">
+                        <div key={point.title} className="cl-point border-l-2 border-line pl-5">
                           <dt className="flex items-center gap-2.5 text-[15px] font-semibold text-ink">
                             <span
                               className={`h-[7px] w-[7px] shrink-0 rounded-full ${point.dot}`}
@@ -136,16 +177,15 @@ export default function CloserLook() {
                         </div>
                       ))}
                     </dl>
-                  </Rise>
+                  </div>
 
-                  <Rise
-                    delay={140}
-                    className={`flex justify-center lg:col-span-5 ${
+                  <div
+                    className={`cl-phone flex justify-center lg:col-span-5 ${
                       flipped ? "lg:order-1 lg:col-start-1" : "lg:col-start-8"
                     }`}
                   >
                     <PhoneFrame>{row.screen}</PhoneFrame>
-                  </Rise>
+                  </div>
                 </div>
               </div>
             );

@@ -1,4 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { animate, stagger } from "animejs";
+import { gsap, reducedMotion, useGsap, useIsoLayoutEffect } from "../lib/motion";
 import { APP_STORE_URL } from "../constants/links";
 
 const links = [
@@ -11,6 +13,8 @@ const links = [
 
 export default function Navbar() {
   const [open, setOpen] = useState(false);
+  const headerRef = useRef<HTMLElement | null>(null);
+  const railRef = useRef<HTMLDivElement | null>(null);
 
   // Lock the page while the mobile sheet is up, or the sheet scrolls the
   // masthead off behind it.
@@ -23,10 +27,63 @@ export default function Navbar() {
     };
   }, [open]);
 
+  // Mobile sheet links cascade in with anime.js.
+  useEffect(() => {
+    if (!open || reducedMotion()) return;
+    animate(".mobile-link", {
+      opacity: [0, 1],
+      translateX: [-14, 0],
+      delay: stagger(55),
+      duration: 420,
+      easing: "easeOutCubic",
+    });
+  }, [open]);
+
+  useGsap(() => {
+    const header = headerRef.current!;
+    const rail = railRef.current!;
+
+    // Hide on scroll down, return on scroll up.
+    let lastY = window.scrollY;
+    const onScroll = () => {
+      const y = window.scrollY;
+      if (y > 140 && y > lastY + 4) {
+        gsap.to(header, { yPercent: -112, duration: 0.4, ease: "power2.out", overwrite: "auto" });
+      } else if (y < lastY - 4 || y <= 140) {
+        gsap.to(header, { yPercent: 0, duration: 0.4, ease: "power2.out", overwrite: "auto" });
+      }
+      lastY = y;
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+
+    // The aisle rail draws itself across the top as you read the page.
+    gsap.fromTo(
+      rail,
+      { scaleX: 0 },
+      {
+        scaleX: 1,
+        ease: "none",
+        scrollTrigger: { start: 0, end: "max", scrub: 0.4 },
+      }
+    );
+
+    return () => window.removeEventListener("scroll", onScroll);
+  });
+
+  // Keep the masthead pinned while the sheet is open.
+  useIsoLayoutEffect(() => {
+    if (open && headerRef.current && !reducedMotion()) {
+      gsap.set(headerRef.current, { yPercent: 0 });
+    }
+  }, [open ]);
+
   return (
-    <header className="fixed inset-x-0 top-0 z-50">
-      {/* The aisle rail runs the full width of the page, above everything. */}
-      <div className="aisle-rail" aria-hidden="true" />
+    <header ref={headerRef} className="fixed inset-x-0 top-0 z-50">
+      {/* The aisle rail runs the full width of the page, above everything —
+          and draws itself across as you scroll. */}
+      <div aria-hidden="true">
+        <div ref={railRef} className="aisle-rail origin-left" />
+      </div>
 
       <nav className="border-b border-line bg-canvas/92 backdrop-blur-md">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
@@ -48,7 +105,7 @@ export default function Navbar() {
               <a
                 key={link.href}
                 href={link.href}
-                className="text-[14px] font-medium text-ink-2 transition-colors hover:text-teal"
+                className="nav-link text-[14px] font-medium text-ink-2 transition-colors hover:text-teal"
               >
                 {link.label}
               </a>
@@ -95,7 +152,7 @@ export default function Navbar() {
                 key={link.href}
                 href={link.href}
                 onClick={() => setOpen(false)}
-                className="block border-b border-line py-4 text-[17px] font-medium text-ink last:border-b-0"
+                className="mobile-link block border-b border-line py-4 text-[17px] font-medium text-ink last:border-b-0"
               >
                 {link.label}
               </a>
@@ -105,7 +162,7 @@ export default function Navbar() {
               target="_blank"
               rel="noopener noreferrer"
               onClick={() => setOpen(false)}
-              className="my-4 block rounded-[3px] bg-teal py-3.5 text-center text-[16px] font-semibold text-white"
+              className="mobile-link my-4 block rounded-[3px] bg-teal py-3.5 text-center text-[16px] font-semibold text-white"
             >
               Get Allim
             </a>

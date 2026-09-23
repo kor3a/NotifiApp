@@ -1,3 +1,4 @@
+import Rise from "./Rise";
 import { SUPPORT_EMAIL } from "../constants/links";
 
 const topics = [
@@ -49,10 +50,12 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section className="border-t border-line py-10">
-      <h2 className="eyebrow mb-6 text-teal">{title}</h2>
-      {children}
-    </section>
+    <Rise>
+      <section className="border-t border-line py-10">
+        <h2 className="eyebrow mb-6 text-teal">{title}</h2>
+        {children}
+      </section>
+    </Rise>
   );
 }
 
@@ -90,17 +93,19 @@ export default function SupportPage() {
       </div>
 
       <main className="mx-auto max-w-3xl px-6 pb-24">
-        <header className="py-16">
-          <p className="eyebrow text-ink-3">Support</p>
-          <h1 className="display mt-5 text-[clamp(2.2rem,7vw,3.25rem)] text-ink">
-            Something not firing?
-          </h1>
-          <p className="mt-6 max-w-xl text-[17px] leading-relaxed text-ink-2">
-            Allim (Korean for &ldquo;to inform&rdquo;) saves your stores, keeps a
-            grocery list for each, and alerts you when you&apos;re nearby. Almost
-            every problem below comes down to a permission iOS never granted.
-          </p>
-        </header>
+        <Rise>
+          <header className="py-16">
+            <p className="eyebrow text-ink-3">Support</p>
+            <h1 className="display mt-5 text-[clamp(2.2rem,7vw,3.25rem)] text-ink">
+              Something not firing?
+            </h1>
+            <p className="mt-6 max-w-xl text-[17px] leading-relaxed text-ink-2">
+              Allim (Korean for &ldquo;to inform&rdquo;) saves your stores, keeps a
+              grocery list for each, and alerts you when you&apos;re nearby. Almost
+              every problem below comes down to a permission iOS never granted.
+            </p>
+          </header>
+        </Rise>
 
         <Section title="Contact">
           <dl className="grid gap-6 sm:grid-cols-2">
@@ -174,11 +179,13 @@ export default function SupportPage() {
           </p>
         </Section>
 
-        <p className="border-t border-line pt-10">
-          <a href="/" className="text-[15px] text-ink-2 transition-colors hover:text-teal">
-            ← Back to allim
-          </a>
-        </p>
+        <Rise>
+          <p className="border-t border-line pt-10">
+            <a href="/" className="text-[15px] text-ink-2 transition-colors hover:text-teal">
+              ← Back to allim
+            </a>
+          </p>
+        </Rise>
       </main>
     </div>
   );

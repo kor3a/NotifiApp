@@ -125,49 +125,64 @@ body {
 }
 
 /* ---------------------------------------------------------------------------
-   Motion. Deliberately sparse: one entrance transition, reused, and two
-   loops that only ever run inside a phone screen.
+   Motion. GSAP owns scroll-linked and timeline animation; anime.js owns
+   micro-interactions. Both are client-only and set their initial hidden
+   states inside effects — never in CSS — so the server always renders
+   everything visible, hydration matches, and prefers-reduced-motion users
+   get the static page. The only CSS loops left are the two phone-screen
+   loops, which the reduced-motion block below stills.
    --------------------------------------------------------------------------- */
 
-.rise {
-  opacity: 0;
-  transform: translateY(18px);
-  transition:
-    opacity 620ms cubic-bezier(0.22, 1, 0.36, 1),
-    transform 620ms cubic-bezier(0.22, 1, 0.36, 1);
-  will-change: opacity, transform;
+/* Masked reveals: the mask clips, the inner line travels. GSAP sets the
+   starting offsets, so no-JS and reduced-motion readers see full text. */
+.hero-mask {
+  display: block;
+  overflow: hidden;
 }
 
-.rise.is-visible {
-  opacity: 1;
-  transform: none;
+.hero-line {
+  display: block;
+  will-change: transform;
 }
 
-/* The banner slides in from above the screen and back out again, the way iOS
-   delivers one. It travels far enough to clear the top edge, where the phone
-   frame's overflow clips it — so it is either fully on screen or fully gone,
-   never dissolved at half opacity over the app's own header. */
-@keyframes nudge-in {
-  0%,
-  6% {
-    opacity: 0;
-    transform: translateY(-130%);
-  }
-  15%,
-  70% {
-    opacity: 1;
-    transform: translateY(0);
-  }
-  82%,
-  100% {
-    opacity: 0;
-    transform: translateY(-130%);
-  }
+.dl-mask {
+  display: inline-block;
+  overflow: hidden;
+  vertical-align: bottom;
 }
 
-.nudge-in {
-  animation: nudge-in 7s cubic-bezier(0.32, 0.9, 0.32, 1) infinite;
-  will-change: opacity, transform;
+.dl-word {
+  display: inline-block;
+  will-change: transform;
+}
+
+/* The Smart Category ticker. GSAP translates the track -50% on a loop; the
+   two identical rows (equal box, padding included) make the seam invisible. */
+.marquee {
+  overflow: hidden;
+}
+
+.marquee-track {
+  display: flex;
+  width: max-content;
+  will-change: transform;
+}
+
+.marquee-row {
+  display: flex;
+  align-items: center;
+  gap: 2.75rem;
+  padding: 0.85rem 2.75rem;
+}
+
+.marquee-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-ink-2);
+  white-space: nowrap;
 }
 
 @keyframes swipe-right {
@@ -216,15 +231,6 @@ body {
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
-  }
-  .rise {
-    opacity: 1;
-    transform: none;
-    transition: none;
-  }
-  .nudge-in {
-    animation: none;
-    opacity: 1;
   }
   .swipe-right {
     animation: none;
