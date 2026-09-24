@@ -110,6 +110,10 @@ re-exporting the screenshots at another resolution leaves them correct as long
 as the aspect holds. Replace the pair with a differently cropped one and they
 need re-measuring; the file says how they were derived.
 
+The three PNGs were captured while the app showed iOS's hidden system tab bar
+peeking out under its own `OrganicTabBar`, so that ghost bar has been painted
+out of them below the real one. Recapture them once the app no longer shows it.
+
 All shots come out of the app at 920x2000, which `screens/shot.ts` turns into
 the bezel size so no image is ever stretched.
 
