@@ -134,7 +134,7 @@ const aisles: Aisle[] = [
     stocks: "Produce · Dairy · Bakery",
     kicker: "Already in walking order.",
     description:
-      "Groceries sort themselves into aisles as you add them, so by the time you're pushing a cart the list reads front of store to back.",
+      "Groceries sort themselves into categories as you add them, so by the time you're pushing a cart the list reads front of store to back.",
     premium: true,
     shelf: <CategoryShelf />,
   },
