@@ -1,7 +1,7 @@
 import type { CSSProperties } from "react";
 
 import PhoneFrame from "../PhoneFrame";
-import { SHOT, SHOT_FRAME } from "./shot";
+import { SCREEN_WIDTH, SHOT, SHOT_FRAME, shotSources } from "./shot";
 
 /* ---------------------------------------------------------------------------
    The swipe, played from two real screenshots.
@@ -22,23 +22,35 @@ import { SHOT, SHOT_FRAME } from "./shot";
    them correct; only the aspect has to hold.
    --------------------------------------------------------------------------- */
 
-const REST = "/allim-swipe-rest.png";
-const ACTION = "/allim-swipe-action.png";
+const REST = shotSources("allim-swipe-rest");
+const ACTION = shotSources("allim-swipe-action");
 
 const ROW = { top: 340 / 2000, height: 176 / 2000 };
-const TRAVEL = 203 / 920;
+
+/* The travel in whole CSS px (59 of the 268 drawn). As a percentage it came to
+   59.14px, and the row then spent every hold of the loop parked off the pixel
+   grid, where the browser resamples it and the row's text goes soft next to
+   the rest of the screenshot. The 0.14px it gives up is invisible. */
+const TRAVEL_PX = Math.round((203 / 920) * SCREEN_WIDTH);
+
+/* Everything below is laid out in whole px of the drawn screen, for the same
+   reason as the travel: the band's strip of screenshot has to land on exactly
+   the pixels of the full shot behind it, or it reads softer than its
+   surroundings. */
+const SCREEN_HEIGHT = SHOT_FRAME.height - (SHOT_FRAME.width - SCREEN_WIDTH);
+const BAND_TOP = Math.round(ROW.top * SCREEN_HEIGHT);
 
 const band = {
-  top: `${ROW.top * 100}%`,
-  height: `${ROW.height * 100}%`,
+  top: `${BAND_TOP}px`,
+  height: `${Math.round(ROW.height * SCREEN_HEIGHT)}px`,
 };
 
 /* The clipped band shows one row of a full-height screenshot, so the image
-   inside it is blown up to the whole screen's height and pulled up until the
-   row lands in view. */
+   inside it is the whole screen's height, pulled up until the row lands in
+   view. */
 const inBand = {
-  height: `${(1 / ROW.height) * 100}%`,
-  top: `${-(ROW.top / ROW.height) * 100}%`,
+  height: `${SCREEN_HEIGHT}px`,
+  top: `${-BAND_TOP}px`,
 };
 
 const ALT =
@@ -46,11 +58,11 @@ const ALT =
   "“On My Way” action that tells everyone on that list you're heading there.";
 
 /** The full screenshot, positioned so the swiped row fills the clipped band. */
-function BandShot({ src }: { src: string }) {
+function BandShot({ shot }: { shot: ReturnType<typeof shotSources> }) {
   return (
     <div className="absolute inset-x-0" style={inBand}>
       <img
-        src={src}
+        {...shot}
         width={SHOT.width}
         height={SHOT.height}
         alt=""
@@ -68,7 +80,7 @@ export default function SwipePhone() {
       <div className="relative h-full w-full overflow-hidden">
         {/* The list at rest, carrying its own status bar and home indicator. */}
         <img
-          src={REST}
+          {...REST}
           width={SHOT.width}
           height={SHOT.height}
           alt={ALT}
@@ -82,14 +94,14 @@ export default function SwipePhone() {
         <div className="absolute inset-x-0 overflow-hidden" style={band} aria-hidden="true">
           {/* Underneath: the swiped shot, so what the slide uncovers is the real
               action button rather than a re-drawn one. */}
-          <BandShot src={ACTION} />
+          <BandShot shot={ACTION} />
 
           {/* On top: the same row at rest, sliding right off the action. */}
           <div
             className="swipe-shot absolute inset-0"
-            style={{ "--swipe-travel": `${TRAVEL * 100}%` } as CSSProperties}
+            style={{ "--swipe-travel": `${TRAVEL_PX}px` } as CSSProperties}
           >
-            <BandShot src={REST} />
+            <BandShot shot={REST} />
           </div>
         </div>
       </div>

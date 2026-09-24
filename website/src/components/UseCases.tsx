@@ -47,7 +47,7 @@ const beats = [
     desc: "Mom, Dad and Sarah put things on the shared Walmart list as they run out. Milk, sourdough, paper towels.",
     phone: (
       <ShotPhone
-        src="/allim-reminderview.png"
+        shot="allim-reminderview"
         alt="A shared Walmart list in Allim, sorted into Bakery, Dairy, Office & Stationery and Produce, each item marked with the initial of whoever added it."
       />
     ),

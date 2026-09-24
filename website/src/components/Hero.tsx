@@ -3,12 +3,13 @@ import { gsap, MOTION_OK, SplitText, useGSAP } from "../lib/gsap";
 import AppStoreButton from "./AppStoreButton";
 import PhoneFrame from "./PhoneFrame";
 import { PushBanner } from "./screens/parts";
+import { shotSources } from "./screens/shot";
 
 /* The hero phone is a real screenshot of the app: the actual stores list, with
    the real retailer marks the app pulls in. It carries its own status bar and
    Dynamic Island, so the frame draws neither, and the bezel is sized to the
    image's 920x2000 so nothing is stretched. */
-const SHOT = { src: "/allim-stores-screen.webp", width: 920, height: 2000 };
+const SHOT = { ...shotSources("allim-stores-screen"), width: 920, height: 2000 };
 
 // 274 - 6px of bezel = 268 of screen; 268 / (920/2000) = 583 of screen height.
 const FRAME = { width: 274, height: 589 };
@@ -194,6 +195,8 @@ export default function Hero() {
               >
                 <img
                   src={SHOT.src}
+                  srcSet={SHOT.srcSet}
+                  sizes={SHOT.sizes}
                   width={SHOT.width}
                   height={SHOT.height}
                   alt="The Allim stores screen: Costco Wholesale, Walmart, Trader Joe's, H Mart and other saved stores, each showing how many groceries are still on its list."

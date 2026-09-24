@@ -1,8 +1,9 @@
 import PhoneFrame from "../PhoneFrame";
-import { SHOT, SHOT_FRAME } from "./shot";
+import { SHOT, SHOT_FRAME, shotSources } from "./shot";
 
 interface Props {
-  src: string;
+  /** The screenshot's file name in public/, without its extension. */
+  shot: string;
   alt: string;
 }
 
@@ -10,11 +11,11 @@ interface Props {
  * A phone holding nothing but a screenshot. The shot carries the app's own
  * status bar and home indicator, so the frame draws neither.
  */
-export default function ShotPhone({ src, alt }: Props) {
+export default function ShotPhone({ shot, alt }: Props) {
   return (
     <PhoneFrame chrome={false} width={SHOT_FRAME.width} height={SHOT_FRAME.height}>
       <img
-        src={src}
+        {...shotSources(shot)}
         width={SHOT.width}
         height={SHOT.height}
         alt={alt}
