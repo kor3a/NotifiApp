@@ -5,7 +5,6 @@ import { gsap, MOTION_OK, ScrollTrigger, useGSAP } from "../lib/gsap";
 const links = [
   { label: "What it does", href: "#features" },
   { label: "How it works", href: "#how-it-works" },
-  { label: "A real Tuesday", href: "#story" },
   { label: "Details", href: "#capabilities" },
   { label: "FAQ", href: "#faq" },
 ];

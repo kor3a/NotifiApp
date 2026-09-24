@@ -1,5 +1,6 @@
 import { useRef } from "react";
-import { gsap, useGSAP } from "../lib/gsap";
+import { animate, stagger } from "animejs";
+import { gsap, MOTION_OK, SplitText, useGSAP } from "../lib/gsap";
 import { PushBanner } from "./screens/parts";
 
 const steps = [
@@ -125,6 +126,42 @@ function RouteMap() {
 export default function HowItWorks() {
   const root = useRef<HTMLElement>(null);
 
+  // The heading, on its own trigger so it plays as the section scrolls into
+  // view rather than riding the pinned, scrubbed map timeline. GSAP lifts the
+  // first line out of its word masks; anime.js drives the second in from the
+  // left, skidding a little as it brakes.
+  useGSAP(
+    () => {
+      const mm = gsap.matchMedia();
+      mm.add(MOTION_OK, () => {
+        const setup = SplitText.create(".hiw-line-1", { type: "words,chars", mask: "words", aria: "none" });
+        const drive = SplitText.create(".hiw-line-2", { type: "words,chars", aria: "none" });
+        gsap.set(drive.chars, { opacity: 0 });
+
+        const pullIn = animate(drive.chars, {
+          opacity: [0, 1],
+          x: [-48, 0],
+          skewX: [-24, 0],
+          duration: 900,
+          delay: stagger(28),
+          ease: "out(4)",
+          autoplay: false,
+        });
+
+        const tl = gsap.timeline({ scrollTrigger: { trigger: ".hiw-title", start: "top 80%", once: true } });
+        tl.from(setup.chars, { yPercent: 110, duration: 0.8, stagger: 0.022, ease: "power4.out" })
+          .call(() => void pullIn.play(), [], "-=0.45");
+
+        return () => {
+          pullIn.revert();
+          drive.revert();
+          setup.revert();
+        };
+      });
+    },
+    { scope: root },
+  );
+
   useGSAP(
     () => {
       const mm = gsap.matchMedia();
@@ -208,9 +245,12 @@ export default function HowItWorks() {
       <div className="mx-auto w-full max-w-6xl px-6 py-24 md:py-16">
         <div className="grid items-center gap-12 md:grid-cols-12 md:gap-10">
           <div className="md:col-span-5">
-            <h2 className="display text-[clamp(2.3rem,5vw,3.6rem)]">
-              You set it up once.
-              <span className="block text-white/55">Then you just drive home.</span>
+            <h2
+              className="hiw-title display text-[clamp(2.3rem,5vw,3.6rem)]"
+              aria-label="You set it up once. Then you just drive home."
+            >
+              <span className="hiw-line-1 block">You set it up once.</span>
+              <span className="hiw-line-2 block text-white/55">Then you just drive home.</span>
             </h2>
 
             <ol className="mt-10 space-y-1">
