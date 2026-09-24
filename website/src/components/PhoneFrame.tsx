@@ -19,6 +19,9 @@ interface Props {
    *  passes its own so the image isn't stretched to a different aspect. */
   width?: number;
   height?: number;
+  /** Shrink to the container when it's narrower than `width`, keeping the
+   *  aspect, instead of spilling out of it. */
+  fluid?: boolean;
 }
 
 export default function PhoneFrame({
@@ -32,6 +35,7 @@ export default function PhoneFrame({
   chrome = true,
   width = 274,
   height = 560,
+  fluid = false,
 }: Props) {
   const light = statusBarTone === "light";
   const tone = light ? "text-white/90" : "text-ink/80";
@@ -43,7 +47,10 @@ export default function PhoneFrame({
   const inset = screenClassName ?? (chrome ? "pt-9" : "");
 
   return (
-    <div className={`relative mx-auto ${className}`} style={{ width, height }}>
+    <div
+      className={`relative mx-auto ${className}`}
+      style={fluid ? { width: `min(${width}px, 100%)`, aspectRatio: `${width} / ${height}` } : { width, height }}
+    >
       <div className="absolute inset-0 rounded-[42px] bg-ink shadow-[0_18px_40px_-16px_rgba(22,25,28,0.35)]">
         <div
           className={`absolute inset-[3px] overflow-hidden rounded-[39px] ${screenBackgroundClassName}`}

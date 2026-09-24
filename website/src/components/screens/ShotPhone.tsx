@@ -13,7 +13,7 @@ interface Props {
  */
 export default function ShotPhone({ shot, alt }: Props) {
   return (
-    <PhoneFrame chrome={false} width={SHOT_FRAME.width} height={SHOT_FRAME.height}>
+    <PhoneFrame chrome={false} width={SHOT_FRAME.width} height={SHOT_FRAME.height} fluid>
       <img
         {...shotSources(shot)}
         width={SHOT.width}

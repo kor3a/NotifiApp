@@ -1,23 +1,23 @@
 /* ---------------------------------------------------------------------------
    Pre-shrink the device screenshots to the sizes the phones actually draw.
 
-   Every phone on the page shows its screenshot 268 CSS px wide, less than a
-   third of the 920px the app exports. Left to the browser, that shrink happens
+   Every phone on the page shows its screenshot at most 345 CSS px wide, well
+   under the 920px the app exports. Left to the browser, that shrink happens
    at paint time with a fast filter, and on a 1x screen the app's smaller text
-   (tab labels, subtitles) comes out 5-6px tall and smudged. Doing it here with
-   Lanczos, at exactly 1x, 2x and 3x the drawn width, keeps it legible; the
-   components pick one through srcset.
+   (tab labels, subtitles) comes out smudged. Doing it here with Lanczos, at
+   exactly 1x and 2x the drawn width (and the full 920 for denser screens),
+   keeps it legible; the components pick one through srcset.
 
    Runs at the start of every build, so a replaced screenshot can't leave stale
    copies behind. Output is committed so `npm run dev` works without it.
    --------------------------------------------------------------------------- */
 
-import { mkdir } from "node:fs/promises";
+import { mkdir, rm } from "node:fs/promises";
 import sharp from "sharp";
 
-// Mirrors SCREEN_WIDTH in src/components/screens/shot.ts.
-const SCREEN_WIDTH = 268;
-const DENSITIES = [1, 2, 3];
+// Mirrors SCREEN_WIDTH and SHOT_WIDTHS in src/components/screens/shot.ts.
+const SCREEN_WIDTH = 345;
+const WIDTHS = [SCREEN_WIDTH, SCREEN_WIDTH * 2, 920];
 
 const SOURCES = [
   "allim-stores-screen.webp",
@@ -27,22 +27,29 @@ const SOURCES = [
 ];
 
 const out = new URL("../public/shots/", import.meta.url);
+// Start clean, so copies at a size no longer used don't linger.
+await rm(out, { recursive: true, force: true });
 await mkdir(out, { recursive: true });
 
 for (const file of SOURCES) {
   const src = new URL(`../public/${file}`, import.meta.url).pathname;
   const name = file.replace(/\.\w+$/, "");
 
-  for (const density of DENSITIES) {
-    const width = SCREEN_WIDTH * density;
+  for (const width of WIDTHS) {
     const resized = sharp(src).resize({ width, kernel: "lanczos3" });
-    // At 1x the smallest labels are 5-6px tall; a light sharpen brings their
+    // At 1x the smallest labels are only ~8px tall; a light sharpen brings their
     // strokes back without haloing. Denser copies have the pixels to not need it.
-    if (density === 1) resized.sharpen({ sigma: 0.5 });
+    if (width === SCREEN_WIDTH) resized.sharpen({ sigma: 0.5 });
     await resized
-      // Screenshots are flat UI and text: near-lossless keeps edges clean at a
-      // fraction of PNG's size, where lossy WebP would smear coloured text.
-      .webp({ nearLossless: true, quality: 80, effort: 6 })
+      .webp(
+        width === 920
+          ? // Only 3x phone screens get this one, where lossy WebP's softening
+            // is far below a pixel; near-lossless would triple its weight.
+            { quality: 90, smartSubsample: true, effort: 6 }
+          : // Screenshots are flat UI and text: near-lossless keeps edges clean
+            // at a fraction of PNG's size, where lossy would smear coloured text.
+            { nearLossless: true, quality: 80, effort: 6 },
+      )
       .toFile(new URL(`${name}-${width}.webp`, out).pathname);
   }
 }

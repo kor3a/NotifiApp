@@ -3,16 +3,13 @@ import { gsap, MOTION_OK, SplitText, useGSAP } from "../lib/gsap";
 import AppStoreButton from "./AppStoreButton";
 import PhoneFrame from "./PhoneFrame";
 import { PushBanner } from "./screens/parts";
-import { shotSources } from "./screens/shot";
+import { SHOT_FRAME, shotSources } from "./screens/shot";
 
 /* The hero phone is a real screenshot of the app: the actual stores list, with
    the real retailer marks the app pulls in. It carries its own status bar and
    Dynamic Island, so the frame draws neither, and the bezel is sized to the
    image's 920x2000 so nothing is stretched. */
 const SHOT = { ...shotSources("allim-stores-screen"), width: 920, height: 2000 };
-
-// 274 - 6px of bezel = 268 of screen; 268 / (920/2000) = 583 of screen height.
-const FRAME = { width: 274, height: 589 };
 
 /** The list on the fridge, the thing Allim replaces. `done` gets a pen line
  *  through it once the hero has played in; `circled` gets a ring. */
@@ -176,11 +173,15 @@ export default function Hero() {
               </p>
             </div>
 
-            <div className="hero-phone pre-reveal relative z-10 mt-20 translate-x-[30%] sm:translate-x-[36%] lg:mt-0 lg:translate-x-0">
+            <div
+              className="hero-phone pre-reveal relative z-10 mt-20 translate-x-[17%] sm:translate-x-[36%] lg:mt-0 lg:translate-x-0"
+              style={{ width: `min(${SHOT_FRAME.width}px, 100%)` }}
+            >
               <PhoneFrame
                 chrome={false}
-                width={FRAME.width}
-                height={FRAME.height}
+                width={SHOT_FRAME.width}
+                height={SHOT_FRAME.height}
+                fluid
                 screenBackgroundClassName="bg-canvas"
                 overlay={
                   /* Where iOS drops a banner: clear of the Dynamic Island, over

@@ -8,28 +8,36 @@
 
 export const SHOT = { width: 920, height: 2000 };
 
-/** What PhoneFrame draws on every side, and its default outer width. */
+/** What PhoneFrame draws on every side. */
 const BEZEL = 3;
-const WIDTH = 274;
 
-/** How wide every screenshot is drawn, in CSS px. scripts/shots.mjs mirrors it. */
-export const SCREEN_WIDTH = WIDTH - BEZEL * 2;
+/**
+ * How wide every screenshot is drawn, in CSS px, when there's room for it; on
+ * narrower screens the phone shrinks to fit. 345 is a multiple of 23, so with
+ * the shots' 23:50 aspect the screen comes out a whole 750px tall and the swipe
+ * band can sit on whole pixels. scripts/shots.mjs mirrors it.
+ */
+export const SCREEN_WIDTH = 345;
 
 export const SHOT_FRAME = {
-  width: WIDTH,
+  width: SCREEN_WIDTH + BEZEL * 2,
   height: Math.round((SCREEN_WIDTH * SHOT.height) / SHOT.width) + BEZEL * 2,
 };
 
+/** The widths scripts/shots.mjs writes: 1x and 2x, then the source itself,
+ *  since 3x would be past what the app exported. */
+export const SHOT_WIDTHS = [SCREEN_WIDTH, SCREEN_WIDTH * 2, SHOT.width];
+
 /**
- * The copies of a screenshot that scripts/shots.mjs pre-shrinks to 1x, 2x and
- * 3x the drawn width, so the browser never has to shrink 920px to 268 itself.
- * `name` is the file in public/ without its extension.
+ * The copies of a screenshot that scripts/shots.mjs pre-shrinks, so the
+ * browser never has to shrink the 920px export itself. `name` is the file in
+ * public/ without its extension.
  */
 export function shotSources(name: string) {
-  const at = (density: number) => `/shots/${name}-${SCREEN_WIDTH * density}.webp`;
+  const at = (width: number) => `/shots/${name}-${width}.webp`;
   return {
-    src: at(2),
-    srcSet: [1, 2, 3].map((d) => `${at(d)} ${SCREEN_WIDTH * d}w`).join(", "),
-    sizes: `${SCREEN_WIDTH}px`,
+    src: at(SCREEN_WIDTH * 2),
+    srcSet: SHOT_WIDTHS.map((w) => `${at(w)} ${w}w`).join(", "),
+    sizes: `(max-width: ${SHOT_FRAME.width + 48}px) calc(100vw - 54px), ${SCREEN_WIDTH}px`,
   };
 }
