@@ -47,7 +47,7 @@ const beats = [
     desc: "Mom, Dad and Sarah put things on the shared Walmart list as they run out. Milk, sourdough, paper towels.",
     phone: (
       <ShotPhone
-        src="/allim-reminderview.png"
+        shot="allim-reminderview"
         alt="A shared Walmart list in Allim, sorted into Bakery, Dairy, Office & Stationery and Produce, each item marked with the initial of whoever added it."
       />
     ),
@@ -70,6 +70,7 @@ const beats = [
         screenBackgroundClassName="bg-teal-deep"
         width={SHOT_FRAME.width}
         height={SHOT_FRAME.height}
+        fluid
       >
         <LockScreen />
       </PhoneFrame>
@@ -151,7 +152,7 @@ export default function UseCases() {
             />
           </svg>
 
-          <ol className="relative grid gap-20 md:grid-cols-3 md:gap-8">
+          <ol className="relative grid gap-20 md:grid-cols-3 md:gap-6">
             {beats.map((beat, i) => (
               <li
                 key={beat.when}

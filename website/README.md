@@ -110,5 +110,17 @@ re-exporting the screenshots at another resolution leaves them correct as long
 as the aspect holds. Replace the pair with a differently cropped one and they
 need re-measuring; the file says how they were derived.
 
+The three PNGs were captured while the app showed iOS's hidden system tab bar
+peeking out under its own `OrganicTabBar`, so that ghost bar has been painted
+out of them below the real one. Recapture them once the app no longer shows it.
+
 All shots come out of the app at 920x2000, which `screens/shot.ts` turns into
 the bezel size so no image is ever stretched.
+
+The page never loads those originals directly. They're drawn only 268 CSS px
+wide, and a browser shrinking 920px to that at paint time smudges the app's
+smaller text on 1x screens, so `npm run shots` (`scripts/shots.mjs`) pre-shrinks
+each one with Lanczos to 1x, 2x and 3x that width in `public/shots/`, and the
+phones pick one through `srcset`. It runs at the start of every build; run it by
+hand after replacing a screenshot to see the change under `npm run dev`. A new
+screenshot also needs adding to its `SOURCES` list.
