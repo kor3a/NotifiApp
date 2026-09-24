@@ -13,6 +13,7 @@
    --------------------------------------------------------------------------- */
 
 import { mkdir, rm } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
 import sharp from "sharp";
 
 // Mirrors SCREEN_WIDTH and SHOT_WIDTHS in src/components/screens/shot.ts.
@@ -32,7 +33,9 @@ await rm(out, { recursive: true, force: true });
 await mkdir(out, { recursive: true });
 
 for (const file of SOURCES) {
-  const src = new URL(`../public/${file}`, import.meta.url).pathname;
+  // fileURLToPath, not .pathname: on Windows that keeps a leading slash
+  // before the drive letter ("/C:/...") and sharp can't find the file.
+  const src = fileURLToPath(new URL(`../public/${file}`, import.meta.url));
   const name = file.replace(/\.\w+$/, "");
 
   for (const width of WIDTHS) {
@@ -50,6 +53,6 @@ for (const file of SOURCES) {
             // at a fraction of PNG's size, where lossy would smear coloured text.
             { nearLossless: true, quality: 80, effort: 6 },
       )
-      .toFile(new URL(`${name}-${width}.webp`, out).pathname);
+      .toFile(fileURLToPath(new URL(`${name}-${width}.webp`, out)));
   }
 }
