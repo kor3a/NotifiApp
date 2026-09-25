@@ -437,6 +437,164 @@ final class BackgroundPreferencesTests: XCTestCase {
         XCTAssertEqual(reloaded.shadeLevel(for: .reminders(storeId: "store-1")), -0.3, accuracy: 0.0001)
     }
 
+    // MARK: - Card Opacity on Photos
+
+    func testCardOpacity_isNilWithoutAPhoto() {
+        preferences.setBackgroundColor(.ocean, for: .stores)
+
+        XCTAssertNil(preferences.cardOpacity(for: .stores, colorScheme: .light))
+        XCTAssertNil(preferences.cardOpacity(for: .stores, colorScheme: .dark))
+    }
+
+    /// Light Mode puts dark text on a white card, so a dark photo needs far
+    /// more card between it and the text than a bright one does.
+    func testCardOpacity_darkPhotoNeedsMoreCardInLightMode() throws {
+        let dark = BackgroundSurface.reminders(storeId: "dark")
+        let bright = BackgroundSurface.reminders(storeId: "bright")
+        XCTAssertTrue(preferences.setBackgroundImage(from: try sampleImageData(width: 64, height: 64, color: .black), for: dark))
+        XCTAssertTrue(preferences.setBackgroundImage(from: try sampleImageData(width: 64, height: 64, color: .white), for: bright))
+
+        let darkOpacity = try XCTUnwrap(preferences.cardOpacity(for: dark, colorScheme: .light))
+        let brightOpacity = try XCTUnwrap(preferences.cardOpacity(for: bright, colorScheme: .light))
+
+        XCTAssertGreaterThan(darkOpacity, brightOpacity)
+        XCTAssertEqual(brightOpacity, PhotoCardLegibility.minOpacity, accuracy: 0.001)
+    }
+
+    /// Dark Mode is the mirror image: light text on a dark card struggles on a
+    /// bright photo.
+    func testCardOpacity_brightPhotoNeedsMoreCardInDarkMode() throws {
+        let dark = BackgroundSurface.reminders(storeId: "dark")
+        let bright = BackgroundSurface.reminders(storeId: "bright")
+        XCTAssertTrue(preferences.setBackgroundImage(from: try sampleImageData(width: 64, height: 64, color: .black), for: dark))
+        XCTAssertTrue(preferences.setBackgroundImage(from: try sampleImageData(width: 64, height: 64, color: .white), for: bright))
+
+        let darkOpacity = try XCTUnwrap(preferences.cardOpacity(for: dark, colorScheme: .dark))
+        let brightOpacity = try XCTUnwrap(preferences.cardOpacity(for: bright, colorScheme: .dark))
+
+        XCTAssertGreaterThan(brightOpacity, darkOpacity)
+        XCTAssertEqual(darkOpacity, PhotoCardLegibility.minOpacity, accuracy: 0.001)
+    }
+
+    /// Fading the photo does part of the card's job, so the card can let more
+    /// of the photo through — and moving the slider must re-solve, not hand
+    /// back the value cached for the old fade.
+    func testCardOpacity_fallsAsThePhotoIsFaded() throws {
+        XCTAssertTrue(preferences.setBackgroundImage(from: try sampleImageData(width: 64, height: 64, color: .black), for: .stores))
+
+        preferences.setDimLevel(0, for: .stores)
+        let unfaded = try XCTUnwrap(preferences.cardOpacity(for: .stores, colorScheme: .light))
+
+        preferences.setDimLevel(0.5, for: .stores)
+        let faded = try XCTUnwrap(preferences.cardOpacity(for: .stores, colorScheme: .light))
+
+        XCTAssertLessThan(faded, unfaded)
+    }
+
+    func testCardOpacity_staysWithinBounds() throws {
+        for color in [UIColor.black, .white, .gray, .systemBlue, .systemOrange] {
+            XCTAssertTrue(preferences.setBackgroundImage(from: try sampleImageData(width: 32, height: 32, color: color), for: .stores))
+            for dim in [0, 0.3, BackgroundPreferences.maxDimLevel] {
+                preferences.setDimLevel(dim, for: .stores)
+                for scheme in [ColorScheme.light, .dark] {
+                    let opacity = try XCTUnwrap(preferences.cardOpacity(for: .stores, colorScheme: scheme))
+                    XCTAssertGreaterThanOrEqual(opacity, PhotoCardLegibility.minOpacity)
+                    XCTAssertLessThanOrEqual(opacity, PhotoCardLegibility.maxOpacity)
+                }
+            }
+        }
+    }
+
+    /// A new photo must be re-read rather than keep the old photo's answer.
+    func testCardOpacity_followsAReplacedPhoto() throws {
+        XCTAssertTrue(preferences.setBackgroundImage(from: try sampleImageData(width: 64, height: 64, color: .white), for: .stores))
+        let bright = try XCTUnwrap(preferences.cardOpacity(for: .stores, colorScheme: .light))
+
+        XCTAssertTrue(preferences.setBackgroundImage(from: try sampleImageData(width: 64, height: 64, color: .black), for: .stores))
+        let dark = try XCTUnwrap(preferences.cardOpacity(for: .stores, colorScheme: .light))
+
+        XCTAssertGreaterThan(dark, bright)
+
+        preferences.removeBackgroundImage(for: .stores)
+        XCTAssertNil(preferences.cardOpacity(for: .stores, colorScheme: .light))
+    }
+
+    /// Apply to All Stores copies the photo and its fade, so every store's
+    /// rows should come out exactly like the source's.
+    func testCardOpacity_matchesAcrossStoresAfterApplyingToAll() throws {
+        let source = BackgroundSurface.stores
+        let targets = [BackgroundSurface.reminders(storeId: "a"), .reminders(storeId: "b")]
+        XCTAssertTrue(preferences.setBackgroundImage(from: try sampleImageData(width: 64, height: 64, color: .darkGray), for: source))
+        preferences.setDimLevel(0.2, for: source)
+        let expected = try XCTUnwrap(preferences.cardOpacity(for: source, colorScheme: .light))
+
+        XCTAssertTrue(preferences.applyBackground(from: source, to: targets))
+
+        for target in targets {
+            let opacity = try XCTUnwrap(preferences.cardOpacity(for: target, colorScheme: .light))
+            XCTAssertEqual(opacity, expected, accuracy: 0.001)
+        }
+    }
+
+    /// Whatever opacity the solve settles on (short of its ceiling), both
+    /// text tiers must actually clear their contrast targets on it.
+    func testCardOpacity_meetsContrastTargets() {
+        let card = SIMD3<Double>(1, 1, 1)
+        let primary = PhotoCardLegibility.luminance(SIMD3<Double>(0x16, 0x19, 0x1C) / 255)
+        let secondary = PhotoCardLegibility.luminance(SIMD3<Double>(0x5A, 0x65, 0x70) / 255)
+
+        for grey in stride(from: 0.0, through: 1.0, by: 0.1) {
+            let tones = BackgroundPhotoTones(cells: [SIMD3(repeating: grey)])
+            let opacity = PhotoCardLegibility.cardOpacity(for: tones, dimLevel: 0, colorScheme: .light)
+            guard opacity < PhotoCardLegibility.maxOpacity else { continue }
+
+            let backdrop = card * opacity + SIMD3(repeating: grey) * (1 - opacity)
+            let blended = PhotoCardLegibility.luminance(backdrop)
+            XCTAssertGreaterThanOrEqual(
+                PhotoCardLegibility.contrast(blended, primary), PhotoCardLegibility.primaryContrast - 0.01,
+                "Primary text unreadable over grey \(grey)"
+            )
+            XCTAssertGreaterThanOrEqual(
+                PhotoCardLegibility.contrast(blended, secondary), PhotoCardLegibility.secondaryContrast - 0.01,
+                "Secondary text unreadable over grey \(grey)"
+            )
+        }
+    }
+
+    /// One small bright spot shouldn't turn every card solid.
+    func testCardOpacity_ignoresASmallHighlight() {
+        var cells = Array(repeating: SIMD3<Double>(repeating: 0.05), count: 100)
+        cells[0] = SIMD3(repeating: 1)
+        let mostlyDark = BackgroundPhotoTones(cells: cells)
+        let allDark = BackgroundPhotoTones(cells: Array(repeating: SIMD3(repeating: 0.05), count: 100))
+
+        XCTAssertEqual(
+            PhotoCardLegibility.cardOpacity(for: mostlyDark, dimLevel: 0, colorScheme: .dark),
+            PhotoCardLegibility.cardOpacity(for: allDark, dimLevel: 0, colorScheme: .dark),
+            accuracy: 0.001
+        )
+    }
+
+    func testPhotoTones_readsASolidColor() throws {
+        let format = UIGraphicsImageRendererFormat.default()
+        format.scale = 1
+        format.preferredRange = .standard
+        let size = CGSize(width: 100, height: 60)
+        let image = UIGraphicsImageRenderer(size: size, format: format).image { context in
+            UIColor(red: 1, green: 0, blue: 0, alpha: 1).setFill()
+            context.fill(CGRect(origin: .zero, size: size))
+        }
+
+        let tones = try XCTUnwrap(BackgroundPhotoTones(image: image))
+
+        XCTAssertEqual(tones.cells.count, BackgroundPhotoTones.gridSize * BackgroundPhotoTones.gridSize)
+        for cell in tones.cells {
+            XCTAssertEqual(cell.x, 1, accuracy: 0.03)
+            XCTAssertEqual(cell.y, 0, accuracy: 0.03)
+            XCTAssertEqual(cell.z, 0, accuracy: 0.03)
+        }
+    }
+
     // MARK: - Reset
 
     func testReset_clearsOnlyTheGivenSurface() throws {

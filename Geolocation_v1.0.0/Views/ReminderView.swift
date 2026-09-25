@@ -96,6 +96,12 @@ struct ReminderView: View {
         subscriptionManager.isSubscribed
     }
 
+    /// This store's own background — the screen behind the list and the cards
+    /// in it both follow it.
+    private var backgroundSurface: BackgroundSurface {
+        .reminders(storeId: userStoreItem.id)
+    }
+
     /// Smart Category is active only when the user is subscribed AND has the toggle enabled.
     private var effectiveSmartCategoryEnabled: Bool {
         isSubscribed && smartCategoryEnabled
@@ -277,7 +283,7 @@ struct ReminderView: View {
                 // Keyed to this store's user_store document, so each store's
                 // list keeps its own look.
                 BackgroundPickerView(
-                    surface: .reminders(storeId: userStoreItem.id),
+                    surface: backgroundSurface,
                     title: userStoreItem.store.name,
                     // Lets the picker offer this look to every other store's
                     // list; this store is filtered out on the other side.
@@ -414,7 +420,7 @@ struct ReminderView: View {
             // canvas. It sits here rather than on the list so the empty
             // and loading states stand on the same ground.
             SurfaceBackground(
-                surface: .reminders(storeId: userStoreItem.id),
+                surface: backgroundSurface,
                 systemDefault: OrganicPalette.canvas(colorScheme)
             )
 
@@ -947,7 +953,9 @@ struct ReminderView: View {
         )
         .padding(.horizontal, 16)
         .padding(.vertical, 14)
-        .background(OrganicCardBackground(colorScheme: colorScheme, cornerRadius: 20))
+        // Solid on a color, frosted on a photo at whatever opacity keeps the
+        // item readable over this store's background.
+        .background(SurfaceCardBackground(surface: backgroundSurface, cornerRadius: 20))
         .contentShape(Rectangle())
         .organicRow()
         .opacity(fadingReminderIds.contains(reminder.id) ? 0 : 1)
@@ -1050,7 +1058,7 @@ struct ReminderView: View {
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 14)
-            .background(OrganicCardBackground(colorScheme: colorScheme, cornerRadius: 20))
+            .background(SurfaceCardBackground(surface: backgroundSurface, cornerRadius: 20))
             .organicRow()
             .id("inlineAddRow")
             .onAppear {

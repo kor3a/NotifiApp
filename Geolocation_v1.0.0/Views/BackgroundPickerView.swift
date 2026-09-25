@@ -225,11 +225,28 @@ struct BackgroundPickerView: View {
             Spacer()
         }
         .padding(10)
-        .background(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(OrganicPalette.surface(colorScheme))
-                .shadow(color: OrganicPalette.shadow(colorScheme), radius: 6, x: 0, y: 2)
-        )
+        .background {
+            if let previewCardOpacity {
+                PhotoCardBackground(opacity: previewCardOpacity, colorScheme: colorScheme, cornerRadius: 18)
+            } else {
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .fill(OrganicPalette.surface(colorScheme))
+                    .shadow(color: OrganicPalette.shadow(colorScheme), radius: 6, x: 0, y: 2)
+            }
+        }
+    }
+
+    /// The opacity the real rows will take over the chosen photo, so the Fade
+    /// slider shows the cards adjusting as it moves. Conversations draw
+    /// bubbles rather than cards, so their preview stays solid.
+    private var previewCardOpacity: Double? {
+        guard selectedPhoto != nil else { return nil }
+        switch surface {
+        case .stores, .reminders:
+            return preferences.cardOpacity(for: surface, colorScheme: colorScheme)
+        case .conversation:
+            return nil
+        }
     }
 
     // MARK: - Photo
@@ -351,12 +368,21 @@ struct BackgroundPickerView: View {
                 )
             }
 
-            Text("Fade the photo so your stores stay easy to read.")
+            Text(fadeHint)
                 .font(.system(size: 12))
                 .foregroundColor(OrganicPalette.inkSoft(colorScheme))
                 .padding(.leading, 38)
         }
         .padding(14)
+    }
+
+    private var fadeHint: String {
+        switch surface {
+        case .stores, .reminders:
+            return "Your rows see through to the photo as far as they can while staying easy to read. Fade the photo for a softer look."
+        case .conversation:
+            return "Fade the photo so your messages stay easy to read."
+        }
     }
 
     // MARK: - Swatches

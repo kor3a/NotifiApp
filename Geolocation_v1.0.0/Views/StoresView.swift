@@ -515,11 +515,14 @@ struct StoresView: View {
     /// The full rectangular store row — the store info on its own card.
     /// Used as the Button label so the entire block (not just the text)
     /// participates in the press animation.
+    ///
+    /// The card follows the Stores background: solid on a color, frosted on a
+    /// photo at whatever opacity keeps the store name readable over it.
     @ViewBuilder
     private func storeRowCard(for userStoreItem: UserStoreItem) -> some View {
         StoreItemView(store: userStoreItem.store, isShared: userStoreItem.isShared)
             .contentShape(Rectangle())
-            .background(OrganicCardBackground(colorScheme: colorScheme))
+            .background(SurfaceCardBackground(surface: .stores))
     }
 
     // MARK: - List Content

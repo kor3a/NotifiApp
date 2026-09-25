@@ -258,6 +258,186 @@ extension Color {
     }
 }
 
+// MARK: - Card Legibility on Photos
+
+/// A coarse read of a background photo: the average color of each cell in a
+/// small grid laid over it.
+///
+/// That is all the card-opacity solve needs. The cards on a photo frost what's
+/// behind them, so the text on a card is never set against the photo's fine
+/// detail — only against its blurred tones, which is what a cell average is.
+struct BackgroundPhotoTones: Equatable {
+    /// Cells per side. 24 × 24 is enough to find a bright sky or a dark
+    /// doorway anywhere in the frame while staying a trivial amount of work.
+    static let gridSize = 24
+
+    /// sRGB-encoded components of each cell, 0...1.
+    let cells: [SIMD3<Double>]
+
+    init(cells: [SIMD3<Double>]) {
+        self.cells = cells
+    }
+
+    /// Averages the image down to the grid. Returns `nil` for an image with
+    /// no bitmap behind it.
+    init?(image: UIImage, gridSize: Int = BackgroundPhotoTones.gridSize) {
+        guard let cgImage = image.cgImage,
+              gridSize > 0,
+              let colorSpace = CGColorSpace(name: CGColorSpace.sRGB) else {
+            return nil
+        }
+
+        let bytesPerRow = gridSize * 4
+        var pixels = [UInt8](repeating: 0, count: bytesPerRow * gridSize)
+        let drew: Bool = pixels.withUnsafeMutableBytes { buffer in
+            guard let context = CGContext(
+                data: buffer.baseAddress,
+                width: gridSize,
+                height: gridSize,
+                bitsPerComponent: 8,
+                bytesPerRow: bytesPerRow,
+                space: colorSpace,
+                bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue
+            ) else {
+                return false
+            }
+            // High quality averages the pixels a cell covers rather than
+            // point-sampling one of them, which a 1600-to-24 reduction needs.
+            context.interpolationQuality = .high
+            context.draw(cgImage, in: CGRect(x: 0, y: 0, width: gridSize, height: gridSize))
+            return true
+        }
+        guard drew else { return nil }
+
+        var cells: [SIMD3<Double>] = []
+        cells.reserveCapacity(gridSize * gridSize)
+        for index in stride(from: 0, to: pixels.count, by: 4) {
+            cells.append(SIMD3(
+                Double(pixels[index]) / 255,
+                Double(pixels[index + 1]) / 255,
+                Double(pixels[index + 2]) / 255
+            ))
+        }
+        self.cells = cells
+    }
+}
+
+/// Works out how opaque a card has to be for its text to stay readable over a
+/// background photo — and no more opaque than that, so as much of the photo
+/// shows through as the text allows.
+///
+/// A fixed opacity can't do this: a pale beach needs almost nothing behind
+/// the text, while a night skyline in Light Mode needs nearly a solid card.
+/// So the solve reads the photo as the user will actually see it — after the
+/// Fade scrim — and finds, for each part of it, the lowest opacity at which
+/// both the primary and the secondary text on a card still meet their contrast
+/// targets. The card takes the opacity nearly every part of the photo is happy
+/// with, so one small highlight doesn't turn every card solid.
+enum PhotoCardLegibility {
+    /// WCAG AAA for the row's name — the thing the eye actually reads.
+    static let primaryContrast: Double = 7
+    /// WCAG AA for the quieter line under it (counts, quantities, who added it).
+    static let secondaryContrast: Double = 4.5
+
+    /// Below this a card stops reading as a card and turns into a smudge, even
+    /// on a photo pale enough that the text would survive with less.
+    static let minOpacity: Double = 0.4
+    /// Keeps a hint of the photo even on the hardest backgrounds. The frosting
+    /// under the card makes up the last few percent of contrast.
+    static let maxOpacity: Double = 0.94
+
+    /// Share of the photo the chosen opacity has to satisfy. The rest is
+    /// small enough — a sun glint, a lamp — that the frosting under the card
+    /// softens it into its surroundings.
+    static let coverage: Double = 0.95
+
+    /// The opacity a card should be drawn at over `tones`, faded by `dimLevel`.
+    static func cardOpacity(
+        for tones: BackgroundPhotoTones,
+        dimLevel: Double,
+        colorScheme: ColorScheme
+    ) -> Double {
+        guard !tones.cells.isEmpty else { return maxOpacity }
+
+        let isDark = colorScheme == .dark
+        let card = components(isDark ? AllimColor.card.dark : AllimColor.card.light)
+        let primary = luminance(components(isDark ? AllimColor.textPrimary.dark : AllimColor.textPrimary.light))
+        let secondary = luminance(components(isDark ? AllimColor.textSecondary.dark : AllimColor.textSecondary.light))
+
+        // `BackgroundPhoto`'s scrim: white in Light Mode, black in Dark Mode.
+        let dim = min(max(dimLevel, 0), 1)
+        let veil = SIMD3<Double>(repeating: isDark ? 0 : 1)
+
+        let texts: [(luminance: Double, target: Double)] = [
+            (primary, primaryContrast),
+            (secondary, secondaryContrast),
+        ]
+
+        let required = tones.cells
+            .map { cell -> Double in
+                let faded = cell * (1 - dim) + veil * dim
+                return minimumOpacity(over: faded, card: card, textLuminances: texts)
+            }
+            .sorted()
+
+        let index = min(Int((Double(required.count) * coverage).rounded(.up)) - 1, required.count - 1)
+        return min(max(required[max(index, 0)], minOpacity), maxOpacity)
+    }
+
+    /// The lowest opacity at which `card` laid over `backdrop` gives every text
+    /// color its target contrast.
+    ///
+    /// Blending is done on the encoded values, which is how Core Animation
+    /// composites. Contrast only grows as the card closes in on its own color,
+    /// so a bisection finds the threshold.
+    static func minimumOpacity(
+        over backdrop: SIMD3<Double>,
+        card: SIMD3<Double>,
+        textLuminances: [(luminance: Double, target: Double)]
+    ) -> Double {
+        func isReadable(at opacity: Double) -> Bool {
+            let blended = luminance(card * opacity + backdrop * (1 - opacity))
+            return textLuminances.allSatisfy { contrast(blended, $0.luminance) >= $0.target }
+        }
+
+        if isReadable(at: 0) { return 0 }
+        guard isReadable(at: 1) else { return 1 }
+
+        var low = 0.0
+        var high = 1.0
+        for _ in 0..<14 {
+            let mid = (low + high) / 2
+            if isReadable(at: mid) {
+                high = mid
+            } else {
+                low = mid
+            }
+        }
+        return high
+    }
+
+    /// WCAG relative luminance of sRGB-encoded components.
+    static func luminance(_ rgb: SIMD3<Double>) -> Double {
+        func linear(_ value: Double) -> Double {
+            value <= 0.04045 ? value / 12.92 : pow((value + 0.055) / 1.055, 2.4)
+        }
+        return 0.2126 * linear(rgb.x) + 0.7152 * linear(rgb.y) + 0.0722 * linear(rgb.z)
+    }
+
+    /// WCAG contrast ratio between two relative luminances.
+    static func contrast(_ first: Double, _ second: Double) -> Double {
+        (max(first, second) + 0.05) / (min(first, second) + 0.05)
+    }
+
+    private static func components(_ hex: UInt32) -> SIMD3<Double> {
+        SIMD3(
+            Double((hex >> 16) & 0xFF) / 255,
+            Double((hex >> 8) & 0xFF) / 255,
+            Double(hex & 0xFF) / 255
+        )
+    }
+}
+
 // MARK: - Preferences Store
 
 /// Stores each surface's background choice locally on the device.
@@ -285,6 +465,20 @@ final class BackgroundPreferences: ObservableObject {
     /// Decoded photos, kept in memory so the background doesn't hit the disk on
     /// every re-render. Cleared for a surface whenever its photo changes.
     private var imageCache: [String: UIImage] = [:]
+
+    /// Each photo's tones, read once and kept for the card-opacity solve.
+    /// Cleared alongside `imageCache`.
+    private var toneCache: [String: BackgroundPhotoTones] = [:]
+
+    /// Solved card opacities per surface, keyed by appearance and fade. The
+    /// solve is cheap, but every row on screen asks for it on every render.
+    private var cardOpacityCache: [String: [CardOpacityKey: Double]] = [:]
+
+    private struct CardOpacityKey: Hashable {
+        let isDark: Bool
+        /// The fade in hundredths — finer than the slider can meaningfully set.
+        let dim: Int
+    }
 
     /// Bumped on every change so views observing this object re-render.
     @Published private var revision: Int = 0
@@ -386,6 +580,7 @@ final class BackgroundPreferences: ObservableObject {
         }
 
         imageCache[surface.storageSuffix] = image
+        forgetPhotoAnalysis(for: surface)
         // A photo replaces any solid color, mirroring setBackgroundColor.
         defaults.removeObject(forKey: surface.colorStorageKey)
         revision &+= 1
@@ -407,6 +602,7 @@ final class BackgroundPreferences: ObservableObject {
 
     private func deleteImageFile(for surface: BackgroundSurface) {
         imageCache[surface.storageSuffix] = nil
+        forgetPhotoAnalysis(for: surface)
         guard let url = imageURL(for: surface) else { return }
         try? FileManager.default.removeItem(at: url)
     }
@@ -446,6 +642,42 @@ final class BackgroundPreferences: ObservableObject {
     func setDimLevel(_ level: Double, for surface: BackgroundSurface) {
         defaults.set(min(max(level, 0), Self.maxDimLevel), forKey: surface.dimStorageKey)
         revision &+= 1
+    }
+
+    // MARK: - Card Opacity
+
+    /// How opaque the cards on a surface should be so their text stays readable
+    /// over its photo, or `nil` when the surface has no photo and cards are
+    /// drawn solid as usual.
+    ///
+    /// Follows the Fade level, so dragging the slider re-solves it live.
+    func cardOpacity(for surface: BackgroundSurface, colorScheme: ColorScheme) -> Double? {
+        guard let image = backgroundImage(for: surface) else { return nil }
+
+        let dim = dimLevel(for: surface)
+        let key = CardOpacityKey(isDark: colorScheme == .dark, dim: Int((dim * 100).rounded()))
+        if let cached = cardOpacityCache[surface.storageSuffix]?[key] {
+            return cached
+        }
+
+        guard let tones = photoTones(for: surface, image: image) else {
+            return PhotoCardLegibility.maxOpacity
+        }
+        let opacity = PhotoCardLegibility.cardOpacity(for: tones, dimLevel: dim, colorScheme: colorScheme)
+        cardOpacityCache[surface.storageSuffix, default: [:]][key] = opacity
+        return opacity
+    }
+
+    private func photoTones(for surface: BackgroundSurface, image: UIImage) -> BackgroundPhotoTones? {
+        if let cached = toneCache[surface.storageSuffix] { return cached }
+        guard let tones = BackgroundPhotoTones(image: image) else { return nil }
+        toneCache[surface.storageSuffix] = tones
+        return tones
+    }
+
+    private func forgetPhotoAnalysis(for surface: BackgroundSurface) {
+        toneCache[surface.storageSuffix] = nil
+        cardOpacityCache[surface.storageSuffix] = nil
     }
 
     // MARK: - Shade
@@ -520,6 +752,9 @@ final class BackgroundPreferences: ObservableObject {
                     continue
                 }
                 imageCache[target.storageSuffix] = photo
+                // Same photo, same tones — every store's cards come out the
+                // same without each one re-reading the image.
+                toneCache[target.storageSuffix] = toneCache[source.storageSuffix]
                 defaults.removeObject(forKey: target.colorStorageKey)
                 defaults.set(dim, forKey: target.dimStorageKey)
             } else {
@@ -570,6 +805,8 @@ final class BackgroundPreferences: ObservableObject {
         }
 
         imageCache.removeAll()
+        toneCache.removeAll()
+        cardOpacityCache.removeAll()
         if let directory = imageDirectory {
             try? FileManager.default.removeItem(at: directory)
         }
@@ -652,6 +889,60 @@ struct BackgroundPhoto: View {
                         .opacity(dimLevel)
                 )
         }
+    }
+}
+
+/// The card behind a row on a screen the user can put a photo behind.
+///
+/// Without a photo it is exactly `OrganicCardBackground`. On a photo it turns
+/// into frosted glass: the photo blurred behind it, the card's own color on
+/// top at whatever opacity `PhotoCardLegibility` says keeps the row's text
+/// readable over that particular photo at its current Fade, and a hairline
+/// where the shadow was — a shadow under a see-through card shows through it
+/// as a grey smear.
+///
+/// Gated on the subscription the same way `SurfaceBackground` is, so a lapsed
+/// photo falls back to solid cards along with the backdrop behind them.
+struct SurfaceCardBackground: View {
+    let surface: BackgroundSurface
+    var cornerRadius: CGFloat = 24
+
+    @Environment(\.colorScheme) private var colorScheme
+    @ObservedObject private var preferences = BackgroundPreferences.shared
+    @ObservedObject private var subscriptionManager = SubscriptionManager.shared
+
+    private var photoOpacity: Double? {
+        guard subscriptionManager.isSubscribed else { return nil }
+        return preferences.cardOpacity(for: surface, colorScheme: colorScheme)
+    }
+
+    var body: some View {
+        if let photoOpacity {
+            PhotoCardBackground(
+                opacity: photoOpacity,
+                colorScheme: colorScheme,
+                cornerRadius: cornerRadius
+            )
+        } else {
+            OrganicCardBackground(colorScheme: colorScheme, cornerRadius: cornerRadius)
+        }
+    }
+}
+
+/// The frosted card `SurfaceCardBackground` draws over a photo, split out so
+/// the background picker's preview can show the same card at the same opacity.
+struct PhotoCardBackground: View {
+    let opacity: Double
+    let colorScheme: ColorScheme
+    var cornerRadius: CGFloat = 24
+
+    var body: some View {
+        let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+        shape
+            .fill(OrganicPalette.surface(colorScheme).opacity(opacity))
+            .background(.ultraThinMaterial, in: shape)
+            .overlay(shape.strokeBorder(OrganicPalette.outline(colorScheme), lineWidth: 0.5))
+            .animation(.easeInOut(duration: 0.2), value: opacity)
     }
 }
 
