@@ -516,7 +516,7 @@ struct StoresView: View {
     /// Used as the Button label so the entire block (not just the text)
     /// participates in the press animation.
     ///
-    /// The card follows the Stores background: solid on a color, frosted on a
+    /// The card follows the Stores background: solid on a color, see-through on a
     /// photo at whatever opacity keeps the store name readable over it.
     @ViewBuilder
     private func storeRowCard(for userStoreItem: UserStoreItem) -> some View {

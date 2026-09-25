@@ -953,7 +953,7 @@ struct ReminderView: View {
         )
         .padding(.horizontal, 16)
         .padding(.vertical, 14)
-        // Solid on a color, frosted on a photo at whatever opacity keeps the
+        // Solid on a color, see-through on a photo at whatever opacity keeps the
         // item readable over this store's background.
         .background(SurfaceCardBackground(surface: backgroundSurface, cornerRadius: 20))
         .contentShape(Rectangle())

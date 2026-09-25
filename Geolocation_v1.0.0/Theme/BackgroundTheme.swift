@@ -263,9 +263,9 @@ extension Color {
 /// A coarse read of a background photo: the average color of each cell in a
 /// small grid laid over it.
 ///
-/// That is all the card-opacity solve needs. The cards on a photo frost what's
-/// behind them, so the text on a card is never set against the photo's fine
-/// detail — only against its blurred tones, which is what a cell average is.
+/// That is all the card-opacity solve needs: a row spans a good share of the
+/// screen's width, so what decides whether its text reads is the tone of the
+/// part of the photo it sits on, not the photo's fine detail.
 struct BackgroundPhotoTones: Equatable {
     /// Cells per side. 24 × 24 is enough to find a bright sky or a dark
     /// doorway anywhere in the frame while staying a trivial amount of work.
@@ -331,25 +331,30 @@ struct BackgroundPhotoTones: Equatable {
 /// So the solve reads the photo as the user will actually see it — after the
 /// Fade scrim — and finds, for each part of it, the lowest opacity at which
 /// both the primary and the secondary text on a card still meet their contrast
-/// targets. The card takes the opacity nearly every part of the photo is happy
-/// with, so one small highlight doesn't turn every card solid.
+/// targets. The card takes the opacity most of the photo is happy with, so a
+/// bright sky or a lamp in one corner doesn't turn every card solid.
+///
+/// Tuned toward showing the photo: the point of choosing one is to see it.
+/// The targets are WCAG AA rather than AAA, and the ceiling stops well short
+/// of solid — on a photo too bright (or, in Light Mode, too dark) for that,
+/// the Fade slider is what brings it into range.
 enum PhotoCardLegibility {
-    /// WCAG AAA for the row's name — the thing the eye actually reads.
-    static let primaryContrast: Double = 7
-    /// WCAG AA for the quieter line under it (counts, quantities, who added it).
-    static let secondaryContrast: Double = 4.5
+    /// WCAG AA for the row's name — the thing the eye actually reads.
+    static let primaryContrast: Double = 4.5
+    /// WCAG AA for large and bold type, for the quieter line under it
+    /// (counts, quantities, who added it).
+    static let secondaryContrast: Double = 3
 
-    /// Below this a card stops reading as a card and turns into a smudge, even
-    /// on a photo pale enough that the text would survive with less.
-    static let minOpacity: Double = 0.4
-    /// Keeps a hint of the photo even on the hardest backgrounds. The frosting
-    /// under the card makes up the last few percent of contrast.
-    static let maxOpacity: Double = 0.94
+    /// Just enough tint that a row still reads as a row, even on a photo that
+    /// needs none for the text.
+    static let minOpacity: Double = 0.15
+    /// Never more than this, so the photo always shows through.
+    static let maxOpacity: Double = 0.7
 
-    /// Share of the photo the chosen opacity has to satisfy. The rest is
-    /// small enough — a sun glint, a lamp — that the frosting under the card
-    /// softens it into its surroundings.
-    static let coverage: Double = 0.95
+    /// Share of the photo the chosen opacity has to satisfy. The rest — a
+    /// patch of sky, a glint, a lamp — is left to the Fade slider rather than
+    /// darkening (or whitening) every row for it.
+    static let coverage: Double = 0.8
 
     /// The opacity a card should be drawn at over `tones`, faded by `dimLevel`.
     static func cardOpacity(
@@ -895,11 +900,14 @@ struct BackgroundPhoto: View {
 /// The card behind a row on a screen the user can put a photo behind.
 ///
 /// Without a photo it is exactly `OrganicCardBackground`. On a photo it turns
-/// into frosted glass: the photo blurred behind it, the card's own color on
-/// top at whatever opacity `PhotoCardLegibility` says keeps the row's text
-/// readable over that particular photo at its current Fade, and a hairline
-/// where the shadow was — a shadow under a see-through card shows through it
-/// as a grey smear.
+/// into a see-through tint: the card's own color at whatever opacity
+/// `PhotoCardLegibility` says keeps the row's text readable over that
+/// particular photo at its current Fade, and a hairline where the shadow was —
+/// a shadow under a see-through card shows through it as a grey smear.
+///
+/// No blur material under it: every system material carries its own tint,
+/// which in Dark Mode stacks a second dark layer on the card and hides the
+/// photo the user picked.
 ///
 /// Gated on the subscription the same way `SurfaceBackground` is, so a lapsed
 /// photo falls back to solid cards along with the backdrop behind them.
@@ -929,7 +937,7 @@ struct SurfaceCardBackground: View {
     }
 }
 
-/// The frosted card `SurfaceCardBackground` draws over a photo, split out so
+/// The see-through card `SurfaceCardBackground` draws over a photo, split out so
 /// the background picker's preview can show the same card at the same opacity.
 struct PhotoCardBackground: View {
     let opacity: Double
@@ -940,7 +948,6 @@ struct PhotoCardBackground: View {
         let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
         shape
             .fill(OrganicPalette.surface(colorScheme).opacity(opacity))
-            .background(.ultraThinMaterial, in: shape)
             .overlay(shape.strokeBorder(OrganicPalette.outline(colorScheme), lineWidth: 0.5))
             .animation(.easeInOut(duration: 0.2), value: opacity)
     }
