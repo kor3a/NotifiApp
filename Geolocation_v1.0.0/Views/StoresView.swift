@@ -37,8 +37,6 @@ struct StoresView: View {
     @State private var showingPaywall = false
     @State private var isMenuExpanded = false
     @State private var selectedStoreToShare: UserStoreItem?
-    @State private var editMode: EditMode = .inactive
-    @State private var longPressedItemId: String?
     @State private var showOnMyWayConfirmation = false
     @State private var selectedOnMyWayStore: UserStoreItem?
     @State private var storeToDelete: UserStoreItem?
@@ -425,7 +423,6 @@ struct StoresView: View {
             if isReordering {
                 Button {
                     withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                        editMode = .inactive
                         isFloatEditMode = false
                     }
                 } label: {
@@ -442,7 +439,6 @@ struct StoresView: View {
                     // Sort by reminder count — one tap permanently reorders the stores
                     OrganicCircleButton(systemImage: "arrow.up.arrow.down", size: 48, glyphSize: 17) {
                         withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                            editMode = .inactive
                             viewModel.sortByReminderCount()
                         }
                     }
@@ -456,7 +452,6 @@ struct StoresView: View {
                     ) {
                         withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
                             if storeViewMode == .list {
-                                editMode = .inactive
                                 storeViewMode = .float
                             } else {
                                 isFloatEditMode = false
@@ -474,11 +469,12 @@ struct StoresView: View {
         .padding(.bottom, 14)
     }
 
-    /// True while either view mode is being rearranged, which is the only time
-    /// the header shows Done instead of the sort and layout controls.
+    /// True while the float view is being rearranged, which is the only time
+    /// the header shows Done instead of the sort and layout controls. The list
+    /// never enters an edit mode: `List` picks a row up for `.onMove` on a long
+    /// press by itself, so there is nothing to finish.
     private var isReordering: Bool {
-        (editMode == .active && storeViewMode == .list)
-            || (isFloatEditMode && storeViewMode == .float)
+        isFloatEditMode && storeViewMode == .float
     }
 
     // MARK: - Empty State
@@ -530,32 +526,26 @@ struct StoresView: View {
     private var listContent: some View {
         List {
             ForEach(Array(viewModel.userStoreItems.enumerated()), id: \.element.id) { index, userStoreItem in
-                ZStack {
-                    if editMode == .inactive {
-                        // A plain Button (not a NavigationLink) so the List
-                        // still scrolls. The tap plays a quick press bounce and
-                        // navigation is briefly delayed so the animation is
-                        // actually visible before the next screen pushes in.
-                        Button {
-                            withAnimation(.spring(response: 0.2, dampingFraction: 0.5)) {
-                                pressedStoreId = userStoreItem.id
-                            }
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) {
-                                withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
-                                    pressedStoreId = nil
-                                }
-                                notificationDestination = userStoreItem
-                            }
-                        } label: {
-                            storeRowCard(for: userStoreItem)
-                                .scaleEffect(pressedStoreId == userStoreItem.id ? 0.95 : 1.0)
-                                .opacity(pressedStoreId == userStoreItem.id ? 0.9 : 1.0)
-                        }
-                        .buttonStyle(.plain)
-                    } else {
-                        storeRowCard(for: userStoreItem)
+                // A plain Button (not a NavigationLink) so the List
+                // still scrolls. The tap plays a quick press bounce and
+                // navigation is briefly delayed so the animation is
+                // actually visible before the next screen pushes in.
+                Button {
+                    withAnimation(.spring(response: 0.2, dampingFraction: 0.5)) {
+                        pressedStoreId = userStoreItem.id
                     }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) {
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                            pressedStoreId = nil
+                        }
+                        notificationDestination = userStoreItem
+                    }
+                } label: {
+                    storeRowCard(for: userStoreItem)
+                        .scaleEffect(pressedStoreId == userStoreItem.id ? 0.95 : 1.0)
+                        .opacity(pressedStoreId == userStoreItem.id ? 0.9 : 1.0)
                 }
+                .buttonStyle(.plain)
                 .tutorialHighlight(id: index == 0 ? "tutorial_storeRow" : "noop_store_\(index)")
                 .organicRow()
                 .swipeActions(edge: .trailing, allowsFullSwipe: true) {
@@ -610,15 +600,6 @@ struct StoresView: View {
                         .tint(OrganicPalette.sageInk(colorScheme))
                     }
                 }
-                .simultaneousGesture(
-                    LongPressGesture(minimumDuration: 0.5)
-                        .onEnded { _ in
-                            withAnimation {
-                                editMode = .active
-                                longPressedItemId = userStoreItem.id
-                            }
-                        }
-                )
             }
             .onMove(perform: moveStore)
 
@@ -638,7 +619,6 @@ struct StoresView: View {
                 isAtScrollBottom = false
             }
         }
-        .environment(\.editMode, $editMode)
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
         .safeAreaInset(edge: .bottom) {
@@ -868,13 +848,6 @@ struct StoresView: View {
 
     private func moveStore(from source: IndexSet, to destination: Int) {
         viewModel.moveStore(from: source, to: destination)
-
-        Task {
-            try? await Task.sleep(nanoseconds: 500_000_000)
-            withAnimation {
-                editMode = .inactive
-            }
-        }
     }
 }
 
