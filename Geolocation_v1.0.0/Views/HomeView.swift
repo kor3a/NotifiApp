@@ -35,6 +35,8 @@ struct HomeView: View {
     /// Search pushes nothing, and Recipe opens its screens as sheets.
     @State private var storesPopToRoot = 0
     @State private var messagesPopToRoot = 0
+    /// Hides OrganicTabBar while a keyboard is on screen.
+    @State private var isKeyboardVisible = false
     @State private var isSearchExpanded = false
     @State private var searchQuery = ""
     @State private var hasRequestedPermissions = false
@@ -241,17 +243,34 @@ struct HomeView: View {
             .overlay(alignment: .bottom) {
                 // Search floats its own bar over the map, with the search field
                 // living in it, so this one steps aside there.
-                if selectedTab != 3 {
+                //
+                // It also steps aside while a keyboard is up, the way the
+                // system bar disappeared behind it. Left in place, the overlay
+                // rides up with the keyboard and lands on top of whatever
+                // field the screen pinned to its bottom edge — the Smart
+                // Recipe prompt, a conversation's message field — since
+                // `organicTabBarInset()` hands that room back to the keyboard.
+                if selectedTab != 3 && !isKeyboardVisible {
                     OrganicTabBar(
                         tabs: organicTabs,
                         selection: tabSelection,
                         onReselect: popTabToRoot
                     )
-                        // Pinned to the bottom while a keyboard is up, the way
-                        // the system bar was, rather than riding up on top of a
-                        // conversation's message field.
-                        .ignoresSafeArea(.keyboard, edges: .bottom)
                 }
+            }
+            .onReceive(
+                NotificationCenter.default.publisher(
+                    for: UIResponder.keyboardWillShowNotification
+                )
+            ) { _ in
+                isKeyboardVisible = true
+            }
+            .onReceive(
+                NotificationCenter.default.publisher(
+                    for: UIResponder.keyboardWillHideNotification
+                )
+            ) { _ in
+                isKeyboardVisible = false
             }
 
             // Tutorial overlay — rendered above the TabView (including tab bar)
