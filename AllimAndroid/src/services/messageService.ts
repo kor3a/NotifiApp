@@ -305,7 +305,7 @@ export const messageService = {
           }
         });
       } catch (_) {
-        // A failed lookup only costs an avatar — the row falls back to initials.
+        // A failed lookup only costs an avatar — the row falls back to a portrait.
       }
     }
     return photos;
