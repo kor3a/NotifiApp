@@ -14,6 +14,9 @@ export interface User {
   isSubscribed?: boolean;
   adminSubscribed?: boolean;
   fcmToken?: string;
+  // Friends the user has put in Family. Shared with iOS, which sorts them
+  // first in the share sheets and badges them on the Friends screen.
+  familyMemberIds?: string[];
   createdAt?: any;
 }
 
@@ -268,10 +271,16 @@ export interface Friendship {
   receiverEmail: string;
   requesterName?: string;
   receiverName?: string;
+  // iOS writes the photo under *ProfilePictureURL; older Android builds wrote
+  // *Photo. Read both — friendService.friendOf() picks whichever is set.
+  requesterProfilePictureURL?: string;
+  receiverProfilePictureURL?: string;
   requesterPhoto?: string;
   receiverPhoto?: string;
+  participantIds?: string[];
   status: FriendshipStatus;
   createdAt?: any;
+  acceptedAt?: number;
 }
 
 // ─── FavoriteTag ──────────────────────────────────────────────────────────────
