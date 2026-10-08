@@ -111,6 +111,17 @@ export interface Reminder {
   updatedAt?: any;
 }
 
+// ─── Recipe ───────────────────────────────────────────────────────────────────
+
+// A saved ingredient list, from the `recipes` collection the iOS app also
+// writes. createdAt is epoch seconds, which is what iOS parses.
+export interface Recipe {
+  id: string;
+  name: string;
+  ingredients: string[];
+  createdAt: number;
+}
+
 // ─── Message ──────────────────────────────────────────────────────────────────
 
 // A store attached to a message as a share request. Field names and shape match

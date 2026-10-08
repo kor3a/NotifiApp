@@ -218,6 +218,23 @@ export default function ProfileScreen() {
             ) : null}
           </View>
 
+          {/* Friends — reached from here rather than a tab, as on iOS. */}
+          <TouchableOpacity
+            style={[
+              styles.section,
+              styles.linkRow,
+              cardStyle(scheme),
+              scheme !== 'dark' && {backgroundColor: Colors.backgroundBottomLight},
+            ]}
+            onPress={() => navigation.navigate('Friends' as never)}
+            activeOpacity={0.75}>
+            <Icon name="people-outline" size={18} color={Colors.blue} />
+            <Text style={[styles.infoText, styles.linkText, {color: textPrimary(scheme)}]}>
+              Friends
+            </Text>
+            <Icon name="chevron-forward" size={16} color={textSecondary(scheme)} />
+          </TouchableOpacity>
+
           {/* Ad banner */}
           <AdBanner />
 
@@ -359,6 +376,14 @@ const styles = StyleSheet.create({
   infoText: {
     fontSize: 15,
     flex: 1,
+  },
+  linkRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  linkText: {
+    fontWeight: '600',
   },
   dangerRow: {
     flexDirection: 'row',
