@@ -49,16 +49,12 @@ interface Props {
 // The friends collection stores both sides of a friendship on one document, so
 // the contact is whichever participant is not the signed-in user.
 function contactFrom(friendship: Friendship, currentUserId: string): User {
-  const isRequester = friendship.requesterId === currentUserId;
+  const friend = friendService.friendOf(friendship, currentUserId);
   return {
-    userId: isRequester ? friendship.receiverId : friendship.requesterId,
-    name:
-      (isRequester ? friendship.receiverName : friendship.requesterName) ??
-      (isRequester ? friendship.receiverId : friendship.requesterId),
-    email: isRequester ? friendship.receiverEmail : friendship.requesterEmail,
-    profilePictureURL: isRequester
-      ? friendship.receiverPhoto
-      : friendship.requesterPhoto,
+    userId: friend.userId,
+    name: friend.name,
+    email: friend.email,
+    profilePictureURL: friend.photo,
   };
 }
 
