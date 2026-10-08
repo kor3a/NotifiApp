@@ -1,13 +1,18 @@
 import React from 'react';
-import {View, Text, StyleSheet, useColorScheme} from 'react-native';
+import {View, Text, StyleSheet, TouchableOpacity, useColorScheme} from 'react-native';
 import Icon from './AppIcon';
 import {Colors, Spacing, Radius, cardStyle, textPrimary, textSecondary} from '../theme/AppTheme';
 
-export default function AdBanner() {
+// Stands in for the iOS banner ad; tapping it opens the Premium paywall.
+export default function AdBanner({onPress}: {onPress?: () => void}) {
   const scheme = useColorScheme();
 
   return (
-    <View
+    <TouchableOpacity
+      onPress={onPress}
+      disabled={!onPress}
+      activeOpacity={0.8}
+      accessibilityRole="button"
       style={[
         styles.container,
         cardStyle(scheme),
@@ -30,7 +35,7 @@ export default function AdBanner() {
         </View>
         <Icon name="chevron-forward" size={18} color={textSecondary(scheme)} />
       </View>
-    </View>
+    </TouchableOpacity>
   );
 }
 
