@@ -25,6 +25,7 @@ import ProfileScreen from '../screens/profile/ProfileScreen';
 import AccountSecurityScreen from '../screens/profile/AccountSecurityScreen';
 import AboutScreen from '../screens/profile/AboutScreen';
 import ReportFeedbackScreen from '../screens/profile/ReportFeedbackScreen';
+import SubscriptionScreen from '../screens/profile/SubscriptionScreen';
 
 import {Colors} from '../theme/AppTheme';
 
@@ -69,11 +70,19 @@ export type MapStackParamList = {
   MapView: undefined;
 };
 
+export type MainStackParamList = {
+  Tabs: undefined;
+  // The Premium paywall — a sheet over the whole app on iOS, so it sits above
+  // the tabs here and rises from the bottom.
+  Subscription: undefined;
+};
+
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
 const Tab = createBottomTabNavigator();
 const StoresStack = createNativeStackNavigator<StoresStackParamList>();
 const MessagesStack = createNativeStackNavigator<MessagesStackParamList>();
 const MapStack = createNativeStackNavigator<MapStackParamList>();
+const MainStack = createNativeStackNavigator<MainStackParamList>();
 
 function StoresNavigator() {
   return (
@@ -151,6 +160,19 @@ function MainTabs() {
   );
 }
 
+function MainNavigator() {
+  return (
+    <MainStack.Navigator screenOptions={{headerShown: false}}>
+      <MainStack.Screen name="Tabs" component={MainTabs} />
+      <MainStack.Screen
+        name="Subscription"
+        component={SubscriptionScreen}
+        options={{presentation: 'modal', animation: 'slide_from_bottom'}}
+      />
+    </MainStack.Navigator>
+  );
+}
+
 function AuthNavigator() {
   return (
     <AuthStack.Navigator screenOptions={{headerShown: false}}>
@@ -185,7 +207,7 @@ function RootNavigator() {
     return <ProfileSetupScreen />;
   }
 
-  return <MainTabs />;
+  return <MainNavigator />;
 }
 
 export default function AppNavigator() {

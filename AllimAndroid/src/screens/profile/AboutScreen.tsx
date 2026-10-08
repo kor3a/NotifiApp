@@ -15,7 +15,7 @@ import {
 } from './profileUi';
 
 // The policy the website links to. iOS renders the same text in-app.
-const PRIVACY_POLICY_URL = 'https://github.com/kor3a/allim-privacy-policy';
+export const PRIVACY_POLICY_URL = 'https://github.com/kor3a/allim-privacy-policy';
 
 export function appVersionLabel(): string {
   const version = Constants.expoConfig?.version ?? '1.0';

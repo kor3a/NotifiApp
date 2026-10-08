@@ -207,7 +207,7 @@ export default function ProfileScreen() {
               matches the rest of the sections. */}
           {!isPremium && (
             <View style={{marginBottom: -16}}>
-              <AdBanner />
+              <AdBanner onPress={() => navigation.navigate('Subscription')} />
             </View>
           )}
 
