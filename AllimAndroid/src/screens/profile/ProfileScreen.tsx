@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, {useEffect, useState} from 'react';
 import {
   View,
   Text,
@@ -7,8 +7,11 @@ import {
   TouchableOpacity,
   TextInput,
   Alert,
+  Modal,
   useColorScheme,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {useNavigation} from '@react-navigation/native';
@@ -18,51 +21,55 @@ import {launchImageLibrary} from 'react-native-image-picker';
 import GradientBackground from '../../components/GradientBackground';
 import ProfileAvatar from '../../components/ProfileAvatar';
 import AdBanner from '../../components/AdBanner';
-import PrimaryButton from '../../components/PrimaryButton';
 import {
-  Colors,
-  Spacing,
-  Radius,
+  cardBackground,
   cardStyle,
+  sheetBackground,
   textPrimary,
   textSecondary,
-  cardBackground,
 } from '../../theme/AppTheme';
 import {useSession} from '../../context/SessionContext';
 import {userService} from '../../services/userService';
 import {authService} from '../../services/authService';
 import {googleAuthService} from '../../services/googleAuthService';
+import {friendService} from '../../services/friendService';
+import {
+  ProfileHeader,
+  SectionLabel,
+  NavRow,
+  PillButton,
+  fieldStyle,
+  profilePalette,
+  profileStyles,
+} from './profileUi';
 
+// Laid out like the iOS ProfileView: an identity card you tap to change the
+// photo, then rows that open the rest — Account, Friends, Account actions.
 export default function ProfileScreen() {
   const scheme = useColorScheme();
-  const navigation = useNavigation();
+  const p = profilePalette(scheme);
+  const navigation = useNavigation<any>();
   const {currentUser, firebaseUser, refreshUser} = useSession();
+  const myId = currentUser?.userId ?? '';
+  const isPremium = !!(currentUser?.isSubscribed || currentUser?.adminSubscribed);
 
   // An account created with Google has no password to type — Firebase's
   // "recent login" requirement is met by re-running the Google sheet instead.
   const usesPassword = googleAuthService.hasPasswordProvider(firebaseUser);
 
-  const [editName, setEditName] = useState(currentUser?.name ?? '');
-  const [saving, setSaving] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [pendingRequests, setPendingRequests] = useState(0);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deletePassword, setDeletePassword] = useState('');
   const [deleting, setDeleting] = useState(false);
 
-  async function handleSaveName() {
-    // The users doc is keyed by username (userId), not the Firebase Auth uid.
-    if (!editName.trim() || !currentUser) {return;}
-    setSaving(true);
-    try {
-      await userService.updateProfile(currentUser.userId, {name: editName.trim()});
-      await refreshUser();
-      Alert.alert('Saved', 'Profile updated successfully.');
-    } catch (err: any) {
-      Alert.alert('Error', err.message);
-    } finally {
-      setSaving(false);
-    }
-  }
+  // The Friends row carries the count of requests still waiting, as on iOS.
+  useEffect(() => {
+    if (!myId) {return;}
+    return friendService.subscribeToPendingRequests(myId, r =>
+      setPendingRequests(r.length),
+    );
+  }, [myId]);
 
   async function handlePickPhoto() {
     if (!currentUser) {return;}
@@ -79,7 +86,7 @@ export default function ProfileScreen() {
     }
   }
 
-  async function handleSignOut() {
+  function handleSignOut() {
     Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
       {text: 'Cancel', style: 'cancel'},
       {
@@ -88,6 +95,11 @@ export default function ProfileScreen() {
         onPress: () => authService.signOut(),
       },
     ]);
+  }
+
+  function closeDeleteModal() {
+    setShowDeleteModal(false);
+    setDeletePassword('');
   }
 
   async function handleDeleteAccount() {
@@ -100,21 +112,33 @@ export default function ProfileScreen() {
       if (!deleted) {
         return;
       }
-      setShowDeleteModal(false);
+      closeDeleteModal();
     } catch (err: any) {
       Alert.alert('Error', err.message ?? 'Failed to delete account.');
-      setShowDeleteModal(false);
+      closeDeleteModal();
     } finally {
       setDeleting(false);
     }
   }
 
+  // A waiting request is the one thing on this row worth interrupting for,
+  // so it takes the line over the description of what Friends is.
+  const friendsSubtitle =
+    pendingRequests === 0
+      ? 'Add friends and family to share stores and reminders with'
+      : pendingRequests === 1
+        ? '1 friend request waiting'
+        : `${pendingRequests} friend requests waiting`;
+
   if (!currentUser) {
     return (
       <View style={{flex: 1}}>
         <GradientBackground />
-        <SafeAreaView style={{flex: 1, justifyContent: 'center', alignItems: 'center'}}>
-          <ActivityIndicator size="large" color={Colors.blue} />
+        <SafeAreaView style={styles.center}>
+          <ActivityIndicator size="large" color={p.accent} />
+          <Text style={[styles.loadingText, {color: textSecondary(scheme)}]}>
+            Loading profile...
+          </Text>
         </SafeAreaView>
       </View>
     );
@@ -123,302 +147,302 @@ export default function ProfileScreen() {
   return (
     <View style={{flex: 1}}>
       <GradientBackground />
-      <SafeAreaView style={{flex: 1}}>
-        <ScrollView contentContainerStyle={styles.scroll}>
-          {/* Header */}
-          <View style={styles.header}>
-            <TouchableOpacity onPress={() => navigation.goBack()}>
-              <Icon name="chevron-back" size={24} color={Colors.blue} />
-            </TouchableOpacity>
-            <Text style={[styles.headerTitle, {color: textPrimary(scheme)}]}>
-              Profile
-            </Text>
-            <View style={{width: 24}} />
-          </View>
-
-          {/* Avatar */}
-          <View style={styles.avatarSection}>
-            <TouchableOpacity onPress={handlePickPhoto} disabled={uploadingPhoto}>
+      <SafeAreaView style={{flex: 1}} edges={['top', 'left', 'right']}>
+        <ProfileHeader scheme={scheme} title="Profile" />
+        <ScrollView contentContainerStyle={[profileStyles.scroll, {paddingTop: 8}]}>
+          {/* Identity */}
+          <View style={[cardStyle(scheme), styles.identityCard]}>
+            <TouchableOpacity
+              onPress={handlePickPhoto}
+              disabled={uploadingPhoto}
+              activeOpacity={0.8}
+              accessibilityLabel="Change profile picture">
               {uploadingPhoto ? (
-                <View style={[styles.avatarPlaceholder, {backgroundColor: Colors.blue + '22'}]}>
-                  <ActivityIndicator color={Colors.blue} />
+                <View style={[styles.avatarPlaceholder, {backgroundColor: p.blush}]}>
+                  <ActivityIndicator color={p.accent} />
                 </View>
               ) : (
                 <ProfileAvatar
                   url={currentUser.profilePictureURL}
                   name={currentUser.name}
-                  size={90}
+                  size={92}
                 />
               )}
-              <View style={styles.cameraOverlay}>
+              <View
+                style={[
+                  styles.cameraBadge,
+                  {backgroundColor: p.accent, borderColor: cardBackground(scheme)},
+                ]}>
                 <Icon name="camera" size={14} color="#fff" />
               </View>
             </TouchableOpacity>
-            <Text style={[styles.userName, {color: textPrimary(scheme)}]}>
-              {currentUser.name}
-            </Text>
-            <Text style={[styles.userEmail, {color: textSecondary(scheme)}]}>
-              {currentUser.email}
-            </Text>
-          </View>
 
-          {/* Edit name */}
-          <View
-            style={[
-              styles.section,
-              cardStyle(scheme),
-              scheme !== 'dark' && {backgroundColor: Colors.backgroundBottomLight},
-            ]}>
-            <Text style={[styles.sectionLabel, {color: textSecondary(scheme)}]}>
-              Display Name
-            </Text>
-            <TextInput
-              value={editName}
-              onChangeText={setEditName}
-              style={[styles.nameInput, {color: textPrimary(scheme)}]}
-              placeholder="Your name"
-              placeholderTextColor={textSecondary(scheme)}
-            />
-            <PrimaryButton
-              title={saving ? 'Saving...' : 'Save Changes'}
-              onPress={handleSaveName}
-              loading={saving}
-              disabled={editName.trim() === currentUser.name}
-              color={Colors.blue}
-              style={styles.saveBtn}
-            />
-          </View>
-
-          {/* Account info */}
-          <View
-            style={[
-              styles.section,
-              cardStyle(scheme),
-              scheme !== 'dark' && {backgroundColor: Colors.backgroundBottomLight},
-            ]}>
-            <View style={styles.infoRow}>
-              <Icon name="mail-outline" size={18} color={Colors.blue} />
-              <Text style={[styles.infoText, {color: textPrimary(scheme)}]}>
+            <View style={styles.identityText}>
+              <View style={styles.nameRow}>
+                <Text
+                  style={[styles.userName, {color: textPrimary(scheme)}]}
+                  numberOfLines={1}>
+                  {currentUser.name}
+                </Text>
+                {isPremium && (
+                  <View style={[styles.premiumBadge, {backgroundColor: p.sage}]}>
+                    <Text style={[styles.premiumText, {color: p.sageInk}]}>PREMIUM</Text>
+                  </View>
+                )}
+              </View>
+              <Text
+                style={[styles.userHandle, {color: textSecondary(scheme)}]}
+                numberOfLines={1}>
+                @{currentUser.userId}
+              </Text>
+              <Text
+                style={[styles.userEmail, {color: textSecondary(scheme)}]}
+                numberOfLines={1}>
                 {currentUser.email}
               </Text>
             </View>
-            <View style={[styles.infoRow, {marginTop: Spacing.sm}]}>
-              <Icon name="person-outline" size={18} color={Colors.blue} />
-              <Text style={[styles.infoText, {color: textPrimary(scheme)}]}>
-                {currentUser.userId}
-              </Text>
-            </View>
-            {currentUser.isSubscribed || currentUser.adminSubscribed ? (
-              <View style={[styles.infoRow, {marginTop: Spacing.sm}]}>
-                <Icon name="star" size={18} color={Colors.orange} />
-                <Text style={[styles.infoText, {color: Colors.orange}]}>
-                  Premium Member
-                </Text>
-              </View>
-            ) : null}
           </View>
 
-          {/* Friends — reached from here rather than a tab, as on iOS. */}
-          <TouchableOpacity
-            style={[
-              styles.section,
-              styles.linkRow,
-              cardStyle(scheme),
-              scheme !== 'dark' && {backgroundColor: Colors.backgroundBottomLight},
-            ]}
-            onPress={() => navigation.navigate('Friends' as never)}
-            activeOpacity={0.75}>
-            <Icon name="people-outline" size={18} color={Colors.blue} />
-            <Text style={[styles.infoText, styles.linkText, {color: textPrimary(scheme)}]}>
-              Friends
-            </Text>
-            <Icon name="chevron-forward" size={16} color={textSecondary(scheme)} />
-          </TouchableOpacity>
-
-          {/* Ad banner */}
-          <AdBanner />
-
-          {/* Sign out */}
-          <TouchableOpacity
-            style={[styles.dangerRow, {backgroundColor: Colors.red + '1A', borderRadius: Radius.md}]}
-            onPress={handleSignOut}>
-            <Icon name="log-out-outline" size={20} color={Colors.red} />
-            <Text style={[styles.dangerText, {color: Colors.red}]}>Sign Out</Text>
-          </TouchableOpacity>
-
-          {/* Delete account */}
-          <TouchableOpacity
-            style={[styles.dangerRow, {marginTop: Spacing.sm, backgroundColor: Colors.red + '0D', borderRadius: Radius.md}]}
-            onPress={() => setShowDeleteModal(true)}>
-            <Icon name="trash-outline" size={20} color={Colors.red} />
-            <Text style={[styles.dangerText, {color: Colors.red}]}>Delete Account</Text>
-          </TouchableOpacity>
-
-          {/* Delete confirmation */}
-          {showDeleteModal && (
-            <View style={[styles.deleteCard, cardStyle(scheme)]}>
-              <Text style={[styles.deleteTitle, {color: Colors.red}]}>
-                Delete Account
-              </Text>
-              <Text style={[styles.deleteWarning, {color: textSecondary(scheme)}]}>
-                {usesPassword
-                  ? 'This action is permanent. Enter your password to confirm.'
-                  : 'This action is permanent. You\'ll be asked to confirm with Google.'}
-              </Text>
-              {usesPassword && (
-                <TextInput
-                  placeholder="Password"
-                  placeholderTextColor={textSecondary(scheme)}
-                  value={deletePassword}
-                  onChangeText={setDeletePassword}
-                  secureTextEntry
-                  style={[styles.nameInput, {color: textPrimary(scheme), marginBottom: Spacing.md}]}
-                />
-              )}
-              <View style={styles.deleteActions}>
-                <TouchableOpacity
-                  style={[styles.deleteBtn, {backgroundColor: Colors.blue + '1A'}]}
-                  onPress={() => setShowDeleteModal(false)}>
-                  <Text style={{color: Colors.blue, fontWeight: '600'}}>Cancel</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.deleteBtn, {backgroundColor: Colors.red}]}
-                  onPress={handleDeleteAccount}
-                  disabled={deleting}>
-                  {deleting ? (
-                    <ActivityIndicator color="#fff" />
-                  ) : (
-                    <Text style={{color: '#fff', fontWeight: '600'}}>Delete</Text>
-                  )}
-                </TouchableOpacity>
-              </View>
+          {/* AdBanner carries its own bottom margin; cancel it so the gap
+              matches the rest of the sections. */}
+          {!isPremium && (
+            <View style={{marginBottom: -16}}>
+              <AdBanner />
             </View>
           )}
 
+          {/* Account */}
+          <View style={profileStyles.section}>
+            <SectionLabel scheme={scheme} title="Account" />
+            <NavRow
+              scheme={scheme}
+              icon="lock-closed"
+              title="Account Security"
+              subtitle="Your display name and password"
+              onPress={() => navigation.navigate('AccountSecurity')}
+            />
+            <NavRow
+              scheme={scheme}
+              icon="information-circle"
+              title="About Allim"
+              subtitle="Version, privacy policy and what the app does"
+              onPress={() => navigation.navigate('About')}
+            />
+            <NavRow
+              scheme={scheme}
+              icon="chatbox-ellipses"
+              title="Report Errors and Feedback"
+              subtitle="Tell us what's broken or what you'd like next"
+              onPress={() => navigation.navigate('ReportFeedback')}
+            />
+          </View>
+
+          {/* Friends — reached from here rather than a tab, as on iOS. */}
+          <View style={profileStyles.section}>
+            <SectionLabel scheme={scheme} title="Friends" />
+            <NavRow
+              scheme={scheme}
+              icon="people"
+              title="Friends & Family"
+              subtitle={friendsSubtitle}
+              onPress={() => navigation.navigate('Friends')}
+            />
+          </View>
+
+          {/* Account actions */}
+          <View style={profileStyles.section}>
+            <SectionLabel scheme={scheme} title="Account actions" />
+            <NavRow
+              scheme={scheme}
+              icon="log-out-outline"
+              title="Sign Out"
+              tint={textSecondary(scheme)}
+              accessory={null}
+              onPress={handleSignOut}
+            />
+            <NavRow
+              scheme={scheme}
+              icon="trash"
+              title="Delete Account"
+              subtitle="Permanently removes your account and everything in it"
+              tint={p.rust}
+              accessory={null}
+              onPress={() => setShowDeleteModal(true)}
+            />
+          </View>
         </ScrollView>
       </SafeAreaView>
+
+      {/* Delete confirmation — the iOS alert, with the password field only
+          for accounts that have a password. */}
+      <Modal
+        visible={showDeleteModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => !deleting && closeDeleteModal()}>
+        <KeyboardAvoidingView
+          style={styles.backdrop}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <View style={[styles.dialog, {backgroundColor: sheetBackground(scheme)}]}>
+            <View style={[styles.dialogIcon, {backgroundColor: p.rustWash}]}>
+              <Icon name="person-remove" size={26} color={p.rust} />
+            </View>
+            <Text style={[styles.dialogTitle, {color: textPrimary(scheme)}]}>
+              Delete Account
+            </Text>
+            <Text style={[styles.dialogMessage, {color: textSecondary(scheme)}]}>
+              This will permanently delete your account and all associated data. This
+              action cannot be undone.
+              {usesPassword
+                ? '\n\nPlease enter your password to confirm.'
+                : '\n\nYou may be asked to confirm with Google first.'}
+            </Text>
+            {usesPassword && (
+              <TextInput
+                placeholder="Password"
+                placeholderTextColor={textSecondary(scheme)}
+                value={deletePassword}
+                onChangeText={setDeletePassword}
+                secureTextEntry
+                autoFocus
+                editable={!deleting}
+                style={[fieldStyle(scheme), styles.dialogField]}
+              />
+            )}
+            <PillButton
+              title="Delete"
+              color={p.rust}
+              loading={deleting}
+              disabled={usesPassword && !deletePassword}
+              onPress={handleDeleteAccount}
+              style={styles.dialogButton}
+            />
+            <TouchableOpacity
+              onPress={closeDeleteModal}
+              disabled={deleting}
+              style={styles.dialogCancel}>
+              <Text style={[styles.dialogCancelText, {color: p.accent}]}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  scroll: {
-    padding: Spacing.lg,
-    paddingBottom: 60,
-  },
-  header: {
-    flexDirection: 'row',
+  center: {
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: Spacing.lg,
+    gap: 14,
   },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: '700',
+  loadingText: {
+    fontSize: 16,
   },
-  avatarSection: {
+  identityCard: {
     alignItems: 'center',
-    marginBottom: Spacing.xl,
+    gap: 16,
+    paddingVertical: 24,
+    paddingHorizontal: 20,
+    borderRadius: 28,
+    marginVertical: 0,
   },
   avatarPlaceholder: {
-    width: 90,
-    height: 90,
-    borderRadius: 45,
+    width: 92,
+    height: 92,
+    borderRadius: 46,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  cameraOverlay: {
+  cameraBadge: {
     position: 'absolute',
     bottom: 0,
     right: 0,
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: Colors.blue,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: '#fff',
+    borderWidth: 2.5,
+  },
+  identityText: {
+    alignItems: 'center',
+    gap: 4,
+    alignSelf: 'stretch',
+  },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    maxWidth: '100%',
   },
   userName: {
-    fontSize: 20,
+    flexShrink: 1,
+    fontSize: 26,
+    fontWeight: '800',
+  },
+  premiumBadge: {
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  premiumText: {
+    fontSize: 10,
     fontWeight: '700',
-    marginTop: Spacing.md,
+    letterSpacing: 0.6,
+  },
+  userHandle: {
+    fontSize: 15,
+    fontWeight: '600',
   },
   userEmail: {
     fontSize: 14,
-    marginTop: 4,
+    opacity: 0.85,
   },
-  section: {
-    padding: Spacing.md,
-    marginBottom: Spacing.md,
-  },
-  sectionLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: Spacing.sm,
-  },
-  nameInput: {
-    fontSize: 17,
-    borderBottomWidth: 1.5,
-    borderBottomColor: Colors.blue + '55',
-    paddingVertical: Spacing.sm,
-    marginBottom: Spacing.md,
-  },
-  saveBtn: {},
-  infoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-  },
-  infoText: {
-    fontSize: 15,
+  backdrop: {
     flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
+    padding: 28,
   },
-  linkRow: {
-    flexDirection: 'row',
+  dialog: {
+    borderRadius: 28,
+    padding: 24,
     alignItems: 'center',
-    gap: Spacing.sm,
   },
-  linkText: {
-    fontWeight: '600',
-  },
-  dangerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: Spacing.md,
-    gap: Spacing.md,
-    marginBottom: 4,
-  },
-  dangerText: {
-    fontSize: 17,
-    fontWeight: '500',
-  },
-  deleteCard: {
-    padding: Spacing.md,
-    marginTop: Spacing.md,
-  },
-  deleteTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    marginBottom: Spacing.sm,
-  },
-  deleteWarning: {
-    fontSize: 14,
-    marginBottom: Spacing.md,
-    lineHeight: 20,
-  },
-  deleteActions: {
-    flexDirection: 'row',
-    gap: Spacing.md,
-  },
-  deleteBtn: {
-    flex: 1,
-    height: 44,
-    borderRadius: Radius.md,
+  dialogIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
+    marginBottom: 14,
+  },
+  dialogTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    marginBottom: 8,
+  },
+  dialogMessage: {
+    fontSize: 15,
+    lineHeight: 21,
+    textAlign: 'center',
+    marginBottom: 18,
+  },
+  dialogField: {
+    alignSelf: 'stretch',
+    marginBottom: 14,
+  },
+  dialogButton: {
+    alignSelf: 'stretch',
+  },
+  dialogCancel: {
+    paddingTop: 14,
+    paddingBottom: 2,
+  },
+  dialogCancelText: {
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

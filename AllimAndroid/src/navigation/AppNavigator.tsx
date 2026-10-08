@@ -22,6 +22,9 @@ import FriendsScreen from '../screens/friends/FriendsScreen';
 import MapScreen from '../screens/map/MapScreen';
 import SmartRecipeScreen from '../screens/recipe/SmartRecipeScreen';
 import ProfileScreen from '../screens/profile/ProfileScreen';
+import AccountSecurityScreen from '../screens/profile/AccountSecurityScreen';
+import AboutScreen from '../screens/profile/AboutScreen';
+import ReportFeedbackScreen from '../screens/profile/ReportFeedbackScreen';
 
 import {Colors} from '../theme/AppTheme';
 
@@ -44,6 +47,10 @@ export type StoresStackParamList = {
     sharedFromName?: string;
   };
   Profile: undefined;
+  // Profile's own sub-screens, as on iOS.
+  AccountSecurity: undefined;
+  About: undefined;
+  ReportFeedback: undefined;
   // Friends has no tab of its own — it lives under Profile, as on iOS.
   Friends: undefined;
 };
@@ -74,6 +81,9 @@ function StoresNavigator() {
       <StoresStack.Screen name="StoresList" component={StoresScreen} />
       <StoresStack.Screen name="Reminders" component={ReminderScreen} />
       <StoresStack.Screen name="Profile" component={ProfileScreen} />
+      <StoresStack.Screen name="AccountSecurity" component={AccountSecurityScreen} />
+      <StoresStack.Screen name="About" component={AboutScreen} />
+      <StoresStack.Screen name="ReportFeedback" component={ReportFeedbackScreen} />
       <StoresStack.Screen name="Friends" component={FriendsScreen} />
     </StoresStack.Navigator>
   );
