@@ -20,13 +20,15 @@ import {Swipeable} from 'react-native-gesture-handler';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Icon from '../../components/AppIcon';
 
-import GradientBackground from '../../components/GradientBackground';
+import SurfaceBackground from '../../components/SurfaceBackground';
 import ProfileAvatar from '../../components/ProfileAvatar';
 import StoreLogo from '../../components/StoreLogo';
 import AddStoreSheet from './AddStoreSheet';
 import ShareStoreSheet from './ShareStoreSheet';
 import StoreFloatView from './StoreFloatView';
 import OnMyWayDialog from './OnMyWayDialog';
+import BackgroundPickerSheet from './BackgroundPickerSheet';
+import RecipesSheet from '../recipe/RecipesSheet';
 import {
   Colors,
   Spacing,
@@ -68,6 +70,8 @@ export default function StoresScreen() {
   const [stores, setStores] = useState<UserStoreItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddSheet, setShowAddSheet] = useState(false);
+  const [showRecipes, setShowRecipes] = useState(false);
+  const [showColors, setShowColors] = useState(false);
   const [storeToShare, setStoreToShare] = useState<UserStoreItem | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [viewMode, setViewMode] = useState<StoreViewMode>('list');
@@ -205,10 +209,16 @@ export default function StoresScreen() {
 
   // ─── Store actions ────────────────────────────────────────────────────────
 
-  function handleAddStore() {
-    setMenuOpen(false);
-    setShowAddSheet(true);
-  }
+  // The + menu's three entries, in the iOS order.
+  const fabMenuItems: {
+    icon: React.ComponentProps<typeof Icon>['name'];
+    title: string;
+    open: () => void;
+  }[] = [
+    {icon: 'cart-outline', title: 'Add Store', open: () => setShowAddSheet(true)},
+    {icon: 'reader-outline', title: 'Add Recipe', open: () => setShowRecipes(true)},
+    {icon: 'color-palette-outline', title: 'Colors', open: () => setShowColors(true)},
+  ];
 
   async function handleSelectStore(storeName: string) {
     if (!firebaseUser || !currentUser) {return;}
@@ -671,7 +681,8 @@ export default function StoresScreen() {
 
   return (
     <View style={{flex: 1}}>
-      <GradientBackground />
+      {/* The app gradient, or whatever the user picked under Colors. */}
+      <SurfaceBackground surface="stores" />
       <SafeAreaView style={{flex: 1}}>
         {loading ? (
           // The greeting needs a name and the list needs stores, so until both
@@ -731,17 +742,23 @@ export default function StoresScreen() {
           <View style={styles.fabContainer} pointerEvents="box-none">
             {menuOpen && (
               <View style={styles.fabMenu}>
-                <TouchableOpacity
-                  style={[
-                    styles.fabMenuItem,
-                    {backgroundColor: cardBackground(scheme)},
-                  ]}
-                  onPress={handleAddStore}>
-                  <Icon name="cart-outline" size={20} color={Colors.blue} />
-                  <Text style={[styles.fabMenuText, {color: textPrimary(scheme)}]}>
-                    Add Store
-                  </Text>
-                </TouchableOpacity>
+                {fabMenuItems.map(item => (
+                  <TouchableOpacity
+                    key={item.title}
+                    style={[
+                      styles.fabMenuItem,
+                      {backgroundColor: cardBackground(scheme)},
+                    ]}
+                    onPress={() => {
+                      setMenuOpen(false);
+                      item.open();
+                    }}>
+                    <Icon name={item.icon} size={20} color={Colors.blue} />
+                    <Text style={[styles.fabMenuText, {color: textPrimary(scheme)}]}>
+                      {item.title}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
               </View>
             )}
 
@@ -777,6 +794,15 @@ export default function StoresScreen() {
         onClose={() => setShowAddSheet(false)}
         onSelectStore={handleSelectStore}
         existingStores={stores}
+      />
+
+      <RecipesSheet visible={showRecipes} onClose={() => setShowRecipes(false)} />
+
+      <BackgroundPickerSheet
+        visible={showColors}
+        surface="stores"
+        title="Stores"
+        onClose={() => setShowColors(false)}
       />
 
       {/* Share Store Sheet */}

@@ -217,6 +217,15 @@ export default function FriendsScreen() {
       <GradientBackground />
       <SafeAreaView style={{flex: 1}}>
         <View style={styles.header}>
+          {/* Pushed from Profile now that Friends has no tab of its own. */}
+          {navigation.canGoBack() && (
+            <TouchableOpacity
+              onPress={() => navigation.goBack()}
+              style={styles.backBtn}
+              accessibilityLabel="Back">
+              <Icon name="chevron-back" size={26} color={Colors.blue} />
+            </TouchableOpacity>
+          )}
           <Text style={[styles.headerTitle, {color: textPrimary(scheme)}]}>
             Friends
           </Text>
@@ -324,8 +333,14 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.md,
   },
   headerTitle: {
+    flex: 1,
     fontSize: 28,
     fontWeight: '700',
+  },
+  backBtn: {
+    marginLeft: -Spacing.sm,
+    marginRight: Spacing.xs,
+    padding: Spacing.xs,
   },
   addBtn: {
     padding: Spacing.xs,

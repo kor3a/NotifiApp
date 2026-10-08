@@ -20,6 +20,7 @@ import MessagesScreen from '../screens/messages/MessagesScreen';
 import ConversationScreen from '../screens/messages/ConversationScreen';
 import FriendsScreen from '../screens/friends/FriendsScreen';
 import MapScreen from '../screens/map/MapScreen';
+import SmartRecipeScreen from '../screens/recipe/SmartRecipeScreen';
 import ProfileScreen from '../screens/profile/ProfileScreen';
 
 import {Colors} from '../theme/AppTheme';
@@ -43,6 +44,8 @@ export type StoresStackParamList = {
     sharedFromName?: string;
   };
   Profile: undefined;
+  // Friends has no tab of its own — it lives under Profile, as on iOS.
+  Friends: undefined;
 };
 
 export type MessagesStackParamList = {
@@ -55,10 +58,6 @@ export type MessagesStackParamList = {
   };
 };
 
-export type FriendsStackParamList = {
-  FriendsList: undefined;
-};
-
 export type MapStackParamList = {
   MapView: undefined;
 };
@@ -67,7 +66,6 @@ const AuthStack = createNativeStackNavigator<AuthStackParamList>();
 const Tab = createBottomTabNavigator();
 const StoresStack = createNativeStackNavigator<StoresStackParamList>();
 const MessagesStack = createNativeStackNavigator<MessagesStackParamList>();
-const FriendsStack = createNativeStackNavigator<FriendsStackParamList>();
 const MapStack = createNativeStackNavigator<MapStackParamList>();
 
 function StoresNavigator() {
@@ -76,6 +74,7 @@ function StoresNavigator() {
       <StoresStack.Screen name="StoresList" component={StoresScreen} />
       <StoresStack.Screen name="Reminders" component={ReminderScreen} />
       <StoresStack.Screen name="Profile" component={ProfileScreen} />
+      <StoresStack.Screen name="Friends" component={FriendsScreen} />
     </StoresStack.Navigator>
   );
 }
@@ -86,14 +85,6 @@ function MessagesNavigator() {
       <MessagesStack.Screen name="MessagesList" component={MessagesScreen} />
       <MessagesStack.Screen name="Conversation" component={ConversationScreen} />
     </MessagesStack.Navigator>
-  );
-}
-
-function FriendsNavigator() {
-  return (
-    <FriendsStack.Navigator screenOptions={{headerShown: false}}>
-      <FriendsStack.Screen name="FriendsList" component={FriendsScreen} />
-    </FriendsStack.Navigator>
   );
 }
 
@@ -120,10 +111,11 @@ function MainTabs() {
           borderTopColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
           paddingBottom: 4,
         },
-        // Ionicons chosen to match the SF Symbols the iOS tab bar uses:
-        // storefront -> storefront, message -> chatbubble, person.2 -> people,
-        // map -> map. Ionicons has a filled and an -outline cut of each, which
-        // stands in for SF Symbols' selected/unselected weights.
+        // The iOS tab bar's four tabs, in its order. Ionicons chosen to match
+        // its SF Symbols: storefront -> storefront, message -> chatbubble,
+        // fork.knife.circle -> restaurant, map -> map (Search keeps the map
+        // glyph on iOS too). Ionicons has a filled and an -outline cut of
+        // each, which stands in for SF Symbols' selected/unselected weights.
         tabBarIcon: ({focused, color, size}) => {
           // Icon's `name` is a union of the 1338 real glyph names, so a typo
           // here is a compile error rather than a silently blank tab.
@@ -133,9 +125,9 @@ function MainTabs() {
             iconName = focused ? 'storefront' : 'storefront-outline';
           } else if (route.name === 'Messages') {
             iconName = focused ? 'chatbubble' : 'chatbubble-outline';
-          } else if (route.name === 'Friends') {
-            iconName = focused ? 'people' : 'people-outline';
-          } else if (route.name === 'Map') {
+          } else if (route.name === 'AI Recipe') {
+            iconName = focused ? 'restaurant' : 'restaurant-outline';
+          } else if (route.name === 'Search') {
             iconName = focused ? 'map' : 'map-outline';
           }
           return <Icon name={iconName} size={size} color={color} />;
@@ -143,8 +135,8 @@ function MainTabs() {
       })}>
       <Tab.Screen name="Stores" component={StoresNavigator} />
       <Tab.Screen name="Messages" component={MessagesNavigator} />
-      <Tab.Screen name="Friends" component={FriendsNavigator} />
-      <Tab.Screen name="Map" component={MapNavigator} />
+      <Tab.Screen name="AI Recipe" component={SmartRecipeScreen} />
+      <Tab.Screen name="Search" component={MapNavigator} />
     </Tab.Navigator>
   );
 }
