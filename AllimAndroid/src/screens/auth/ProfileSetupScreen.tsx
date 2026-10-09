@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, {useRef, useState} from 'react';
 import {
   Alert,
   KeyboardAvoidingView,
@@ -6,28 +6,23 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TouchableOpacity,
+  TextInput,
   View,
   useColorScheme,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import auth from '@react-native-firebase/auth';
+import Icon from '../../components/AppIcon';
 
 import GradientBackground from '../../components/GradientBackground';
-import ThemedInput from '../../components/ThemedInput';
-import PrimaryButton from '../../components/PrimaryButton';
-import {
-  Colors,
-  Spacing,
-  cardStyle,
-  textPrimary,
-  textSecondary,
-} from '../../theme/AppTheme';
+import {textPrimary, textSecondary} from '../../theme/AppTheme';
+import {PillButton, fieldStyle, profilePalette} from '../profile/profileUi';
+import {AuthField, QuietLink, authStyles} from './authUi';
 import {authService, USERNAME_REGEX} from '../../services/authService';
 import {useSession} from '../../context/SessionContext';
 
 /**
- * One-time profile setup after a first-time Google sign-in, mirroring the iOS
+ * One-time profile setup after a first-time Google sign-in — port of the iOS
  * ProfileSetupView. Google gives us a verified email but no username, and the
  * `users` collection is keyed by username, so the user picks one here.
  *
@@ -37,6 +32,7 @@ import {useSession} from '../../context/SessionContext';
  */
 export default function ProfileSetupScreen() {
   const scheme = useColorScheme();
+  const p = profilePalette(scheme);
   const {refreshUser} = useSession();
 
   const email = auth().currentUser?.email ?? '';
@@ -46,52 +42,39 @@ export default function ProfileSetupScreen() {
   const [userId, setUserId] = useState('');
   const [name, setName] = useState(auth().currentUser?.displayName ?? '');
   const [loading, setLoading] = useState(false);
+  const nameRef = useRef<TextInput>(null);
 
   async function handleContinue() {
     // Validated in the order the fields are shown, so the message points at the
     // first thing the user would look at.
     const normalizedUserId = userId.trim().toLowerCase();
     if (!normalizedUserId) {
-      Alert.alert('Error', 'Please choose a user ID.');
+      Alert.alert('Note', 'Please choose a user ID.');
       return;
     }
     if (!USERNAME_REGEX.test(normalizedUserId)) {
       Alert.alert(
-        'Error',
+        'Note',
         'Username must be 3-20 characters and contain only letters and numbers.',
       );
       return;
     }
     if (!name.trim()) {
-      Alert.alert('Error', 'Please enter your name.');
+      Alert.alert('Note', 'Please enter your name.');
       return;
     }
 
     setLoading(true);
     try {
       await authService.createSocialProfile(normalizedUserId, name);
-      // Flips the session to 'ready', which swaps this screen for the app.
+      // Flips the session to 'ready', which swaps this screen for the
+      // permission primers and then the app.
       await refreshUser();
     } catch (err: any) {
-      Alert.alert('Error', err.message ?? 'Couldn\'t create your profile.');
+      Alert.alert('Note', err.message ?? "Couldn't create your profile.");
     } finally {
       setLoading(false);
     }
-  }
-
-  function handleSignOut() {
-    Alert.alert(
-      'Sign Out',
-      'Your account was created but has no profile yet. You can finish setting it up next time you sign in.',
-      [
-        {text: 'Cancel', style: 'cancel'},
-        {
-          text: 'Sign Out',
-          style: 'destructive',
-          onPress: () => authService.signOut(),
-        },
-      ],
-    );
   }
 
   return (
@@ -102,62 +85,94 @@ export default function ProfileSetupScreen() {
           style={{flex: 1}}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <ScrollView
-            contentContainerStyle={styles.scroll}
-            keyboardShouldPersistTaps="handled">
-
-            <Text style={[styles.heading, {color: textPrimary(scheme)}]}>
-              Finish Setting Up
-            </Text>
-            <Text style={[styles.subheading, {color: textSecondary(scheme)}]}>
-              You're signed in with Google. Pick a user ID so friends can find
-              you, and confirm the name they'll see.
-            </Text>
-
-            <View style={[styles.emailCard, cardStyle(scheme)]}>
-              <Text style={[styles.emailLabel, {color: textSecondary(scheme)}]}>
-                Email
+            contentContainerStyle={[authStyles.scroll, {paddingTop: 32}]}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="interactive">
+            <View style={styles.heading}>
+              <Text style={[authStyles.display, styles.title, {color: textPrimary(scheme)}]}>
+                Almost there
               </Text>
-              <Text style={[styles.emailValue, {color: textPrimary(scheme)}]}>
-                {email}
+              <Text style={[authStyles.subtitle, {color: textSecondary(scheme)}]}>
+                Choose how you'll appear in Allim.
               </Text>
             </View>
 
             <View style={styles.fields}>
-              <ThemedInput
-                placeholder="Username / User ID"
-                value={userId}
-                onChangeText={setUserId}
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
-              <Text style={[styles.hint, {color: textSecondary(scheme)}]}>
-                3-20 letters and numbers. This is how friends add you, and it
-                can't be changed later.
-              </Text>
-              <ThemedInput
-                placeholder="Display Name (shown to others)"
+              <View style={styles.fieldGroup}>
+                <AuthField
+                  scheme={scheme}
+                  placeholder="User ID"
+                  value={userId}
+                  onChangeText={setUserId}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  autoComplete="username-new"
+                  returnKeyType="next"
+                  onSubmitEditing={() => nameRef.current?.focus()}
+                  blurOnSubmit={false}
+                />
+                <FieldNote scheme={scheme}>
+                  3-20 letters and numbers. This is how friends find you.
+                </FieldNote>
+              </View>
+
+              <AuthField
+                ref={nameRef}
+                scheme={scheme}
+                placeholder="Name"
                 value={name}
                 onChangeText={setName}
-                style={{marginTop: Spacing.md}}
+                autoCapitalize="words"
+                autoCorrect={false}
+                autoComplete="name"
+                returnKeyType="done"
+                onSubmitEditing={handleContinue}
               />
+
+              {/* Provider-supplied and fixed — shown so the user knows which
+                  account they're setting up, but not editable. It keeps the
+                  capsule so the three rows line up, and states in soft ink
+                  that it is a fact, not a field. */}
+              <View style={styles.fieldGroup}>
+                <View style={[fieldStyle(scheme), styles.lockedField]}>
+                  <Text
+                    style={[styles.lockedText, {color: textSecondary(scheme)}]}
+                    numberOfLines={1}
+                    ellipsizeMode="middle">
+                    {email}
+                  </Text>
+                  <Icon
+                    name="lock-closed"
+                    size={14}
+                    color={textSecondary(scheme)}
+                    style={{opacity: 0.7}}
+                  />
+                </View>
+                <FieldNote scheme={scheme}>
+                  From your Google account. This can't be changed.
+                </FieldNote>
+              </View>
             </View>
 
-            <PrimaryButton
+            <PillButton
               title="Continue"
               onPress={handleContinue}
               loading={loading}
-              gradient
+              color={p.accent}
+              style={{marginTop: 4}}
             />
 
-            <TouchableOpacity
-              onPress={handleSignOut}
-              style={styles.linkContainer}
-              disabled={loading}>
-              <Text style={[styles.mutedText, {color: Colors.blue}]}>
-                Sign out
-              </Text>
-            </TouchableOpacity>
-
+            {/* The way back out of a half-finished account. Quiet ink, well
+                clear of Continue — the escape hatch, not the choice this
+                screen is asking anyone to make. */}
+            <QuietLink
+              scheme={scheme}
+              title="Sign Out"
+              underline={false}
+              onPress={() => authService.signOut()}
+              disabled={loading}
+              style={{marginTop: 6, alignSelf: 'center'}}
+            />
           </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
@@ -165,46 +180,44 @@ export default function ProfileSetupScreen() {
   );
 }
 
+function FieldNote({
+  scheme,
+  children,
+}: {
+  scheme: ReturnType<typeof useColorScheme>;
+  children: React.ReactNode;
+}) {
+  return (
+    <Text style={[styles.note, {color: textSecondary(scheme)}]}>{children}</Text>
+  );
+}
+
 const styles = StyleSheet.create({
-  scroll: {
-    flexGrow: 1,
-    padding: Spacing.lg,
-    paddingTop: 60,
-  },
   heading: {
-    fontSize: 28,
-    fontWeight: '700',
-    marginBottom: Spacing.sm,
+    gap: 10,
+    marginBottom: 4,
   },
-  subheading: {
-    fontSize: 14,
-    marginBottom: Spacing.lg,
-  },
-  emailCard: {
-    padding: Spacing.md,
-    marginBottom: Spacing.lg,
-  },
-  emailLabel: {
-    fontSize: 12,
-    marginBottom: 2,
-  },
-  emailValue: {
-    fontSize: 16,
-    fontWeight: '500',
+  title: {
+    fontSize: 34,
   },
   fields: {
-    marginBottom: Spacing.lg,
+    gap: 16,
   },
-  hint: {
-    fontSize: 12,
-    marginTop: Spacing.xs,
+  fieldGroup: {
+    gap: 8,
   },
-  linkContainer: {
-    marginTop: Spacing.lg,
+  lockedField: {
+    flexDirection: 'row',
     alignItems: 'center',
+    gap: 10,
   },
-  mutedText: {
-    fontSize: 14,
-    textDecorationLine: 'underline',
+  lockedText: {
+    flex: 1,
+    fontSize: 17,
+  },
+  note: {
+    fontSize: 13,
+    lineHeight: 18,
+    paddingHorizontal: 18,
   },
 });

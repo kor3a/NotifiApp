@@ -4,15 +4,16 @@ import {NavigationContainer} from '@react-navigation/native';
 import {SafeAreaProvider} from 'react-native-safe-area-context';
 import {GestureHandlerRootView} from 'react-native-gesture-handler';
 import AppNavigator from './src/navigation/AppNavigator';
+import {navigationRef} from './src/navigation/navigationRef';
 import {useColorScheme} from 'react-native';
 import messaging from '@react-native-firebase/messaging';
 import notifee, {AndroidImportance} from '@notifee/react-native';
 
-async function requestNotificationPermission() {
-  await messaging().requestPermission();
-  await notifee.requestPermission();
-
-  // Create notification channel for Android
+// The notification permission itself is asked for by the onboarding primer
+// after sign-up, with an explanation in front of it, rather than fired at
+// launch before the user knows what the app does with it. The channels can
+// exist either way.
+async function createNotificationChannels() {
   await notifee.createChannel({
     id: 'allim-default',
     name: 'Allim Notifications',
@@ -37,7 +38,7 @@ function App(): React.JSX.Element {
   const appState = useRef<AppStateStatus>(AppState.currentState);
 
   useEffect(() => {
-    requestNotificationPermission();
+    createNotificationChannels();
 
     const unsubscribe = messaging().onMessage(async remoteMessage => {
       if (remoteMessage.notification) {
@@ -83,7 +84,7 @@ function App(): React.JSX.Element {
           translucent
           backgroundColor="transparent"
         />
-        <NavigationContainer>
+        <NavigationContainer ref={navigationRef}>
           <AppNavigator />
         </NavigationContainer>
       </SafeAreaProvider>

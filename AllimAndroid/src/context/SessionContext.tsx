@@ -9,6 +9,7 @@ import auth from '@react-native-firebase/auth';
 import messaging from '@react-native-firebase/messaging';
 import {User} from '../models';
 import {userService} from '../services/userService';
+import {isSignupInProgress} from '../services/authService';
 
 /**
  * Where the signed-in account stands relative to its Firestore profile.
@@ -74,6 +75,12 @@ export function SessionProvider({children}: {children: React.ReactNode}) {
 
   useEffect(() => {
     const unsubscribe = auth().onAuthStateChanged(async fbUser => {
+      // Sign Up's own account is signed in only long enough to write its
+      // profile, then signed straight back out to await verification. Routing
+      // on it would flash the app and tear down the auth screens mid-signup.
+      if (fbUser && isSignupInProgress()) {
+        return;
+      }
       setFirebaseUser(fbUser);
       if (fbUser) {
         hasSeenSignedInUser.current = true;

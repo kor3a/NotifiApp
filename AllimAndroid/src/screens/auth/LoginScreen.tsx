@@ -9,28 +9,28 @@ import {
   Platform,
   useColorScheme,
   Alert,
+  Modal,
+  ActivityIndicator,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
-import LinearGradient from 'react-native-linear-gradient';
 import {FirebaseAuthTypes} from '@react-native-firebase/auth';
-import {NativeStackNavigationProp} from '@react-navigation/native-stack';
+import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {AuthStackParamList} from '../../navigation/AppNavigator';
+import Icon from '../../components/AppIcon';
 
 import GradientBackground from '../../components/GradientBackground';
-import ThemedInput from '../../components/ThemedInput';
-import PrimaryButton from '../../components/PrimaryButton';
 import GoogleSignInButton, {OrDivider} from '../../components/GoogleSignInButton';
-import {Colors, Spacing, Radius, cardStyle, cardBorder, textPrimary, textSecondary} from '../../theme/AppTheme';
+import {cardStyle, sheetBackground, textPrimary, textSecondary} from '../../theme/AppTheme';
+import {PillButton, profilePalette} from '../profile/profileUi';
+import {AllimWordmark, AuthField, BlushIcon, FormError, QuietLink, authStyles} from './authUi';
 import {authService} from '../../services/authService';
 import {googleAuthService} from '../../services/googleAuthService';
 
-type Props = {
-  navigation: NativeStackNavigationProp<AuthStackParamList, 'Login'>;
-};
+type Props = NativeStackScreenProps<AuthStackParamList, 'Login'>;
 
 /**
  * A Google credential waiting on the user's existing password, shown by the
- * link card below. Set when the Google email already belongs to an
+ * link sheet below. Set when the Google email already belongs to an
  * email/password account: confirming the password LINKS the two rather than
  * leaving a second account behind.
  */
@@ -39,23 +39,28 @@ type PendingLink = {
   credential: FirebaseAuthTypes.AuthCredential;
 };
 
-export default function LoginScreen({navigation}: Props) {
+// Port of iOS LoginView.
+export default function LoginScreen({navigation, route}: Props) {
   const scheme = useColorScheme();
+  const p = profilePalette(scheme);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [showEmailNotVerified, setShowEmailNotVerified] = useState(false);
   const [resending, setResending] = useState(false);
-  const [signupEmail, setSignupEmail] = useState('');
-  const [showConfirmation, setShowConfirmation] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [pendingLink, setPendingLink] = useState<PendingLink | null>(null);
   const [linkPassword, setLinkPassword] = useState('');
+  const [linkError, setLinkError] = useState('');
   const [linking, setLinking] = useState(false);
+
+  // Sign Up pops back here with the address it just registered, and this
+  // screen says where the confirmation went — as on iOS.
+  const signupEmail = route.params?.signupEmail ?? '';
 
   async function handleLogin() {
     if (!email.trim() || !password) {
-      Alert.alert('Error', 'Please enter your email and password.');
+      Alert.alert('Note', 'Please enter your email and password.');
       return;
     }
     setLoading(true);
@@ -65,10 +70,7 @@ export default function LoginScreen({navigation}: Props) {
     } catch (err: any) {
       if (err.message === 'EMAIL_NOT_VERIFIED') {
         setShowEmailNotVerified(true);
-        Alert.alert(
-          'Email Not Verified',
-          'Please verify your email before logging in.',
-        );
+        Alert.alert('Note', 'Please verify your email before logging in.');
       } else {
         const msg =
           err.code === 'auth/invalid-credential' ||
@@ -76,7 +78,7 @@ export default function LoginScreen({navigation}: Props) {
           err.code === 'auth/user-not-found'
             ? 'Incorrect email or password.'
             : err.message ?? 'Login failed. Please try again.';
-        Alert.alert('Login Failed', msg);
+        Alert.alert('Note', msg);
       }
     } finally {
       setLoading(false);
@@ -96,6 +98,7 @@ export default function LoginScreen({navigation}: Props) {
           break;
         case 'needsPasswordLink':
           setLinkPassword('');
+          setLinkError('');
           setPendingLink({
             email: outcome.email,
             credential: outcome.credential,
@@ -110,7 +113,7 @@ export default function LoginScreen({navigation}: Props) {
       }
     } catch (err: any) {
       Alert.alert(
-        'Google Sign-In Failed',
+        'Note',
         err.message ?? 'Google Sign-In failed. Please try again.',
       );
     } finally {
@@ -123,6 +126,7 @@ export default function LoginScreen({navigation}: Props) {
       return;
     }
     setLinking(true);
+    setLinkError('');
     try {
       await googleAuthService.linkToPasswordAccount(
         pendingLink.email,
@@ -132,25 +136,34 @@ export default function LoginScreen({navigation}: Props) {
       setPendingLink(null);
       setLinkPassword('');
     } catch (err: any) {
-      const msg =
+      setLinkError(
         err.code === 'auth/invalid-credential' ||
-        err.code === 'auth/wrong-password' ||
-        err.code === 'auth/user-not-found'
+          err.code === 'auth/wrong-password' ||
+          err.code === 'auth/user-not-found'
           ? 'Incorrect password. Please try again.'
-          : err.message ?? 'Couldn\'t link your accounts. Please try again.';
-      Alert.alert('Link Failed', msg);
+          : err.message ?? "Couldn't link your accounts. Please try again.",
+      );
     } finally {
       setLinking(false);
     }
+  }
+
+  function cancelLink() {
+    if (linking) {
+      return;
+    }
+    setPendingLink(null);
+    setLinkPassword('');
+    setLinkError('');
   }
 
   async function handleResendVerification() {
     setResending(true);
     try {
       await authService.resendVerificationEmail();
-      Alert.alert('Email Sent', 'Verification email resent. Check your inbox.');
+      Alert.alert('Note', 'Verification email resent. Check your inbox.');
     } catch (err: any) {
-      Alert.alert('Error', err.message ?? 'Failed to resend email.');
+      Alert.alert('Note', err.message ?? 'Failed to resend email.');
     } finally {
       setResending(false);
     }
@@ -164,229 +177,284 @@ export default function LoginScreen({navigation}: Props) {
           style={{flex: 1}}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <ScrollView
-            contentContainerStyle={styles.scroll}
+            contentContainerStyle={[authStyles.scroll, styles.scroll]}
             keyboardShouldPersistTaps="handled">
+            <AllimWordmark scheme={scheme} />
 
-            {/* App name */}
-            <LinearGradient
-              colors={[Colors.blue, Colors.purple]}
-              start={{x: 0, y: 0}}
-              end={{x: 1, y: 0}}
-              style={styles.titleGradient}>
-              <Text style={styles.title}>Allim</Text>
-            </LinearGradient>
-
-            {/* Signup confirmation banner */}
-            {showConfirmation && (
-              <View style={[styles.confirmationCard, cardStyle(scheme)]}>
-                <Text style={[styles.confirmText, {color: textPrimary(scheme)}]}>
+            {!!signupEmail && (
+              <View style={[styles.confirmationCard, {backgroundColor: p.sage}]}>
+                <Icon name="mail-unread" size={30} color={p.sageInk} />
+                <Text style={[styles.confirmText, {color: p.sageInk}]}>
                   A confirmation email has been sent to {signupEmail}. Please
-                  click the link to complete sign up.
+                  click on the link to complete the sign up.
                 </Text>
-                <Text style={[styles.confirmSubText, {color: textSecondary(scheme)}]}>
-                  Can't find it? Check your spam or junk folder.
+                <Text style={[styles.confirmSubText, {color: p.sageInk}]}>
+                  Can't find it? Be sure to check your spam or junk folder.
                 </Text>
               </View>
             )}
 
-            {/* Input fields */}
-            <View style={styles.fields}>
-              <ThemedInput
+            <View style={authStyles.fields}>
+              <AuthField
+                scheme={scheme}
                 placeholder="Email"
                 value={email}
                 onChangeText={setEmail}
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoCorrect={false}
+                autoComplete="email"
+                textContentType="emailAddress"
               />
-              <ThemedInput
+              <AuthField
+                scheme={scheme}
                 placeholder="Password"
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry
-                style={{marginTop: Spacing.md}}
+                autoComplete="password"
+                textContentType="password"
+                returnKeyType="go"
+                onSubmitEditing={handleLogin}
               />
             </View>
 
-            {/* Login button */}
-            <PrimaryButton
+            <PillButton
               title="Login"
               onPress={handleLogin}
               loading={loading}
-              gradient
-              style={styles.loginBtn}
+              color={p.accent}
+              style={styles.pillTop}
             />
 
-            {/* Continue with Google */}
-            <OrDivider />
-            <GoogleSignInButton
-              onPress={handleGoogleSignIn}
-              loading={googleLoading}
-              disabled={loading || !!pendingLink}
-            />
+            <View style={styles.social}>
+              <OrDivider />
+              <GoogleSignInButton
+                onPress={handleGoogleSignIn}
+                disabled={loading || googleLoading || !!pendingLink}
+              />
+            </View>
 
-            {/* Link prompt: this Google email already has a password account */}
-            {pendingLink && (
-              <View style={[styles.linkCard, cardStyle(scheme)]}>
-                <Text style={[styles.linkCardTitle, {color: textPrimary(scheme)}]}>
-                  Link Your Account
-                </Text>
-                <Text style={[styles.linkCardBody, {color: textSecondary(scheme)}]}>
-                  {pendingLink.email} already has an Allim account with a
-                  password. Enter it once and Google will be added to that same
-                  account — no second account, and all your stores and reminders
-                  stay put.
-                </Text>
-                <ThemedInput
-                  placeholder="Password"
-                  value={linkPassword}
-                  onChangeText={setLinkPassword}
-                  secureTextEntry
-                  autoFocus
-                  style={{marginTop: Spacing.md}}
-                />
-                <View style={styles.linkActions}>
-                  <TouchableOpacity
-                    style={[styles.linkBtn, {backgroundColor: Colors.blue + '1A'}]}
-                    onPress={() => {
-                      setPendingLink(null);
-                      setLinkPassword('');
-                    }}
-                    disabled={linking}>
-                    <Text style={{color: Colors.blue, fontWeight: '600'}}>
-                      Cancel
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.linkBtn, {backgroundColor: Colors.blue}]}
-                    onPress={handleConfirmLink}
-                    disabled={linking || !linkPassword}>
-                    <Text style={{color: '#fff', fontWeight: '600'}}>
-                      {linking ? 'Linking...' : 'Link'}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            )}
-
-            {/* Resend verification */}
             {showEmailNotVerified && (
-              <TouchableOpacity onPress={handleResendVerification} disabled={resending}>
-                <Text style={styles.linkText}>
-                  {resending ? 'Sending...' : 'Resend Verification Email'}
+              <TouchableOpacity
+                onPress={handleResendVerification}
+                disabled={resending}
+                style={styles.resend}>
+                <Text style={[styles.resendText, {color: p.accent}]}>
+                  {resending ? 'Sending…' : 'Resend verification email'}
                 </Text>
               </TouchableOpacity>
             )}
 
-            {/* Sign up link */}
-            <TouchableOpacity
-              onPress={() => navigation.navigate('Signup')}
-              style={styles.linkContainer}>
-              <Text style={[styles.mutedText, {color: textSecondary(scheme)}]}>
-                Don't have an account?{' '}
-                <Text style={{color: Colors.blue, textDecorationLine: 'underline'}}>
-                  Sign up here.
+            {/* The two ways off this screen, as quiet text rather than a
+                second and third pill — Login is the only thing here that
+                should read as a button. */}
+            <View style={styles.offRamps}>
+              <TouchableOpacity
+                onPress={() => navigation.navigate('Signup')}
+                activeOpacity={0.6}
+                hitSlop={8}>
+                <Text style={[styles.offRampText, {color: textSecondary(scheme)}]}>
+                  Don't have an account?{' '}
+                  <Text style={[styles.offRampAction, {color: p.accent}]}>Sign up</Text>
                 </Text>
-              </Text>
-            </TouchableOpacity>
-
-            {/* Forgot password */}
-            <TouchableOpacity
-              onPress={() => navigation.navigate('ForgotPassword')}
-              style={styles.linkContainer}>
-              <Text style={[styles.mutedText, {color: textSecondary(scheme)}]}>
-                Forgot password?{' '}
-                <Text style={{color: Colors.blue, textDecorationLine: 'underline'}}>
-                  Click here
-                </Text>
-              </Text>
-            </TouchableOpacity>
-
+              </TouchableOpacity>
+              <QuietLink
+                scheme={scheme}
+                title="Forgot password?"
+                onPress={() => navigation.navigate('ForgotPassword')}
+              />
+            </View>
           </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
+
+      {/* Google sign-in in flight: the form dims under a spinner card. */}
+      {googleLoading && (
+        <View style={[StyleSheet.absoluteFill, styles.loadingScrim]}>
+          <View style={[cardStyle(scheme), styles.loadingCard]}>
+            <ActivityIndicator size="large" color={p.accent} />
+          </View>
+        </View>
+      )}
+
+      <LinkAccountSheet
+        visible={!!pendingLink}
+        email={pendingLink?.email ?? ''}
+        password={linkPassword}
+        onChangePassword={setLinkPassword}
+        error={linkError}
+        linking={linking}
+        onConfirm={handleConfirmLink}
+        onCancel={cancelLink}
+      />
     </View>
+  );
+}
+
+/**
+ * Password prompt shown when a Google email already belongs to an existing
+ * email/password account. Port of the iOS LinkAccountSheet: confirming the
+ * password links Google onto that same account instead of creating a
+ * duplicate.
+ */
+function LinkAccountSheet({
+  visible,
+  email,
+  password,
+  onChangePassword,
+  error,
+  linking,
+  onConfirm,
+  onCancel,
+}: {
+  visible: boolean;
+  email: string;
+  password: string;
+  onChangePassword: (value: string) => void;
+  error: string;
+  linking: boolean;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  const scheme = useColorScheme();
+  const p = profilePalette(scheme);
+  return (
+    <Modal
+      visible={visible}
+      animationType="slide"
+      presentationStyle="pageSheet"
+      onRequestClose={onCancel}>
+      <View style={[styles.sheet, {backgroundColor: sheetBackground(scheme)}]}>
+        <View style={styles.sheetBar}>
+          <TouchableOpacity onPress={onCancel} disabled={linking} hitSlop={8}>
+            <Text style={[styles.sheetCancel, {color: p.accent, opacity: linking ? 0.4 : 1}]}>
+              Cancel
+            </Text>
+          </TouchableOpacity>
+        </View>
+        <ScrollView
+          contentContainerStyle={styles.sheetContent}
+          keyboardShouldPersistTaps="handled">
+          <BlushIcon scheme={scheme} name="link" size={88} glyphSize={34} />
+          <Text style={[styles.sheetTitle, {color: textPrimary(scheme)}]}>
+            Link your account
+          </Text>
+          <Text style={[authStyles.subtitle, styles.sheetBody, {color: textSecondary(scheme)}]}>
+            You already have an account for {email}. Enter your password to
+            connect Google to it — no duplicate account will be created.
+          </Text>
+          <AuthField
+            scheme={scheme}
+            placeholder="Password"
+            value={password}
+            onChangeText={onChangePassword}
+            secureTextEntry
+            autoFocus
+            autoComplete="password"
+            returnKeyType="go"
+            onSubmitEditing={onConfirm}
+            style={styles.sheetField}
+          />
+          <FormError message={error} />
+          <PillButton
+            title="Link & Continue"
+            onPress={onConfirm}
+            loading={linking}
+            disabled={!password}
+            color={p.accent}
+            style={styles.sheetField}
+          />
+        </ScrollView>
+      </View>
+    </Modal>
   );
 }
 
 const styles = StyleSheet.create({
   scroll: {
-    flexGrow: 1,
-    padding: Spacing.lg,
-    paddingTop: 60,
-  },
-  titleGradient: {
-    alignSelf: 'center',
-    marginBottom: Spacing.xl,
-    // mask the text with gradient on Android using a workaround
-    borderRadius: 4,
-    paddingHorizontal: 4,
-    backgroundColor: 'transparent',
-  },
-  title: {
-    fontSize: 40,
-    fontWeight: '700',
-    color: '#fff',
-    // On Android gradient text isn't native, so we use white on gradient bg
-    letterSpacing: -1,
+    paddingTop: 32,
   },
   confirmationCard: {
-    padding: Spacing.md,
-    marginBottom: Spacing.lg,
+    alignItems: 'center',
+    gap: 10,
+    padding: 20,
+    borderRadius: 24,
   },
   confirmText: {
-    fontSize: 14,
+    fontSize: 15,
+    lineHeight: 21,
     textAlign: 'center',
-    marginBottom: Spacing.xs,
   },
   confirmSubText: {
-    fontSize: 12,
+    fontSize: 13,
+    textAlign: 'center',
+    opacity: 0.8,
+  },
+  pillTop: {
+    marginTop: 4,
+  },
+  social: {
+    gap: 12,
+    marginTop: 4,
+  },
+  resend: {
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  resendText: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  offRamps: {
+    alignItems: 'center',
+    gap: 12,
+    marginTop: 10,
+  },
+  offRampText: {
+    fontSize: 14,
     textAlign: 'center',
   },
-  fields: {
-    marginBottom: Spacing.lg,
+  offRampAction: {
+    fontWeight: '700',
   },
-  loginBtn: {
-    marginBottom: Spacing.md,
-  },
-  linkCard: {
-    padding: Spacing.md,
-    marginTop: Spacing.md,
-  },
-  linkCardTitle: {
-    fontSize: 17,
-    fontWeight: '600',
-    marginBottom: Spacing.xs,
-  },
-  linkCardBody: {
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  linkActions: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
-    marginTop: Spacing.md,
-  },
-  linkBtn: {
-    flex: 1,
-    height: 44,
-    borderRadius: Radius.md,
+  loadingScrim: {
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.25)',
   },
-  linkContainer: {
-    marginTop: Spacing.md,
+  loadingCard: {
+    padding: 28,
+    borderRadius: 24,
+  },
+  sheet: {
+    flex: 1,
+  },
+  sheetBar: {
+    height: 52,
+    paddingHorizontal: 20,
+    flexDirection: 'row',
     alignItems: 'center',
   },
-  linkText: {
-    color: Colors.blue,
-    fontSize: 14,
-    textDecorationLine: 'underline',
-    textAlign: 'center',
-    marginTop: Spacing.md,
+  sheetCancel: {
+    fontSize: 17,
   },
-  mutedText: {
-    fontSize: 12,
+  sheetContent: {
+    alignItems: 'center',
+    gap: 20,
+    paddingHorizontal: 24,
+    paddingTop: 24,
+    paddingBottom: 40,
+  },
+  sheetTitle: {
+    fontSize: 26,
+    fontWeight: '800',
     textAlign: 'center',
+  },
+  sheetBody: {
+    fontSize: 15,
+  },
+  sheetField: {
+    alignSelf: 'stretch',
   },
 });
