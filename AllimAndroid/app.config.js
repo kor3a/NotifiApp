@@ -39,14 +39,22 @@ module.exports = {
     newArchEnabled: false,
     jsEngine: 'hermes',
     assetBundlePatterns: ['**/*'],
+    // Without this, expo-splash-screen copies its teal into AppTheme's status
+    // bar colour. App.tsx makes the bar transparent once JS runs; this keeps the
+    // window's own default as it was. (Prebuild warns that it differs from the
+    // splash colour — that is intended.)
+    androidStatusBar: {backgroundColor: '#ffffff'},
 
     android: {
       package: 'com.allimandroid',
       versionCode: 1,
       googleServicesFile: './google-services.json',
+      // The storefront artwork shrunk onto its own teal so it sits inside the
+      // adaptive icon's safe zone — launchers crop the outer third to a circle
+      // or squircle, which would clip the full-bleed icon.png.
       adaptiveIcon: {
-        foregroundImage: './assets/icon.png',
-        backgroundColor: '#F2F3F8',
+        foregroundImage: './assets/adaptive-icon.png',
+        backgroundColor: '#0B7285',
       },
       permissions: [
         'android.permission.INTERNET',
@@ -68,6 +76,18 @@ module.exports = {
     },
 
     plugins: [
+      [
+        'expo-splash-screen',
+        {
+          // The icon artwork on its own teal, so the launch screen reads as the
+          // app icon opening up. Android 12+ masks the splash icon to a 192dp
+          // circle; at 200dp the storefront still sits inside it and only the
+          // teal corners are clipped, invisibly, against the teal background.
+          image: './assets/icon.png',
+          imageWidth: 200,
+          backgroundColor: '#0B7285',
+        },
+      ],
       '@react-native-firebase/app',
       '@react-native-firebase/auth',
       '@react-native-firebase/messaging',
