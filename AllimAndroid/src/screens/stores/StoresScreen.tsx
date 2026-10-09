@@ -52,6 +52,8 @@ import {
   reminderStoreIdFor,
 } from '../../models';
 import {StoresStackParamList} from '../../navigation/AppNavigator';
+import {useTutorialActive, useTutorialTarget} from '../../tutorial/tutorialManager';
+import {TUTORIAL_STORES} from '../../tutorial/tutorialMockData';
 
 type Nav = NativeStackNavigationProp<StoresStackParamList, 'StoresList'>;
 type StoreViewMode = 'list' | 'float';
@@ -67,8 +69,18 @@ export default function StoresScreen() {
   const navigation = useNavigation<Nav>();
   const {currentUser, firebaseUser} = useSession();
 
-  const [stores, setStores] = useState<UserStoreItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [liveStores, setStores] = useState<UserStoreItem[]>([]);
+  const [liveLoading, setLoading] = useState(true);
+
+  // While the tutorial runs, the screen shows a few stand-in stores so the
+  // tour has a list and its toolbar to point at — iOS TutorialMockData. The
+  // overlay keeps every touch off them.
+  const tutorialActive = useTutorialActive();
+  const stores = tutorialActive ? TUTORIAL_STORES : liveStores;
+  const loading = liveLoading && !tutorialActive;
+  const fabTarget = useTutorialTarget('tutorial_fab');
+  const toolbarTarget = useTutorialTarget('tutorial_toolbar');
+  const profileTarget = useTutorialTarget('tutorial_profile');
   const [showAddSheet, setShowAddSheet] = useState(false);
   const [showRecipes, setShowRecipes] = useState(false);
   const [showColors, setShowColors] = useState(false);
@@ -147,12 +159,13 @@ export default function StoresScreen() {
 
   useEffect(() => {
     Animated.spring(fabShrink, {
-      toValue: isFabShrunk ? 1 : 0,
+      // Held at full size while the tutorial is pointing at it.
+      toValue: isFabShrunk && !tutorialActive ? 1 : 0,
       friction: 7,
       tension: 60,
       useNativeDriver: true,
     }).start();
-  }, [isFabShrunk, fabShrink]);
+  }, [isFabShrunk, tutorialActive, fabShrink]);
 
   const clearFabTimer = useCallback(() => {
     if (fabTimer.current) {
@@ -622,15 +635,17 @@ export default function StoresScreen() {
           </Text>
         </View>
 
-        <TouchableOpacity
-          onPress={() => navigation.navigate('Profile')}
-          accessibilityLabel="Profile">
-          <ProfileAvatar
-            url={currentUser?.profilePictureURL}
-            name={currentUser?.name}
-            size={44}
-          />
-        </TouchableOpacity>
+        <View {...profileTarget}>
+          <TouchableOpacity
+            onPress={() => navigation.navigate('Profile')}
+            accessibilityLabel="Profile">
+            <ProfileAvatar
+              url={currentUser?.profilePictureURL}
+              name={currentUser?.name}
+              size={44}
+            />
+          </TouchableOpacity>
+        </View>
 
         {showingDone ? (
           <TouchableOpacity
@@ -643,7 +658,7 @@ export default function StoresScreen() {
             <Text style={styles.doneText}>Done</Text>
           </TouchableOpacity>
         ) : stores.length > 0 ? (
-          <>
+          <View {...toolbarTarget} style={styles.headerToolbar}>
             <HeaderButton
               icon="swap-vertical"
               onPress={handleSortByReminderCount}
@@ -656,7 +671,7 @@ export default function StoresScreen() {
                 viewMode === 'list' ? 'Switch to grid view' : 'Switch to list view'
               }
             />
-          </>
+          </View>
         ) : null}
       </View>
     );
@@ -763,6 +778,7 @@ export default function StoresScreen() {
             )}
 
             <Animated.View
+              {...fabTarget}
               style={{
                 transform: [
                   {translateX: fabOffset},
@@ -1013,6 +1029,10 @@ const styles = StyleSheet.create({
   greetingName: {
     fontSize: 34,
     fontWeight: '700',
+  },
+  headerToolbar: {
+    flexDirection: 'row',
+    gap: 10,
   },
   headerButton: {
     width: 44,

@@ -1,5 +1,6 @@
-import React from 'react';
+import React, {useEffect} from 'react';
 import {ActivityIndicator, View} from 'react-native';
+import {NavigatorScreenParams} from '@react-navigation/native';
 import {createNativeStackNavigator} from '@react-navigation/native-stack';
 import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 import {useColorScheme} from 'react-native';
@@ -12,6 +13,10 @@ import LoginScreen from '../screens/auth/LoginScreen';
 import SignupScreen from '../screens/auth/SignupScreen';
 import ForgotPasswordScreen from '../screens/auth/ForgotPasswordScreen';
 import ProfileSetupScreen from '../screens/auth/ProfileSetupScreen';
+import PermissionOnboardingScreen from '../screens/onboarding/PermissionOnboardingScreen';
+import {usePermissionOnboarding} from '../onboarding/permissionOnboarding';
+import TutorialOverlay from '../tutorial/TutorialOverlay';
+import {tutorial} from '../tutorial/tutorialManager';
 
 // Main screens
 import StoresScreen from '../screens/stores/StoresScreen';
@@ -30,7 +35,9 @@ import SubscriptionScreen from '../screens/profile/SubscriptionScreen';
 import {Colors} from '../theme/AppTheme';
 
 export type AuthStackParamList = {
-  Login: undefined;
+  // Sign Up returns here with the address it registered, so Login can say
+  // where the confirmation email went.
+  Login: {signupEmail?: string} | undefined;
   Signup: undefined;
   ForgotPassword: undefined;
 };
@@ -70,15 +77,22 @@ export type MapStackParamList = {
   MapView: undefined;
 };
 
+export type MainTabParamList = {
+  Stores: undefined;
+  Messages: undefined;
+  'AI Recipe': undefined;
+  Search: undefined;
+};
+
 export type MainStackParamList = {
-  Tabs: undefined;
+  Tabs: NavigatorScreenParams<MainTabParamList> | undefined;
   // The Premium paywall — a sheet over the whole app on iOS, so it sits above
   // the tabs here and rises from the bottom.
   Subscription: undefined;
 };
 
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
-const Tab = createBottomTabNavigator();
+const Tab = createBottomTabNavigator<MainTabParamList>();
 const StoresStack = createNativeStackNavigator<StoresStackParamList>();
 const MessagesStack = createNativeStackNavigator<MessagesStackParamList>();
 const MapStack = createNativeStackNavigator<MapStackParamList>();
@@ -160,16 +174,35 @@ function MainTabs() {
   );
 }
 
-function MainNavigator() {
+function MainNavigator({uid}: {uid: string}) {
+  // The tour starts the first time this account reaches the app on this
+  // device — after the permission primers, as on iOS.
+  useEffect(() => {
+    tutorial.startIfNeeded(uid);
+    return () => tutorial.reset();
+  }, [uid]);
+
   return (
-    <MainStack.Navigator screenOptions={{headerShown: false}}>
-      <MainStack.Screen name="Tabs" component={MainTabs} />
-      <MainStack.Screen
-        name="Subscription"
-        component={SubscriptionScreen}
-        options={{presentation: 'modal', animation: 'slide_from_bottom'}}
-      />
-    </MainStack.Navigator>
+    <View style={{flex: 1}}>
+      <MainStack.Navigator screenOptions={{headerShown: false}}>
+        <MainStack.Screen name="Tabs" component={MainTabs} />
+        <MainStack.Screen
+          name="Subscription"
+          component={SubscriptionScreen}
+          options={{presentation: 'modal', animation: 'slide_from_bottom'}}
+        />
+      </MainStack.Navigator>
+      {/* Above the tabs, tab bar included. */}
+      <TutorialOverlay />
+    </View>
+  );
+}
+
+function LoadingScreen() {
+  return (
+    <View style={{flex: 1, justifyContent: 'center', alignItems: 'center'}}>
+      <ActivityIndicator size="large" color={Colors.blue} />
+    </View>
   );
 }
 
@@ -184,14 +217,17 @@ function AuthNavigator() {
 }
 
 function RootNavigator() {
-  const {isAuthenticated, isLoading, profileStatus} = useSession();
+  const {firebaseUser, isAuthenticated, isLoading, profileStatus} = useSession();
+
+  // Evaluated only once the account has a profile to land in; a brand-new
+  // account is walked through location and notifications first, so the system
+  // prompts arrive with an explanation attached.
+  const hasProfile = isAuthenticated && !isLoading && profileStatus !== 'needsSetup';
+  const uid: string | null = hasProfile ? firebaseUser?.uid ?? null : null;
+  const permissionOnboarding = usePermissionOnboarding(uid);
 
   if (isLoading) {
-    return (
-      <View style={{flex: 1, justifyContent: 'center', alignItems: 'center'}}>
-        <ActivityIndicator size="large" color={Colors.blue} />
-      </View>
-    );
+    return <LoadingScreen />;
   }
 
   if (!isAuthenticated) {
@@ -207,7 +243,21 @@ function RootNavigator() {
     return <ProfileSetupScreen />;
   }
 
-  return <MainNavigator />;
+  switch (permissionOnboarding.state.kind) {
+    case 'active':
+      return (
+        <PermissionOnboardingScreen
+          steps={permissionOnboarding.state.steps}
+          onFinished={permissionOnboarding.finish}
+        />
+      );
+    case 'evaluating':
+      // Still working out whether there is anything to ask — hold rather than
+      // flash the app before a primer appears.
+      return <LoadingScreen />;
+    case 'finished':
+      return <MainNavigator uid={uid ?? ''} />;
+  }
 }
 
 export default function AppNavigator() {

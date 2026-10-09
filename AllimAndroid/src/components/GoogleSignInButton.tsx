@@ -9,13 +9,16 @@ import {
 } from 'react-native';
 import {
   Colors,
-  Radius,
-  Spacing,
   cardBackground,
-  cardBorder,
   textPrimary,
   textSecondary,
 } from '../theme/AppTheme';
+
+// The iOS hairline (`OrganicPalette.outline`) the capsule and the "or" rule are
+// drawn in.
+function outline(scheme: ReturnType<typeof useColorScheme>) {
+  return scheme === 'dark' ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.12)';
+}
 
 interface Props {
   onPress: () => void;
@@ -25,7 +28,8 @@ interface Props {
 
 /**
  * "Continue with Google", styled to match the iOS LoginView button: the
- * four-colour Google G on a card-coloured pill the same height as PrimaryButton.
+ * four-colour Google G on a surface-coloured capsule under a hairline, the
+ * same height as the Login pill above it.
  *
  * The mark is drawn from four coloured glyph layers rather than an image so it
  * scales with the type and needs no asset — Android has no equivalent of the
@@ -46,7 +50,7 @@ export default function GoogleSignInButton({onPress, loading, disabled}: Props) 
         styles.button,
         {
           backgroundColor: cardBackground(scheme),
-          borderColor: cardBorder(scheme),
+          borderColor: outline(scheme),
         },
         isDisabled && styles.disabled,
       ]}>
@@ -81,7 +85,7 @@ function GoogleMark() {
 /** "or" rule, matching the divider above the social section on iOS. */
 export function OrDivider() {
   const scheme = useColorScheme();
-  const line = {backgroundColor: cardBorder(scheme)};
+  const line = {backgroundColor: outline(scheme)};
   return (
     <View style={styles.divider}>
       <View style={[styles.dividerLine, line]} />
@@ -95,8 +99,8 @@ export function OrDivider() {
 
 const styles = StyleSheet.create({
   button: {
-    height: 50,
-    borderRadius: Radius.md,
+    height: 54,
+    borderRadius: 27,
     borderWidth: 1.5,
     alignItems: 'center',
     justifyContent: 'center',
@@ -111,7 +115,7 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 16,
-    fontWeight: '500',
+    fontWeight: '700',
     marginLeft: 10,
   },
   mark: {
@@ -135,14 +139,13 @@ const styles = StyleSheet.create({
   divider: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: Spacing.md,
+    gap: 12,
   },
   dividerLine: {
     flex: 1,
     height: 1,
   },
   dividerLabel: {
-    fontSize: 13,
-    marginHorizontal: Spacing.md,
+    fontSize: 14,
   },
 });

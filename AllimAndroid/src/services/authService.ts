@@ -22,6 +22,17 @@ const discardAuthUser = async (user: FirebaseAuthTypes.User) => {
   } catch (_) {}
 };
 
+// True while `signup` runs. Creating the account signs it in for a few seconds
+// (the profile write needs an authenticated caller) before signing back out.
+// The session listener checks this so that window doesn't swap the auth screens
+// for the app and back — which unmounted Sign Up before it could hand off to
+// Login.
+let signupInProgress = false;
+
+export function isSignupInProgress(): boolean {
+  return signupInProgress;
+}
+
 export const authService = {
   // Sign in with email/password
   async login(email: string, password: string): Promise<void> {
@@ -34,6 +45,21 @@ export const authService = {
 
   // Create new account
   async signup(
+    email: string,
+    password: string,
+    name: string,
+    userId: string,
+  ): Promise<void> {
+    signupInProgress = true;
+    try {
+      await authService.createPasswordAccount(email, password, name, userId);
+    } finally {
+      signupInProgress = false;
+    }
+  },
+
+  // The body of `signup`, run while `signupInProgress` is held.
+  async createPasswordAccount(
     email: string,
     password: string,
     name: string,

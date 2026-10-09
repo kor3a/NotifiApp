@@ -1,4 +1,4 @@
-import React, {useCallback, useEffect, useRef, useState} from 'react';
+import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {
   View,
   Text,
@@ -43,6 +43,8 @@ import {
   unreadCountFor,
 } from '../../models';
 import {MessagesStackParamList} from '../../navigation/AppNavigator';
+import {useTutorialActive, useTutorialTarget} from '../../tutorial/tutorialManager';
+import {tutorialConversations} from '../../tutorial/tutorialMockData';
 
 type Nav = NativeStackNavigationProp<MessagesStackParamList, 'MessagesList'>;
 
@@ -67,8 +69,21 @@ export default function MessagesScreen() {
   const navigation = useNavigation<Nav>();
   const {currentUser} = useSession();
 
-  const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [liveConversations, setConversations] = useState<Conversation[]>([]);
+  const [liveLoading, setLoading] = useState(true);
+
+  // Stand-in conversations while the tutorial runs, as iOS shows — the
+  // overlay keeps every touch off them.
+  const tutorialActive = useTutorialActive();
+  const conversations = useMemo(
+    () =>
+      tutorialActive
+        ? tutorialConversations(currentUser?.userId ?? '')
+        : liveConversations,
+    [tutorialActive, currentUser?.userId, liveConversations],
+  );
+  const loading = liveLoading && !tutorialActive;
+  const composeTarget = useTutorialTarget('tutorial_compose');
   const [showNewMessage, setShowNewMessage] = useState(false);
   const [showNewGroup, setShowNewGroup] = useState(false);
   // Avatars for participants whose conversation carries no participantPhotos:
@@ -382,13 +397,15 @@ export default function MessagesScreen() {
               activeOpacity={0.75}>
               <Icon name="people" size={20} color={Colors.blue} />
             </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.headerBtn, {backgroundColor: Colors.blue + '1F'}]}
-              onPress={() => setShowNewMessage(true)}
-              hitSlop={6}
-              activeOpacity={0.75}>
-              <Icon name="create-outline" size={20} color={Colors.blue} />
-            </TouchableOpacity>
+            <View {...composeTarget}>
+              <TouchableOpacity
+                style={[styles.headerBtn, {backgroundColor: Colors.blue + '1F'}]}
+                onPress={() => setShowNewMessage(true)}
+                hitSlop={6}
+                activeOpacity={0.75}>
+                <Icon name="create-outline" size={20} color={Colors.blue} />
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
 

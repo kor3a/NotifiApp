@@ -12,6 +12,7 @@ import {
 import {SafeAreaView} from 'react-native-safe-area-context';
 import MapView, {Marker, PROVIDER_GOOGLE, Region} from 'react-native-maps';
 import Icon from '../../components/AppIcon';
+import {useTutorialTarget} from '../../tutorial/tutorialManager';
 
 import {
   Colors,
@@ -41,6 +42,7 @@ export default function MapScreen() {
     longitudeDelta: 0.05,
   });
   const [searchQuery, setSearchQuery] = useState('');
+  const searchTarget = useTutorialTarget('tutorial_mapSearch');
   const [selectedStore, setSelectedStore] = useState<UserStoreItem | null>(null);
 
   useEffect(() => {
@@ -143,7 +145,9 @@ export default function MapScreen() {
 
       <SafeAreaView style={{flex: 1}} pointerEvents="box-none">
         {/* Search bar */}
-        <View style={[styles.searchBar, {backgroundColor: cardBackground(scheme)}]}>
+        <View
+          {...searchTarget}
+          style={[styles.searchBar, {backgroundColor: cardBackground(scheme)}]}>
           <Icon name="search" size={18} color={textSecondary(scheme)} />
           <TextInput
             placeholder="Search stores..."
