@@ -10,6 +10,13 @@ import messaging from '@react-native-firebase/messaging';
 import {User} from '../models';
 import {userService} from '../services/userService';
 import {isSignupInProgress} from '../services/authService';
+import {clearSignedOutUserData} from '../services/sessionCleanup';
+
+// The wipe of the previous account's local data, while it runs. A sign-in that
+// lands mid-wipe waits for it, so the new account never reads through a
+// Firestore cache that still holds the old one's documents (or through an
+// instance that is being shut down).
+let pendingCleanup: Promise<void> = Promise.resolve();
 
 /**
  * Where the signed-in account stands relative to its Firestore profile.
@@ -65,7 +72,12 @@ export function SessionProvider({children}: {children: React.ReactNode}) {
       setProfileStatus('unknown');
       return;
     }
+    await pendingCleanup;
     const user = await userService.fetchUserByEmail(fbUser.email);
+    // Signed out (or into someone else) while the lookup ran.
+    if (auth().currentUser?.uid !== fbUser.uid) {
+      return;
+    }
     setCurrentUser(user);
     setProfileStatus(user ? 'ready' : 'needsSetup');
     if (user) {
@@ -95,6 +107,7 @@ export function SessionProvider({children}: {children: React.ReactNode}) {
         let user: User | null = null;
         let status: ProfileStatus = 'unknown';
         try {
+          await pendingCleanup;
           if (fbUser.email) {
             user = await userService.fetchUserByEmail(fbUser.email);
             status = user ? 'ready' : 'needsSetup';
@@ -113,17 +126,24 @@ export function SessionProvider({children}: {children: React.ReactNode}) {
           await saveDeviceToken(user);
         }
       } else {
-        // Signed out: invalidate this device's token so pushes addressed to
-        // any account that still stores it bounce instead of being shown to
-        // the next user who signs in on this device. A replacement token is
-        // fetched and saved on the next sign-in above.
+        // Drop the account from memory before anything else, so no screen can
+        // render it again while the cleanup below runs.
+        setCurrentUser(null);
+        setProfileStatus('unknown');
+
         if (hasSeenSignedInUser.current) {
+          // Invalidate this device's token so pushes addressed to any account
+          // that still stores it bounce instead of being shown to the next
+          // user who signs in on this device. A replacement token is fetched
+          // and saved on the next sign-in above.
           try {
             await messaging().deleteToken();
           } catch (_) {}
+          // Then wipe what the account left on the device: Firestore's offline
+          // cache, stored preferences and its notifications.
+          pendingCleanup = clearSignedOutUserData();
+          await pendingCleanup;
         }
-        setCurrentUser(null);
-        setProfileStatus('unknown');
       }
       setIsLoading(false);
     });

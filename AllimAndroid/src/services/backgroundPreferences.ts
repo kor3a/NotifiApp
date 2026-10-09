@@ -77,6 +77,18 @@ export const backgroundPreferences = {
   reset(surface: BackgroundSurface) {
     this.set(surface, DEFAULT);
   },
+
+  /**
+   * Forgets the in-memory copies after sign-out, so the next account reads its
+   * own (by then cleared) storage instead of the previous account's choices.
+   * Doesn't write anything — the storage is cleared separately.
+   */
+  clearCache() {
+    const surfaces = [...cache.keys()];
+    cache.clear();
+    loads.clear();
+    surfaces.forEach(notify);
+  },
 };
 
 // The surface's current background, re-rendering whenever it changes.
