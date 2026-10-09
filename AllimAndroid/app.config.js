@@ -22,6 +22,14 @@ const GOOGLE_WEB_CLIENT_ID =
   process.env.GOOGLE_WEB_CLIENT_ID ||
   '903190692128-pvjlr0hn70tdf1834o2toh4117oeqsh0.apps.googleusercontent.com';
 
+// Logo.dev *publishable* token for store logos the shared catalog doesn't have
+// (src/services/storeLogoService.ts). Safe to ship — it only goes into image
+// URLs; Brand Search uses the secret key inside the `logoBrandSearch` Cloud
+// Function. The same value as LOGO_DEV_TOKEN in the iOS Secrets.xcconfig. Kept
+// out of the repo like the iOS copy: set it in .env or as an EAS env variable.
+// Unset, logos come from the catalog only.
+const LOGO_DEV_TOKEN = process.env.LOGO_DEV_TOKEN || '';
+
 module.exports = {
   expo: {
     name: 'Allim',
@@ -135,6 +143,8 @@ module.exports = {
     extra: {
       // Read at runtime by src/services/googleAuthService.ts.
       googleWebClientId: GOOGLE_WEB_CLIENT_ID,
+      // Read at runtime by src/services/storeLogoService.ts.
+      logoDevToken: LOGO_DEV_TOKEN,
       eas: {
         // The EAS project this app builds under. `eas init` cannot write this
         // itself because app.config.js is a dynamic config, so it is set here.
