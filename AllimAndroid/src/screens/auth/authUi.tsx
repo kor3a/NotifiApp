@@ -1,6 +1,7 @@
 import React, {forwardRef} from 'react';
 import {
   View,
+  Image,
   Text,
   TextInput,
   TextInputProps,
@@ -36,21 +37,18 @@ export const AuthField = forwardRef<
 });
 
 /**
- * The app's mark on a blush disc with the name below — the iOS LoginView
- * wordmark. iOS draws its AllimMark artwork here; the storefront and its check
- * disc are redrawn from the icon font so they take this app's accent and warm
- * highlight instead of the iOS teal baked into that PNG.
+ * The app's mark on a disc with the name below — the iOS LoginView wordmark.
+ * The disc is the launcher icon itself, cropped round the way most launchers
+ * show it, so sign-in opens on the same artwork as the Home Screen and splash.
  */
 export function AllimWordmark({scheme}: {scheme: ColorSchemeName}) {
-  const p = profilePalette(scheme);
   return (
     <View style={styles.wordmark}>
-      <View style={[styles.markDisc, {backgroundColor: p.blush}]}>
-        <Icon name="storefront-outline" size={50} color={p.accent} />
-        <View style={styles.markCheck}>
-          <Icon name="checkmark" size={13} color="#fff" />
-        </View>
-      </View>
+      <Image
+        source={require('../../../assets/icon.png')}
+        style={styles.markDisc}
+        accessibilityIgnoresInvertColors
+      />
       <Text style={[styles.wordmarkText, {color: textPrimary(scheme)}]}>Allim</Text>
     </View>
   );
@@ -166,19 +164,6 @@ const styles = StyleSheet.create({
     width: 96,
     height: 96,
     borderRadius: 48,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  markCheck: {
-    position: 'absolute',
-    right: 20,
-    bottom: 20,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: Colors.orange,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   wordmarkText: {
     fontSize: 40,

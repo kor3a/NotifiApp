@@ -1,5 +1,5 @@
 import React, {useEffect} from 'react';
-import {ActivityIndicator, View} from 'react-native';
+import {ActivityIndicator, Image, View} from 'react-native';
 import {NavigatorScreenParams} from '@react-navigation/native';
 import {createNativeStackNavigator} from '@react-navigation/native-stack';
 import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
@@ -198,10 +198,28 @@ function MainNavigator({uid}: {uid: string}) {
   );
 }
 
+// Picks up where the native splash (app.config.js, expo-splash-screen) leaves
+// off: the same teal and the same 200dp icon in the same spot, so the handoff
+// is invisible and only the spinner appears while the session resolves.
 function LoadingScreen() {
   return (
-    <View style={{flex: 1, justifyContent: 'center', alignItems: 'center'}}>
-      <ActivityIndicator size="large" color={Colors.blue} />
+    <View
+      style={{
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: '#0B7285',
+      }}>
+      <Image
+        source={require('../../assets/icon.png')}
+        style={{width: 200, height: 200}}
+        accessibilityLabel="Allim"
+      />
+      <ActivityIndicator
+        size="small"
+        color="#E0F1F4"
+        style={{position: 'absolute', bottom: 96}}
+      />
     </View>
   );
 }
