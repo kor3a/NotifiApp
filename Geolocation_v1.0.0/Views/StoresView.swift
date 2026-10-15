@@ -85,6 +85,12 @@ struct StoresView: View {
                         userStoreItem: storeItem,
                         availableStores: viewModel.userStoreItems.filter { $0.id != storeItem.id }
                     )
+                    // A notification tap can swap this item for another store while
+                    // a list is already open. Without a new identity SwiftUI updates
+                    // the open screen in place: the title moves to the tapped store,
+                    // but the @StateObject view model and its onAppear fetch stay on
+                    // the previous one, so its items show under the new store's name.
+                    .id(storeItem.id)
                     // The bar floats over pushed screens too, and this one
                     // pins a banner ad to its bottom edge.
                     .organicTabBarInset()
