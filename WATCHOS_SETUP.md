@@ -118,6 +118,42 @@ The watch target links no Swift packages: it needs no Firebase, no ads SDK, and
 no Google Sign-In. Keep it that way — Firebase on watchOS would mean a second
 sign-in and a much heavier bundle for no gain.
 
+## Widget
+
+`AllimWatch Widget` is a WidgetKit extension embedded in the watch app
+(`PlugIns/`, bundle ID `com.kor3a.nearbuy.watchkitapp.widget`). It shows the
+stores that still have items, for the Smart Stack and watch faces:
+
+| Family | Shows |
+| --- | --- |
+| Rectangular (Smart Stack) | Total items, then the first two stores with counts and "+N more" |
+| Circular | Total items left |
+| Corner | Cart icon labelled "N to get" |
+| Inline | "N to get · first store" |
+
+Tapping opens the watch app on the store list, through an `allimwatch://stores`
+link handled by `.onOpenURL` in `WatchStoreListView`. The link also closes any
+store that was open, since watchOS would otherwise resume the app on that
+store's reminders.
+
+**Data path.** The widget never talks to the phone. `WatchDataStore.saveCache`
+writes a `WatchWidgetSnapshot` into the App Group `group.com.kor3a.nearbuy`
+(the same group the iPhone app uses; on the watch it is a separate container)
+and reloads the widget only when the snapshot changed, since watchOS rations
+reloads. `WatchWidgetSnapshot.swift` lives in the watch app folder and is
+compiled into the widget through a target-membership exception, so both read
+one format.
+
+**Freshness.** While the widget is on the active watch face,
+`WatchConnectivityManager.pushToWatchFace` also sends the store list with
+`transferCurrentComplicationUserInfo`, which wakes the watch app in the
+background to update it. watchOS caps these per day; the phone checks
+`remainingComplicationUserInfoTransfers` and keeps only the newest pending one.
+
+**Versions.** The iPhone app, watch app and widget must share
+`MARKETING_VERSION` and `CURRENT_PROJECT_VERSION`. Bump all three together
+before each TestFlight upload.
+
 ## Testing
 
 The watch app is only useful against a signed-in phone, so test on a paired
@@ -140,5 +176,6 @@ simulator pair (or a real pair) with both apps installed:
   on the phone at that moment needs a refresh to appear.
 - The watch can check items off but not add, edit, or delete them — those stay on
   the phone.
-- There is no complication or Smart Stack widget yet; the store list would suit
-  one well as a follow-up.
+- The watch face widget's counts refresh in the background only while it is on
+  the **active** face, and only within watchOS's daily complication-update
+  budget. In the Smart Stack alone it refreshes when the watch app next runs.
