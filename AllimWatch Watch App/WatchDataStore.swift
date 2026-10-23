@@ -211,7 +211,7 @@ final class WatchDataStore: NSObject, ObservableObject {
 
     private func applyStoreList(_ data: Data) {
         guard let payload = try? JSONDecoder().decode(WatchStoreListPayload.self, from: data) else { return }
-        stores = payload.stores
+        stores = payload.stores.uniquedById()
         isSignedIn = payload.isSignedIn
 
         // Drop reminders for stores that are gone so a deleted store's items
@@ -224,7 +224,7 @@ final class WatchDataStore: NSObject, ObservableObject {
 
     private func applyReminderList(_ data: Data) {
         guard let payload = try? JSONDecoder().decode(WatchReminderListPayload.self, from: data) else { return }
-        reminders[payload.storeId] = payload.reminders
+        reminders[payload.storeId] = payload.reminders.uniquedById()
 
         // The phone's answer is authoritative, so anything still marked pending
         // for this store has now been accounted for.
@@ -254,11 +254,11 @@ final class WatchDataStore: NSObject, ObservableObject {
     private func loadCache() {
         if let data = defaults.data(forKey: Self.storesCacheKey),
            let cached = try? JSONDecoder().decode([WatchStorePayload].self, from: data) {
-            stores = cached
+            stores = cached.uniquedById()
         }
         if let data = defaults.data(forKey: Self.remindersCacheKey),
            let cached = try? JSONDecoder().decode([String: [WatchReminderPayload]].self, from: data) {
-            reminders = cached
+            reminders = cached.mapValues { $0.uniquedById() }
         }
     }
 
@@ -356,6 +356,15 @@ extension WatchDataStore: WCSessionDelegate {
 }
 
 // MARK: - Payload Mutation
+
+private extension Array where Element: Identifiable {
+    /// Keeps the first of any elements sharing an ID. A List given the same ID
+    /// twice can crash while recycling rows, so nothing duplicated reaches one.
+    func uniquedById() -> [Element] {
+        var seen = Set<Element.ID>()
+        return filter { seen.insert($0.id).inserted }
+    }
+}
 
 private extension WatchStorePayload {
     func settingReminderCount(_ count: Int) -> WatchStorePayload {

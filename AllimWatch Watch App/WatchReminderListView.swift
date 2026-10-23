@@ -22,37 +22,40 @@ struct WatchReminderListView: View {
         dataStore.loadingStoreIds.contains(store.id)
     }
 
-    /// Category order matching the phone: named categories alphabetically, with
-    /// uncategorized items last.
-    private var categories: [String] {
-        var named = Set<String>()
-        var hasUncategorized = false
+    private struct CategorySection: Identifiable {
+        let id: String
+        let reminders: [WatchReminderPayload]
+    }
+
+    /// The list grouped in one pass, in the phone's order: named categories
+    /// alphabetically, with uncategorized items last.
+    ///
+    /// An item whose category is literally "Uncategorized" joins the unnamed
+    /// group rather than getting a section of its own. Otherwise two sections
+    /// would share an ID and their items would be listed twice, and a List with
+    /// duplicate IDs can crash as rows are recycled during a fast scroll.
+    private var sections: [CategorySection] {
+        var named: [String: [WatchReminderPayload]] = [:]
+        var uncategorized: [WatchReminderPayload] = []
 
         for reminder in reminders {
-            if let category = reminder.category, !category.isEmpty {
-                named.insert(category)
+            if let category = reminder.category, !category.isEmpty, category != Self.uncategorized {
+                named[category, default: []].append(reminder)
             } else {
-                hasUncategorized = true
+                uncategorized.append(reminder)
             }
         }
 
-        var ordered = named.sorted()
-        if hasUncategorized {
-            ordered.append(Self.uncategorized)
+        var ordered = named
+            .sorted { $0.key < $1.key }
+            .map { CategorySection(id: $0.key, reminders: $0.value) }
+        if !uncategorized.isEmpty {
+            ordered.append(CategorySection(id: Self.uncategorized, reminders: uncategorized))
         }
         return ordered
     }
 
     private static let uncategorized = "Uncategorized"
-
-    private func reminders(in category: String) -> [WatchReminderPayload] {
-        reminders.filter { reminder in
-            guard let itemCategory = reminder.category, !itemCategory.isEmpty else {
-                return category == Self.uncategorized
-            }
-            return itemCategory == category
-        }
-    }
 
     var body: some View {
         Group {
@@ -83,17 +86,19 @@ struct WatchReminderListView: View {
     }
 
     private var list: some View {
-        List {
+        let sections = sections
+
+        return List {
             WatchStatusRow()
 
             // A list with a single unnamed group reads better without a section
             // header taking up a line on a screen this small.
-            if categories == [Self.uncategorized] {
-                rows(for: reminders)
+            if sections.count == 1, sections[0].id == Self.uncategorized {
+                rows(for: sections[0].reminders)
             } else {
-                ForEach(categories, id: \.self) { category in
-                    Section(category) {
-                        rows(for: reminders(in: category))
+                ForEach(sections) { section in
+                    Section(section.id) {
+                        rows(for: section.reminders)
                     }
                 }
             }
