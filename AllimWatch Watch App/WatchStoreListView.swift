@@ -109,13 +109,37 @@ struct WatchStoreRow: View {
 /// the phone would draw, but a watch fetches it over its own connection — the
 /// initial is what shows until that lands, and for stores with no logo at all,
 /// so it needs to look deliberate rather than like a failure.
+///
+/// Loaded through WatchLogoLoader rather than AsyncImage, which decodes logos at
+/// full size — see that file for why that crashes older watches.
 struct WatchStoreLogo: View {
 
     let name: String
     let imageURL: String?
 
+    @Environment(\.displayScale) private var displayScale
+    @State private var loadedImage: UIImage?
+
+    private static let size: CGFloat = 28
+
     private var initial: String {
         String(name.trimmingCharacters(in: .whitespacesAndNewlines).prefix(1)).uppercased()
+    }
+
+    private var url: URL? {
+        imageURL.flatMap(URL.init(string:))
+    }
+
+    private var maxPixelSize: Int {
+        Int((Self.size * displayScale).rounded(.up))
+    }
+
+    /// The loaded logo, or the cached one when this row has only just been
+    /// created for a logo that's already been seen.
+    private var image: UIImage? {
+        if let loadedImage { return loadedImage }
+        guard let url else { return nil }
+        return WatchLogoLoader.cachedImage(for: url, maxPixelSize: maxPixelSize)
     }
 
     var body: some View {
@@ -123,20 +147,21 @@ struct WatchStoreLogo: View {
             Circle()
                 .fill(Color.accentColor.opacity(0.25))
 
-            if let imageURL, let url = URL(string: imageURL) {
-                AsyncImage(url: url) { image in
-                    image
-                        .resizable()
-                        .scaledToFit()
-                        .clipShape(Circle())
-                } placeholder: {
-                    initialText
-                }
+            if let image {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFit()
+                    .clipShape(Circle())
             } else {
                 initialText
             }
         }
-        .frame(width: 28, height: 28)
+        .frame(width: Self.size, height: Self.size)
+        .task(id: imageURL) {
+            loadedImage = nil
+            guard let url else { return }
+            loadedImage = await WatchLogoLoader.image(for: url, maxPixelSize: maxPixelSize)
+        }
     }
 
     private var initialText: some View {
