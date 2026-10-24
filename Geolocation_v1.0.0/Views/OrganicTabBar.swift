@@ -60,6 +60,11 @@ struct OrganicTabBar: View {
     /// over it — the space the system tab bar used to take out of the safe area.
     static let reservedHeight: CGFloat = itemHeight + capsuleInset * 2 + bottomGap
 
+    /// Wider than any iPhone, so it only bites on iPhone Duo's open inner
+    /// display — where a full-width capsule would spread four tabs a thumb's
+    /// reach apart from each other.
+    private static let maxWidth: CGFloat = 480
+
     var body: some View {
         HStack(spacing: 2) {
             ForEach(tabs) { tab in
@@ -83,6 +88,7 @@ struct OrganicTabBar: View {
         }
         .padding(.horizontal, Self.capsuleInset)
         .padding(.vertical, Self.capsuleInset)
+        .frame(maxWidth: Self.maxWidth)
         // Paper with a shadow rather than a blur: the bar floats over a list
         // that scrolls under it, and what separates the two is the same warm
         // shadow every card on these screens sits on.
