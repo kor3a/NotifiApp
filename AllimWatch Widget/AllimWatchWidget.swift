@@ -92,7 +92,11 @@ struct AllimWatchWidgetView: View {
 
     private var snapshot: WatchWidgetSnapshot? { entry.snapshot }
 
-    private var totalItems: Int { snapshot?.totalItems ?? 0 }
+    /// The store at the top of the user's list. The widget's number is its
+    /// outstanding items, not the total across every store.
+    private var firstStore: WatchWidgetSnapshot.Store? { snapshot?.stores.first }
+
+    private var firstStoreItems: Int { firstStore?.reminderCount ?? 0 }
 
     var body: some View {
         content
@@ -122,8 +126,8 @@ struct AllimWatchWidgetView: View {
                 Image(systemName: "cart.fill")
                 Text("Allim")
                 Spacer(minLength: 4)
-                if totalItems > 0 {
-                    Text("\(totalItems)")
+                if firstStoreItems > 0 {
+                    Text("\(firstStoreItems)")
                         .monospacedDigit()
                 }
             }
@@ -178,12 +182,12 @@ struct AllimWatchWidgetView: View {
     private var circular: some View {
         ZStack {
             AccessoryWidgetBackground()
-            if totalItems > 0 {
+            if firstStoreItems > 0 {
                 VStack(spacing: 0) {
                     Image(systemName: "cart.fill")
                         .font(.caption)
                         .widgetAccentable()
-                    Text("\(totalItems)")
+                    Text("\(firstStoreItems)")
                         .font(.title3.weight(.semibold))
                         .monospacedDigit()
                         .minimumScaleFactor(0.6)
@@ -203,7 +207,11 @@ struct AllimWatchWidgetView: View {
             .font(.title3)
             .widgetAccentable()
             .widgetLabel {
-                Text(totalItems > 0 ? "\(totalItems) to get" : "All done")
+                if let firstStore, firstStoreItems > 0 {
+                    Text("\(firstStoreItems) · \(firstStore.name)")
+                } else {
+                    Text("All done")
+                }
             }
     }
 
@@ -211,8 +219,8 @@ struct AllimWatchWidgetView: View {
 
     @ViewBuilder
     private var inline: some View {
-        if let first = snapshot?.storesWithItems.first {
-            Label("\(totalItems) to get · \(first.name)", systemImage: "cart.fill")
+        if let firstStore, firstStoreItems > 0 {
+            Label("\(firstStoreItems) to get · \(firstStore.name)", systemImage: "cart.fill")
         } else {
             Label("Allim: all done", systemImage: "cart")
         }
