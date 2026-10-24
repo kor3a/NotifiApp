@@ -18,8 +18,6 @@
 	<string>$(PRODUCT_BUNDLE_PACKAGE_TYPE)</string>
 	<key>CFBundleShortVersionString</key>
 	<string>$(MARKETING_VERSION)</string>
-	<key>CFBundleVersion</key>
-	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
@@ -29,8 +27,6 @@
 			<string>com.kor3a.nearbuy</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<!-- Opened from the email-verification web page (nearbuyallim.com/verify)
-				     via allim://login to bring the user back to the Login screen. -->
 				<string>allim</string>
 			</array>
 		</dict>
@@ -41,54 +37,32 @@
 			<string>GoogleSignIn</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<!-- REVERSED_CLIENT_ID from GoogleService-Info.plist; receives the
-				     Google Sign-In OAuth callback. -->
 				<string>com.googleusercontent.apps.903190692128-h6gt4jvvnqvk791o2nndnnuurprgl0tc</string>
 			</array>
 		</dict>
 	</array>
-	<!-- Publishable token only — safe to embed; used to build img.logo.dev image URLs.
-	     The Logo.dev SECRET key is NOT shipped in the app: Brand Search now goes
-	     through the `logoBrandSearch` Cloud Function, which holds the secret. -->
+	<key>CFBundleVersion</key>
+	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>GADApplicationIdentifier</key>
+	<string>ca-app-pub-8737217052158435~1949619568</string>
 	<key>LOGO_DEV_TOKEN</key>
 	<string>$(LOGO_DEV_TOKEN)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>We need your location to notify you when you&apos;re near stores with pending reminders, even when the app is in the background.</string>
+	<string>We need your location to notify you when you're near stores with pending reminders, even when the app is in the background.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>We need your location to show nearby stores and notify you when you&apos;re near stores with pending reminders.</string>
+	<string>We need your location to show nearby stores and notify you when you're near stores with pending reminders.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Allim uses the microphone when you tap the record button on a store so you can add, check off, or remove reminders by voice.</string>
-	<key>NSSpeechRecognitionUsageDescription</key>
-	<string>Allim turns what you say into text so it can understand voice commands like &quot;add milk&quot; or &quot;check off bread&quot;. You always confirm before anything changes.</string>
 	<key>NSSiriUsageDescription</key>
 	<string>Allim uses Siri to let you send and receive messages about your shopping reminders hands-free while driving. Allim has no calling features; Siri is used for messaging only.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Allim turns what you say into text so it can understand voice commands like "add milk" or "check off bread". You always confirm before anything changes.</string>
 	<key>NSUserActivityTypes</key>
 	<array>
 		<string>INSendMessageIntent</string>
 	</array>
-	<key>UIApplicationSceneManifest</key>
-	<dict>
-		<key>UIApplicationSupportsMultipleScenes</key>
-		<false/>
-		<key>UISceneConfigurations</key>
-		<dict/>
-	</dict>
-	<key>UIApplicationSupportsIndirectInputEvents</key>
-	<true/>
-	<key>UIAppFonts</key>
-	<array>
-		<string>SpecialElite-Regular.ttf</string>
-		<string>Commissioner-Regular.ttf</string>
-		<string>Commissioner-Medium.ttf</string>
-		<string>Commissioner-SemiBold.ttf</string>
-		<string>Commissioner-Bold.ttf</string>
-		<string>Commissioner-ExtraBold.ttf</string>
-		<string>Commissioner-Black.ttf</string>
-	</array>
-	<key>GADApplicationIdentifier</key>
-	<string>ca-app-pub-8737217052158435~1949619568</string>
 	<key>SKAdNetworkItems</key>
 	<array>
 		<dict>
@@ -132,9 +106,27 @@
 			<string>cp8zw746q7.skadnetwork</string>
 		</dict>
 	</array>
+	<key>UIAppFonts</key>
+	<array>
+		<string>SpecialElite-Regular.ttf</string>
+		<string>Commissioner-Regular.ttf</string>
+		<string>Commissioner-Medium.ttf</string>
+		<string>Commissioner-SemiBold.ttf</string>
+		<string>Commissioner-Bold.ttf</string>
+		<string>Commissioner-ExtraBold.ttf</string>
+		<string>Commissioner-Black.ttf</string>
+	</array>
+	<key>UIApplicationSceneManifest</key>
+	<dict>
+		<key>UIApplicationSupportsMultipleScenes</key>
+		<false/>
+		<key>UISceneConfigurations</key>
+		<dict/>
+	</dict>
+	<key>UIApplicationSupportsIndirectInputEvents</key>
+	<true/>
 	<key>UIBackgroundModes</key>
 	<array>
-		<!-- Required for APNs/FCM push notifications to wake the app in background -->
 		<string>remote-notification</string>
 	</array>
 	<key>UILaunchScreen</key>
