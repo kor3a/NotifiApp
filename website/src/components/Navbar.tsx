@@ -74,6 +74,16 @@ export default function Navbar() {
                 {link.label}
               </a>
             ))}
+            {/* The web app (src/app) only exists under `npm run dev`. DEV is
+                false in the client and SSR builds, so this never ships. */}
+            {import.meta.env.DEV && (
+              <a
+                href="/app/"
+                className="text-[14px] font-semibold text-teal transition-colors hover:text-teal-deep"
+              >
+                Sign in
+              </a>
+            )}
             <a
               href={APP_STORE_URL}
               target="_blank"
@@ -121,6 +131,14 @@ export default function Navbar() {
                 {link.label}
               </a>
             ))}
+            {import.meta.env.DEV && (
+              <a
+                href="/app/"
+                className="block border-b border-line py-4 text-[17px] font-semibold text-teal"
+              >
+                Sign in
+              </a>
+            )}
             <a
               href={APP_STORE_URL}
               target="_blank"

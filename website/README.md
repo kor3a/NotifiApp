@@ -17,6 +17,33 @@ its contents — leaving the template's indentation inside `#root` puts
 whitespace-only text nodes where React expects the server's markup, which fails
 hydration.
 
+## Web app (development only)
+
+`npm run dev` also serves a signed-in web version of Allim at
+<http://localhost:5173/app/> (the masthead gets a **Sign in** link while in
+dev). It signs in with the same email and password as the phone apps and
+reads and writes the live `georeminder-pilot` Firestore, so anything you
+change there shows up on your phone.
+
+It lives in `app/index.html` and `src/app/`, and is never deployed:
+`npm run build` only builds the root `index.html`, and the Sign in link is
+behind `import.meta.env.DEV`. Firebase is a dev dependency for the same reason.
+
+| Screen | What it does |
+| --- | --- |
+| Stores | Your pinned stores with open-item counts and logos; add a store (no map pin, so set one in the app for arrival reminders) |
+| Store list | Items grouped by aisle; add, check off, rename (double-click), quantity, out of stock, delete. View-only shares are read-only |
+| Friends | Requests, friends and sent requests; add by username; start a message |
+| Messages | Conversations and threads; send text. Shared stores and items show as cards, but you accept them in the app |
+| AI Recipe | Recipe chat through the `openAIChat` Cloud Function; send ingredients to a store or save the recipe |
+| My Recipes | Create, edit, delete saved recipes and send their ingredients to a store |
+| Profile | Name (editable), username, plan, stats, sign out |
+
+Writes match the Swift code field for field (`src/app/lists.ts`,
+`src/app/messaging.ts`), so the apps render web edits normally. The Firebase
+config defaults to the iOS app's public client values; override them with
+`VITE_FIREBASE_*` in `.env.development.local`.
+
 ## Design system
 
 The page is built out of the things a grocery run is actually made of, not a
