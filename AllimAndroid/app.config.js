@@ -87,11 +87,13 @@ module.exports = {
       [
         'expo-splash-screen',
         {
-          // The icon artwork on its own teal, so the launch screen reads as the
-          // app icon opening up. Android 12+ masks the splash icon to a 192dp
-          // circle; at 200dp the storefront still sits inside it and only the
-          // teal corners are clipped, invisibly, against the teal background.
-          image: './assets/icon.png',
+          // The icon artwork on its own teal, minus the check badge: the launch
+          // animation (src/components/LaunchScreen.tsx) carries on from this
+          // exact frame and stamps the badge on. Android 12+ masks the splash
+          // icon to a 192dp circle; at 200dp the storefront still sits inside it
+          // and only the teal corners are clipped, invisibly, against the teal
+          // background. Regenerate with scripts/render_launch_logo.js.
+          image: './assets/splash-logo.png',
           imageWidth: 200,
           backgroundColor: '#0B7285',
         },
