@@ -7,7 +7,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   Pressable,
-  FlatList,
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
@@ -112,22 +111,22 @@ export default function ShareStoreSheet({visible, item, onClose}: Props) {
   // user_store points at — so it identifies the share on both sides.
   const shareTargetId = item ? reminderStoreIdFor(item) : null;
   const currentUserId = currentUser?.userId;
+  // A store given to this user only says who gave it, and sharing it onward is
+  // the owner's call — the same line iOS draws on `sharedFromName`.
+  const isSharedWithMe = !!item?.sharedFromName;
   // Everyone listed under a store this user owns is there because this user
-  // shared it with them, so their access is this user's to revoke. A recipient
-  // opening the sheet sees the same list but cannot act on it.
+  // shared it with them, so their access is this user's to revoke.
   const canUnshare = item?.permission === 'owner';
 
   useEffect(() => {
-    if (!visible || !shareTargetId || !currentUserId) {
+    if (!visible || !shareTargetId || !currentUserId || isSharedWithMe) {
       setSharedUsers([]);
       return;
     }
     return storeShareService.subscribeToSharedUsers(shareTargetId, users =>
-      // A recipient opening this sheet matches the same query through their own
-      // document; everyone else on it is who the store is shared with.
       setSharedUsers(users.filter(u => u.userId !== currentUserId)),
     );
-  }, [visible, shareTargetId, currentUserId]);
+  }, [visible, shareTargetId, currentUserId, isSharedWithMe]);
 
   // Friends carry the only profile pictures we have — recipient user_store
   // documents store just a name and an email.
@@ -259,6 +258,12 @@ export default function ShareStoreSheet({visible, item, onClose}: Props) {
 
   function renderSharedUser(user: SharedStoreUser) {
     const tint = permissionTint(user.permission);
+    // Older recipient documents have no name, so the service falls back to the
+    // email. A friend of the owner's can still be shown by name.
+    const displayName =
+      user.name === user.email
+        ? friends.find(friend => friend.userId === user.userId)?.name ?? user.name
+        : user.name;
     return (
       <View
         key={user.id}
@@ -268,14 +273,14 @@ export default function ShareStoreSheet({visible, item, onClose}: Props) {
             friendPhotos.get(user.userId) ??
             friendPhotos.get(user.email.toLowerCase())
           }
-          name={user.name}
+          name={displayName}
           size={38}
         />
         <View style={styles.friendText}>
           <Text
             style={[styles.friendName, {color: textPrimary(scheme)}]}
             numberOfLines={1}>
-            {user.name}
+            {displayName}
           </Text>
           <Text
             style={[styles.friendEmail, {color: textSecondary(scheme)}]}
@@ -311,6 +316,7 @@ export default function ShareStoreSheet({visible, item, onClose}: Props) {
     const busy = sharingWith === friend.userId;
     return (
       <TouchableOpacity
+        key={friend.userId}
         style={[styles.friendRow, {backgroundColor: sheetFill(scheme)}]}
         onPress={() => share(friend)}
         disabled={!!sharingWith}
@@ -414,7 +420,18 @@ export default function ShareStoreSheet({visible, item, onClose}: Props) {
                     styles.sharedBySpacing,
                     {backgroundColor: sheetFill(scheme)},
                   ]}>
-                  <ProfileAvatar name={item.sharedFromName} size={38} />
+                  <ProfileAvatar
+                    url={
+                      (item.sharedFromId
+                        ? friendPhotos.get(item.sharedFromId)
+                        : undefined) ??
+                      (item.sharedFromEmail
+                        ? friendPhotos.get(item.sharedFromEmail.toLowerCase())
+                        : undefined)
+                    }
+                    name={item.sharedFromName}
+                    size={38}
+                  />
                   <View style={styles.friendText}>
                     <Text
                       style={[styles.friendName, {color: textPrimary(scheme)}]}
@@ -447,129 +464,137 @@ export default function ShareStoreSheet({visible, item, onClose}: Props) {
               </>
             )}
 
-            {/* People this store is already shared with */}
-            {sharedUsers.length > 0 && (
+            {/* The rest is the owner's: who has it, and sharing it further. */}
+            {!isSharedWithMe && (
               <>
-                <Text
-                  style={[styles.sectionLabel, {color: textSecondary(scheme)}]}>
-                  Shared with ({sharedUsers.length})
-                </Text>
-                {/* Capped and scrollable so a widely shared store still leaves
-                    room for the friends list and the email row below. */}
+                {/* One scroll for everything, as on iOS, so everyone it's shared
+                    with stays fully visible however many friends there are. The
+                    email row below stays put. */}
                 <ScrollView
-                  style={styles.sharedList}
-                  contentContainerStyle={styles.sharedListContent}
-                  nestedScrollEnabled
+                  style={styles.body}
+                  contentContainerStyle={styles.bodyContent}
                   keyboardShouldPersistTaps="handled"
                   showsVerticalScrollIndicator={false}>
-                  {sharedUsers.map(renderSharedUser)}
+                  {/* People this store is already shared with */}
+                  {sharedUsers.length > 0 && (
+                    <>
+                      <Text
+                        style={[
+                          styles.sectionLabel,
+                          {color: textSecondary(scheme)},
+                        ]}>
+                        Shared with ({sharedUsers.length})
+                      </Text>
+                      <View style={styles.sharedList}>
+                        {sharedUsers.map(renderSharedUser)}
+                      </View>
+                    </>
+                  )}
+
+                  {/* Permission */}
+                  <Text
+                    style={[styles.sectionLabel, {color: textSecondary(scheme)}]}>
+                    Permission
+                  </Text>
+                  <View
+                    style={[styles.segment, {backgroundColor: sheetFill(scheme)}]}>
+                    {(['edit', 'view'] as const).map(value => {
+                      const selected = permission === value;
+                      return (
+                        <TouchableOpacity
+                          key={value}
+                          style={[
+                            styles.segmentItem,
+                            selected && styles.segmentItemSelected,
+                          ]}
+                          onPress={() => setPermission(value)}
+                          activeOpacity={0.8}>
+                          <Icon
+                            name={value === 'edit' ? 'pencil' : 'eye'}
+                            size={15}
+                            color={selected ? '#fff' : textSecondary(scheme)}
+                          />
+                          <Text
+                            style={[
+                              styles.segmentText,
+                              {color: selected ? '#fff' : textSecondary(scheme)},
+                            ]}>
+                            {value === 'edit' ? 'Can Edit' : 'View Only'}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                  <Text style={[styles.hint, {color: textSecondary(scheme)}]}>
+                    {permission === 'edit'
+                      ? 'They can add, check off, and remove reminders in this store.'
+                      : 'They can see this store and its reminders, but not change them.'}
+                  </Text>
+
+                  {/* Friends */}
+                  <Text
+                    style={[styles.sectionLabel, {color: textSecondary(scheme)}]}>
+                    Send to
+                  </Text>
+                  {friends.length > 0 ? (
+                    <View style={styles.friendList}>
+                      {friends.map(friend => renderFriend(friend))}
+                    </View>
+                  ) : (
+                    <View style={styles.empty}>
+                      <View
+                        style={[
+                          styles.emptyIcon,
+                          {backgroundColor: sheetFill(scheme)},
+                        ]}>
+                        <Icon
+                          name="people-outline"
+                          size={26}
+                          color={textSecondary(scheme)}
+                        />
+                      </View>
+                      <Text
+                        style={[styles.emptyText, {color: textSecondary(scheme)}]}>
+                        No friends yet — add them from the Friends tab, or share by
+                        email below.
+                      </Text>
+                    </View>
+                  )}
                 </ScrollView>
+
+                {/* Email fallback */}
+                <View
+                  style={[styles.emailRow, {backgroundColor: sheetFill(scheme)}]}>
+                  <Icon name="mail-outline" size={18} color={textSecondary(scheme)} />
+                  <TextInput
+                    placeholder="Share by email address"
+                    placeholderTextColor={textSecondary(scheme)}
+                    value={email}
+                    onChangeText={setEmail}
+                    style={[styles.emailInput, {color: textPrimary(scheme)}]}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    keyboardType="email-address"
+                    returnKeyType="send"
+                    onSubmitEditing={shareByEmail}
+                  />
+                  <TouchableOpacity
+                    onPress={shareByEmail}
+                    disabled={!email.trim() || !!sharingWith}
+                    style={[
+                      styles.sendBtn,
+                      {opacity: email.trim() && !sharingWith ? 1 : 0.4},
+                    ]}
+                    activeOpacity={0.8}>
+                    {sharingWith === email.trim().toLowerCase() ? (
+                      <ActivityIndicator color="#fff" size="small" />
+                    ) : (
+                      <Icon name="arrow-up" size={18} color="#fff" />
+                    )}
+                  </TouchableOpacity>
+                </View>
               </>
             )}
-
-            {/* Permission */}
-            <Text style={[styles.sectionLabel, {color: textSecondary(scheme)}]}>
-              Permission
-            </Text>
-            <View style={[styles.segment, {backgroundColor: sheetFill(scheme)}]}>
-              {(['edit', 'view'] as const).map(value => {
-                const selected = permission === value;
-                return (
-                  <TouchableOpacity
-                    key={value}
-                    style={[
-                      styles.segmentItem,
-                      selected && styles.segmentItemSelected,
-                    ]}
-                    onPress={() => setPermission(value)}
-                    activeOpacity={0.8}>
-                    <Icon
-                      name={value === 'edit' ? 'pencil' : 'eye'}
-                      size={15}
-                      color={selected ? '#fff' : textSecondary(scheme)}
-                    />
-                    <Text
-                      style={[
-                        styles.segmentText,
-                        {color: selected ? '#fff' : textSecondary(scheme)},
-                      ]}>
-                      {value === 'edit' ? 'Can Edit' : 'View Only'}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-            <Text style={[styles.hint, {color: textSecondary(scheme)}]}>
-              {permission === 'edit'
-                ? 'They can add, check off, and remove reminders in this store.'
-                : 'They can see this store and its reminders, but not change them.'}
-            </Text>
-
-            {/* Friends */}
-            <Text style={[styles.sectionLabel, {color: textSecondary(scheme)}]}>
-              Send to
-            </Text>
-            <FlatList
-              data={friends}
-              renderItem={({item: friend}) => renderFriend(friend)}
-              keyExtractor={friend => friend.userId}
-              style={styles.friendList}
-              contentContainerStyle={styles.friendListContent}
-              keyboardShouldPersistTaps="handled"
-              showsVerticalScrollIndicator={false}
-              ListEmptyComponent={
-                <View style={styles.empty}>
-                  <View
-                    style={[
-                      styles.emptyIcon,
-                      {backgroundColor: sheetFill(scheme)},
-                    ]}>
-                    <Icon
-                      name="people-outline"
-                      size={26}
-                      color={textSecondary(scheme)}
-                    />
-                  </View>
-                  <Text
-                    style={[styles.emptyText, {color: textSecondary(scheme)}]}>
-                    No friends yet — add them from the Friends tab, or share by
-                    email below.
-                  </Text>
-                </View>
-              }
-            />
-
-            {/* Email fallback */}
-            <View
-              style={[styles.emailRow, {backgroundColor: sheetFill(scheme)}]}>
-              <Icon name="mail-outline" size={18} color={textSecondary(scheme)} />
-              <TextInput
-                placeholder="Share by email address"
-                placeholderTextColor={textSecondary(scheme)}
-                value={email}
-                onChangeText={setEmail}
-                style={[styles.emailInput, {color: textPrimary(scheme)}]}
-                autoCapitalize="none"
-                autoCorrect={false}
-                keyboardType="email-address"
-                returnKeyType="send"
-                onSubmitEditing={shareByEmail}
-              />
-              <TouchableOpacity
-                onPress={shareByEmail}
-                disabled={!email.trim() || !!sharingWith}
-                style={[
-                  styles.sendBtn,
-                  {opacity: email.trim() && !sharingWith ? 1 : 0.4},
-                ]}
-                activeOpacity={0.8}>
-                {sharingWith === email.trim().toLowerCase() ? (
-                  <ActivityIndicator color="#fff" size="small" />
-                ) : (
-                  <Icon name="arrow-up" size={18} color="#fff" />
-                )}
-              </TouchableOpacity>
-            </View>
           </View>
         </KeyboardAvoidingView>
       </View>
@@ -632,14 +657,18 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginBottom: Spacing.sm,
   },
-  // Tops out at roughly three rows, then scrolls on its own.
-  sharedList: {
+  // Grows with its content but yields once the sheet hits its max height, so a
+  // long list scrolls instead of pushing the email row off-screen.
+  body: {
     flexGrow: 0,
-    maxHeight: 186,
-    marginBottom: Spacing.lg,
+    flexShrink: 1,
   },
-  sharedListContent: {
+  bodyContent: {
+    paddingBottom: Spacing.md,
+  },
+  sharedList: {
     gap: Spacing.sm,
+    marginBottom: Spacing.lg,
   },
   sharedRow: {
     flexDirection: 'row',
@@ -693,15 +722,8 @@ const styles = StyleSheet.create({
     marginTop: Spacing.sm,
     marginBottom: Spacing.lg,
   },
-  // Grows with the list but yields once the sheet hits its max height, so a
-  // long friends list scrolls instead of pushing the email row off-screen.
   friendList: {
-    flexGrow: 0,
-    flexShrink: 1,
-  },
-  friendListContent: {
     gap: Spacing.sm,
-    paddingBottom: Spacing.md,
   },
   friendRow: {
     flexDirection: 'row',

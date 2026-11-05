@@ -15,6 +15,13 @@ import {
   updateOwnerRemindersAfterRecipientLeaves,
   updateOwnerUserStoreAfterRecipientLeaves,
 } from './storeShareService';
+import {
+  StoreRecipients,
+  ownerSharing,
+  recipientsFrom,
+  sharedWithChange,
+  withLookedUpNames,
+} from './storeSharing';
 
 function normalizeStoreName(name: string): string {
   return name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
@@ -275,8 +282,11 @@ export const storeService = {
     // id. Derived from the recipients' own documents rather than from the
     // owner's `sharedWith` field, which nothing updates when the share is
     // accepted on iOS.
-    const recipients = new Map<string, string[]>();
+    const recipients = new Map<string, StoreRecipients>();
     const recipientUnsubs = new Map<string, () => void>();
+    // The latest name lookup per store, so an outdated one is ignored. Removing a
+    // store's entry also cancels whatever it has in flight.
+    const recipientLookups = new Map<string, number>();
     // Owner documents behind stores shared with this user, keyed by the owner's
     // user_store id — watched so this side notices if the owner's store is
     // deleted without their device cleaning up here.
@@ -286,14 +296,18 @@ export const storeService = {
     function emit() {
       callback(
         latestItems.map(item => {
-          const shared =
+          const stored = item.sharedWith ?? [];
+          const owned =
             item.permission === 'owner'
-              ? recipients.get(item.id) ?? item.sharedWith ?? []
-              : item.sharedWith ?? [];
+              ? ownerSharing(recipients.get(item.id), stored)
+              : null;
+          const shared = owned ? owned.names : stored;
           return {
             ...item,
             sharedWith: shared.length > 0 ? shared : undefined,
-            isShared: shared.length > 0 || item.isShared,
+            // Being given the store, or a name stored on it, counts too: merged
+            // and older group-shared stores have no recipient documents.
+            isShared: owned?.isShared || item.isShared || shared.length > 0,
             store: {
               ...item.store,
               reminderCount: counts.get(reminderStoreIdFor(item)) ?? 0,
@@ -301,6 +315,35 @@ export const storeService = {
           };
         }),
       );
+    }
+
+    // Shows the store's recipients and keeps the owner's own document in step, so
+    // iOS (and this app's other reads of sharedWith) see the same thing.
+    function applyRecipients(ownerStoreId: string, current: StoreRecipients) {
+      // As on iOS, only somebody leaving clears the list. Merged and older
+      // group-shared stores have names here with no recipient documents behind
+      // them, so a store that has simply never had any must be left alone.
+      const someoneLeft = (recipients.get(ownerStoreId)?.count ?? 0) > 0;
+      recipients.set(ownerStoreId, current);
+      emit();
+
+      const stored =
+        latestItems.find(i => i.id === ownerStoreId)?.sharedWith ?? [];
+      const change = sharedWithChange(current, stored);
+      if (change && (change.type === 'set' || someoneLeft)) {
+        firestore()
+          .collection('user_stores')
+          .doc(ownerStoreId)
+          .update(
+            change.type === 'set'
+              ? {sharedWith: change.names, isSharedStore: true}
+              : {
+                  sharedWith: firestore.FieldValue.delete(),
+                  isSharedStore: firestore.FieldValue.delete(),
+                },
+          )
+          .catch(() => {});
+      }
     }
 
     // Watch for user_stores pointing at a store this user owns — one exists per
@@ -317,6 +360,7 @@ export const storeService = {
           unsub();
           recipientUnsubs.delete(id);
           recipients.delete(id);
+          recipientLookups.delete(id);
         }
       });
 
@@ -329,31 +373,25 @@ export const storeService = {
           .where('sourceUserStoreId', '==', ownerStoreId)
           .onSnapshot(
             snap => {
-              const names = snap.docs
-                .map(d => d.data().userName as string | undefined)
-                .filter((name): name is string => !!name);
-              recipients.set(ownerStoreId, names);
-              emit();
+              const current = recipientsFrom(snap.docs);
+              applyRecipients(ownerStoreId, current);
 
-              // Keep the owner's own document in step, so iOS (and this app's
-              // other reads of sharedWith) see the same thing.
-              const stored =
-                latestItems.find(i => i.id === ownerStoreId)?.sharedWith ?? [];
-              const changed =
-                stored.length !== names.length ||
-                names.some(name => !stored.includes(name));
-              if (changed) {
-                firestore()
-                  .collection('user_stores')
-                  .doc(ownerStoreId)
-                  .update(
-                    names.length > 0
-                      ? {sharedWith: names, isSharedStore: true}
-                      : {
-                          sharedWith: firestore.FieldValue.delete(),
-                          isSharedStore: firestore.FieldValue.delete(),
-                        },
-                  )
+              // Older recipient documents have no name. iOS marks a store as
+              // shared only from the names stored on the owner's document, so
+              // look them up rather than leave those stores looking unshared
+              // there. A newer snapshot supersedes a lookup still in flight.
+              const lookup = (recipientLookups.get(ownerStoreId) ?? 0) + 1;
+              recipientLookups.set(ownerStoreId, lookup);
+              if (current.unnamedIds.length > 0) {
+                fetchUserNames(current.unnamedIds)
+                  .then(found => {
+                    if (recipientLookups.get(ownerStoreId) === lookup) {
+                      applyRecipients(
+                        ownerStoreId,
+                        withLookedUpNames(current, found),
+                      );
+                    }
+                  })
                   .catch(() => {});
               }
             },
@@ -556,6 +594,7 @@ export const storeService = {
       recipientUnsubs.forEach(unsub => unsub());
       recipientUnsubs.clear();
       recipients.clear();
+      recipientLookups.clear();
       sourceUnsubs.forEach(unsub => unsub());
       sourceUnsubs.clear();
     };
