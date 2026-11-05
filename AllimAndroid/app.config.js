@@ -104,8 +104,11 @@ module.exports = {
         {
           android: {
             minSdkVersion: 24,
+            // Compiling against 36 needs a newer Android Gradle Plugin than RN
+            // 0.76 ships (8.6). Play only checks the target, and compiling
+            // against 35 doesn't change how Android treats a target-36 app.
             compileSdkVersion: 35,
-            targetSdkVersion: 35,
+            targetSdkVersion: 36,
             buildToolsVersion: '35.0.0',
             // RN 0.76's Gradle plugin requires Kotlin < 2.0.
             kotlinVersion: '1.9.25',
