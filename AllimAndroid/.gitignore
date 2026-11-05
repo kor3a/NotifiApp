@@ -20,3 +20,6 @@ expo-env.d.ts
 *.log
 .env
 .env.local
+
+# Signing keys
+*.jks
