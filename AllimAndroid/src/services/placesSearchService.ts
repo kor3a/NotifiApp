@@ -10,6 +10,13 @@ export interface SearchResultStore {
   locationCount: number;
 }
 
+// One physical location, as opposed to the per-chain SearchResultStore.
+export interface PlaceBranch {
+  name: string;
+  latitude: number;
+  longitude: number;
+}
+
 export function distanceFormattedMiles(meters: number): string {
   const miles = meters * 0.000621371;
   return `${miles.toFixed(1)} mi`;
@@ -34,5 +41,26 @@ export const placesSearchService = {
       longitude: userLocation.longitude,
     });
     return (data?.results ?? []) as SearchResultStore[];
+  },
+
+  // Throws when the response has no `branches` at all (a function older than
+  // this client) so that isn't mistaken for "no branches here" and cached.
+  async searchBranches(
+    query: string,
+    center: Coordinates,
+  ): Promise<PlaceBranch[]> {
+    const callable = functions().httpsCallable<
+      {query: string; latitude: number; longitude: number},
+      {branches?: PlaceBranch[]}
+    >('searchNearbyStores');
+    const {data} = await callable({
+      query: query.trim(),
+      latitude: center.latitude,
+      longitude: center.longitude,
+    });
+    if (!Array.isArray(data?.branches)) {
+      throw new Error('searchNearbyStores returned no branches field.');
+    }
+    return data.branches;
   },
 };
