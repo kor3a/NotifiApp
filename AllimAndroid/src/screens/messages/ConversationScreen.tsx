@@ -221,7 +221,7 @@ export default function ConversationScreen() {
   return (
     <View style={{flex: 1}}>
       <GradientBackground />
-      <SafeAreaView style={{flex: 1}}>
+      <SafeAreaView style={{flex: 1}} edges={['top', 'left', 'right']}>
         <KeyboardAvoidingView
           style={{flex: 1}}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}

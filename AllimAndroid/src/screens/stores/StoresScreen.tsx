@@ -698,7 +698,9 @@ export default function StoresScreen() {
     <View style={{flex: 1}}>
       {/* The app gradient, or whatever the user picked under Colors. */}
       <SurfaceBackground surface="stores" />
-      <SafeAreaView style={{flex: 1}}>
+      {/* No bottom edge: the tab bar below already clears the system navigation
+          bar. Insetting here too leaves an empty strip that clips the list. */}
+      <SafeAreaView style={{flex: 1}} edges={['top', 'left', 'right']}>
         {loading ? (
           // The greeting needs a name and the list needs stores, so until both
           // are in, the whole screen is the loading screen.

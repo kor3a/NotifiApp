@@ -382,7 +382,7 @@ export default function MessagesScreen() {
   return (
     <View style={{flex: 1}}>
       <GradientBackground />
-      <SafeAreaView style={{flex: 1}}>
+      <SafeAreaView style={{flex: 1}} edges={['top', 'left', 'right']}>
         <View style={styles.header}>
           <Text style={[styles.headerTitle, {color: textPrimary(scheme)}]}>
             Messages

@@ -266,7 +266,7 @@ export default function ReminderScreen() {
   return (
     <View style={{flex: 1}}>
       <GradientBackground />
-      <SafeAreaView style={{flex: 1}}>
+      <SafeAreaView style={{flex: 1}} edges={['top', 'left', 'right']}>
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
