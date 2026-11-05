@@ -6,6 +6,10 @@ import {storeLogoService} from '../services/storeLogoService';
 interface Props {
   storeName: string;
   size?: number;
+  // Fires when what's on show changes: an image has loaded, or the initial has
+  // taken over. A map marker draws from a bitmap of its view, so it must redo
+  // that each time.
+  onDisplayChange?: () => void;
 }
 
 // The store's logo, or its initial on a tinted circle when none can be found.
@@ -13,7 +17,11 @@ interface Props {
 // has no URL, or the image fails to load, a Brand Search gets one more try
 // before falling back to the initial. Stands in for the iOS CachedLogoImage;
 // React Native's image cache covers the disk caching.
-export default function StoreLogo({storeName, size = 48}: Props) {
+export default function StoreLogo({
+  storeName,
+  size = 48,
+  onDisplayChange,
+}: Props) {
   const [url, setUrl] = useState<string | undefined>(() =>
     storeLogoService.logoURL(storeName),
   );
@@ -62,6 +70,13 @@ export default function StoreLogo({storeName, size = 48}: Props) {
     };
   }, [storeName, search]);
 
+  const showsImage = Boolean(url && !failed);
+  useEffect(() => {
+    if (!showsImage) {
+      onDisplayChange?.();
+    }
+  }, [showsImage, onDisplayChange]);
+
   const circle = {width: size, height: size, borderRadius: size / 2};
 
   if (url && !failed) {
@@ -69,6 +84,9 @@ export default function StoreLogo({storeName, size = 48}: Props) {
       <Image
         source={{uri: url}}
         style={[styles.image, circle]}
+        onLoad={onDisplayChange}
+        // Android fades images in, and a bitmap taken mid-fade stays washed out.
+        fadeDuration={onDisplayChange ? 0 : undefined}
         onError={() => search()}
       />
     );

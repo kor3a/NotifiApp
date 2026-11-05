@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import firestore from '@react-native-firebase/firestore';
 import notifee from '@notifee/react-native';
 import {backgroundPreferences} from './backgroundPreferences';
+import {storeLocationService} from './storeLocationService';
 
 /**
  * Wipes what the signed-out account left on the device, so the next person to
@@ -51,6 +52,7 @@ export async function clearSignedOutUserData(): Promise<void> {
   // In-memory copies first, so nothing on screen can read them back while the
   // disk work runs.
   backgroundPreferences.clearCache();
+  storeLocationService.clearCache();
   // Independent of each other: one failing (say, the notification service) must
   // not leave the others undone.
   const results = await Promise.allSettled([

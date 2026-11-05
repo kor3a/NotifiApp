@@ -1018,6 +1018,9 @@ exports.searchNearbyStores = onCall(
         // Group by normalized store name — each chain appears once with the
         // nearest distance and total location count, matching the iOS UX.
         const groups = new Map();
+        // Every place individually too: the Android map puts a marker on each
+        // branch, which the per-chain groups can't locate.
+        const branches = [];
         for (const p of places) {
             const name = p?.displayName?.text;
             const loc = p?.location;
@@ -1029,6 +1032,11 @@ exports.searchNearbyStores = onCall(
             ) {
                 continue;
             }
+            branches.push({
+                name,
+                latitude: loc.latitude,
+                longitude: loc.longitude,
+            });
             const dist = haversineMeters(userLocation, loc);
             const id = normalizeStoreId(name);
             const existing = groups.get(id);
@@ -1052,7 +1060,7 @@ exports.searchNearbyStores = onCall(
             (a, b) => a.nearestDistanceMeters - b.nearestDistanceMeters
         );
 
-        return { results };
+        return { results, branches };
     }
 );
 

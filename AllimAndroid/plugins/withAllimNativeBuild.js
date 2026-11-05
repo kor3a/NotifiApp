@@ -217,8 +217,26 @@ const withoutAutoBackup = config =>
     return cfg;
   });
 
+/**
+ * Targeting API 36 turns predictive back on, and then Android stops calling
+ * Activity.onBackPressed() — the only route RN 0.76's ReactActivity has for the
+ * back button to reach JS. Left on, back closes the app instead of navigating or
+ * dismissing a sheet. Remove this once React Native registers its own back
+ * callback.
+ */
+const withoutPredictiveBack = config =>
+  withAndroidManifest(config, cfg => {
+    const application = cfg.modResults.manifest.application?.[0];
+    if (application) {
+      application.$['android:enableOnBackInvokedCallback'] = 'false';
+    }
+    return cfg;
+  });
+
 const withAllimNativeBuild = config =>
-  withoutAutoBackup(withCMakeStubs(withAppGradle(withRootGradle(config))));
+  withoutPredictiveBack(
+    withoutAutoBackup(withCMakeStubs(withAppGradle(withRootGradle(config)))),
+  );
 
 module.exports = createRunOncePlugin(
   withAllimNativeBuild,
