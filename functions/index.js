@@ -36,6 +36,7 @@
 const { onDocumentCreated, onDocumentWritten } = require('firebase-functions/v2/firestore');
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { defineSecret } = require('firebase-functions/params');
+const { setGlobalOptions } = require('firebase-functions/v2');
 const functions = require('firebase-functions');
 const { initializeApp } = require('firebase-admin/app');
 const { getFirestore, FieldValue } = require('firebase-admin/firestore');
@@ -44,6 +45,12 @@ const { getStorage } = require('firebase-admin/storage');
 const { getAuth } = require('firebase-admin/auth');
 
 initializeApp();
+
+// Caps how far each Gen-2 function can scale, which also bounds what the paid
+// proxies (OpenAI, Places, Logo.dev) can spend under a burst of calls. Stated in
+// code so a redeploy can't leave a function uncapped. Gen-1 functions
+// (cleanupDeletedUser) don't read this.
+setGlobalOptions({ maxInstances: 20 });
 
 // Resend API key — set once with:  firebase functions:secrets:set RESEND_API_KEY
 const RESEND_API_KEY = defineSecret('RESEND_API_KEY');
