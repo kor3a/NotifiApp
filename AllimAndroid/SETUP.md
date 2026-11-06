@@ -21,6 +21,8 @@ To change something native, change one of these instead:
 | SDK levels, Kotlin version, cleartext, ProGuard | `expo-build-properties` block in `app.config.js` |
 | NDK pin, dependency forces, Notifee repo, CMake stubs, `allowBackup` | `plugins/withAllimNativeBuild.js` |
 | Build profiles (dev / preview / production) | `eas.json` |
+| Notification icon and colour | `notification` block in `app.config.js` |
+| FCM's default notification channel | `firebase.json` in this folder (read by React Native Firebase's Gradle build, not by the Firebase CLI — run `firebase` commands from the repo root) |
 
 ---
 

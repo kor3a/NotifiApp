@@ -52,6 +52,14 @@ module.exports = {
     // window's own default as it was. (Prebuild warns that it differs from the
     // splash colour — that is intended.)
     androidStatusBar: {backgroundColor: '#ffffff'},
+    // Prebuild turns the icon into @drawable/notification_icon, and the Firebase
+    // messaging plugin makes that FCM's default icon. App.tsx uses the same
+    // drawable. Android draws only the alpha channel, so it must be white on
+    // transparent; the colour tints it in the expanded notification.
+    notification: {
+      icon: './assets/notification-icon.png',
+      color: '#0B7285',
+    },
 
     android: {
       package: 'com.allimandroid',
