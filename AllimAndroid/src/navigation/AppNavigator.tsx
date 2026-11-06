@@ -1,10 +1,11 @@
-import React, {useEffect} from 'react';
+import React, {useCallback, useEffect, useState} from 'react';
 import {ActivityIndicator, Image, View} from 'react-native';
 import {NavigatorScreenParams} from '@react-navigation/native';
 import {createNativeStackNavigator} from '@react-navigation/native-stack';
 import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 import {useColorScheme} from 'react-native';
 import Icon from '../components/AppIcon';
+import LaunchScreen from '../components/LaunchScreen';
 
 import {SessionProvider, useSession} from '../context/SessionContext';
 
@@ -198,9 +199,9 @@ function MainNavigator({uid}: {uid: string}) {
   );
 }
 
-// Picks up where the native splash (app.config.js, expo-splash-screen) leaves
-// off: the same teal and the same 200dp icon in the same spot, so the handoff
-// is invisible and only the spinner appears while the session resolves.
+// The logo as LaunchScreen leaves it, for waits after the launch itself: the
+// same teal and the same 200dp icon in the same spot, with a spinner while the
+// account's permission state is worked out after signing in.
 function LoadingScreen() {
   return (
     <View
@@ -244,6 +245,42 @@ function RootNavigator() {
   const uid: string | null = hasProfile ? firebaseUser?.uid ?? null : null;
   const permissionOnboarding = usePermissionOnboarding(uid);
 
+  // Stays up until the screen this launch ends on exists, so it reveals that
+  // screen rather than a LoadingScreen standing in for it.
+  const [launchFinished, setLaunchFinished] = useState(false);
+  const onLaunchFinished = useCallback(() => setLaunchFinished(true), []);
+  const launchSettled =
+    !isLoading && (!hasProfile || permissionOnboarding.state.kind !== 'evaluating');
+
+  return (
+    <View style={{flex: 1}}>
+      <RootScreen
+        isAuthenticated={isAuthenticated}
+        isLoading={isLoading}
+        profileStatus={profileStatus}
+        permissionOnboarding={permissionOnboarding}
+        uid={uid}
+      />
+      {launchFinished ? null : (
+        <LaunchScreen ready={launchSettled} onFinished={onLaunchFinished} />
+      )}
+    </View>
+  );
+}
+
+function RootScreen({
+  isAuthenticated,
+  isLoading,
+  profileStatus,
+  permissionOnboarding,
+  uid,
+}: Pick<
+  ReturnType<typeof useSession>,
+  'isAuthenticated' | 'isLoading' | 'profileStatus'
+> & {
+  permissionOnboarding: ReturnType<typeof usePermissionOnboarding>;
+  uid: string | null;
+}) {
   if (isLoading) {
     return <LoadingScreen />;
   }
