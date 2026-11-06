@@ -17,6 +17,7 @@ import Icon from '../../components/AppIcon';
 import {Spacing, textPrimary, textSecondary, sheetFill} from '../../theme/AppTheme';
 import {useSession} from '../../context/SessionContext';
 import {openAIService} from '../../services/openAIService';
+import {hasPremiumAccess} from '../../services/subscription';
 import {recipeService} from '../../services/recipeService';
 import {storeService} from '../../services/storeService';
 import {UserStoreItem} from '../../models';
@@ -59,7 +60,7 @@ function recipeNameFrom(content: string): string {
 export default function SmartRecipeScreen() {
   const scheme = useColorScheme();
   const {currentUser} = useSession();
-  const isPremium = !!(currentUser?.isSubscribed || currentUser?.adminSubscribed);
+  const isPremium = hasPremiumAccess(currentUser);
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');

@@ -42,7 +42,11 @@ export const userService = {
   },
 
   // Subscribe to user changes
-  subscribeToUser(email: string, callback: (user: User | null) => void) {
+  subscribeToUser(
+    email: string,
+    callback: (user: User | null) => void,
+    onError?: (error: Error) => void,
+  ) {
     return firestore()
       .collection('users')
       .where('email', '==', email.toLowerCase().trim())
@@ -55,7 +59,7 @@ export const userService = {
           snap.docs.find(doc => doc.id === (doc.data() as User).userId) ??
           snap.docs[0];
         callback({...canonical.data()} as User);
-      });
+      }, onError);
   },
 
   // Update profile. userId is the users doc id (username), not the auth uid.

@@ -4,7 +4,7 @@ import { logoFor, useOpenCounts, useStoreLogos, useUserStores } from "../data";
 import { db } from "../firebase";
 import { href } from "../router";
 import { useUser } from "../auth";
-import { normalizedStoreId, nowSeconds, reminderStoreId } from "../types";
+import { FREE_STORE_LIMIT, hasPremiumAccess, normalizedStoreId, nowSeconds, reminderStoreId } from "../types";
 import { Button, Card, Empty, ErrorNote, Modal, PageHeader, Spinner, StoreLogo, TextInput } from "../ui";
 
 export default function Stores() {
@@ -25,7 +25,7 @@ export default function Stores() {
             ? " "
             : `${stores.data.length} ${stores.data.length === 1 ? "store" : "stores"} · ${totalOpen} items to pick up`
         }
-        actions={<Button onClick={() => setAdding(true)}>+ Add store</Button>}
+        actions={<Button disabled={stores.loading} onClick={() => setAdding(true)}>+ Add store</Button>}
       />
 
       {stores.error && <ErrorNote>{stores.error}</ErrorNote>}
@@ -82,6 +82,21 @@ function AddStore({ onClose, existing }: { onClose: () => void; existing: string
   const [address, setAddress] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+
+  // Stores already over the limit are kept, but adding another needs Premium.
+  if (!hasPremiumAccess(user) && existing.length >= FREE_STORE_LIMIT) {
+    return (
+      <Modal title="Add a store" onClose={onClose}>
+        <p className="text-[15px] text-ink-2">
+          Free accounts are limited to {FREE_STORE_LIMIT} stores. Upgrade to Allim Premium in the
+          phone app to add more.
+        </p>
+        <div className="flex justify-end pt-4">
+          <Button variant="ghost" onClick={onClose}>Close</Button>
+        </div>
+      </Modal>
+    );
+  }
 
   async function submit(e: FormEvent) {
     e.preventDefault();
