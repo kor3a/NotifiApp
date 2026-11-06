@@ -42,6 +42,11 @@ import {
 import {useSession} from '../../context/SessionContext';
 import {storeService} from '../../services/storeService';
 import {
+  canAddStore,
+  hasPremiumAccess,
+  isStoreLimitError,
+} from '../../services/subscription';
+import {
   onMyWayService,
   TravelEstimate,
   formattedTravelTime,
@@ -222,24 +227,50 @@ export default function StoresScreen() {
 
   // ─── Store actions ────────────────────────────────────────────────────────
 
+  // The Premium paywall sits above the tabs, so the navigate bubbles up to it.
+  function openPaywall() {
+    (navigation as NativeStackNavigationProp<any>).navigate('Subscription');
+  }
+
+  // Free-tier store limit: stores already over the limit are kept, but adding
+  // another requires a subscription. The tour's stand-in stores don't count.
+  function openAddStore() {
+    if (
+      tutorialActive ||
+      canAddStore(hasPremiumAccess(currentUser), liveStores.length)
+    ) {
+      setShowAddSheet(true);
+    } else {
+      openPaywall();
+    }
+  }
+
   // The + menu's three entries, in the iOS order.
   const fabMenuItems: {
     icon: React.ComponentProps<typeof Icon>['name'];
     title: string;
     open: () => void;
   }[] = [
-    {icon: 'cart-outline', title: 'Add Store', open: () => setShowAddSheet(true)},
+    {icon: 'cart-outline', title: 'Add Store', open: openAddStore},
     {icon: 'reader-outline', title: 'Add Recipe', open: () => setShowRecipes(true)},
     {icon: 'color-palette-outline', title: 'Colors', open: () => setShowColors(true)},
   ];
 
   async function handleSelectStore(storeName: string) {
     if (!firebaseUser || !currentUser) {return;}
-    await storeService.addStore(
-      currentUser.userId,
-      currentUser.email,
-      storeName,
-    );
+    try {
+      await storeService.addStore(
+        currentUser.userId,
+        currentUser.email,
+        storeName,
+      );
+    } catch (err) {
+      if (!isStoreLimitError(err)) {
+        throw err;
+      }
+      setShowAddSheet(false);
+      openPaywall();
+    }
   }
 
   function openStore(item: UserStoreItem) {

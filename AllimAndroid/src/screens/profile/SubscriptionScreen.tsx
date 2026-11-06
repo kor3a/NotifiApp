@@ -17,15 +17,13 @@ import Icon from '../../components/AppIcon';
 
 import GradientBackground from '../../components/GradientBackground';
 import {Colors, cardBackground, cardStyle, textPrimary, textSecondary} from '../../theme/AppTheme';
+import {FREE_STORE_LIMIT} from '../../services/subscription';
 import {PRIVACY_POLICY_URL} from './AboutScreen';
 import {profilePalette} from './profileUi';
 
 type IconName = React.ComponentProps<typeof Icon>['name'];
 
 const GOOGLE_PLAY_TERMS_URL = 'https://play.google.com/about/play-terms/';
-
-// iOS SubscriptionManager.freeStoreLimit.
-const FREE_STORE_LIMIT = 5;
 
 // iOS PremiumFeature.all, with Ionicons standing in for the SF Symbols:
 // infinity -> infinite, fork.knife -> restaurant, sparkles -> sparkles,

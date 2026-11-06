@@ -9,6 +9,7 @@ import auth from '@react-native-firebase/auth';
 import messaging from '@react-native-firebase/messaging';
 import {User} from '../models';
 import {userService} from '../services/userService';
+import {withLatestAccess} from '../services/subscription';
 import {isSignupInProgress} from '../services/authService';
 import {clearSignedOutUserData} from '../services/sessionCleanup';
 
@@ -165,6 +166,21 @@ export function SessionProvider({children}: {children: React.ReactNode}) {
       });
     });
   }, [signedInUserId]);
+
+  // Keep access current while the app is open. The profile is otherwise read
+  // once at sign-in, so a subscription granted or removed would go unnoticed
+  // until the next launch.
+  const signedInEmail = currentUser?.email;
+  useEffect(() => {
+    if (!signedInEmail) {
+      return;
+    }
+    return userService.subscribeToUser(
+      signedInEmail,
+      latest => setCurrentUser(current => withLatestAccess(current, latest)),
+      error => console.warn('Could not watch subscription status', error),
+    );
+  }, [signedInEmail]);
 
   return (
     <SessionContext.Provider

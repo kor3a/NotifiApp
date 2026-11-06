@@ -15,6 +15,14 @@ export interface AppUser {
   adminSubscribed?: boolean;
 }
 
+/** Free accounts may add this many stores. Same as iOS and Android. */
+export const FREE_STORE_LIMIT = 5;
+
+/** isSubscribed comes from a purchase, adminSubscribed is granted by hand. */
+export function hasPremiumAccess(user: AppUser): boolean {
+  return user.isSubscribed === true || user.adminSubscribed === true;
+}
+
 export type StorePermission = "owner" | "edit" | "view";
 
 /** user_stores/{id}: one store pinned by one user. */

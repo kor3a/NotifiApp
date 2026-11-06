@@ -30,6 +30,7 @@ import {
   cardBackground,
 } from '../../theme/AppTheme';
 import {useSession} from '../../context/SessionContext';
+import {hasPremiumAccess} from '../../services/subscription';
 import {reminderService} from '../../services/reminderService';
 import {storeService} from '../../services/storeService';
 import {Reminder} from '../../models';
@@ -360,7 +361,7 @@ export default function ReminderScreen() {
             </Text>
 
             {/* Smart Category row */}
-            {(currentUser?.isSubscribed || currentUser?.adminSubscribed) ? (
+            {hasPremiumAccess(currentUser) ? (
               <View style={styles.settingRow}>
                 <View style={styles.settingInfo}>
                   <Text style={[styles.settingLabel, {color: textPrimary(scheme)}]}>

@@ -1467,3 +1467,8 @@ exports.logoBrandSearch = onCall(
         return { domain: match.domain, name };
     }
 );
+
+// Store counts behind the free-tier store limit (see storeCounts.js).
+const storeCounts = require('./storeCounts');
+exports.syncUserStoreCount = storeCounts.syncUserStoreCount;
+exports.backfillUserStoreCounts = storeCounts.backfillUserStoreCounts;

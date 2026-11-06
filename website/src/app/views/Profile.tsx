@@ -4,6 +4,7 @@ import { useFriendships, useRecipes, useUserStores } from "../data";
 import { db } from "../firebase";
 import { href, type Route } from "../router";
 import { logOut, useUser } from "../auth";
+import { hasPremiumAccess } from "../types";
 import { Avatar, Button, Card, PageHeader, TextInput } from "../ui";
 
 export default function Profile() {
@@ -14,7 +15,7 @@ export default function Profile() {
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(user.name);
 
-  const premium = user.isSubscribed || user.adminSubscribed;
+  const premium = hasPremiumAccess(user);
   const joined = new Date(user.joined * 1000).toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" });
   const sharedCount = stores.data.filter((s) => s.permission !== "owner" || s.sharedWith?.length).length;
 
