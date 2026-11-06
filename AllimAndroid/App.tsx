@@ -13,6 +13,10 @@ import notifee, {AndroidImportance} from '@notifee/react-native';
 // after sign-up, with an explanation in front of it, rather than fired at
 // launch before the user knows what the app does with it. The channels can
 // exist either way.
+//
+// firebase.json names 'allim-default' as FCM's default channel, for pushes that
+// arrive while the app is in the background. Android keeps the importance a
+// channel was first created with, so changing it here needs a new channel id.
 async function createNotificationChannels() {
   await notifee.createChannel({
     id: 'allim-default',
@@ -38,22 +42,30 @@ function App(): React.JSX.Element {
   const appState = useRef<AppStateStatus>(AppState.currentState);
 
   useEffect(() => {
-    createNotificationChannels();
+    createNotificationChannels().catch(error => {
+      console.warn('Could not create notification channels', error);
+    });
 
     const unsubscribe = messaging().onMessage(async remoteMessage => {
       if (remoteMessage.notification) {
-        await notifee.displayNotification({
-          // Using messageId collapses duplicate deliveries of the same FCM
-          // message into a single visible notification.
-          id: remoteMessage.messageId,
-          title: remoteMessage.notification.title,
-          body: remoteMessage.notification.body,
-          android: {
-            channelId: 'allim-default',
-            smallIcon: 'ic_notification',
-            pressAction: {id: 'default'},
-          },
-        });
+        try {
+          await notifee.displayNotification({
+            // Using messageId collapses duplicate deliveries of the same FCM
+            // message into a single visible notification.
+            id: remoteMessage.messageId,
+            title: remoteMessage.notification.title,
+            body: remoteMessage.notification.body,
+            android: {
+              channelId: 'allim-default',
+              // Generated from expo.notification.icon in app.config.js.
+              smallIcon: 'notification_icon',
+              color: '#0B7285',
+              pressAction: {id: 'default'},
+            },
+          });
+        } catch (error) {
+          console.warn('Could not display notification', error);
+        }
       }
     });
 
