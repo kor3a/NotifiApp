@@ -1,4 +1,4 @@
-import React, {useEffect, useState, useCallback} from 'react';
+import React, {useEffect, useState, useCallback, useRef} from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,7 @@ import {
   ScrollView,
   Image,
   Switch,
+  AppState,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {useRoute, useNavigation, RouteProp} from '@react-navigation/native';
@@ -33,7 +34,12 @@ import {useSession} from '../../context/SessionContext';
 import {hasPremiumAccess} from '../../services/subscription';
 import {reminderService} from '../../services/reminderService';
 import {storeService} from '../../services/storeService';
-import {Reminder} from '../../models';
+import {
+  PendingReminderChanges,
+  hasPendingChanges,
+  sendReminderChangeNotifications,
+} from '../../services/sharedReminderNotificationService';
+import {Reminder, StorePermission} from '../../models';
 import {StoresStackParamList} from '../../navigation/AppNavigator';
 import firestore from '@react-native-firebase/firestore';
 
@@ -56,8 +62,93 @@ export default function ReminderScreen() {
     isSharedStore,
     sharedWith,
     sharedFromName,
+    sourceUserStoreId,
+    sharedStoreGroupId,
   } = route.params;
   const canEdit = permission !== 'view';
+
+  // Changes made this editing session. As on iOS, they are sent to the store's
+  // other members as a single "Reminder Updated" push when the user leaves the
+  // list or the app goes to the background, not one push per edit.
+  const pendingChanges = useRef<PendingReminderChanges>({
+    addedCount: 0,
+    otherChangeCount: 0,
+  });
+  // A change is counted before its write so leaving straight away still
+  // reports it; a failed write takes it back.
+  function countChange(kind: 'added' | 'other', delta = 1) {
+    const current = pendingChanges.current;
+    pendingChanges.current =
+      kind === 'added'
+        ? {...current, addedCount: Math.max(0, current.addedCount + delta)}
+        : {
+            ...current,
+            otherChangeCount: Math.max(0, current.otherChangeCount + delta),
+          };
+  }
+
+  // The flush runs from listeners and unmount, so it reads the latest values
+  // through a ref rather than a stale closure.
+  const notifyContext = useRef({
+    isSharedStore,
+    userStoreId,
+    permission,
+    sourceUserStoreId,
+    sharedStoreGroupId,
+    storeName,
+    currentUser,
+  });
+  notifyContext.current = {
+    isSharedStore,
+    userStoreId,
+    permission,
+    sourceUserStoreId,
+    sharedStoreGroupId,
+    storeName,
+    currentUser,
+  };
+
+  const sendPendingSharedNotifications = useCallback(() => {
+    const ctx = notifyContext.current;
+    const changes = pendingChanges.current;
+    if (!ctx.isSharedStore || !hasPendingChanges(changes)) {
+      return;
+    }
+    const userId = ctx.currentUser?.userId;
+    const userName = ctx.currentUser?.name;
+    if (!userId || !userName) {
+      return;
+    }
+    pendingChanges.current = {addedCount: 0, otherChangeCount: 0};
+    sendReminderChangeNotifications({
+      store: {
+        id: ctx.userStoreId,
+        permission: ctx.permission as StorePermission,
+        sourceUserStoreId: ctx.sourceUserStoreId,
+        sharedStoreGroupId: ctx.sharedStoreGroupId,
+      },
+      storeName: ctx.storeName,
+      changes,
+      currentUserId: userId,
+      currentUserName: userName,
+    }).catch(err => {
+      console.warn('Reminder Updated notification failed:', err?.message ?? err);
+    });
+  }, []);
+
+  useEffect(() => {
+    const unsubBlur = navigation.addListener('blur', sendPendingSharedNotifications);
+    const appState = AppState.addEventListener('change', state => {
+      if (state === 'background') {
+        sendPendingSharedNotifications();
+      }
+    });
+    return () => {
+      unsubBlur();
+      appState.remove();
+      sendPendingSharedNotifications();
+    };
+  }, [navigation, sendPendingSharedNotifications]);
 
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const [loading, setLoading] = useState(true);
@@ -111,6 +202,7 @@ export default function ReminderScreen() {
   async function handleAdd() {
     if (!newTitle.trim()) {return;}
     setAddingNew(true);
+    countChange('added');
     try {
       await reminderService.addReminder(reminderStoreId, storeId, newTitle.trim(), {
         isSharedStore,
@@ -121,6 +213,7 @@ export default function ReminderScreen() {
       });
       setNewTitle('');
     } catch (err: any) {
+      countChange('added', -1);
       Alert.alert('Error', err.message);
     } finally {
       setAddingNew(false);
@@ -128,9 +221,12 @@ export default function ReminderScreen() {
   }
 
   async function handleToggle(reminder: Reminder) {
+    countChange('other');
     try {
       await reminderService.toggleDone(reminder);
-    } catch (_) {}
+    } catch (_) {
+      countChange('other', -1);
+    }
   }
 
   async function handleDelete(reminder: Reminder) {
@@ -139,20 +235,53 @@ export default function ReminderScreen() {
       {
         text: 'Delete',
         style: 'destructive',
-        onPress: () => reminderService.deleteReminder(reminder.id),
+        onPress: async () => {
+          countChange('other');
+          try {
+            await reminderService.deleteReminder(reminder.id);
+          } catch (_) {
+            countChange('other', -1);
+          }
+        },
       },
     ]);
   }
 
-  async function handleSaveEdit(id: string) {
-    if (!editTitle.trim()) {return;}
-    await reminderService.updateTitle(id, editTitle.trim());
+  // Submitting the title fires onSubmitEditing and then onBlur, so the same
+  // rename can arrive twice; it is saved and counted once.
+  const lastSavedTitle = useRef<{id: string; title: string} | null>(null);
+
+  async function handleSaveEdit(reminder: Reminder) {
+    const title = editTitle.trim();
+    if (!title) {return;}
+    const already =
+      lastSavedTitle.current?.id === reminder.id &&
+      lastSavedTitle.current?.title === title;
+    if (title !== reminder.title && !already) {
+      lastSavedTitle.current = {id: reminder.id, title};
+      countChange('other');
+      try {
+        await reminderService.updateTitle(reminder.id, title);
+      } catch (err: any) {
+        countChange('other', -1);
+        lastSavedTitle.current = null;
+        Alert.alert('Error', err.message);
+      }
+    }
     setEditingId(null);
     setEditTitle('');
   }
 
   async function handleSetCategory(reminder: Reminder, category: string) {
-    await reminderService.updateCategory(reminder.id, category);
+    if (category !== reminder.category) {
+      countChange('other');
+      try {
+        await reminderService.updateCategory(reminder.id, category);
+      } catch (err: any) {
+        countChange('other', -1);
+        Alert.alert('Error', err.message);
+      }
+    }
     setShowCategoryModal(false);
     setCategoryReminder(null);
   }
@@ -204,8 +333,8 @@ export default function ReminderScreen() {
             <TextInput
               value={editTitle}
               onChangeText={setEditTitle}
-              onBlur={() => handleSaveEdit(reminder.id)}
-              onSubmitEditing={() => handleSaveEdit(reminder.id)}
+              onBlur={() => handleSaveEdit(reminder)}
+              onSubmitEditing={() => handleSaveEdit(reminder)}
               autoFocus
               style={[styles.editInput, {color: textPrimary(scheme)}]}
             />
