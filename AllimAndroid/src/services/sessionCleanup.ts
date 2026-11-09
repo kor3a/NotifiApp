@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import firestore from '@react-native-firebase/firestore';
 import notifee from '@notifee/react-native';
 import {backgroundPreferences} from './backgroundPreferences';
+import {notificationInbox} from './notificationInbox';
 import {storeLocationService} from './storeLocationService';
 
 /**
@@ -50,7 +51,9 @@ async function clearNotifications() {
 
 export async function clearSignedOutUserData(): Promise<void> {
   // In-memory copies first, so nothing on screen can read them back while the
-  // disk work runs.
+  // disk work runs. The notification listeners go too: they belong to the old
+  // account and run on the Firestore instance that is about to be shut down.
+  notificationInbox.stop();
   backgroundPreferences.clearCache();
   storeLocationService.clearCache();
   // Independent of each other: one failing (say, the notification service) must
