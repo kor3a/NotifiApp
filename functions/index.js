@@ -104,25 +104,48 @@ const db = getFirestore();
 
 /**
  * Look up a user's FCM token by their userId field in the `users` collection.
- * Returns `{ token, userDocRef }` so callers can pass the owning document to
- * sendFCM for stale-token cleanup, or null when no document/token is found.
+ * Returns `{ token, userDocRef, email }` so callers can pass the owning document
+ * to sendFCM for stale-token cleanup, or null when no document/token is found.
+ *
+ * `fallbackEmail` covers recipients whose userId changed after a store was
+ * shared with them: their user_store (and so the notification doc) still
+ * carries the old userId, which matches no `users` document, while the email
+ * both apps also write still finds them.
  */
-async function getFCMToken(userId) {
-    const snap = await db
+async function getFCMToken(userId, fallbackEmail) {
+    let snap = await db
         .collection('users')
         .where('userId', '==', userId)
         .limit(1)
         .get();
+    if (snap.empty && fallbackEmail) {
+        // users docs store emails lowercased (see SignupViewModel / MessagingService)
+        snap = await db
+            .collection('users')
+            .where('email', '==', String(fallbackEmail).trim().toLowerCase())
+            .limit(1)
+            .get();
+        if (!snap.empty) {
+            console.log(`getFCMToken: no user document for userId="${userId}", found "${snap.docs[0].data().userId}" by recipient email`);
+        }
+    }
     if (snap.empty) {
         console.warn(`getFCMToken: no user document for userId="${userId}"`);
         return null;
     }
-    const token = snap.docs[0].data().fcmToken;
+    const data = snap.docs[0].data();
+    const token = data.fcmToken;
     if (!token) {
         console.warn(`getFCMToken: user "${userId}" has no fcmToken field in Firestore`);
         return null;
     }
-    return { token, userDocRef: snap.docs[0].ref };
+    return { token, userDocRef: snap.docs[0].ref, email: data.email };
+}
+
+/** Case-insensitive email comparison; false when either side is missing. */
+function sameEmail(a, b) {
+    if (!a || !b) return false;
+    return String(a).trim().toLowerCase() === String(b).trim().toLowerCase();
 }
 
 /**
@@ -288,7 +311,7 @@ exports.dedupeFcmToken = onDocumentWritten('users/{docId}', async (event) => {
 
 // ---------------------------------------------------------------------------
 // 1. "On My Way" notifications
-//    Document shape: { recipientUserId, senderName, senderEmail?, storeName, travelTimeMinutes, createdAt }
+//    Document shape: { recipientUserId, recipientEmail, senderName, senderEmail?, storeName, travelTimeMinutes, createdAt }
 // ---------------------------------------------------------------------------
 exports.onMyWayNotification = onDocumentCreated(
     'on_my_way_notifications/{docId}',
@@ -296,12 +319,15 @@ exports.onMyWayNotification = onDocumentCreated(
         const data = event.data?.data();
         if (!data) return;
 
-        const { recipientUserId, senderName, senderEmail, storeName, travelTimeMinutes } = data;
+        const { recipientUserId, recipientEmail, senderName, senderEmail, storeName, travelTimeMinutes } = data;
         console.log(`onMyWayNotification fired — docId=${event.params.docId}, recipientUserId=${recipientUserId}`);
         if (!recipientUserId) { console.warn('onMyWayNotification: missing recipientUserId, skipping'); return; }
 
-        const tokenEntry = await getFCMToken(recipientUserId);
+        const tokenEntry = await getFCMToken(recipientUserId, recipientEmail);
         if (!tokenEntry) { console.warn(`onMyWayNotification: no token for ${recipientUserId}, skipping`); return; }
+        // A sender's own user_store under an old userId looks like another
+        // member to their app; never push someone their own change.
+        if (sameEmail(tokenEntry.email, senderEmail)) { console.log(`onMyWayNotification: recipient ${recipientUserId} is the sender, skipping`); return; }
 
         const displayName = await resolveSenderName(senderEmail, senderName || 'Someone');
         const mins = travelTimeMinutes || 0;
@@ -324,7 +350,7 @@ exports.onMyWayNotification = onDocumentCreated(
 
 // ---------------------------------------------------------------------------
 // 2. Shared reminder change notifications
-//    Document shape: { recipientUserId, senderName, senderEmail?, storeName, addedCount, otherChangeCount, createdAt }
+//    Document shape: { recipientUserId, recipientEmail, senderName, senderEmail?, storeName, addedCount, otherChangeCount, createdAt }
 // ---------------------------------------------------------------------------
 exports.sharedReminderNotification = onDocumentCreated(
     'reminder_change_notifications/{docId}',
@@ -332,12 +358,15 @@ exports.sharedReminderNotification = onDocumentCreated(
         const data = event.data?.data();
         if (!data) return;
 
-        const { recipientUserId, senderName, senderEmail, storeName, addedCount } = data;
+        const { recipientUserId, recipientEmail, senderName, senderEmail, storeName, addedCount } = data;
         console.log(`sharedReminderNotification fired — docId=${event.params.docId}, recipientUserId=${recipientUserId}`);
         if (!recipientUserId) { console.warn('sharedReminderNotification: missing recipientUserId, skipping'); return; }
 
-        const tokenEntry = await getFCMToken(recipientUserId);
+        const tokenEntry = await getFCMToken(recipientUserId, recipientEmail);
         if (!tokenEntry) { console.warn(`sharedReminderNotification: no token for ${recipientUserId}, skipping`); return; }
+        // A sender's own user_store under an old userId looks like another
+        // member to their app; never push someone their own change.
+        if (sameEmail(tokenEntry.email, senderEmail)) { console.log(`sharedReminderNotification: recipient ${recipientUserId} is the sender, skipping`); return; }
 
         const displayName = await resolveSenderName(senderEmail, senderName || 'Someone');
         const added = addedCount || 0;
