@@ -12,6 +12,7 @@ import {userService} from '../services/userService';
 import {withLatestAccess} from '../services/subscription';
 import {isSignupInProgress} from '../services/authService';
 import {clearSignedOutUserData} from '../services/sessionCleanup';
+import {notificationInbox} from '../services/notificationInbox';
 
 // The wipe of the previous account's local data, while it runs. A sign-in that
 // lands mid-wipe waits for it, so the new account never reads through a
@@ -181,6 +182,23 @@ export function SessionProvider({children}: {children: React.ReactNode}) {
       error => console.warn('Could not watch subscription status', error),
     );
   }, [signedInEmail]);
+
+  // Consume the notification documents other people write for this account,
+  // so they don't pile up in Firestore. Keyed on the Auth email, which is what
+  // the rules match recipients on, and only once the profile has loaded, so an
+  // account that is signed straight back out (unverified email) never starts
+  // it. Sign-out also stops it in clearSignedOutUserData, before the Firestore
+  // instance it runs on is shut down.
+  const inboxEmail: string | undefined = currentUser
+    ? firebaseUser?.email ?? undefined
+    : undefined;
+  useEffect(() => {
+    if (!inboxEmail) {
+      return;
+    }
+    notificationInbox.start(inboxEmail);
+    return () => notificationInbox.stop();
+  }, [inboxEmail]);
 
   return (
     <SessionContext.Provider
