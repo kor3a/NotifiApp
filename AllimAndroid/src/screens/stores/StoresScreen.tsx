@@ -285,6 +285,8 @@ export default function StoresScreen() {
       isSharedStore: item.isShared,
       sharedWith: item.sharedWith,
       sharedFromName: item.sharedFromName,
+      sourceUserStoreId: item.sourceUserStoreId,
+      sharedStoreGroupId: item.sharedStoreGroupId,
     });
   }
 
