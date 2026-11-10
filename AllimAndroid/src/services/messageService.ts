@@ -7,6 +7,7 @@ import {
   LinkedStore,
   Message,
   timestampMillis,
+  totalUnreadCount,
 } from '../models';
 
 // Timestamps are written as epoch seconds rather than a server timestamp: it is
@@ -92,6 +93,24 @@ export const messageService = {
           );
         callback(convos);
       });
+  },
+
+  // Live total of the user's unread messages, for the Messages tab badge.
+  // A failed listen leaves the badge as it was rather than throwing.
+  subscribeToTotalUnreadCount(uid: string, callback: (count: number) => void) {
+    return firestore()
+      .collection('conversations')
+      .where('participantIds', 'array-contains', uid)
+      .onSnapshot(
+        snap =>
+          callback(
+            totalUnreadCount(
+              snap.docs.map(d => ({id: d.id, ...d.data()} as Conversation)),
+              uid,
+            ),
+          ),
+        () => {},
+      );
   },
 
   // Subscribe to messages in a conversation

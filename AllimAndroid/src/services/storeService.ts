@@ -29,6 +29,18 @@ import {
 } from './subscription';
 import {userService} from './userService';
 
+// The number a store's badge shows: items still to get. A checked item is
+// done, so it drops out; an out-of-stock item is still wanted, so it stays in
+// even if it was checked before being flagged.
+export function activeReminderCount(
+  docs: ReadonlyArray<{data(): {isDone?: boolean; isOutOfStock?: boolean}}>,
+): number {
+  return docs.filter(doc => {
+    const {isDone, isOutOfStock} = doc.data();
+    return isOutOfStock === true || isDone !== true;
+  }).length;
+}
+
 function normalizeStoreName(name: string): string {
   return name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
 }
@@ -526,7 +538,7 @@ export const storeService = {
           .where('userStoreId', '==', id)
           .onSnapshot(
             remindersSnap => {
-              counts.set(id, remindersSnap.docs.length);
+              counts.set(id, activeReminderCount(remindersSnap.docs));
               emit();
             },
             // A failed count must not take down the store list.
