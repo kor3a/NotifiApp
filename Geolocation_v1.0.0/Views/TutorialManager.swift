@@ -11,105 +11,102 @@ import FirebaseAuth
 
 // MARK: - Tutorial Step
 
+/// The tutorial is a short playable story rather than a tour of the live UI:
+/// an opening page, five hands-on chapters the user actually taps, drags and
+/// holds their way through, and a closing cheat sheet.
 enum TutorialStep: Int, CaseIterable {
-    case welcome = 0
-    case storesFAB
-    case storesToolbar
-    case remindersCategories
-    case remindersInfoMenu
-    case remindersItemMenu
-    case messagesCompose
-    case friendsInProfile
-    case mapSearch
-    case complete
+    case intro = 0
+    case addStore
+    case smartSort
+    case nearby
+    case shortcuts
+    case share
+    case finale
 
-    var targetTab: Int? {
-        switch self {
-        case .welcome, .storesFAB, .storesToolbar: return 0
-        // Reminder steps render a self-contained mock scene over the Stores tab,
-        // so keep the underlying tab on Stores (0).
-        case .remindersCategories, .remindersInfoMenu, .remindersItemMenu: return 0
-        case .messagesCompose: return 1
-        // Friends lives under Profile now, and Stores is the tab the profile
-        // button sits on.
-        case .friendsInProfile: return 0
-        case .mapSearch: return 3
-        case .complete: return 0
-        }
+    /// The hands-on chapters, in order. These are what the progress bar counts.
+    static let chapters: [TutorialStep] = [.addStore, .smartSort, .nearby, .shortcuts, .share]
+
+    var isChapter: Bool { Self.chapters.contains(self) }
+
+    /// 1-based position among the chapters, for the "02" in the eyebrow.
+    var chapterNumber: Int? {
+        Self.chapters.firstIndex(of: self).map { $0 + 1 }
     }
 
-    var elementId: String? {
+    /// The one-word subject that sits beside the chapter number.
+    var eyebrow: String {
         switch self {
-        case .welcome, .complete: return nil
-        case .storesFAB: return "tutorial_fab"
-        case .storesToolbar: return "tutorial_toolbar"
-        // Reminder steps highlight elements drawn inside the tutorial's own
-        // mock reminder scene rather than a real element in the live app.
-        case .remindersCategories, .remindersInfoMenu, .remindersItemMenu: return nil
-        case .messagesCompose: return "tutorial_compose"
-        case .friendsInProfile: return "tutorial_profile"
-        case .mapSearch: return "tutorial_mapSearch"
-        }
-    }
-
-    /// Whether this step is part of the simulated Reminders walkthrough that the
-    /// tutorial overlay renders as a full-screen mock scene.
-    var isReminderScene: Bool {
-        switch self {
-        case .remindersCategories, .remindersInfoMenu, .remindersItemMenu: return true
-        default: return false
+        case .intro: return "Welcome to Allim"
+        case .addStore: return "Stores"
+        case .smartSort: return "Smart Category"
+        case .nearby: return "Nearby alerts"
+        case .shortcuts: return "Shortcuts"
+        case .share: return "Sharing"
+        case .finale: return "That's the tour"
         }
     }
 
     var title: String {
         switch self {
-        case .welcome: return "Welcome to Allim!"
-        case .storesFAB: return "Add Your First Store"
-        case .storesToolbar: return "Organize Your Stores"
-        case .remindersCategories: return "Auto-Sorted Reminders"
-        case .remindersInfoMenu: return "The List Menu"
-        case .remindersItemMenu: return "Item Shortcuts"
-        case .messagesCompose: return "Message Friends"
-        case .friendsInProfile: return "Friends & Family"
-        case .mapSearch: return "Find Stores Nearby"
-        case .complete: return "You're All Set!"
+        case .intro: return "Your list knows\nwhere you are."
+        case .addStore: return "Start with a store."
+        case .smartSort: return "Add items.\nAllim sorts them."
+        case .nearby: return "Get nudged when you're close."
+        case .shortcuts: return "Everything is one press away."
+        case .share: return "Shop together."
+        case .finale: return "You're all set."
         }
     }
 
     var description: String {
         switch self {
-        case .welcome:
-            return "Let's take a quick tour of the key features so you can get the most out of your shopping experience."
-        case .storesFAB:
-            return "Tap the + button to add your favorite grocery stores and start managing shopping reminders."
-        case .storesToolbar:
-            return "Sort your stores by reminder count, or switch between list and grid view using these buttons."
-        case .remindersCategories:
-            return "Open a store to see its reminders. As you add items, Smart Category automatically groups them into sections like Produce, Dairy, and Bakery — no sorting needed."
-        case .remindersInfoMenu:
-            return "Tap the info (i) button in the top-right to open the list menu. From here you can turn on Auto Delete, toggle Smart Category, add ingredients from a recipe, and visit the store's website."
-        case .remindersItemMenu:
-            return "Touch and hold any reminder to open its shortcut menu. Mark it out of stock, move it to another store, add a photo or quantity, or change its category."
-        case .messagesCompose:
-            return "Tap the compose button to start a conversation. Share stores and reminders directly with friends."
-        case .friendsInProfile:
-            return "Open your profile here to find Friends. Add friends to share stores and reminders with, and put the closest of them in your Family group so they come first whenever you share."
-        case .mapSearch:
-            return "Use the search button to find stores near you on the map. Tap any pin to view or add reminders."
-        case .complete:
-            return "You're ready to go! Start by tapping the + button to add your first store."
+        case .intro:
+            return "Take the one-minute tour. Nothing to read through — you'll try each thing yourself."
+        case .addStore:
+            return "Every list in Allim belongs to a place you shop. The + button adds one."
+        case .smartSort:
+            return "Type things in any order. Smart Category files each one under Produce, Dairy, Bakery and so on."
+        case .nearby:
+            return "When you come near a saved store, Allim sends your list for it — before you drive past."
+        case .shortcuts:
+            return "Touch and hold an item to mark it out of stock, move it, or add a photo. The ⓘ button holds the list's settings."
+        case .share:
+            return "Share a store with friends, and keep Family at the front of the line. They see changes as you make them."
+        case .finale:
+            return "Here's where everything lives. Add your first store and Allim takes it from there."
         }
     }
 
-    var buttonLabel: String {
+    /// What the user is asked to do in the chapter's demo.
+    var hint: String {
         switch self {
-        case .complete: return "Get Started"
-        default: return "Next"
+        case .addStore: return "Tap the + button"
+        case .smartSort: return "Tap a few items to add them"
+        case .nearby: return "Drag yourself to the store"
+        case .shortcuts: return "Touch and hold an item, or tap ⓘ"
+        case .share: return "Tap someone to share the list"
+        case .intro, .finale: return ""
         }
     }
 
-    var isLastStep: Bool {
-        self == .complete
+    var hintIcon: String {
+        switch self {
+        case .nearby: return "hand.draw.fill"
+        case .shortcuts: return "hand.tap.fill"
+        default: return "hand.point.up.left.fill"
+        }
+    }
+
+    /// What replaces the hint once they have done it.
+    var doneNote: String {
+        switch self {
+        case .addStore: return "That's it — your first store"
+        case .smartSort: return "Sorted, without lifting a finger"
+        case .nearby: return "Right on time"
+        case .shortcuts: return "Found it"
+        case .share: return "Shared — they'll see it live"
+        case .intro, .finale: return ""
+        }
     }
 }
 
@@ -119,14 +116,11 @@ final class TutorialManager: ObservableObject {
     static let shared = TutorialManager()
 
     @Published var isActive: Bool = false
-    @Published var currentStep: TutorialStep = .welcome
-    /// Global frames of highlighted elements, keyed by highlight id.
-    /// Deliberately NOT @Published: rows report frame changes on every scroll
-    /// frame, so publishing each write would re-render every observing view
-    /// (the whole screen plus every visible row) at up to 120Hz while
-    /// scrolling. Changes are broadcast manually, and only while the tutorial
-    /// overlay is actually visible.
-    private(set) var elementFrames: [String: CGRect] = [:]
+    @Published var currentStep: TutorialStep = .intro
+    /// Chapters whose demo the user has played through. Drives the hint under
+    /// the demo and how loudly the Next button asks to be pressed; it never
+    /// gates anything — every chapter can be passed without playing it.
+    @Published private(set) var completedSteps: Set<TutorialStep> = []
     @Published var pendingTabSwitch: Int? = nil
 
     private(set) var currentUserId: String?
@@ -190,23 +184,33 @@ final class TutorialManager: ObservableObject {
         #if DEBUG
         print("🎓 TutorialManager.startIfNeeded: ACTIVATING tutorial ✅")
         #endif
-        currentStep = .welcome
+        currentStep = .intro
+        completedSteps = []
         isActive = true
     }
 
     func advance() {
-        let nextRaw = currentStep.rawValue + 1
-        if let next = TutorialStep(rawValue: nextRaw) {
-            withAnimation(.easeInOut(duration: 0.3)) {
-                currentStep = next
-            }
-            // Signal tab switch if needed
-            if let tab = next.targetTab {
-                pendingTabSwitch = tab
-            }
-            if next == .complete {
-                // Mark done after a delay so user can read the completion card
-            }
+        guard let next = TutorialStep(rawValue: currentStep.rawValue + 1) else {
+            finish()
+            return
+        }
+        withAnimation(.spring(response: 0.5, dampingFraction: 0.86)) {
+            currentStep = next
+        }
+    }
+
+    func back() {
+        guard let previous = TutorialStep(rawValue: currentStep.rawValue - 1) else { return }
+        withAnimation(.spring(response: 0.5, dampingFraction: 0.86)) {
+            currentStep = previous
+        }
+    }
+
+    /// Called by a chapter's demo the first time the user completes it.
+    func markDone(_ step: TutorialStep) {
+        guard !completedSteps.contains(step) else { return }
+        withAnimation(.spring(response: 0.4, dampingFraction: 0.75)) {
+            _ = completedSteps.insert(step)
         }
     }
 
@@ -223,6 +227,9 @@ final class TutorialManager: ObservableObject {
             isActive = false
         }
         hasCompletedTutorial = true
+        // The tutorial covers the whole screen, so whatever tab was underneath
+        // is a surprise; land on Stores, where the first thing to do is.
+        pendingTabSwitch = 0
         // New users are not shown the paywall here — the subscription sheet is
         // only presented when they actually hit a gated feature or open it from
         // Profile.
@@ -233,50 +240,7 @@ final class TutorialManager: ObservableObject {
     func resetTutorial() {
         hasCompletedTutorial = false
         isActive = false
-        currentStep = .welcome
-        elementFrames = [:]
-    }
-
-    func registerFrame(id: String, frame: CGRect) {
-        // Only update if meaningfully different to avoid layout loops
-        guard frame.width > 0 && frame.height > 0 else { return }
-        if elementFrames[id] != frame {
-            // Frames are recorded silently while the tutorial is inactive so
-            // the dictionary is already up to date the moment it activates.
-            if isActive {
-                objectWillChange.send()
-            }
-            elementFrames[id] = frame
-        }
-    }
-}
-
-// MARK: - Tutorial Highlight Modifier
-
-struct TutorialHighlightModifier: ViewModifier {
-    let id: String
-
-    // NOTE: this modifier must NOT observe TutorialManager. It only writes
-    // frames into it; observing would re-render every highlighted view (e.g.
-    // every store row) whenever any tutorial state changes.
-    func body(content: Content) -> some View {
-        content
-            .background(
-                GeometryReader { geo in
-                    Color.clear
-                        .onAppear {
-                            TutorialManager.shared.registerFrame(id: id, frame: geo.frame(in: .global))
-                        }
-                        .onChange(of: geo.frame(in: .global)) { _, frame in
-                            TutorialManager.shared.registerFrame(id: id, frame: frame)
-                        }
-                }
-            )
-    }
-}
-
-extension View {
-    func tutorialHighlight(id: String) -> some View {
-        modifier(TutorialHighlightModifier(id: id))
+        currentStep = .intro
+        completedSteps = []
     }
 }

@@ -424,7 +424,6 @@ struct StoresView: View {
                     ? "Profile, \(friendRequestService.pendingRequestCount) friend requests waiting"
                     : "Profile"
             )
-            .tutorialHighlight(id: "tutorial_profile")
 
             if isReordering {
                 Button {
@@ -467,7 +466,6 @@ struct StoresView: View {
                     }
                     .accessibilityLabel(storeViewMode == .list ? "Switch to grid view" : "Switch to list view")
                 }
-                .tutorialHighlight(id: "tutorial_toolbar")
             }
         }
         .padding(.horizontal, 20)
@@ -552,7 +550,6 @@ struct StoresView: View {
                         .opacity(pressedStoreId == userStoreItem.id ? 0.9 : 1.0)
                 }
                 .buttonStyle(.plain)
-                .tutorialHighlight(id: index == 0 ? "tutorial_storeRow" : "noop_store_\(index)")
                 .organicRow()
                 .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                     Button(role: .destructive) {
@@ -732,7 +729,6 @@ struct StoresView: View {
                             height: effectivelyShrunk ? 28 : 60
                         )
                         .animation(.spring(response: 0.5, dampingFraction: 0.75), value: effectivelyShrunk)
-                        .tutorialHighlight(id: "tutorial_fab")
                     }
                     } // end: if effectivelyShrunk || !isMenuExpanded
                 }

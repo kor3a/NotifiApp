@@ -58,7 +58,7 @@ import {
   reminderStoreIdFor,
 } from '../../models';
 import {StoresStackParamList} from '../../navigation/AppNavigator';
-import {useTutorialActive, useTutorialTarget} from '../../tutorial/tutorialManager';
+import {useTutorialActive} from '../../tutorial/tutorialManager';
 import {TUTORIAL_STORES} from '../../tutorial/tutorialMockData';
 
 type Nav = NativeStackNavigationProp<StoresStackParamList, 'StoresList'>;
@@ -84,9 +84,6 @@ export default function StoresScreen() {
   const tutorialActive = useTutorialActive();
   const stores = tutorialActive ? TUTORIAL_STORES : liveStores;
   const loading = liveLoading && !tutorialActive;
-  const fabTarget = useTutorialTarget('tutorial_fab');
-  const toolbarTarget = useTutorialTarget('tutorial_toolbar');
-  const profileTarget = useTutorialTarget('tutorial_profile');
   const [showAddSheet, setShowAddSheet] = useState(false);
   const [showRecipes, setShowRecipes] = useState(false);
   const [showColors, setShowColors] = useState(false);
@@ -669,7 +666,7 @@ export default function StoresScreen() {
           </Text>
         </View>
 
-        <View {...profileTarget}>
+        <View>
           <TouchableOpacity
             onPress={() => navigation.navigate('Profile')}
             accessibilityLabel="Profile">
@@ -692,7 +689,7 @@ export default function StoresScreen() {
             <Text style={styles.doneText}>Done</Text>
           </TouchableOpacity>
         ) : stores.length > 0 ? (
-          <View {...toolbarTarget} style={styles.headerToolbar}>
+          <View style={styles.headerToolbar}>
             <HeaderButton
               icon="swap-vertical"
               onPress={handleSortByReminderCount}
@@ -817,7 +814,6 @@ export default function StoresScreen() {
             )}
 
             <Animated.View
-              {...fabTarget}
               style={{
                 transform: [
                   {translateX: fabOffset},

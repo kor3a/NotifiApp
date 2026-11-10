@@ -23,7 +23,6 @@ import {
   storesInCluster,
   visibleClusters,
 } from './markerClusters';
-import {useTutorialTarget} from '../../tutorial/tutorialManager';
 
 import {
   Colors,
@@ -76,7 +75,6 @@ export default function MapScreen() {
   >({});
   const [region, setRegion] = useState<Region>(PLACEHOLDER_REGION);
   const [searchQuery, setSearchQuery] = useState('');
-  const searchTarget = useTutorialTarget('tutorial_mapSearch');
   const [selectedStore, setSelectedStore] = useState<UserStoreItem | null>(null);
   // A tapped group's list of stores, pinned to where its marker sits on screen.
   const [openGroup, setOpenGroup] = useState<{
@@ -297,7 +295,6 @@ export default function MapScreen() {
         pointerEvents="box-none">
         {/* Search bar */}
         <View
-          {...searchTarget}
           style={[styles.searchBar, {backgroundColor: cardBackground(scheme)}]}>
           <Icon name="search" size={18} color={textSecondary(scheme)} />
           <TextInput

@@ -219,7 +219,6 @@ struct FriendsView: View {
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel("Add friend")
-                    .tutorialHighlight(id: "tutorial_addFriend")
                 }
                 .padding(.top, 8)
 
@@ -426,23 +425,18 @@ struct FriendsView: View {
             )
 
             ForEach(viewModel.filteredFamilyMembers) { friendship in
-                friendRow(for: friendship, isFamilyMember: true, tutorialId: nil)
+                friendRow(for: friendship, isFamilyMember: true)
             }
 
-            ForEach(Array(viewModel.filteredFriends.enumerated()), id: \.element.id) { index, friendship in
-                friendRow(
-                    for: friendship,
-                    isFamilyMember: false,
-                    tutorialId: index == 0 ? "tutorial_friendCard" : nil
-                )
+            ForEach(viewModel.filteredFriends) { friendship in
+                friendRow(for: friendship, isFamilyMember: false)
             }
         }
     }
 
     private func friendRow(
         for friendship: Friendship,
-        isFamilyMember: Bool,
-        tutorialId: String?
+        isFamilyMember: Bool
     ) -> some View {
         FriendCard(
             friendship: friendship,
@@ -460,7 +454,6 @@ struct FriendsView: View {
             }
         )
         .organicRow()
-        .tutorialHighlight(id: tutorialId ?? "noop_friend_\(friendship.id)")
         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
             Button(role: .destructive) {
                 friendshipToRemove = friendship

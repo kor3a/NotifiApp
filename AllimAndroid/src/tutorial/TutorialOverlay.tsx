@@ -1,355 +1,560 @@
-import React, {useEffect, useRef, useState} from 'react';
+import React, {useEffect, useRef} from 'react';
 import {
   Animated,
+  Easing,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
-  useWindowDimensions,
+  useColorScheme,
 } from 'react-native';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import Icon from '../components/AppIcon';
+import GradientBackground from '../components/GradientBackground';
 import {Colors} from '../theme/AppTheme';
-import TutorialReminderScene from './TutorialReminderScene';
 import {
+  AddStoreScene,
+  Appear,
+  Chip,
+  NearbyScene,
+  ShareScene,
+  ShortcutsScene,
+  SmartSortScene,
+  tutorialPalette,
+} from './TutorialScenes';
+import {
+  TUTORIAL_CHAPTERS,
   TUTORIAL_STEPS,
-  TargetFrame,
+  TutorialStep,
   tutorial,
   useTutorial,
-  useTutorialFrameVersion,
 } from './tutorialManager';
 
-// The cutout stands this far off the control it frames, with these corners.
-const HOLE_PADDING = 14;
-const HOLE_RADIUS = 14;
-const SCRIM = 'rgba(0,0,0,0.62)';
-// Before the card has measured itself, position it as though it were this tall.
-const DEFAULT_CARD_HEIGHT = 180;
-
-// The dots count the steps between the welcome and closing cards.
-const DOT_STEPS = TUTORIAL_STEPS.filter(s => s.id !== 'welcome' && s.id !== 'complete');
+type IconName = React.ComponentProps<typeof Icon>['name'];
+type Palette = ReturnType<typeof tutorialPalette>;
 
 /**
- * Full-screen tour overlay: dims the app, cuts a rounded hole around the
- * control the current step is about, rings it with a pulsing border, and shows
- * a callout card above or below it. Port of the iOS TutorialOverlayView.
- *
- * It swallows every touch, so the live app (and the mock data it is showing)
- * can't be poked mid-tour.
+ * The new-user tutorial: a full-screen, playable story. Instead of dimming the
+ * live app and pointing at its buttons, each chapter stages a small working
+ * demo of one idea (see TutorialScenes) and asks the user to try it — tap the
+ * +, drag themselves to a store, hold an item. Nothing is gated: Next always
+ * works, it just asks louder once the demo is played. Port of the iOS
+ * TutorialOverlayView.
  */
 export default function TutorialOverlay() {
-  const {isActive, step} = useTutorial();
-  // Re-render when a highlighted control reports a new frame.
-  useTutorialFrameVersion();
-  const {width: screenW, height: screenH} = useWindowDimensions();
-  const [cardHeight, setCardHeight] = useState(DEFAULT_CARD_HEIGHT);
-  // Where this overlay sits in the coordinates targets report their frames in.
-  // Android's measureInWindow is relative to the visible frame, which starts
-  // below the status bar the app draws under — so the overlay measures itself
-  // the same way and the difference cancels out.
-  const rootRef = useRef<View>(null);
-  const [origin, setOrigin] = useState({x: 0, y: 0});
-  function measureOrigin() {
-    rootRef.current?.measureInWindow((x, y) => {
-      if (x !== origin.x || y !== origin.y) {
-        setOrigin({x, y});
-      }
-    });
-  }
+  const {isActive, step, stepIndex, isDone} = useTutorial();
+  const scheme = useColorScheme();
+  const p = tutorialPalette(scheme);
+  const insets = useSafeAreaInsets();
 
   const appear = useRef(new Animated.Value(0)).current;
-  const pulse = useRef(new Animated.Value(0)).current;
-  const cardIn = useRef(new Animated.Value(1)).current;
-
   useEffect(() => {
     if (!isActive) {
       appear.setValue(0);
       return;
     }
     Animated.timing(appear, {toValue: 1, duration: 250, useNativeDriver: true}).start();
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulse, {toValue: 1, duration: 1100, useNativeDriver: true}),
-        Animated.timing(pulse, {toValue: 0, duration: 1100, useNativeDriver: true}),
-      ]),
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [isActive, appear, pulse]);
-
-  // Each step's card springs in; the target is re-measured once the tab switch
-  // that came with the step has settled.
-  useEffect(() => {
-    if (!isActive) {
-      return;
-    }
-    cardIn.setValue(0);
-    Animated.spring(cardIn, {
-      toValue: 1,
-      friction: 8,
-      tension: 70,
-      useNativeDriver: true,
-    }).start();
-    const targetId = step.targetId;
-    if (!targetId) {
-      return;
-    }
-    tutorial.remeasure(targetId);
-    const timer = setTimeout(() => tutorial.remeasure(targetId), 400);
-    return () => clearTimeout(timer);
-  }, [isActive, step, cardIn]);
+  }, [isActive, appear]);
 
   if (!isActive) {
     return null;
   }
 
-  const frame = step.targetId ? tutorial.frameFor(step.targetId) : undefined;
-  const hole: TargetFrame | undefined = frame && {
-    x: frame.x - origin.x - HOLE_PADDING,
-    y: frame.y - origin.y - HOLE_PADDING,
-    width: frame.width + HOLE_PADDING * 2,
-    height: frame.height + HOLE_PADDING * 2,
-  };
-
-  const cardWidth = Math.min(screenW - 40, 340);
-  const cardTop = step.isReminderScene
-    ? screenH - cardHeight - 70
-    : cardTopFor(hole, cardHeight, screenH);
-
-  const isFirst = step.id === 'welcome';
-  const isLast = step.id === 'complete';
+  const isIntro = step.id === 'intro';
+  const isFinale = step.id === 'finale';
+  const chapterNumber = TUTORIAL_CHAPTERS.findIndex(c => c.id === step.id) + 1;
 
   return (
     <Animated.View
       style={[StyleSheet.absoluteFill, {opacity: appear}]}
       // Claim every touch so nothing underneath reacts mid-tour.
       onStartShouldSetResponder={() => true}>
+      <GradientBackground />
+
       <View
-        ref={rootRef}
-        collapsable={false}
-        pointerEvents="none"
-        style={StyleSheet.absoluteFill}
-        onLayout={measureOrigin}
-      />
-      {step.isReminderScene ? (
-        <>
-          <TutorialReminderScene step={step.id} />
-          {/* A scrim along the bottom so the card stays legible over the
-              mock list. */}
-          <View pointerEvents="none" style={styles.bottomScrim}>
-            {[0.06, 0.14, 0.24, 0.34, 0.44, 0.52].map(alpha => (
-              <View key={alpha} style={{flex: 1, backgroundColor: `rgba(0,0,0,${alpha})`}} />
+        style={[
+          styles.content,
+          {paddingTop: insets.top + 8, paddingBottom: insets.bottom + 16},
+        ]}>
+        {/* Progress: one segment per hands-on chapter. */}
+        <View style={styles.header}>
+          <View
+            style={styles.progress}
+            accessibilityLabel={
+              chapterNumber > 0
+                ? `Step ${chapterNumber} of ${TUTORIAL_CHAPTERS.length}`
+                : isFinale
+                  ? 'Tour complete'
+                  : 'Tour not started'
+            }>
+            {TUTORIAL_CHAPTERS.map(chapter => (
+              <View
+                key={chapter.id}
+                style={[
+                  styles.segment,
+                  {
+                    backgroundColor:
+                      TUTORIAL_STEPS.indexOf(chapter) <= stepIndex ? p.accent : p.outline,
+                  },
+                ]}
+              />
             ))}
           </View>
-        </>
-      ) : hole ? (
-        <>
-          <Cutout hole={hole} span={screenW + screenH} />
-          <HighlightRing hole={hole} pulse={pulse} />
-        </>
-      ) : (
-        // Welcome, closing card, or a target not on screen yet: dim it all.
-        <View style={[StyleSheet.absoluteFill, {backgroundColor: SCRIM}]} />
-      )}
-
-      <Animated.View
-        onLayout={e => setCardHeight(e.nativeEvent.layout.height)}
-        style={[
-          styles.card,
-          {
-            width: cardWidth,
-            left: (screenW - cardWidth) / 2,
-            top: cardTop,
-            opacity: cardIn,
-            transform: [
-              {scale: cardIn.interpolate({inputRange: [0, 1], outputRange: [0.92, 1]})},
-            ],
-          },
-        ]}>
-        {!isFirst && !isLast && (
-          <View style={styles.dots}>
-            {DOT_STEPS.map(s => {
-              const current = s.id === step.id;
-              return (
-                <View
-                  key={s.id}
-                  style={{
-                    width: current ? 8 : 6,
-                    height: current ? 8 : 6,
-                    borderRadius: 4,
-                    backgroundColor: current ? '#fff' : 'rgba(255,255,255,0.3)',
-                  }}
-                />
-              );
-            })}
-          </View>
-        )}
-
-        <Text style={styles.title}>{step.title}</Text>
-        <Text style={styles.description}>{step.description}</Text>
-
-        <View style={styles.buttons}>
-          {!isLast && (
-            <TouchableOpacity onPress={tutorial.skip} hitSlop={10} activeOpacity={0.6}>
-              <Text style={styles.skip}>Skip</Text>
+          {!isFinale && (
+            <TouchableOpacity onPress={tutorial.skip} hitSlop={12} activeOpacity={0.6}>
+              <Text style={[styles.skip, {color: p.inkSoft}]}>Skip</Text>
             </TouchableOpacity>
           )}
-          <View style={{flex: 1}} />
-          <TouchableOpacity
-            onPress={isLast ? tutorial.finish : tutorial.advance}
-            activeOpacity={0.8}
-            style={styles.next}>
-            <Text style={styles.nextText}>{isLast ? 'Get Started' : 'Next'}</Text>
-            {!isLast && <Icon name="chevron-forward" size={14} color="#fff" />}
-          </TouchableOpacity>
         </View>
-      </Animated.View>
+
+        {/* Keyed by step so each page mounts fresh and springs in. */}
+        <Appear key={step.id} style={{flex: 1}}>
+          {isIntro ? (
+            <IntroPage step={step} p={p} />
+          ) : isFinale ? (
+            <FinalePage step={step} p={p} />
+          ) : (
+            <View style={{flex: 1}}>
+              <View style={styles.eyebrowRow}>
+                <Text style={[styles.chapterNumber, {backgroundColor: p.accent}]}>
+                  {String(chapterNumber).padStart(2, '0')}
+                </Text>
+                <Text style={[styles.eyebrow, {color: p.accent}]}>
+                  {step.eyebrow.toUpperCase()}
+                </Text>
+              </View>
+              <Text style={[styles.title, {color: p.ink}]}>{step.title}</Text>
+              <Text style={[styles.description, {color: p.inkSoft}]}>{step.description}</Text>
+
+              {/* The card the chapter's demo plays on. */}
+              <View style={[styles.stage, {backgroundColor: p.surface, borderColor: p.outline}]}>
+                <Scene step={step} startsDone={isDone} />
+              </View>
+
+              {/* The instruction, which turns into a "done" note once the
+                  demo has been played. */}
+              <View
+                key={String(isDone)}
+                style={[styles.hint, {backgroundColor: isDone ? p.sage : p.blush}]}>
+                <Icon
+                  name={isDone ? 'checkmark-circle' : 'hand-left'}
+                  size={15}
+                  color={isDone ? p.sageInk : p.inkOnBlush}
+                />
+                <Text style={[styles.hintText, {color: isDone ? p.sageInk : p.inkOnBlush}]}>
+                  {isDone ? step.doneNote : step.hint}
+                </Text>
+              </View>
+            </View>
+          )}
+        </Appear>
+
+        <View style={styles.footer}>
+          {!isIntro && !isFinale && (
+            <TouchableOpacity
+              onPress={tutorial.back}
+              activeOpacity={0.7}
+              accessibilityLabel="Back"
+              style={[styles.back, {backgroundColor: p.blush}]}>
+              <Icon name="chevron-back" size={22} color={p.accent} />
+            </TouchableOpacity>
+          )}
+          {/* Quiet until the demo has been played, then filled: the button
+              never blocks, it just changes how hard it asks. */}
+          <Pill
+            p={p}
+            title={isIntro ? 'Take the tour' : isFinale ? 'Start shopping' : 'Next'}
+            icon={isFinale ? undefined : 'arrow-forward'}
+            prominent={isIntro || isFinale || isDone}
+            onPress={isFinale ? tutorial.finish : tutorial.advance}
+          />
+        </View>
+      </View>
     </Animated.View>
   );
 }
 
-/**
- * Below the highlight when it fits, above it when that fits, otherwise below
- * with overlap allowed — the iOS placement rule. Centred with no highlight.
- */
-function cardTopFor(hole: TargetFrame | undefined, cardHeight: number, screenH: number) {
-  const padding = 16;
-  if (!hole) {
-    return (screenH - cardHeight) / 2;
+function Scene({step, startsDone}: {step: TutorialStep; startsDone: boolean}) {
+  const onDone = () => tutorial.markDone(step.id);
+  switch (step.id) {
+    case 'addStore':
+      return <AddStoreScene onDone={onDone} startsDone={startsDone} />;
+    case 'smartSort':
+      return <SmartSortScene onDone={onDone} />;
+    case 'nearby':
+      return <NearbyScene onDone={onDone} />;
+    case 'shortcuts':
+      return <ShortcutsScene onDone={onDone} />;
+    case 'share':
+      return <ShareScene onDone={onDone} />;
+    default:
+      return null;
   }
-  const spaceAbove = hole.y;
-  const spaceBelow = screenH - (hole.y + hole.height);
-  if (spaceBelow >= cardHeight + padding * 2) {
-    return hole.y + hole.height + padding;
-  }
-  if (spaceAbove >= cardHeight + padding * 2) {
-    return hole.y - padding - cardHeight;
-  }
-  return Math.min(hole.y + hole.height + padding, screenH - cardHeight - padding);
 }
 
-/**
- * The scrim with a rounded hole in it. One view whose border is wide enough to
- * reach every edge of the screen from the hole: its inner edge is the cutout,
- * and an outer radius of border + HOLE_RADIUS leaves the inner corners rounded
- * by HOLE_RADIUS.
- */
-function Cutout({hole, span}: {hole: TargetFrame; span: number}) {
+function Pill({
+  p,
+  title,
+  icon,
+  prominent,
+  onPress,
+}: {
+  p: Palette;
+  title: string;
+  icon?: IconName;
+  prominent: boolean;
+  onPress: () => void;
+}) {
+  const color = prominent ? p.onAccent : p.inkOnBlush;
   return (
-    <View
-      pointerEvents="none"
-      style={{
-        position: 'absolute',
-        left: hole.x - span,
-        top: hole.y - span,
-        width: hole.width + span * 2,
-        height: hole.height + span * 2,
-        borderWidth: span,
-        borderRadius: span + HOLE_RADIUS,
-        borderColor: SCRIM,
-      }}
-    />
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.8}
+      style={[styles.pill, {backgroundColor: prominent ? p.accent : p.blush}]}>
+      <Text style={[styles.pillText, {color}]}>{title}</Text>
+      {icon && <Icon name={icon} size={18} color={color} />}
+    </TouchableOpacity>
   );
 }
 
-/**
- * The pulsing ring around the cutout: a white edge with a glow of the accent
- * breathing behind it. Pulsed by opacity only, never scale, so it can't drift
- * outside the hole whatever the control's size.
- */
-function HighlightRing({hole, pulse}: {hole: TargetFrame; pulse: Animated.Value}) {
-  const frame = {
-    position: 'absolute' as const,
-    left: hole.x,
-    top: hole.y,
-    width: hole.width,
-    height: hole.height,
-    borderRadius: HOLE_RADIUS,
-  };
+// ─── Intro ────────────────────────────────────────────────────────────────────
+
+function IntroPage({step, p}: {step: TutorialStep; p: Palette}) {
   return (
-    <>
-      <Animated.View
-        pointerEvents="none"
-        style={[
-          frame,
-          styles.glow,
-          {opacity: pulse.interpolate({inputRange: [0, 1], outputRange: [0.35, 1]})},
-        ]}
-      />
-      <Animated.View
-        pointerEvents="none"
-        style={[
-          frame,
-          styles.ring,
-          {opacity: pulse.interpolate({inputRange: [0, 1], outputRange: [1, 0.55]})},
-        ]}
-      />
-    </>
+    <View style={{flex: 1}}>
+      <View style={styles.heroWrap}>
+        <Hero p={p} />
+      </View>
+      <Text style={[styles.eyebrow, {color: p.accent}]}>{step.eyebrow.toUpperCase()}</Text>
+      <Text style={[styles.introTitle, {color: p.ink}]}>{step.title}</Text>
+      <Text style={[styles.introDescription, {color: p.inkSoft}]}>{step.description}</Text>
+    </View>
+  );
+}
+
+const FLOATERS = [
+  {name: 'Bananas', category: 'Produce' as const, x: -104, y: -78, delay: 0},
+  {name: 'Whole Milk', category: 'Dairy' as const, x: 108, y: -34, delay: 500},
+  {name: 'Sourdough', category: 'Bakery' as const, x: -86, y: 86, delay: 1000},
+];
+
+/**
+ * The opening illustration: a store, the rings of the area Allim watches
+ * around it, and a few list items floating by.
+ */
+function Hero({p}: {p: Palette}) {
+  const rings = useRef([0, 1, 2].map(() => new Animated.Value(0))).current;
+  const bob = useRef(FLOATERS.map(() => new Animated.Value(0))).current;
+
+  useEffect(() => {
+    const loops = [
+      ...rings.map((value, index) =>
+        Animated.loop(
+          Animated.sequence([
+            Animated.delay(index * 900),
+            Animated.timing(value, {
+              toValue: 1,
+              duration: 2700,
+              easing: Easing.out(Easing.quad),
+              useNativeDriver: true,
+            }),
+          ]),
+        ),
+      ),
+      ...bob.map((value, index) =>
+        Animated.loop(
+          Animated.sequence([
+            Animated.delay(FLOATERS[index].delay),
+            Animated.timing(value, {
+              toValue: 1,
+              duration: 2200,
+              easing: Easing.inOut(Easing.quad),
+              useNativeDriver: true,
+            }),
+            Animated.timing(value, {
+              toValue: 0,
+              duration: 2200,
+              easing: Easing.inOut(Easing.quad),
+              useNativeDriver: true,
+            }),
+          ]),
+        ),
+      ),
+    ];
+    loops.forEach(loop => loop.start());
+    return () => loops.forEach(loop => loop.stop());
+  }, [rings, bob]);
+
+  return (
+    <View style={styles.hero} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+      {rings.map((value, index) => (
+        <Animated.View
+          key={index}
+          style={[
+            styles.heroRing,
+            {
+              borderColor: p.highlight,
+              opacity: value.interpolate({inputRange: [0, 1], outputRange: [0.7, 0]}),
+              transform: [{scale: value.interpolate({inputRange: [0, 1], outputRange: [1, 2.7]})}],
+            },
+          ]}
+        />
+      ))}
+      <View style={[styles.heroDisc, {backgroundColor: p.accent}]}>
+        <Icon name="storefront" size={42} color={p.onAccent} />
+      </View>
+      {FLOATERS.map((floater, index) => (
+        <Animated.View
+          key={floater.name}
+          style={{
+            position: 'absolute',
+            transform: [
+              {translateX: floater.x},
+              {
+                translateY: bob[index].interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [floater.y + 7, floater.y - 7],
+                }),
+              },
+            ],
+          }}>
+          <Chip name={floater.name} category={floater.category} />
+        </Animated.View>
+      ))}
+    </View>
+  );
+}
+
+// ─── Finale ───────────────────────────────────────────────────────────────────
+
+const PLACES: {name: string; icon: IconName; detail: string}[] = [
+  {name: 'Stores', icon: 'storefront', detail: 'Your stores and their lists. Tap + to add one.'},
+  {name: 'Messages', icon: 'chatbubble', detail: 'Chat, and send a store or an item along.'},
+  {name: 'AI Recipe', icon: 'restaurant', detail: 'Turn any recipe into a shopping list.'},
+  {name: 'Search', icon: 'map', detail: 'Find stores near you on the map.'},
+  {name: 'Profile', icon: 'person-circle', detail: 'Friends, Family and your settings.'},
+];
+
+function FinalePage({step, p}: {step: TutorialStep; p: Palette}) {
+  return (
+    <View style={styles.finale}>
+      <Appear from="scale" delay={100} style={{alignSelf: 'flex-start'}}>
+        <View style={[styles.finaleCheck, {backgroundColor: p.sageInk}]}>
+          <Icon name="checkmark" size={30} color={Colors.white} />
+        </View>
+      </Appear>
+      <Text style={[styles.introTitle, {color: p.ink, fontSize: 36, lineHeight: 42}]}>
+        {step.title}
+      </Text>
+      <Text style={[styles.description, {color: p.inkSoft}]}>{step.description}</Text>
+
+      <View style={[styles.places, {backgroundColor: p.surface, borderColor: p.outline}]}>
+        {PLACES.map((place, index) => (
+          <Appear key={place.name} delay={150 + index * 70}>
+            <View
+              style={[
+                styles.place,
+                index > 0 && {borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: p.outline},
+              ]}>
+              <View style={[styles.placeIcon, {backgroundColor: p.blush}]}>
+                <Icon name={place.icon} size={18} color={p.accent} />
+              </View>
+              <View style={{flex: 1}}>
+                <Text style={[styles.placeName, {color: p.ink}]}>{place.name}</Text>
+                <Text style={[styles.placeDetail, {color: p.inkSoft}]}>{place.detail}</Text>
+              </View>
+            </View>
+          </Appear>
+        ))}
+      </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  bottomScrim: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: '50%',
+  content: {
+    flex: 1,
+    width: '100%',
+    maxWidth: 560,
+    alignSelf: 'center',
+    paddingHorizontal: 24,
   },
-  glow: {
-    borderWidth: 5,
-    borderColor: Colors.blue,
-    margin: -3,
-  },
-  ring: {
-    borderWidth: 2.5,
-    borderColor: '#fff',
-  },
-  card: {
-    position: 'absolute',
+  header: {
+    height: 48,
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 14,
-    padding: 20,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.18)',
-    backgroundColor: 'rgba(32,32,43,0.94)',
-    elevation: 16,
   },
-  dots: {
+  progress: {
+    flex: 1,
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
+    gap: 5,
   },
-  title: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  description: {
-    color: 'rgba(255,255,255,0.88)',
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  buttons: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  segment: {
+    flex: 1,
+    height: 4,
+    borderRadius: 2,
   },
   skip: {
-    color: 'rgba(255,255,255,0.55)',
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  next: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 20,
-    backgroundColor: Colors.blue,
-  },
-  nextText: {
-    color: '#fff',
     fontSize: 15,
     fontWeight: '600',
+  },
+  eyebrowRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 10,
+  },
+  chapterNumber: {
+    color: Colors.white,
+    fontSize: 13,
+    fontWeight: '900',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+    overflow: 'hidden',
+  },
+  eyebrow: {
+    fontSize: 13,
+    fontWeight: '700',
+    letterSpacing: 1.2,
+  },
+  title: {
+    fontSize: 30,
+    lineHeight: 36,
+    fontWeight: '800',
+    marginTop: 12,
+  },
+  description: {
+    fontSize: 16,
+    lineHeight: 23,
+    marginTop: 8,
+  },
+  stage: {
+    flex: 1,
+    marginTop: 18,
+    borderRadius: 32,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  hint: {
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 20,
+    marginTop: 12,
+    marginBottom: 14,
+  },
+  hintText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  footer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  back: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pill: {
+    flex: 1,
+    height: 56,
+    borderRadius: 28,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  pillText: {
+    fontSize: 17,
+    fontWeight: '700',
+  },
+  heroWrap: {
+    flex: 1,
+    minHeight: 220,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  hero: {
+    width: 260,
+    height: 260,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  heroRing: {
+    position: 'absolute',
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    borderWidth: 2,
+  },
+  heroDisc: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 8,
+  },
+  introTitle: {
+    fontSize: 40,
+    lineHeight: 46,
+    fontWeight: '800',
+    marginTop: 12,
+  },
+  introDescription: {
+    fontSize: 17,
+    lineHeight: 25,
+    marginTop: 12,
+    marginBottom: 28,
+  },
+  finale: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingBottom: 20,
+  },
+  finaleCheck: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 6,
+  },
+  places: {
+    marginTop: 22,
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 28,
+    borderWidth: 1,
+  },
+  place: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    paddingVertical: 10,
+  },
+  placeIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  placeName: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  placeDetail: {
+    fontSize: 13,
+    lineHeight: 18,
   },
 });
