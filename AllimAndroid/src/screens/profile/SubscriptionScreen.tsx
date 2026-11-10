@@ -17,55 +17,16 @@ import Icon from '../../components/AppIcon';
 
 import GradientBackground from '../../components/GradientBackground';
 import {Colors, cardBackground, cardStyle, textPrimary, textSecondary} from '../../theme/AppTheme';
-import {FREE_STORE_LIMIT} from '../../services/subscription';
 import {PRIVACY_POLICY_URL} from './AboutScreen';
 import {profilePalette} from './profileUi';
-
-type IconName = React.ComponentProps<typeof Icon>['name'];
-
-const GOOGLE_PLAY_TERMS_URL = 'https://play.google.com/about/play-terms/';
-
-// iOS PremiumFeature.all, with Ionicons standing in for the SF Symbols:
-// infinity -> infinite, fork.knife -> restaurant, sparkles -> sparkles,
-// hand.thumbsup.fill -> thumbs-up.
-const PREMIUM_FEATURES: {icon: IconName; title: string; description: string}[] = [
-  {
-    icon: 'infinite',
-    title: 'Unlimited Stores',
-    description: `Free accounts are limited to ${FREE_STORE_LIMIT} stores of your own — go unlimited with Premium`,
-  },
-  {
-    icon: 'restaurant',
-    title: 'Smart Recipe',
-    description: 'Ask for any recipe and add ingredients directly to your stores',
-  },
-  {
-    icon: 'sparkles',
-    title: 'Smart Category',
-    description: 'AI auto-categorizes every item you add to your shopping list',
-  },
-  {
-    icon: 'thumbs-up',
-    title: 'Ad-Free Experience',
-    description: 'Enjoy the app without any banner advertisements',
-  },
-];
-
-type PlanId = 'monthly' | 'annual';
-
-// Google Play Billing isn't wired up yet, so these are the list prices the
-// App Store products carry rather than ones fetched from the store.
-const PLANS: Record<PlanId, {title: string; price: number; period: string}> = {
-  monthly: {title: 'Monthly', price: 0.99, period: 'per month'},
-  annual: {title: 'Annual', price: 10.0, period: 'per year'},
-};
-
-// Savings % compared to paying monthly for a full year, as on iOS.
-function savingsPercent(): number | null {
-  const monthlyAnnualized = PLANS.monthly.price * 12;
-  const pct = ((monthlyAnnualized - PLANS.annual.price) / monthlyAnnualized) * 100;
-  return pct > 0 ? Math.round(pct) : null;
-}
+import {
+  GOOGLE_PLAY_TERMS_URL,
+  PLANS,
+  PREMIUM_FEATURES,
+  PlanId,
+  formatPrice,
+  savingsPercent,
+} from './premium';
 
 // Port of iOS SubscriptionPaywallView.
 export default function SubscriptionScreen() {
@@ -194,10 +155,6 @@ export default function SubscriptionScreen() {
       </SafeAreaView>
     </View>
   );
-}
-
-function formatPrice(price: number) {
-  return `$${price.toFixed(2)}`;
 }
 
 function PlanCard({

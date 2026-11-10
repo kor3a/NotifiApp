@@ -149,7 +149,28 @@ export default function ProfileScreen() {
     <View style={{flex: 1}}>
       <GradientBackground />
       <SafeAreaView style={{flex: 1}} edges={['top', 'left', 'right']}>
-        <ProfileHeader scheme={scheme} title="Profile" />
+        {/* The iOS toolbar crown: subscribers manage their plan, everyone
+            else sees the paywall. Ionicons has no crown, so the paywall's
+            diamond stands in, filled once you own Premium. */}
+        <ProfileHeader
+          scheme={scheme}
+          title="Profile"
+          right={
+            <TouchableOpacity
+              onPress={() =>
+                navigation.navigate(isPremium ? 'SubscriptionManagement' : 'Subscription')
+              }
+              hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}
+              style={styles.premiumButton}
+              accessibilityLabel={isPremium ? 'Manage subscription' : 'Allim Premium'}>
+              <Icon
+                name={isPremium ? 'diamond' : 'diamond-outline'}
+                size={24}
+                color={isPremium ? p.accent : textSecondary(scheme)}
+              />
+            </TouchableOpacity>
+          }
+        />
         <ScrollView contentContainerStyle={[profileStyles.scroll, {paddingTop: 8}]}>
           {/* Identity */}
           <View style={[cardStyle(scheme), styles.identityCard]}>
@@ -382,6 +403,9 @@ const styles = StyleSheet.create({
     flexShrink: 1,
     fontSize: 26,
     fontWeight: '800',
+  },
+  premiumButton: {
+    padding: 4,
   },
   premiumBadge: {
     borderRadius: 999,
