@@ -273,13 +273,12 @@ class StoreLogoProvider: ObservableObject {
     private func applyPlaceWebsite(host: String, normalizedId: String, storeName: String) {
         guard mapKitDomains[normalizedId] != host else { return }
 
-        // A changed domain means anything cached under the old one is wrong.
-        if mapKitDomains[normalizedId] != nil {
-            removeCachedImage(for: normalizedId)
-        } else if resolvedDomain(for: normalizedId) != host {
-            // First time we learn the real domain and it disagrees with whatever was
-            // guessed/searched before — drop the stale image so the right logo loads.
-            removeCachedImage(for: normalizedId)
+        let previousLogoURL = computeLogoURL(for: normalizedId)
+
+        // A Brand Search result that disagrees with the real website is a near miss;
+        // MapKit outranks it from now on, so drop it rather than keep it as fact.
+        if mapKitDomains[normalizedId] == nil,
+           let searched = searchedDomains[normalizedId], searched != host {
             searchedDomains.removeValue(forKey: normalizedId)
             UserDefaults.standard.set(searchedDomains, forKey: Self.searchCacheKey)
         }
@@ -287,6 +286,16 @@ class StoreLogoProvider: ObservableObject {
         mapKitDomains[normalizedId] = host
         UserDefaults.standard.set(mapKitDomains, forKey: Self.mapKitDomainCacheKey)
         invalidateResolutionCaches()
+
+        // Drop the cached image only when the new domain changes which logo the store
+        // gets. A chain's branches often list different sites in Apple Maps (Albertsons:
+        // local.albertsons.com, albertsons.com, ...), so the recorded domain can flip
+        // several times per launch; when the logo comes from Firebase or an exact
+        // built-in entry, those flips don't affect it, and deleting the file just forced
+        // the same image to re-download on every launch.
+        if computeLogoURL(for: normalizedId) != previousLogoURL {
+            removeCachedImage(for: normalizedId)
+        }
         objectWillChange.send()
 
         #if DEBUG
@@ -294,12 +303,22 @@ class StoreLogoProvider: ObservableObject {
         #endif
     }
 
+    /// Store-locator subdomains that chains point their per-branch place records at.
+    private static let storeLocatorPrefixes = ["local.", "stores.", "locations."]
+
     /// Normalizes a place-record URL down to the brand's bare host, or nil when the URL
     /// is missing, malformed, or points at a domain that isn't the brand's own site.
     private static func brandHost(from url: URL?) -> String? {
         guard var host = url?.host?.lowercased() else { return nil }
         if host.hasPrefix("www.") {
             host = String(host.dropFirst(4))
+        }
+        // Chains often link each branch to a store-locator subdomain
+        // ("local.albertsons.com"); the brand's logo lives on the bare domain.
+        for prefix in storeLocatorPrefixes where host.hasPrefix(prefix) {
+            let bare = String(host.dropFirst(prefix.count))
+            if bare.contains(".") { host = bare }
+            break
         }
         guard host.contains("."), !host.hasSuffix(".") else { return nil }
         guard !nonBrandDomains.contains(host) else { return nil }

@@ -402,8 +402,11 @@ class LocationMonitoringManager: NSObject, ObservableObject {
                 guard Self.storeNamesMatch(normalizedSearchName, normalizedResultName) else { continue }
 
                 // The place record knows the store's real website — record it so its logo
-                // resolves from that domain instead of one guessed from the name.
-                StoreLogoProvider.shared.recordPlaceWebsite(storeName: storeName, url: mapItem.url)
+                // resolves from that domain instead of one guessed from the name. File it
+                // under the place's own name: the prefix match above also lets "Albertsons
+                // Market" or "Albertsons Pharmacy" through, and their sites aren't the
+                // saved store's.
+                StoreLogoProvider.shared.recordPlaceWebsite(storeName: itemName, url: mapItem.url)
 
                 // Only geofence stores within the search radius
                 let distance = userLocation.distance(from: itemLocation)
