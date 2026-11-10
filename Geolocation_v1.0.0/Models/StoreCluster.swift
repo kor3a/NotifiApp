@@ -25,6 +25,102 @@ struct StoreLocation: Identifiable, Hashable {
     }
 }
 
+/// Store pins close enough to overlap at the current zoom, drawn as one marker.
+/// The store with the most reminders anchors the group and gives it its id, so a
+/// group keeps its identity while the map moves and pins join or leave it.
+struct StoreLocationGroup: Identifiable {
+    /// Every pin in the group, the anchor first and the rest by priority.
+    let members: [StoreLocation]
+
+    var anchor: StoreLocation { members[0] }
+    var id: String { anchor.id }
+    var coordinate: CLLocationCoordinate2D { anchor.coordinate }
+    var isGroup: Bool { members.count > 1 }
+
+    /// One saved store behind a group, however many of its branches are in it.
+    struct StoreEntry: Identifiable {
+        /// The branch nearest the top of the group, which a tap opens.
+        let location: StoreLocation
+        var branchCount: Int
+        var id: String { location.userStoreItem.id }
+    }
+
+    /// The stores behind the group, each once, in the group's order.
+    var stores: [StoreEntry] {
+        var result: [StoreEntry] = []
+        for member in members {
+            if let index = result.firstIndex(where: { $0.id == member.userStoreItem.id }) {
+                result[index].branchCount += 1
+            } else {
+                result.append(StoreEntry(location: member, branchCount: 1))
+            }
+        }
+        return result
+    }
+
+    /// The closest a group's zoom-in goes: about 450 m across.
+    static let minimumZoomSpan: CLLocationDegrees = 0.004
+
+    /// Frames every pin in the group, which is close enough to pull them apart.
+    var zoomRegion: MKCoordinateRegion {
+        let latitudes = members.map { $0.coordinate.latitude }
+        let longitudes = members.map { $0.coordinate.longitude }
+        let minLat = latitudes.min() ?? coordinate.latitude
+        let maxLat = latitudes.max() ?? coordinate.latitude
+        let minLon = longitudes.min() ?? coordinate.longitude
+        let maxLon = longitudes.max() ?? coordinate.longitude
+        return MKCoordinateRegion(
+            center: CLLocationCoordinate2D(
+                latitude: (minLat + maxLat) / 2,
+                longitude: (minLon + maxLon) / 2
+            ),
+            span: MKCoordinateSpan(
+                latitudeDelta: max((maxLat - minLat) * 1.6, Self.minimumZoomSpan),
+                longitudeDelta: max((maxLon - minLon) * 1.6, Self.minimumZoomSpan)
+            )
+        )
+    }
+
+    /// Wide enough that two logos in one group would touch or nearly touch.
+    private static let radiusPoints: Double = 44
+
+    /// Puts pins that would overlap on a map `mapWidth` points wide showing
+    /// `region` into one group each. Matches the Android app's grouping.
+    static func grouping(
+        _ locations: [StoreLocation],
+        in region: MKCoordinateRegion,
+        mapWidth: CGFloat
+    ) -> [StoreLocationGroup] {
+        guard mapWidth > 0 else {
+            return locations.map { StoreLocationGroup(members: [$0]) }
+        }
+        let radiusLon = region.span.longitudeDelta / Double(mapWidth) * radiusPoints
+        // A degree of latitude shrinks on screen towards the equator, Mercator-style.
+        let radiusLat = radiusLon * cos(region.center.latitude * .pi / 180)
+
+        // The ids break ties so the same pin anchors every time.
+        let ordered = locations.sorted { a, b in
+            let aCount = a.userStoreItem.store.reminderCount
+            let bCount = b.userStoreItem.store.reminderCount
+            return aCount != bCount ? aCount > bCount : a.id < b.id
+        }
+
+        var groups: [[StoreLocation]] = []
+        for location in ordered {
+            let nearby = groups.firstIndex { group in
+                abs(group[0].coordinate.latitude - location.coordinate.latitude) <= radiusLat &&
+                abs(group[0].coordinate.longitude - location.coordinate.longitude) <= radiusLon
+            }
+            if let nearby {
+                groups[nearby].append(location)
+            } else {
+                groups.append([location])
+            }
+        }
+        return groups.map { StoreLocationGroup(members: $0) }
+    }
+}
+
 /// Represents either a single store or a cluster of multiple stores
 enum StoreAnnotation: Identifiable, Hashable {
     case single(UserStoreItem, CLLocationCoordinate2D)

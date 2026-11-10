@@ -4,6 +4,7 @@ import {
   MAX_VISIBLE_MARKERS,
   MIN_CLUSTER_ZOOM_DELTA,
   regionForCluster,
+  storesInCluster,
   visibleClusters,
 } from '../markerClusters';
 import {UserStoreItem} from '../../../models';
@@ -116,11 +117,31 @@ describe('visibleClusters', () => {
     const wide = regionAt(100);
     const clusters = Array.from({length: 60}, (_, i) =>
       marker(`store${i}`, i * 0.5, 0),
-    ).map(m => ({...m, id: m.item.id, members: [m.branch]}));
+    ).map(m => ({...m, id: m.item.id, members: [m]}));
     const visible = visibleClusters(clusters, wide);
     expect(visible).toHaveLength(MAX_VISIBLE_MARKERS);
     expect(visible[0].item.id).toBe('store0');
     expect(visible.some(c => c.item.id === 'store59')).toBe(false);
+  });
+});
+
+describe('storesInCluster', () => {
+  it('lists each store once, counting its branches, anchor first', () => {
+    const [cluster] = clusterMarkers(
+      [
+        marker('a', 0, 0, 1),
+        marker('b', 0.001, 0, 5),
+        marker('a', 0.0005, 0.0005, 1),
+      ],
+      regionAt(0.05),
+      SCREEN_WIDTH,
+    );
+    expect(
+      storesInCluster(cluster).map(s => [s.item.id, s.branchCount]),
+    ).toEqual([
+      ['b', 1],
+      ['a', 2],
+    ]);
   });
 });
 

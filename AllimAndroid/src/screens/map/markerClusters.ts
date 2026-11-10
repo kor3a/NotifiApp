@@ -25,7 +25,13 @@ export interface BranchMarker {
 
 export interface MarkerCluster extends BranchMarker {
   id: string;
-  members: StoreBranch[];
+  // Every marker in the group, the anchor first and the rest by priority.
+  members: BranchMarker[];
+}
+
+export interface ClusterStore {
+  item: UserStoreItem;
+  branchCount: number;
 }
 
 export function markerId({item, branch}: BranchMarker): string {
@@ -59,12 +65,12 @@ export function clusterMarkers(
         Math.abs(cluster.branch.longitude - marker.branch.longitude) <= radiusLng,
     );
     if (nearby) {
-      nearby.members.push(marker.branch);
+      nearby.members.push(marker);
     } else {
       clusters.push({
         ...marker,
         id: markerId(marker),
-        members: [marker.branch],
+        members: [marker],
       });
     }
   });
@@ -92,6 +98,21 @@ export function visibleClusters(
     )
     .sort((a, b) => distance(a) - distance(b))
     .slice(0, MAX_VISIBLE_MARKERS);
+}
+
+// The stores behind a group, each once however many of its branches are in it,
+// in the group's order.
+export function storesInCluster(cluster: MarkerCluster): ClusterStore[] {
+  const byStore = new Map<string, ClusterStore>();
+  cluster.members.forEach(({item}) => {
+    const known = byStore.get(item.id);
+    if (known) {
+      known.branchCount += 1;
+    } else {
+      byStore.set(item.id, {item, branchCount: 1});
+    }
+  });
+  return [...byStore.values()];
 }
 
 // Frames every branch in a group, which is close enough to pull them apart.
