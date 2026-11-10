@@ -17,6 +17,7 @@ import Icon from '../../components/AppIcon';
 import {format, isToday, isYesterday} from 'date-fns';
 
 import GradientBackground from '../../components/GradientBackground';
+import AdBanner from '../../components/AdBanner';
 import ProfileAvatar from '../../components/ProfileAvatar';
 import PrimaryButton from '../../components/PrimaryButton';
 import NewMessageSheet from './NewMessageSheet';
@@ -435,6 +436,9 @@ export default function MessagesScreen() {
             contentContainerStyle={styles.list}
           />
         )}
+
+        {/* Banner above the tab bar for accounts without Premium, as on iOS. */}
+        <AdBanner />
       </SafeAreaView>
 
       <NewMessageSheet

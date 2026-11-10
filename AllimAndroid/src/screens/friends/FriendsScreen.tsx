@@ -22,6 +22,7 @@ import {Swipeable} from 'react-native-gesture-handler';
 import Icon from '../../components/AppIcon';
 
 import GradientBackground from '../../components/GradientBackground';
+import AdBanner from '../../components/AdBanner';
 import ProfileAvatar from '../../components/ProfileAvatar';
 import {
   Colors,
@@ -716,6 +717,9 @@ export default function FriendsScreen() {
             keyboardDismissMode="on-drag"
           />
         )}
+
+        {/* Banner above the tab bar for accounts without Premium, as on iOS. */}
+        <AdBanner />
       </SafeAreaView>
 
       <AddFriendSheet

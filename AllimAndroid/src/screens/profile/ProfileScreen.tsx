@@ -225,13 +225,9 @@ export default function ProfileScreen() {
             </View>
           </View>
 
-          {/* AdBanner carries its own bottom margin; cancel it so the gap
-              matches the rest of the sections. */}
-          {!isPremium && (
-            <View style={{marginBottom: -16}}>
-              <AdBanner onPress={() => navigation.navigate('Subscription')} />
-            </View>
-          )}
+          {/* The banner under the identity card, as on iOS. It renders
+              nothing for subscribers. */}
+          <AdBanner />
 
           {/* Account */}
           <View style={profileStyles.section}>

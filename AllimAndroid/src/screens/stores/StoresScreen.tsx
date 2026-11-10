@@ -40,6 +40,7 @@ import {
   sheetBackground,
 } from '../../theme/AppTheme';
 import {useSession} from '../../context/SessionContext';
+import AdBanner from '../../components/AdBanner';
 import {storeService} from '../../services/storeService';
 import {
   canAddStore,
@@ -734,6 +735,9 @@ export default function StoresScreen() {
       {/* No bottom edge: the tab bar below already clears the system navigation
           bar. Insetting here too leaves an empty strip that clips the list. */}
       <SafeAreaView style={{flex: 1}} edges={['top', 'left', 'right']}>
+        {/* The content gets its own area so the list and the FAB end above the
+            banner rather than under it. */}
+        <View style={{flex: 1}}>
         {loading ? (
           // The greeting needs a name and the list needs stores, so until both
           // are in, the whole screen is the loading screen.
@@ -837,6 +841,10 @@ export default function StoresScreen() {
             </Animated.View>
           </View>
         )}
+        </View>
+
+        {/* Banner above the tab bar for accounts without Premium, as on iOS. */}
+        <AdBanner />
       </SafeAreaView>
 
       {/* Add Store Sheet */}

@@ -18,6 +18,7 @@ import Icon from '../../components/AppIcon';
 import {format} from 'date-fns';
 
 import GradientBackground from '../../components/GradientBackground';
+import AdBanner from '../../components/AdBanner';
 import {
   Colors,
   Spacing,
@@ -178,7 +179,23 @@ export default function ConversationScreen() {
     );
   }
 
-  function renderMessage({item}: {item: Message}) {
+  function renderMessage({item, index}: {item: Message; index: number}) {
+    return (
+      <>
+        {renderBubble(item)}
+        {/* A banner after every 5th message for accounts without Premium, as
+            on iOS. AdBanner renders nothing for subscribers. */}
+        {(index + 1) % 5 === 0 && (
+          <AdBanner
+            backgroundColor={cardBackground(scheme)}
+            style={styles.inlineAd}
+          />
+        )}
+      </>
+    );
+  }
+
+  function renderBubble(item: Message) {
     const isMine = item.senderId === currentUser?.userId;
     const millis = timestampMillis(item.createdAt);
     const time = millis ? format(new Date(millis), 'h:mm a') : '';
@@ -246,6 +263,10 @@ export default function ConversationScreen() {
             contentContainerStyle={styles.messageList}
           />
 
+          {/* Banner above the input bar for accounts without Premium, as on
+              iOS. */}
+          <AdBanner />
+
           {/* Input */}
           <View style={[styles.inputRow, {backgroundColor: cardBackground(scheme)}]}>
             <TextInput
@@ -275,6 +296,11 @@ export default function ConversationScreen() {
 }
 
 const styles = StyleSheet.create({
+  // iOS rounds the in-thread banner and sets it on the surface colour.
+  inlineAd: {
+    borderRadius: 16,
+    marginVertical: 4,
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
