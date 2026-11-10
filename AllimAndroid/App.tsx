@@ -8,6 +8,7 @@ import {navigationRef} from './src/navigation/navigationRef';
 import {useColorScheme} from 'react-native';
 import messaging from '@react-native-firebase/messaging';
 import notifee, {AndroidImportance} from '@notifee/react-native';
+import mobileAds from 'react-native-google-mobile-ads';
 
 // The notification permission itself is asked for by the onboarding primer
 // after sign-up, with an explanation in front of it, rather than fired at
@@ -36,6 +37,12 @@ async function createNotificationChannels() {
 // Claim background message handling so FCM does not re-deliver the message to
 // the foreground handler when the user opens the app by tapping the icon.
 messaging().setBackgroundMessageHandler(async () => {});
+
+// Start the Google Mobile Ads SDK at launch, as the iOS app does, so the first
+// banner a non-subscriber sees doesn't wait on initialization.
+mobileAds()
+  .initialize()
+  .catch(error => console.warn('Could not start Google Mobile Ads', error));
 
 function App(): React.JSX.Element {
   const isDarkMode = useColorScheme() === 'dark';

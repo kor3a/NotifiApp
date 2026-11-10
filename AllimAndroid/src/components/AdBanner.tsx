@@ -1,84 +1,63 @@
-import React from 'react';
-import {View, Text, StyleSheet, TouchableOpacity, useColorScheme} from 'react-native';
-import Icon from './AppIcon';
-import {Colors, Spacing, Radius, cardStyle, textPrimary, textSecondary} from '../theme/AppTheme';
+import React, {useState} from 'react';
+import {View, StyleSheet, StyleProp, ViewStyle} from 'react-native';
+import Constants from 'expo-constants';
+import {BannerAd, BannerAdSize, TestIds} from 'react-native-google-mobile-ads';
 
-// Stands in for the iOS banner ad; tapping it opens the Premium paywall.
-export default function AdBanner({onPress}: {onPress?: () => void}) {
-  const scheme = useColorScheme();
+import {useSession} from '../context/SessionContext';
+import {hasPremiumAccess} from '../services/subscription';
+
+// The AdMob banner unit for release builds (app.config.js → extra). Debug
+// builds always ask for Google's test banner instead, so nobody working on the
+// app loads — or taps — a real ad, which AdMob treats as invalid traffic.
+const RELEASE_BANNER_ID: string =
+  (Constants.expoConfig?.extra as any)?.admobBannerId ?? TestIds.BANNER;
+const BANNER_UNIT_ID = __DEV__ ? TestIds.BANNER : RELEASE_BANNER_ID;
+
+// iOS AdSizeBanner, the fixed 320×50 the iOS app reserves for it.
+const BANNER_HEIGHT = 50;
+
+// Port of iOS BannerAdView: a Google AdMob banner for accounts without
+// Premium. Subscribers (and admin-granted Premium) get nothing, so screens can
+// place this unconditionally. Until an ad arrives the 50pt strip is held, as
+// iOS's fixed frame does; if none can be loaded it collapses rather than
+// leaving an empty band.
+export default function AdBanner({
+  backgroundColor,
+  style,
+}: {
+  // The strip behind the 320pt-wide ad on wider screens — the canvas colour
+  // where the banner is pinned above the tab bar, as on iOS.
+  backgroundColor?: string;
+  style?: StyleProp<ViewStyle>;
+}) {
+  const {currentUser} = useSession();
+  const [failed, setFailed] = useState(false);
+
+  if (!currentUser || hasPremiumAccess(currentUser) || failed) {
+    return null;
+  }
 
   return (
-    <TouchableOpacity
-      onPress={onPress}
-      disabled={!onPress}
-      activeOpacity={0.8}
-      accessibilityRole="button"
-      style={[
-        styles.container,
-        cardStyle(scheme),
-        scheme !== 'dark' && {backgroundColor: Colors.backgroundBottomLight},
-      ]}>
-      <View style={styles.adLabel}>
-        <Text style={styles.adLabelText}>AD</Text>
-      </View>
-      <View style={styles.content}>
-        <View style={[styles.iconWrapper, {backgroundColor: Colors.blue + '22'}]}>
-          <Icon name="sparkles" size={22} color={Colors.blue} />
-        </View>
-        <View style={styles.textWrapper}>
-          <Text style={[styles.title, {color: textPrimary(scheme)}]}>
-            Upgrade to Premium
-          </Text>
-          <Text style={[styles.subtitle, {color: textSecondary(scheme)}]}>
-            Remove ads and unlock all features
-          </Text>
-        </View>
-        <Icon name="chevron-forward" size={18} color={textSecondary(scheme)} />
-      </View>
-    </TouchableOpacity>
+    <View style={[styles.container, backgroundColor ? {backgroundColor} : null, style]}>
+      <BannerAd
+        unitId={BANNER_UNIT_ID}
+        size={BannerAdSize.BANNER}
+        onAdFailedToLoad={error => {
+          if (__DEV__) {
+            console.warn('AdMob: banner failed to load —', error.message);
+          }
+          setFailed(true);
+        }}
+      />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    padding: Spacing.md,
-    marginBottom: Spacing.md,
-  },
-  adLabel: {
-    alignSelf: 'flex-start',
-    backgroundColor: Colors.blue + '22',
-    borderRadius: Radius.sm,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    marginBottom: Spacing.sm,
-  },
-  adLabelText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: Colors.blue,
-    letterSpacing: 0.5,
-  },
-  content: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-  },
-  iconWrapper: {
-    width: 42,
-    height: 42,
-    borderRadius: Radius.md,
+    height: BANNER_HEIGHT,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  textWrapper: {
-    flex: 1,
-  },
-  title: {
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  subtitle: {
-    fontSize: 13,
-    marginTop: 2,
+    overflow: 'hidden',
   },
 });

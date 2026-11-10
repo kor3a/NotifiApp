@@ -21,6 +21,7 @@ import Icon from '../../components/AppIcon';
 import {launchImageLibrary} from 'react-native-image-picker';
 
 import GradientBackground from '../../components/GradientBackground';
+import AdBanner from '../../components/AdBanner';
 import {
   Colors,
   Spacing,
@@ -475,6 +476,9 @@ export default function ReminderScreen() {
             ))}
           </ScrollView>
         )}
+
+        {/* Banner above the tab bar for accounts without Premium, as on iOS. */}
+        <AdBanner />
       </SafeAreaView>
 
       {/* Info / settings modal */}

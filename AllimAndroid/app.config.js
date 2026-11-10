@@ -30,6 +30,17 @@ const GOOGLE_WEB_CLIENT_ID =
 // Unset, logos come from the catalog only.
 const LOGO_DEV_TOKEN = process.env.LOGO_DEV_TOKEN || '';
 
+// Google AdMob, for the banner non-subscribers see (src/components/AdBanner.tsx),
+// as on iOS. AdMob app and ad-unit IDs are per platform, so the iOS ones in
+// Info.plist / BannerAdView.swift can't be reused here: register an Android app
+// under the same AdMob account and set these, in .env or as EAS env variables.
+// Not secrets — both ship inside the APK. Unset, they fall back to Google's
+// published sample IDs, which only ever serve test ads.
+const ADMOB_ANDROID_APP_ID =
+  process.env.ADMOB_ANDROID_APP_ID || 'ca-app-pub-3940256099942544~3347511713';
+const ADMOB_ANDROID_BANNER_ID =
+  process.env.ADMOB_ANDROID_BANNER_ID || 'ca-app-pub-3940256099942544/6300978111';
+
 module.exports = {
   expo: {
     name: 'Allim',
@@ -109,6 +120,12 @@ module.exports = {
       '@react-native-firebase/app',
       '@react-native-firebase/auth',
       '@react-native-firebase/messaging',
+      // Writes the AdMob app ID into the manifest; the SDK refuses to start
+      // without it.
+      [
+        'react-native-google-mobile-ads',
+        {androidAppId: ADMOB_ANDROID_APP_ID},
+      ],
       [
         'expo-build-properties',
         {
@@ -158,6 +175,8 @@ module.exports = {
       googleWebClientId: GOOGLE_WEB_CLIENT_ID,
       // Read at runtime by src/services/storeLogoService.ts.
       logoDevToken: LOGO_DEV_TOKEN,
+      // Read at runtime by src/components/AdBanner.tsx.
+      admobBannerId: ADMOB_ANDROID_BANNER_ID,
       eas: {
         // The EAS project this app builds under. `eas init` cannot write this
         // itself because app.config.js is a dynamic config, so it is set here.
