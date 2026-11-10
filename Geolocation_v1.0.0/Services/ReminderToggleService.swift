@@ -5,10 +5,12 @@
 //  The single place that knows how a reminder is checked on or off in Firestore,
 //  and how an edit to one is attributed.
 //
-//  Keeping it in one place means any caller — with or without a ReminderViewModel
-//  behind it — writes exactly the same fields: the check-off attribution stamp,
-//  the out-of-stock clear, and the batch that keeps every linked copy of a shared
-//  reminder in agreement.
+//  Checking an item off is not something only the reminder list does — the
+//  Apple Watch app checks items off too, through WatchConnectivityManager, and
+//  that path has no ReminderViewModel behind it. Both routes call in here so a
+//  watch tap writes exactly the fields a phone tap writes: the check-off
+//  attribution stamp, the out-of-stock clear, and the batch that keeps every
+//  linked copy of a shared reminder in agreement.
 //
 
 import Foundation

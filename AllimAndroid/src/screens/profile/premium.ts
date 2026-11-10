@@ -1,5 +1,6 @@
 import React from 'react';
 import Icon from '../../components/AppIcon';
+import {FREE_STORE_LIMIT} from '../../services/subscription';
 
 // What the paywall sells and the management screen lists once you own it,
 // kept in one place so the two never drift apart (iOS PremiumFeature.all).
@@ -7,9 +8,6 @@ import Icon from '../../components/AppIcon';
 type IconName = React.ComponentProps<typeof Icon>['name'];
 
 export const GOOGLE_PLAY_TERMS_URL = 'https://play.google.com/about/play-terms/';
-
-// iOS SubscriptionManager.freeStoreLimit.
-export const FREE_STORE_LIMIT = 5;
 
 // iOS PremiumFeature.all, with Ionicons standing in for the SF Symbols:
 // infinity -> infinite, fork.knife -> restaurant, sparkles -> sparkles,

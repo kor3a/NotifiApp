@@ -1,0 +1,12 @@
+{
+  "name": "firestore-tests",
+  "private": true,
+  "description": "Tests for firestore.rules and functions/storeCounts.js against the Firestore emulator. Needs Java 21+, and npm install both here and in ../functions.",
+  "scripts": {
+    "test": "firebase emulators:exec --config firebase.json --only firestore --project demo-allim-rules \"node --test\""
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^4.0.1",
+    "firebase": "^11.0.0"
+  }
+}

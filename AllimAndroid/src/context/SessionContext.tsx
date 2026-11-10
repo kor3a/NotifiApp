@@ -9,8 +9,10 @@ import auth from '@react-native-firebase/auth';
 import messaging from '@react-native-firebase/messaging';
 import {User} from '../models';
 import {userService} from '../services/userService';
+import {withLatestAccess} from '../services/subscription';
 import {isSignupInProgress} from '../services/authService';
 import {clearSignedOutUserData} from '../services/sessionCleanup';
+import {notificationInbox} from '../services/notificationInbox';
 
 // The wipe of the previous account's local data, while it runs. A sign-in that
 // lands mid-wipe waits for it, so the new account never reads through a
@@ -57,12 +59,14 @@ export function SessionProvider({children}: {children: React.ReactNode}) {
   const hasSeenSignedInUser = useRef(false);
 
   // Register this device for the account's pushes. Non-fatal: the app works
-  // without it and the token is refreshed on the next sign-in.
+  // without it and the token is saved again on the next launch or sign-in.
   async function saveDeviceToken(user: User) {
     try {
       const token = await messaging().getToken();
       await userService.saveFCMToken(user.userId, token);
-    } catch (_) {}
+    } catch (error) {
+      console.warn('Could not save the push token', error);
+    }
   }
 
   async function refreshUser() {
@@ -149,6 +153,52 @@ export function SessionProvider({children}: {children: React.ReactNode}) {
     });
     return unsubscribe;
   }, []);
+
+  // FCM can replace the token while the app is running. Without this, pushes go
+  // to the old token until the next launch.
+  const signedInUserId = currentUser?.userId;
+  useEffect(() => {
+    if (!signedInUserId) {
+      return;
+    }
+    return messaging().onTokenRefresh(token => {
+      userService.saveFCMToken(signedInUserId, token).catch(error => {
+        console.warn('Could not save the refreshed push token', error);
+      });
+    });
+  }, [signedInUserId]);
+
+  // Keep access current while the app is open. The profile is otherwise read
+  // once at sign-in, so a subscription granted or removed would go unnoticed
+  // until the next launch.
+  const signedInEmail = currentUser?.email;
+  useEffect(() => {
+    if (!signedInEmail) {
+      return;
+    }
+    return userService.subscribeToUser(
+      signedInEmail,
+      latest => setCurrentUser(current => withLatestAccess(current, latest)),
+      error => console.warn('Could not watch subscription status', error),
+    );
+  }, [signedInEmail]);
+
+  // Consume the notification documents other people write for this account,
+  // so they don't pile up in Firestore. Keyed on the Auth email, which is what
+  // the rules match recipients on, and only once the profile has loaded, so an
+  // account that is signed straight back out (unverified email) never starts
+  // it. Sign-out also stops it in clearSignedOutUserData, before the Firestore
+  // instance it runs on is shut down.
+  const inboxEmail: string | undefined = currentUser
+    ? firebaseUser?.email ?? undefined
+    : undefined;
+  useEffect(() => {
+    if (!inboxEmail) {
+      return;
+    }
+    notificationInbox.start(inboxEmail);
+    return () => notificationInbox.stop();
+  }, [inboxEmail]);
 
   return (
     <SessionContext.Provider

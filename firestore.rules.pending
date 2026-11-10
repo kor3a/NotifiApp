@@ -48,6 +48,35 @@ service cloud.firestore {
              get(/databases/$(database)/documents/user_stores/$(userStoreId)).data.userEmail == request.auth.token.email;
     }
 
+    // Whether the signed-in user's own profile carries premium access.
+    // Mirrors the clients: isSubscribed (from a purchase) or adminSubscribed
+    // (granted by hand). Unset or non-true counts as no access.
+    function hasPremiumAccess(userId) {
+      let userPath = /databases/$(database)/documents/users/$(userId);
+      return exists(userPath) &&
+             get(userPath).data.email == request.auth.token.email &&
+             (get(userPath).data.get('isSubscribed', false) == true ||
+              get(userPath).data.get('adminSubscribed', false) == true);
+    }
+
+    // Free-tier store limit, the same 5 as SubscriptionManager.freeStoreLimit
+    // on iOS and FREE_STORE_LIMIT on Android. Rules can't count documents, so
+    // this reads the count kept by the syncUserStoreCount Cloud Function. No
+    // count document means no stores yet, or not yet backfilled: allowed.
+    function isBelowFreeStoreLimit(userId) {
+      let countPath = /databases/$(database)/documents/user_store_counts/$(userId);
+      return !exists(countPath) || get(countPath).data.count < 5;
+    }
+
+    // A store accepted from a share. These are always allowed, even past the
+    // limit, as on iOS (MessagingService.acceptSharedStore).
+    // LIMITATION: this reads what the client sent, so a modified client could
+    // label its own store as shared to get around the limit.
+    function isAcceptedShare() {
+      return request.resource.data.get('permission', 'owner') in ['edit', 'view'] &&
+             request.resource.data.get('sharedFrom', null) is string;
+    }
+
     // Check if the given ID refers to an existing shared store group.
     // For shared "Can Edit" stores, reminders use the sharedStoreGroupId
     // as their userStoreId. All group members may read/write these reminders.
@@ -77,12 +106,22 @@ service cloud.firestore {
                        request.resource.data.email is string &&
                        request.resource.data.email == request.auth.token.email &&
                        request.resource.data.name is string &&
-                       request.resource.data.userId is string;
+                       request.resource.data.userId is string &&
+                       request.resource.data.get('adminSubscribed', false) == false &&
+                       request.resource.data.get('isSubscribed', false) == false;
 
-      // Allow users to update/delete only their own document.
+      // Allow users to update their own document, except adminSubscribed: that
+      // is granted and removed by hand (Firebase console or Admin SDK, which
+      // bypass these rules), and no client changes it after signup.
+      // LIMITATION: isSubscribed stays client-writable because the iOS app syncs
+      // it from StoreKit. Locking it needs purchases verified on the server.
+      allow update: if request.auth != null &&
+                       resource.data.email == request.auth.token.email &&
+                       !request.resource.data.diff(resource.data).affectedKeys().hasAny(['adminSubscribed']);
+
       // Ownership verified via email since document ID is the username.
-      allow update, delete: if request.auth != null &&
-                               resource.data.email == request.auth.token.email;
+      allow delete: if request.auth != null &&
+                       resource.data.email == request.auth.token.email;
     }
 
     // ============================================================
@@ -229,11 +268,15 @@ service cloud.firestore {
 
       // Allow creating user_stores only if userEmail matches the
       // authenticated user. Prevents creating store associations
-      // for other users.
+      // for other users. Free accounts at the store limit can't add more of
+      // their own; existing stores are untouched, because only create checks it.
       allow create: if request.auth != null &&
                        request.resource.data.userId is string &&
                        request.resource.data.userEmail is string &&
-                       request.resource.data.userEmail == request.auth.token.email;
+                       request.resource.data.userEmail == request.auth.token.email &&
+                       (isAcceptedShare() ||
+                        hasPremiumAccess(request.resource.data.userId) ||
+                        isBelowFreeStoreLimit(request.resource.data.userId));
 
       // Allow users to update their own user_stores.
       // Also allow:
@@ -261,6 +304,15 @@ service cloud.firestore {
                         resource.data.sharedFromEmail == request.auth.token.email ||
                         (resource.data.sharedFrom != null &&
                          get(/databases/$(database)/documents/users/$(resource.data.sharedFrom)).data.email == request.auth.token.email));
+    }
+
+    // ============================================================
+    // User Store Counts (read by the store limit rule above)
+    // ============================================================
+    match /user_store_counts/{userId} {
+      // Written only by the syncUserStoreCount Cloud Function. Clients have no
+      // use for it, and a client that could write it could reset its own limit.
+      allow read, write: if false;
     }
 
     // ============================================================

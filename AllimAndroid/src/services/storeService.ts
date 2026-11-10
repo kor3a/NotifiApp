@@ -22,6 +22,12 @@ import {
   sharedWithChange,
   withLookedUpNames,
 } from './storeSharing';
+import {
+  canAddStore,
+  hasPremiumAccess,
+  storeLimitError,
+} from './subscription';
+import {userService} from './userService';
 
 function normalizeStoreName(name: string): string {
   return name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
@@ -610,11 +616,20 @@ export const storeService = {
   async addStore(uid: string, email: string, storeName: string): Promise<void> {
     const storeId = normalizeStoreName(storeName);
 
-    // Get current max order
     const existing = await firestore()
       .collection('user_stores')
       .where('userId', '==', uid)
       .get();
+
+    // Checked here against a fresh read, not what the screen last knew, so a
+    // subscription removed moments ago still counts. Every path that adds a
+    // store comes through here.
+    const profile = await userService.fetchUserByEmail(email);
+    if (!canAddStore(hasPremiumAccess(profile), existing.docs.length)) {
+      throw storeLimitError();
+    }
+
+    // Get current max order
     const maxOrder = existing.docs.reduce((max, d) => {
       const o = (d.data().sortOrder ?? 0) as number;
       return Math.max(max, o);
@@ -623,15 +638,24 @@ export const storeService = {
     // Add user_store doc. Field names must match the iOS app + Firestore rules:
     // `userEmail` (not `email`) is required by the create rule, and ordering
     // uses `sortOrder`/`addedAt` so iOS and Android stay in sync.
-    await firestore().collection('user_stores').add({
-      userId: uid,
-      userEmail: email,
-      storeId: storeId,
-      storeName: storeName,
-      permission: 'owner',
-      sortOrder: maxOrder + 1,
-      addedAt: Date.now() / 1000,
-    });
+    try {
+      await firestore().collection('user_stores').add({
+        userId: uid,
+        userEmail: email,
+        storeId: storeId,
+        storeName: storeName,
+        permission: 'owner',
+        sortOrder: maxOrder + 1,
+        addedAt: Date.now() / 1000,
+      });
+    } catch (err: any) {
+      // The rules have the last word on the limit. The fields above are always
+      // valid, so a refusal here means the limit was reached.
+      if (err?.code === 'firestore/permission-denied') {
+        throw storeLimitError();
+      }
+      throw err;
+    }
   },
 
   // Remove a store from the current user's list.

@@ -21,6 +21,7 @@ import {launchImageLibrary} from 'react-native-image-picker';
 import GradientBackground from '../../components/GradientBackground';
 import ProfileAvatar from '../../components/ProfileAvatar';
 import AdBanner from '../../components/AdBanner';
+import {hasPremiumAccess} from '../../services/subscription';
 import {
   cardBackground,
   cardStyle,
@@ -51,7 +52,7 @@ export default function ProfileScreen() {
   const navigation = useNavigation<any>();
   const {currentUser, firebaseUser, refreshUser} = useSession();
   const myId = currentUser?.userId ?? '';
-  const isPremium = !!(currentUser?.isSubscribed || currentUser?.adminSubscribed);
+  const isPremium = hasPremiumAccess(currentUser);
 
   // An account created with Google has no password to type — Firebase's
   // "recent login" requirement is met by re-running the Google sheet instead.

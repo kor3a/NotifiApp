@@ -182,9 +182,21 @@ class StoreClusterManager {
             let search = MKLocalSearch(request: request)
             let response = try await search.start()
 
+            // MapKit's search is fuzzy: with no real match nearby it returns lookalikes
+            // ("Save Mart" for "H Mart"), which would get pinned under the saved store's
+            // logo. Keep only results that name the saved store, as geofencing does.
+            let normalizedSearchName = Store.normalizedId(from: userStoreItem.store.name)
+            let matchingItems = response.mapItems.filter { item in
+                guard let itemName = item.name else { return false }
+                return LocationMonitoringManager.storeNamesMatch(
+                    normalizedSearchName,
+                    Store.normalizedId(from: itemName)
+                )
+            }
+
             // Convert to StoreLocation objects — no strict visible-region filter
             // so pins persist when zooming in/out.
-            return response.mapItems.prefix(10).map { item in
+            return matchingItems.prefix(10).map { item in
                 // Capture the place record's website so logos resolve from the store's
                 // real domain instead of one guessed from its name.
                 StoreLogoProvider.shared.recordPlaceWebsite(

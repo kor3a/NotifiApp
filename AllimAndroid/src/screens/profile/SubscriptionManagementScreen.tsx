@@ -53,7 +53,9 @@ export default function SubscriptionManagementScreen() {
 
   // Premium granted by Allim rather than bought has no store subscription
   // behind it — nothing to change and nothing to cancel.
-  const isGranted = !!currentUser?.adminSubscribed && !currentUser?.isSubscribed;
+  // Strict `true` checks, as hasPremiumAccess uses.
+  const isGranted =
+    currentUser?.adminSubscribed === true && currentUser?.isSubscribed !== true;
 
   const savings = savingsPercent();
 

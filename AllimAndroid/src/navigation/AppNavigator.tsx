@@ -55,6 +55,9 @@ export type StoresStackParamList = {
     isSharedStore?: boolean;
     sharedWith?: string[];
     sharedFromName?: string;
+    // Who else is on the store, so edits here can notify them as iOS does.
+    sourceUserStoreId?: string;
+    sharedStoreGroupId?: string;
   };
   Profile: undefined;
   // Profile's own sub-screens, as on iOS.
