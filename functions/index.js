@@ -37,7 +37,9 @@ const { onDocumentCreated, onDocumentWritten } = require('firebase-functions/v2/
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { defineSecret } = require('firebase-functions/params');
 const { setGlobalOptions } = require('firebase-functions/v2');
-const functions = require('firebase-functions');
+// Gen 1 API, for cleanupDeletedUser. Since firebase-functions 6 the package root
+// exports the v2 API, so v1 triggers must come from this path.
+const functions = require('firebase-functions/v1');
 const { initializeApp } = require('firebase-admin/app');
 const { getFirestore, FieldValue } = require('firebase-admin/firestore');
 const { getMessaging } = require('firebase-admin/messaging');
@@ -473,6 +475,13 @@ exports.cleanupDeletedUser = functions.auth.user().onDelete(async (user) => {
     const authUid = user.uid;
     const email = user.email;
     console.log(`cleanupDeletedUser: starting cleanup for authUid=${authUid}, email=${email}`);
+
+    // Accounts without an email (e.g. anonymous ones) can't be matched to a
+    // users document, and Firestore rejects a where() on undefined.
+    if (!email) {
+        console.warn(`cleanupDeletedUser: authUid=${authUid} has no email — nothing to match, skipping`);
+        return;
+    }
 
     // Firestore documents are keyed by username (the userId field), NOT the Firebase Auth UID.
     // The Auth UID is never stored in Firestore, so we must look up the user document by email.
