@@ -32,6 +32,7 @@ import AccountSecurityScreen from '../screens/profile/AccountSecurityScreen';
 import AboutScreen from '../screens/profile/AboutScreen';
 import ReportFeedbackScreen from '../screens/profile/ReportFeedbackScreen';
 import SubscriptionScreen from '../screens/profile/SubscriptionScreen';
+import SubscriptionManagementScreen from '../screens/profile/SubscriptionManagementScreen';
 
 import {Colors} from '../theme/AppTheme';
 
@@ -90,6 +91,9 @@ export type MainStackParamList = {
   // The Premium paywall — a sheet over the whole app on iOS, so it sits above
   // the tabs here and rises from the bottom.
   Subscription: undefined;
+  // What Premium subscribers see instead of the paywall: their features and
+  // the way to change plan or cancel. Also a sheet on iOS.
+  SubscriptionManagement: undefined;
 };
 
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
@@ -190,6 +194,11 @@ function MainNavigator({uid}: {uid: string}) {
         <MainStack.Screen
           name="Subscription"
           component={SubscriptionScreen}
+          options={{presentation: 'modal', animation: 'slide_from_bottom'}}
+        />
+        <MainStack.Screen
+          name="SubscriptionManagement"
+          component={SubscriptionManagementScreen}
           options={{presentation: 'modal', animation: 'slide_from_bottom'}}
         />
       </MainStack.Navigator>
