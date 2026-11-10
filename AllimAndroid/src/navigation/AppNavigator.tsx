@@ -17,7 +17,10 @@ import ProfileSetupScreen from '../screens/auth/ProfileSetupScreen';
 import PermissionOnboardingScreen from '../screens/onboarding/PermissionOnboardingScreen';
 import {usePermissionOnboarding} from '../onboarding/permissionOnboarding';
 import TutorialOverlay from '../tutorial/TutorialOverlay';
-import {tutorial} from '../tutorial/tutorialManager';
+import {tutorial, useTutorialActive} from '../tutorial/tutorialManager';
+import {tutorialConversations} from '../tutorial/tutorialMockData';
+import {messageService} from '../services/messageService';
+import {totalUnreadCount} from '../models';
 
 // Main screens
 import StoresScreen from '../screens/stores/StoresScreen';
@@ -137,9 +140,34 @@ function MapNavigator() {
   );
 }
 
+// The Messages tab's badge: unread messages across every conversation, kept
+// live like iOS's MessagesViewModel.totalUnreadCount. While the tutorial runs
+// it counts the stand-in conversations instead, which carry one unread, as iOS
+// shows.
+function useUnreadMessageCount(): number {
+  const {currentUser} = useSession();
+  // Conversations are keyed by username, not the Firebase Auth uid.
+  const userId = currentUser?.userId;
+  const tutorialActive = useTutorialActive();
+  const [liveCount, setLiveCount] = useState(0);
+
+  useEffect(() => {
+    if (!userId) {
+      setLiveCount(0);
+      return;
+    }
+    return messageService.subscribeToTotalUnreadCount(userId, setLiveCount);
+  }, [userId]);
+
+  return tutorialActive
+    ? totalUnreadCount(tutorialConversations(userId ?? ''), userId ?? '')
+    : liveCount;
+}
+
 function MainTabs() {
   const scheme = useColorScheme();
   const isDark = scheme === 'dark';
+  const unreadMessages = useUnreadMessageCount();
 
   return (
     <Tab.Navigator
@@ -175,7 +203,15 @@ function MainTabs() {
         },
       })}>
       <Tab.Screen name="Stores" component={StoresNavigator} />
-      <Tab.Screen name="Messages" component={MessagesNavigator} />
+      <Tab.Screen
+        name="Messages"
+        component={MessagesNavigator}
+        options={{
+          // No badge at all when everything is read, as on iOS.
+          tabBarBadge: unreadMessages > 0 ? unreadMessages : undefined,
+          tabBarBadgeStyle: {backgroundColor: '#FF3B30', color: '#FFFFFF'},
+        }}
+      />
       <Tab.Screen name="AI Recipe" component={SmartRecipeScreen} />
       <Tab.Screen name="Search" component={MapNavigator} />
     </Tab.Navigator>

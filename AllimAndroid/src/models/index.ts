@@ -239,6 +239,18 @@ export function unreadCountFor(convo: Conversation, userId: string): number {
   return convo.unreadCount?.[userId] ?? 0;
 }
 
+// Every unread message across the user's conversations — the number on the
+// Messages tab, summed the way iOS's getTotalUnreadCount does.
+export function totalUnreadCount(
+  convos: Conversation[],
+  userId: string,
+): number {
+  return convos.reduce((total, convo) => {
+    const count = unreadCountFor(convo, userId);
+    return total + (typeof count === 'number' && count > 0 ? count : 0);
+  }, 0);
+}
+
 // Sorted member names for the subtitle of a group row, as iOS builds it.
 export function memberNamesSubtitle(
   convo: Conversation,
