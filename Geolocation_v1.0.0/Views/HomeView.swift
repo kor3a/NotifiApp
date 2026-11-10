@@ -273,11 +273,13 @@ struct HomeView: View {
                 isKeyboardVisible = false
             }
 
-            // Tutorial overlay — rendered above the TabView (including tab bar)
+            // Tutorial — a full-screen story drawn above the TabView and its
+            // tab bar. It paints its own backdrop past the safe area and keeps
+            // its content inside it.
             if tutorialManager.isActive {
                 TutorialOverlayView()
-                    .ignoresSafeArea()
-                    .allowsHitTesting(true)
+                    .transition(.opacity)
+                    .zIndex(10)
             }
         }//:ZSTACK
         .sheet(isPresented: $showRecipePaywall) {

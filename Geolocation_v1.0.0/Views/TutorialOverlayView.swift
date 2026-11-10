@@ -2,8 +2,11 @@
 //  TutorialOverlayView.swift
 //  Geolocation_v1.0.0
 //
-//  Full-screen tutorial overlay that dims the UI, highlights a target element
-//  with an animated rectangle border, and shows a callout card.
+//  The new-user tutorial: a full-screen, playable story. Instead of dimming
+//  the live app and pointing at its buttons, each chapter stages a small
+//  working demo of one idea (see TutorialScenes.swift) and asks the user to
+//  try it — tap the +, drag themselves to a store, hold an item. Nothing is
+//  gated: Next always works, it just asks louder once the demo is played.
 //
 
 import SwiftUI
@@ -11,277 +14,478 @@ import SwiftUI
 // MARK: - Tutorial Overlay View
 
 struct TutorialOverlayView: View {
-    @ObservedObject private var tutorialManager = TutorialManager.shared
-    @State private var borderOpacity: Double = 1.0
-    @State private var glowOpacity: Double = 0.5
-    @State private var glowRadius: CGFloat = 8
-    @State private var appeared: Bool = false
-    private var step: TutorialStep { tutorialManager.currentStep }
+    @ObservedObject private var tutorial = TutorialManager.shared
+    @Environment(\.colorScheme) private var colorScheme
 
-    private var highlightRect: CGRect? {
-        guard let id = step.elementId else { return nil }
-        return tutorialManager.elementFrames[id]
-    }
-
-    // Padded rectangle for the highlight cutout
-    private var paddedRect: CGRect? {
-        guard let rect = highlightRect else { return nil }
-        return rect.insetBy(dx: -14, dy: -14)
-    }
+    private var step: TutorialStep { tutorial.currentStep }
+    private var isDone: Bool { tutorial.completedSteps.contains(step) }
 
     var body: some View {
-        GeometryReader { geo in
-            ZStack {
-                if step.isReminderScene {
-                    // Full-screen simulated Reminders walkthrough. It draws its
-                    // own opaque screen over the live app, so no dimming cutout.
-                    TutorialReminderScene(step: step)
-                        .transition(.opacity)
+        ZStack {
+            backdrop
 
-                    // Light scrim at the bottom so the callout card stays legible
-                    // over the mock list.
-                    LinearGradient(
-                        colors: [Color.black.opacity(0), Color.black.opacity(0.55)],
-                        startPoint: .center,
-                        endPoint: .bottom
+            VStack(spacing: 0) {
+                header
+
+                page
+                    .id(step)
+                    .transition(
+                        .asymmetric(
+                            insertion: .opacity.combined(with: .offset(y: 28)),
+                            removal: .opacity.combined(with: .scale(scale: 0.96))
+                        )
                     )
-                    .ignoresSafeArea()
-                    .allowsHitTesting(false)
-                } else {
-                    // Dimmed backdrop with cutout
-                    dimmingLayer(in: geo)
 
-                    // Animated highlight border
-                    if let rect = paddedRect {
-                        highlightBorder(rect: rect)
-                    }
-                }
+                footer
+            }
+            .frame(maxWidth: 560)
+            .padding(.horizontal, 24)
+            .padding(.bottom, 12)
+        }
+    }
 
-                // Callout card (above or below the highlight)
-                calloutCard(in: geo)
+    // MARK: - Backdrop
+
+    /// The canvas, with two soft washes of color that drift to a new spot on
+    /// every page so the screen feels like it is moving along with the story.
+    private var backdrop: some View {
+        GeometryReader { geo in
+            let drift = CGFloat(step.rawValue)
+            ZStack {
+                OrganicPalette.canvas(colorScheme)
+
+                Circle()
+                    .fill(OrganicPalette.blush(colorScheme))
+                    .frame(width: 380, height: 380)
+                    .blur(radius: 80)
+                    .position(
+                        x: geo.size.width * (drift.truncatingRemainder(dividingBy: 2) == 0 ? 0.12 : 0.88),
+                        y: geo.size.height * (0.1 + 0.07 * drift)
+                    )
+
+                Circle()
+                    .fill(OrganicPalette.highlightWash(colorScheme))
+                    .frame(width: 320, height: 320)
+                    .blur(radius: 90)
+                    .position(
+                        x: geo.size.width * (drift.truncatingRemainder(dividingBy: 2) == 0 ? 0.9 : 0.15),
+                        y: geo.size.height * (0.92 - 0.06 * drift)
+                    )
             }
         }
         .ignoresSafeArea()
-        .opacity(appeared ? 1 : 0)
-        .onAppear {
-            withAnimation(.easeIn(duration: 0.25)) {
-                appeared = true
-            }
-            startPulseAnimation()
-        }
-        .onChange(of: step) { _, newStep in
-            borderOpacity = 1.0
-            glowOpacity = 0.5
-            glowRadius = 8
-            startPulseAnimation()
-        }
     }
 
-    // MARK: - Dimming Layer
+    // MARK: - Header
 
-    @ViewBuilder
-    private func dimmingLayer(in geo: GeometryProxy) -> some View {
-        if let rect = paddedRect {
-            // Even-odd fill: full screen rect minus the highlight cutout = dark everywhere except the hole
-            Canvas { context, size in
-                var fullScreen = Path()
-                fullScreen.addRect(CGRect(origin: .zero, size: size))
-
-                var cutout = Path()
-                let cornerRadius: CGFloat = 14
-                cutout.addRoundedRect(
-                    in: rect,
-                    cornerSize: CGSize(width: cornerRadius, height: cornerRadius)
-                )
-
-                var combined = fullScreen
-                combined.addPath(cutout)
-
-                context.fill(combined, with: .color(Color.black.opacity(0.62)),
-                             style: FillStyle(eoFill: true))
-            }
-            .ignoresSafeArea()
-        } else {
-            // Welcome / complete screens: no cutout, full dim
-            Color.black.opacity(0.62)
-                .ignoresSafeArea()
-        }
-    }
-
-    // MARK: - Animated Highlight Border
-
-    private func highlightBorder(rect: CGRect) -> some View {
-        RoundedRectangle(cornerRadius: 14)
-            .strokeBorder(
-                // The overlay always draws on a dark scrim, whatever the
-                // user's appearance is set to, so the accent is resolved
-                // against `.dark` rather than the environment: the light teal
-                // is what reads against black, and the deep one vanishes.
-                LinearGradient(
-                    colors: [
-                        Color.white,
-                        OrganicPalette.terracotta(.dark).opacity(0.9),
-                        Color.white,
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                ),
-                lineWidth: 2.5
-            )
-            .frame(width: rect.width, height: rect.height)
-            .position(x: rect.midX, y: rect.midY)
-            // Pulse via opacity and glow only — no scaleEffect so the border
-            // never moves outside the cutout hole regardless of element size.
-            .opacity(borderOpacity)
-            .shadow(color: OrganicPalette.terracotta(.dark).opacity(glowOpacity), radius: glowRadius, x: 0, y: 0)
-            .shadow(color: Color.white.opacity(glowOpacity * 0.5), radius: glowRadius * 0.5, x: 0, y: 0)
-    }
-
-    // MARK: - Callout Card
-
-    @ViewBuilder
-    private func calloutCard(in geo: GeometryProxy) -> some View {
-        let cardWidth: CGFloat = min(geo.size.width - 40, 340)
-        let cardX: CGFloat = geo.size.width / 2
-
-        // Decide whether the card goes above or below the highlight. Reminder
-        // scenes pin the card near the bottom so the mock screen stays visible.
-        let cardHeight: CGFloat = 180
-        let cardY: CGFloat = step.isReminderScene
-            ? geo.size.height - cardHeight / 2 - 70
-            : cardVerticalPosition(in: geo, cardHeight: cardHeight)
-
-        VStack(spacing: 0) {
-            calloutCardContent(cardWidth: cardWidth)
-        }
-        .frame(width: cardWidth)
-        .position(x: cardX, y: cardY)
-        .transition(.scale(scale: 0.92).combined(with: .opacity))
-        .animation(.spring(response: 0.4, dampingFraction: 0.8), value: step)
-    }
-
-    private func calloutCardContent(cardWidth: CGFloat) -> some View {
-        VStack(alignment: .leading, spacing: 14) {
-            // Step indicator dots
-            if step != .welcome && step != .complete {
-                stepDots
-            }
-
-            // Title
-            Text(step.title)
-                .font(.system(size: 18, weight: .bold, design: .rounded))
-                .foregroundColor(.white)
-
-            // Description
-            Text(step.description)
-                .font(.system(size: 14, weight: .regular))
-                .foregroundColor(Color.white.opacity(0.88))
-                .lineSpacing(3)
-                .fixedSize(horizontal: false, vertical: true)
-
-            // Buttons
-            HStack {
-                // Skip button (not shown on final step)
-                if step != .complete {
-                    Button(action: { tutorialManager.skip() }) {
-                        Text("Skip")
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundColor(Color.white.opacity(0.55))
-                    }
-                    .buttonStyle(.plain)
+    private var header: some View {
+        HStack(spacing: 14) {
+            HStack(spacing: 5) {
+                ForEach(TutorialStep.chapters, id: \.self) { chapter in
+                    Capsule()
+                        .fill(
+                            chapter.rawValue <= step.rawValue
+                                ? OrganicPalette.terracotta(colorScheme)
+                                : OrganicPalette.outlineStrong(colorScheme).opacity(0.6)
+                        )
+                        .frame(height: 4)
                 }
+            }
+            .accessibilityElement()
+            .accessibilityLabel(progressLabel)
 
-                Spacer()
-
-                // Next / Get Started
-                Button(action: {
-                    if step.isLastStep {
-                        tutorialManager.finish()
-                    } else {
-                        tutorialManager.advance()
-                    }
-                }) {
-                    HStack(spacing: 6) {
-                        Text(step.buttonLabel)
-                            .font(.system(size: 15, weight: .semibold))
-                        if !step.isLastStep {
-                            Image(systemName: "chevron.right")
-                                .font(.system(size: 12, weight: .bold))
-                        }
-                    }
-                    .foregroundColor(OrganicPalette.onTerracotta(.dark))
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 10)
-                    .background(
-                        Capsule()
-                            .fill(OrganicPalette.terracotta(.dark))
-                    )
+            if step != .finale {
+                Button {
+                    tutorial.skip()
+                } label: {
+                    Text("Skip")
+                        .font(OrganicPalette.title(15, weight: .semibold))
+                        .foregroundColor(OrganicPalette.inkSoft(colorScheme))
+                        .padding(.vertical, 10)
+                        .padding(.leading, 6)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
             }
         }
-        .padding(20)
-        .background(
-            RoundedRectangle(cornerRadius: 20)
-                .fill(.ultraThinMaterial)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 20)
-                        .strokeBorder(Color.white.opacity(0.18), lineWidth: 1)
-                )
-                .shadow(color: Color.black.opacity(0.5), radius: 24, x: 0, y: 8)
-        )
+        .frame(height: 48)
     }
 
-    // MARK: - Step Dots
+    private var progressLabel: String {
+        guard let number = step.chapterNumber else {
+            return step == .finale ? "Tour complete" : "Tour not started"
+        }
+        return "Step \(number) of \(TutorialStep.chapters.count)"
+    }
 
-    private var stepDots: some View {
-        let steps = TutorialStep.allCases.filter { $0 != .welcome && $0 != .complete }
-        return HStack(spacing: 6) {
-            ForEach(steps, id: \.rawValue) { s in
-                Circle()
-                    .fill(s == step ? Color.white : Color.white.opacity(0.3))
-                    .frame(width: s == step ? 8 : 6, height: s == step ? 8 : 6)
-                    .animation(.spring(response: 0.3), value: step)
+    // MARK: - Page
+
+    @ViewBuilder
+    private var page: some View {
+        switch step {
+        case .intro:
+            TutorialIntroPage()
+        case .finale:
+            TutorialFinalePage()
+        default:
+            chapterPage
+        }
+    }
+
+    private var chapterPage: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 8) {
+                Text(String(format: "%02d", step.chapterNumber ?? 0))
+                    .font(OrganicPalette.title(13, weight: .black))
+                    .foregroundColor(OrganicPalette.onTerracotta(colorScheme))
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(Capsule().fill(OrganicPalette.terracotta(colorScheme)))
+
+                Text(step.eyebrow.uppercased())
+                    .font(OrganicPalette.title(13))
+                    .tracking(1.2)
+                    .foregroundColor(OrganicPalette.terracotta(colorScheme))
+            }
+            .padding(.top, 10)
+
+            Text(step.title)
+                .font(OrganicPalette.display(30))
+                .foregroundColor(OrganicPalette.ink(colorScheme))
+                .lineSpacing(2)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 12)
+
+            Text(step.description)
+                .font(OrganicPalette.body(16))
+                .foregroundColor(OrganicPalette.inkSoft(colorScheme))
+                .lineSpacing(3)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 8)
+
+            stage
+                .padding(.top, 18)
+
+            hintChip
+                .padding(.top, 12)
+                .padding(.bottom, 14)
+        }
+    }
+
+    /// The card the chapter's demo plays on.
+    private var stage: some View {
+        scene
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(OrganicPalette.surface(colorScheme))
+            .clipShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 32, style: .continuous)
+                    .strokeBorder(OrganicPalette.outline(colorScheme), lineWidth: 1)
+            )
+            .shadow(color: OrganicPalette.shadow(colorScheme), radius: 18, x: 0, y: 8)
+    }
+
+    @ViewBuilder
+    private var scene: some View {
+        let finished = { tutorial.markDone(step) }
+        switch step {
+        case .addStore:
+            TutorialAddStoreScene(startsDone: isDone, onDone: finished)
+        case .smartSort:
+            TutorialSmartSortScene(onDone: finished)
+        case .nearby:
+            TutorialNearbyScene(onDone: finished)
+        case .shortcuts:
+            TutorialShortcutsScene(onDone: finished)
+        case .share:
+            TutorialShareScene(onDone: finished)
+        case .intro, .finale:
+            EmptyView()
+        }
+    }
+
+    /// The instruction under the stage, which turns into a small "done" note
+    /// the moment the user has played the demo.
+    private var hintChip: some View {
+        HStack(spacing: 8) {
+            Image(systemName: isDone ? "checkmark.circle.fill" : step.hintIcon)
+                .font(.system(size: 14, weight: .semibold))
+            Text(isDone ? step.doneNote : step.hint)
+                .font(OrganicPalette.title(14, weight: .semibold))
+        }
+        .foregroundColor(
+            isDone ? OrganicPalette.sageInk(colorScheme) : OrganicPalette.inkOnBlush(colorScheme)
+        )
+        .padding(.horizontal, 14)
+        .padding(.vertical, 9)
+        .background(
+            Capsule().fill(
+                isDone ? OrganicPalette.sage(colorScheme) : OrganicPalette.blush(colorScheme)
+            )
+        )
+        .id(isDone)
+        .transition(.scale(scale: 0.85).combined(with: .opacity))
+        .frame(maxWidth: .infinity)
+    }
+
+    // MARK: - Footer
+
+    @ViewBuilder
+    private var footer: some View {
+        switch step {
+        case .intro:
+            pill(title: "Take the tour", systemImage: "arrow.right", prominent: true) {
+                tutorial.advance()
+            }
+        case .finale:
+            pill(title: "Start shopping", systemImage: nil, prominent: true) {
+                tutorial.finish()
+            }
+        default:
+            HStack(spacing: 12) {
+                OrganicCircleButton(systemImage: "chevron.left", size: 56, glyphSize: 18) {
+                    tutorial.back()
+                }
+                .accessibilityLabel("Back")
+
+                // Quiet until the demo has been played, then filled: the
+                // button never blocks, it just changes how hard it asks.
+                pill(title: "Next", systemImage: "arrow.right", prominent: isDone) {
+                    tutorial.advance()
+                }
             }
         }
     }
 
-    // MARK: - Vertical Positioning
-
-    private func cardVerticalPosition(in geo: GeometryProxy, cardHeight: CGFloat) -> CGFloat {
-        let screenH = geo.size.height
-        let padding: CGFloat = 16
-
-        guard let rect = paddedRect else {
-            // No highlight: center in screen
-            return screenH / 2
+    private func pill(
+        title: String,
+        systemImage: String?,
+        prominent: Bool,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            HStack(spacing: 8) {
+                Text(title)
+                    .font(OrganicPalette.title(17))
+                if let systemImage {
+                    Image(systemName: systemImage)
+                        .font(.system(size: 15, weight: .bold))
+                }
+            }
+            .foregroundColor(
+                prominent
+                    ? OrganicPalette.onTerracotta(colorScheme)
+                    : OrganicPalette.inkOnBlush(colorScheme)
+            )
+            .frame(maxWidth: .infinity)
+            .frame(height: 56)
+            .background(
+                Capsule().fill(
+                    prominent
+                        ? OrganicPalette.terracotta(colorScheme)
+                        : OrganicPalette.blush(colorScheme)
+                )
+            )
         }
+        .buttonStyle(.plain)
+    }
+}
 
-        let spaceAbove = rect.minY
-        let spaceBelow = screenH - rect.maxY
+// MARK: - Intro Page
 
-        if spaceBelow >= cardHeight + padding * 2 {
-            // Fits below
-            return rect.maxY + padding + cardHeight / 2
-        } else if spaceAbove >= cardHeight + padding * 2 {
-            // Fits above
-            return rect.minY - padding - cardHeight / 2
-        } else {
-            // Not enough space — center below with overlap allowed
-            return rect.maxY + padding + cardHeight / 2
+private struct TutorialIntroPage: View {
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Spacer(minLength: 0)
+
+            TutorialHero()
+                .frame(maxWidth: .infinity)
+                .frame(height: 260)
+
+            Spacer(minLength: 0)
+
+            Text(TutorialStep.intro.eyebrow.uppercased())
+                .font(OrganicPalette.title(13))
+                .tracking(1.2)
+                .foregroundColor(OrganicPalette.terracotta(colorScheme))
+
+            Text(TutorialStep.intro.title)
+                .font(OrganicPalette.display(40))
+                .foregroundColor(OrganicPalette.ink(colorScheme))
+                .lineSpacing(2)
+                .minimumScaleFactor(0.8)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 12)
+
+            Text(TutorialStep.intro.description)
+                .font(OrganicPalette.body(17))
+                .foregroundColor(OrganicPalette.inkSoft(colorScheme))
+                .lineSpacing(4)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 12)
+                .padding(.bottom, 28)
         }
     }
+}
 
-    // MARK: - Pulse Animation
+/// The opening illustration: a store, the ring around it that Allim watches,
+/// and a few list items orbiting it.
+private struct TutorialHero: View {
+    @Environment(\.colorScheme) private var colorScheme
+    @State private var animating = false
 
-    private func startPulseAnimation() {
-        withAnimation(
-            .easeInOut(duration: 1.1)
-            .repeatForever(autoreverses: true)
-        ) {
-            borderOpacity = 0.55
-            glowOpacity = 1.0
-            glowRadius = 18
+    private struct Floater: Identifiable {
+        let id: String
+        let category: GroceryCategory
+        let x: CGFloat
+        let y: CGFloat
+        let delay: Double
+    }
+
+    private let floaters: [Floater] = [
+        Floater(id: "Bananas", category: .produce, x: -104, y: -78, delay: 0),
+        Floater(id: "Whole Milk", category: .dairy, x: 108, y: -34, delay: 0.5),
+        Floater(id: "Sourdough", category: .bakery, x: -86, y: 86, delay: 1.0),
+    ]
+
+    var body: some View {
+        ZStack {
+            ForEach(0..<3, id: \.self) { ring in
+                Circle()
+                    .stroke(OrganicPalette.highlight(colorScheme), lineWidth: 2)
+                    .frame(width: 96, height: 96)
+                    .scaleEffect(animating ? 2.7 : 1)
+                    .opacity(animating ? 0 : 0.7)
+                    .animation(
+                        .easeOut(duration: 2.7)
+                            .repeatForever(autoreverses: false)
+                            .delay(Double(ring) * 0.9),
+                        value: animating
+                    )
+            }
+
+            Circle()
+                .fill(OrganicPalette.terracotta(colorScheme))
+                .frame(width: 96, height: 96)
+                .shadow(color: OrganicPalette.terracotta(colorScheme).opacity(0.35), radius: 18, x: 0, y: 8)
+                .overlay(
+                    Image(systemName: "storefront.fill")
+                        .font(.system(size: 38, weight: .semibold))
+                        .foregroundColor(OrganicPalette.onTerracotta(colorScheme))
+                )
+
+            ForEach(floaters) { floater in
+                TutorialChip(name: floater.id, category: floater.category, raised: true)
+                    .offset(x: floater.x, y: floater.y + (animating ? -7 : 7))
+                    .animation(
+                        .easeInOut(duration: 2.2)
+                            .repeatForever(autoreverses: true)
+                            .delay(floater.delay),
+                        value: animating
+                    )
+            }
+        }
+        .onAppear { animating = true }
+        .accessibilityHidden(true)
+    }
+}
+
+// MARK: - Finale Page
+
+private struct TutorialFinalePage: View {
+    @Environment(\.colorScheme) private var colorScheme
+    @State private var appeared = false
+
+    private struct Place: Identifiable {
+        let id: String
+        let systemImage: String
+        let detail: String
+    }
+
+    private let places: [Place] = [
+        Place(id: "Stores", systemImage: "storefront.fill", detail: "Your stores and their lists. Tap + to add one."),
+        Place(id: "Messages", systemImage: "message.fill", detail: "Chat, and send a store or an item along."),
+        Place(id: "AI Recipe", systemImage: "fork.knife.circle.fill", detail: "Turn any recipe into a shopping list."),
+        Place(id: "Search", systemImage: "map.fill", detail: "Find stores near you on the map."),
+        Place(id: "Profile", systemImage: "person.crop.circle.fill", detail: "Friends, Family and your settings."),
+    ]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Spacer(minLength: 0)
+
+            Image(systemName: "checkmark")
+                .font(.system(size: 26, weight: .heavy))
+                .foregroundColor(OrganicPalette.onSageInk(colorScheme))
+                .frame(width: 60, height: 60)
+                .background(Circle().fill(OrganicPalette.sageInk(colorScheme)))
+                .scaleEffect(appeared ? 1 : 0.3)
+                .opacity(appeared ? 1 : 0)
+
+            Text(TutorialStep.finale.title)
+                .font(OrganicPalette.display(38))
+                .foregroundColor(OrganicPalette.ink(colorScheme))
+                .padding(.top, 18)
+
+            Text(TutorialStep.finale.description)
+                .font(OrganicPalette.body(16))
+                .foregroundColor(OrganicPalette.inkSoft(colorScheme))
+                .lineSpacing(3)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 8)
+
+            VStack(spacing: 0) {
+                ForEach(Array(places.enumerated()), id: \.element.id) { index, place in
+                    HStack(spacing: 14) {
+                        Image(systemName: place.systemImage)
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(OrganicPalette.terracotta(colorScheme))
+                            .frame(width: 38, height: 38)
+                            .background(Circle().fill(OrganicPalette.blush(colorScheme)))
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(place.id)
+                                .font(OrganicPalette.title(16))
+                                .foregroundColor(OrganicPalette.ink(colorScheme))
+                            Text(place.detail)
+                                .font(OrganicPalette.body(13))
+                                .foregroundColor(OrganicPalette.inkSoft(colorScheme))
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+
+                        Spacer(minLength: 0)
+                    }
+                    .padding(.vertical, 10)
+                    .opacity(appeared ? 1 : 0)
+                    .offset(y: appeared ? 0 : 14)
+                    .animation(
+                        .spring(response: 0.5, dampingFraction: 0.8).delay(0.15 + Double(index) * 0.07),
+                        value: appeared
+                    )
+
+                    if index < places.count - 1 {
+                        Rectangle()
+                            .fill(OrganicPalette.divider(colorScheme))
+                            .frame(height: 1)
+                            .padding(.leading, 52)
+                    }
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 6)
+            .background(OrganicCardBackground(colorScheme: colorScheme, cornerRadius: 28))
+            .padding(.top, 22)
+
+            Spacer(minLength: 0)
+        }
+        .padding(.bottom, 20)
+        .onAppear {
+            withAnimation(.spring(response: 0.5, dampingFraction: 0.6).delay(0.1)) {
+                appeared = true
+            }
+            UINotificationFeedbackGenerator().notificationOccurred(.success)
         }
     }
 }
@@ -289,13 +493,9 @@ struct TutorialOverlayView: View {
 // MARK: - Preview
 
 #Preview {
-    ZStack {
-        OrganicPalette.canvas(.light).ignoresSafeArea()
-        Text("App content here")
-        TutorialOverlayView()
-    }
-    .onAppear {
-        TutorialManager.shared.currentStep = .welcome
-        TutorialManager.shared.isActive = true
-    }
+    TutorialOverlayView()
+        .onAppear {
+            TutorialManager.shared.currentStep = .intro
+            TutorialManager.shared.isActive = true
+        }
 }

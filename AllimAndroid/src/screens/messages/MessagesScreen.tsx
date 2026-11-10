@@ -44,7 +44,7 @@ import {
   unreadCountFor,
 } from '../../models';
 import {MessagesStackParamList} from '../../navigation/AppNavigator';
-import {useTutorialActive, useTutorialTarget} from '../../tutorial/tutorialManager';
+import {useTutorialActive} from '../../tutorial/tutorialManager';
 import {tutorialConversations} from '../../tutorial/tutorialMockData';
 
 type Nav = NativeStackNavigationProp<MessagesStackParamList, 'MessagesList'>;
@@ -84,7 +84,6 @@ export default function MessagesScreen() {
     [tutorialActive, currentUser?.userId, liveConversations],
   );
   const loading = liveLoading && !tutorialActive;
-  const composeTarget = useTutorialTarget('tutorial_compose');
   const [showNewMessage, setShowNewMessage] = useState(false);
   const [showNewGroup, setShowNewGroup] = useState(false);
   // Avatars for participants whose conversation carries no participantPhotos:
@@ -398,7 +397,7 @@ export default function MessagesScreen() {
               activeOpacity={0.75}>
               <Icon name="people" size={20} color={Colors.blue} />
             </TouchableOpacity>
-            <View {...composeTarget}>
+            <View>
               <TouchableOpacity
                 style={[styles.headerBtn, {backgroundColor: Colors.blue + '1F'}]}
                 onPress={() => setShowNewMessage(true)}

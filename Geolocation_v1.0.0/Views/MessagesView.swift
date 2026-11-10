@@ -135,7 +135,6 @@ struct MessagesView: View {
             }
             .buttonStyle(.plain)
             .accessibilityLabel("New message")
-            .tutorialHighlight(id: "tutorial_compose")
         }
         .padding(.horizontal, 20)
         .padding(.top, 8)

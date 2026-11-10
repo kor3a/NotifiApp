@@ -503,7 +503,6 @@ struct MapView: View {
                         .foregroundColor(OrganicPalette.terracotta(colorScheme))
                         .frame(width: 44, height: 44)
                 }
-                .tutorialHighlight(id: "tutorial_mapSearch")
             }
             .background(
                 Capsule()
