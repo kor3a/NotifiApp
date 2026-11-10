@@ -14,11 +14,13 @@ import {SafeAreaView} from 'react-native-safe-area-context';
 import MapView, {PROVIDER_GOOGLE, Region} from 'react-native-maps';
 import Icon from '../../components/AppIcon';
 import StoreMapMarker from './StoreMapMarker';
+import ClusterStoresPopup from './ClusterStoresPopup';
 import {
   BranchMarker,
   clusterMarkers,
   MIN_CLUSTER_ZOOM_DELTA,
   regionForCluster,
+  storesInCluster,
   visibleClusters,
 } from './markerClusters';
 import {useTutorialTarget} from '../../tutorial/tutorialManager';
@@ -56,7 +58,7 @@ const PLACEHOLDER_REGION: Region = {
 
 export default function MapScreen() {
   const scheme = useColorScheme();
-  const {width: screenWidth} = useWindowDimensions();
+  const {width: screenWidth, height: screenHeight} = useWindowDimensions();
   const {currentUser, firebaseUser} = useSession();
 
   const mapRef = useRef<MapView>(null);
@@ -76,6 +78,15 @@ export default function MapScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const searchTarget = useTutorialTarget('tutorial_mapSearch');
   const [selectedStore, setSelectedStore] = useState<UserStoreItem | null>(null);
+  // A tapped group's list of stores, pinned to where its marker sits on screen.
+  const [openGroup, setOpenGroup] = useState<{
+    id: string;
+    point: {x: number; y: number};
+  } | null>(null);
+  const [mapSize, setMapSize] = useState({
+    width: screenWidth,
+    height: screenHeight,
+  });
 
   useEffect(() => {
     requestLocationAndLoad();
@@ -183,21 +194,33 @@ export default function MapScreen() {
 
   // Read through a ref so the handler stays the same function and an unchanged
   // marker doesn't re-render every time the map settles.
-  const pressContext = useRef({clusters, region});
-  pressContext.current = {clusters, region};
+  const pressContext = useRef(clusters);
+  pressContext.current = clusters;
   const handleMarkerPress = useCallback((id: string) => {
-    const {clusters: current, region: now} = pressContext.current;
-    const cluster = current.find(c => c.id === id);
+    const cluster = pressContext.current.find(c => c.id === id);
     if (!cluster) {
       return;
     }
-    // A group opens up on zooming in, unless it's as close as zooming goes.
-    if (cluster.members.length > 1 && now.latitudeDelta > MIN_CLUSTER_ZOOM_DELTA) {
-      mapRef.current?.animateToRegion(regionForCluster(cluster.members));
+    const {latitude, longitude} = cluster.branch;
+    if (cluster.members.length > 1) {
+      // A group lists its stores in a box over the marker, since ones right
+      // next to each other stay grouped however far in the map zooms.
+      mapRef.current
+        ?.pointForCoordinate({latitude, longitude})
+        .then(point => setOpenGroup({id, point}))
+        .catch(err => console.warn('Could not place store list:', err));
     } else {
+      setOpenGroup(null);
+      mapRef.current?.animateCamera({center: {latitude, longitude}});
       setSelectedStore(cluster.item);
     }
   }, []);
+
+  // The box is placed for the map as it was when tapped, so any move closes it.
+  const closeGroup = useCallback(() => setOpenGroup(null), []);
+  const openCluster = openGroup
+    ? clusters.find(c => c.id === openGroup.id && c.members.length > 1)
+    : undefined;
 
   function centerOnUser() {
     if (currentLocation) {
@@ -232,7 +255,12 @@ export default function MapScreen() {
   ];
 
   return (
-    <View style={{flex: 1}}>
+    <View
+      style={{flex: 1}}
+      onLayout={e => {
+        const {width, height} = e.nativeEvent.layout;
+        setMapSize({width, height});
+      }}>
       {/* Map takes full screen */}
       <MapView
         ref={mapRef}
@@ -240,7 +268,12 @@ export default function MapScreen() {
         provider={PROVIDER_GOOGLE}
         initialRegion={PLACEHOLDER_REGION}
         onMapReady={() => setMapReady(true)}
+        onRegionChange={openGroup ? closeGroup : undefined}
         onRegionChangeComplete={handleRegionChangeComplete}
+        onPress={closeGroup}
+        // Markers handle their own camera moves; the default centring would
+        // shift a group out from under its list as it opens.
+        moveOnMarkerPress={false}
         customMapStyle={scheme === 'dark' ? darkMapStyle : []}
         showsUserLocation
         showsMyLocationButton={false}>
@@ -310,6 +343,29 @@ export default function MapScreen() {
           </View>
         )}
       </SafeAreaView>
+
+      {openGroup && openCluster && (
+        <ClusterStoresPopup
+          stores={storesInCluster(openCluster)}
+          anchor={openGroup.point}
+          containerWidth={mapSize.width}
+          containerHeight={mapSize.height}
+          onSelect={item => {
+            setOpenGroup(null);
+            setSelectedStore(item);
+          }}
+          onZoomIn={
+            region.latitudeDelta > MIN_CLUSTER_ZOOM_DELTA
+              ? () => {
+                  setOpenGroup(null);
+                  mapRef.current?.animateToRegion(
+                    regionForCluster(openCluster.members.map(m => m.branch)),
+                  );
+                }
+              : undefined
+          }
+        />
+      )}
     </View>
   );
 }

@@ -61,121 +61,159 @@ struct MapView: View {
     @State private var storeSearchTask: Task<Void, Never>?
     @State private var selectedStoreLocation: StoreLocation?
     @State private var storeItemForReminders: UserStoreItem?
+    // The group marker whose list of stores is showing, and when it opened
+    // (see the map's tap gesture).
+    @State private var openStoreGroupID: String?
+    @State private var storeGroupOpenedAt = Date.distantPast
+    // Pins are grouped by how close they'd sit on screen, which needs this.
+    @State private var mapSize: CGSize = .zero
 
     var body: some View {
-        Map(position: $cameraPosition, selection: $mapSelection, scope: mapScope){
-            UserAnnotation()
+        MapReader { proxy in
+            let groups = storeGroups(in: viewingRegion ?? viewModel.region)
+            Map(position: $cameraPosition, selection: $mapSelection, scope: mapScope){
+                UserAnnotation()
 
-            // User's saved store locations (found via search)
-            ForEach(storeLocations) { storeLocation in
-                Annotation("", coordinate: storeLocation.coordinate) {
-                    StoreIconView(
-                        storeName: storeLocation.userStoreItem.store.name,
-                        reminderCount: storeLocation.userStoreItem.store.reminderCount
-                    )
-                    .onTapGesture {
-                        // Set selection first; onChange(of: selectedStoreLocation)
-                        // will open the sheet after the state is committed.
-                        mapSelection = nil       // Clear any Map selection
-                        selectedSearchItem = nil // Clear any search result selection
-                        selectedStoreLocation = storeLocation
-                    }
-                }
-                .annotationTitles(.hidden)
-            }
-
-            // Search results with modern pins
-            ForEach(results, id: \.self) { item in
-                let placemark = item.placemark
-                Annotation(placemark.name ?? "", coordinate: placemark.coordinate) {
-                    SearchResultPinView(name: placemark.name ?? "Location")
-                        .onTapGesture {
-                            // Drive the sheet from our own state (not the Map's
-                            // selection binding) so a subsequent camera-change
-                            // auto-search can't clear it and dismiss the sheet.
-                            selectedStoreLocation = nil
-                            selectedSearchItem = item
+                // User's saved store locations (found via search). Pins that would
+                // overlap at this zoom become one marker with a count, which lists
+                // its stores when tapped — stores right next to each other would
+                // otherwise hide one another.
+                ForEach(groups) { group in
+                    Annotation("", coordinate: group.coordinate) {
+                        if group.isGroup {
+                            StoreGroupIconView(count: group.members.count)
+                                .onTapGesture {
+                                    storeGroupOpenedAt = Date()
+                                    openStoreGroupID = group.id
+                                }
+                        } else {
+                            StoreIconView(
+                                storeName: group.anchor.userStoreItem.store.name,
+                                reminderCount: group.anchor.userStoreItem.store.reminderCount
+                            )
+                            .onTapGesture {
+                                openStoreGroupID = nil
+                                // Set selection first; onChange(of: selectedStoreLocation)
+                                // will open the sheet after the state is committed.
+                                mapSelection = nil       // Clear any Map selection
+                                selectedSearchItem = nil // Clear any search result selection
+                                selectedStoreLocation = group.anchor
+                            }
                         }
+                    }
+                    .annotationTitles(.hidden)
                 }
-                .annotationTitles(.hidden)
-            }
-        }//:MAP
-        .simultaneousGesture(
-            // Tapping the map while the search field is focused dismisses the
-            // keyboard and shrinks the search bar back to the tab bar.
-            // We use simultaneousGesture instead of .onTapGesture because a
-            // plain tap gesture on a Map hijacks its gesture pipeline and
-            // suppresses onMapCameraChange — which would stop store clustering
-            // and hide all store annotations. Gating on isSearchFocused keeps
-            // this from interfering with taps on search-result pins.
-            TapGesture().onEnded {
-                guard isSearchFocused else { return }
-                // Dismiss the keyboard on a map tap. If there's text in the
-                // field, keep the bar extended and its result pins on the map
-                // (the user is still viewing those results) — only shrink the
-                // bar back to the tab bar when the field is empty.
-                isSearchFocused = false
-                if searchQuery.isEmpty {
-                    withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                        isSearchExpanded = false
+
+                // Search results with modern pins
+                ForEach(results, id: \.self) { item in
+                    let placemark = item.placemark
+                    Annotation(placemark.name ?? "", coordinate: placemark.coordinate) {
+                        SearchResultPinView(name: placemark.name ?? "Location")
+                            .onTapGesture {
+                                // Drive the sheet from our own state (not the Map's
+                                // selection binding) so a subsequent camera-change
+                                // auto-search can't clear it and dismiss the sheet.
+                                selectedStoreLocation = nil
+                                selectedSearchItem = item
+                            }
+                    }
+                    .annotationTitles(.hidden)
+                }
+            }//:MAP
+            .simultaneousGesture(
+                // Tapping the map while the search field is focused dismisses the
+                // keyboard and shrinks the search bar back to the tab bar.
+                // We use simultaneousGesture instead of .onTapGesture because a
+                // plain tap gesture on a Map hijacks its gesture pipeline and
+                // suppresses onMapCameraChange — which would stop store clustering
+                // and hide all store annotations. Gating on isSearchFocused keeps
+                // this from interfering with taps on search-result pins.
+                TapGesture().onEnded {
+                    // A tap on the map closes a group's store list. The tap that
+                    // opened it can land here too, so one that fresh is skipped.
+                    if openStoreGroupID != nil,
+                       Date().timeIntervalSince(storeGroupOpenedAt) > 0.3 {
+                        openStoreGroupID = nil
+                    }
+                    guard isSearchFocused else { return }
+                    // Dismiss the keyboard on a map tap. If there's text in the
+                    // field, keep the bar extended and its result pins on the map
+                    // (the user is still viewing those results) — only shrink the
+                    // bar back to the tab bar when the field is empty.
+                    isSearchFocused = false
+                    if searchQuery.isEmpty {
+                        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                            isSearchExpanded = false
+                        }
                     }
                 }
-            }
-        )
-        .onMapCameraChange(frequency: .continuous) { context in
-            viewingRegion = context.region
+            )
+            .onMapCameraChange(frequency: .continuous) { context in
+                viewingRegion = context.region
+                closeStoreGroupIfGone(in: context.region)
 
-            // Update clustering based on new region
-            updateClustering(for: context.region)
+                // Update clustering based on new region
+                updateClustering(for: context.region)
 
-            // Auto-search when map view changes if there's an active search
-            if !searchText.isEmpty && isSearchExpanded {
-                let currentRegion = context.region
+                // Auto-search when map view changes if there's an active search
+                if !searchText.isEmpty && isSearchExpanded {
+                    let currentRegion = context.region
 
-                // Check if the map view has changed significantly
-                var shouldSearch = false
+                    // Check if the map view has changed significantly
+                    var shouldSearch = false
 
-                if let previousRegion = previousSearchRegion {
-                    // Calculate how much the center has moved (in degrees)
-                    let centerLatChange = abs(currentRegion.center.latitude - previousRegion.center.latitude)
-                    let centerLonChange = abs(currentRegion.center.longitude - previousRegion.center.longitude)
+                    if let previousRegion = previousSearchRegion {
+                        // Calculate how much the center has moved (in degrees)
+                        let centerLatChange = abs(currentRegion.center.latitude - previousRegion.center.latitude)
+                        let centerLonChange = abs(currentRegion.center.longitude - previousRegion.center.longitude)
 
-                    // Calculate how much the zoom has changed
-                    let spanLatChange = abs(currentRegion.span.latitudeDelta - previousRegion.span.latitudeDelta) / previousRegion.span.latitudeDelta
-                    let spanLonChange = abs(currentRegion.span.longitudeDelta - previousRegion.span.longitudeDelta) / previousRegion.span.longitudeDelta
+                        // Calculate how much the zoom has changed
+                        let spanLatChange = abs(currentRegion.span.latitudeDelta - previousRegion.span.latitudeDelta) / previousRegion.span.latitudeDelta
+                        let spanLonChange = abs(currentRegion.span.longitudeDelta - previousRegion.span.longitudeDelta) / previousRegion.span.longitudeDelta
 
-                    // Trigger search if:
-                    // 1. Center moved by more than 20% of the current visible span, OR
-                    // 2. Zoom level changed by more than 15%
-                    let centerMovedSignificantly = (centerLatChange > currentRegion.span.latitudeDelta * 0.2) ||
-                                                   (centerLonChange > currentRegion.span.longitudeDelta * 0.2)
-                    let zoomChangedSignificantly = (spanLatChange > 0.15) || (spanLonChange > 0.15)
+                        // Trigger search if:
+                        // 1. Center moved by more than 20% of the current visible span, OR
+                        // 2. Zoom level changed by more than 15%
+                        let centerMovedSignificantly = (centerLatChange > currentRegion.span.latitudeDelta * 0.2) ||
+                                                       (centerLonChange > currentRegion.span.longitudeDelta * 0.2)
+                        let zoomChangedSignificantly = (spanLatChange > 0.15) || (spanLonChange > 0.15)
 
-                    shouldSearch = centerMovedSignificantly || zoomChangedSignificantly
-                } else {
-                    // First time tracking, don't search yet
-                    previousSearchRegion = currentRegion
-                }
+                        shouldSearch = centerMovedSignificantly || zoomChangedSignificantly
+                    } else {
+                        // First time tracking, don't search yet
+                        previousSearchRegion = currentRegion
+                    }
 
-                if shouldSearch {
-                    // Cancel any pending search task
-                    searchTask?.cancel()
+                    if shouldSearch {
+                        // Cancel any pending search task
+                        searchTask?.cancel()
 
-                    // Debounce: wait 0.8 seconds before searching to allow smooth panning
-                    searchTask = Task {
-                        try? await Task.sleep(nanoseconds: 800_000_000)
+                        // Debounce: wait 0.8 seconds before searching to allow smooth panning
+                        searchTask = Task {
+                            try? await Task.sleep(nanoseconds: 800_000_000)
 
-                        if !Task.isCancelled {
-                            await searchPlaces()
-                            // Update the region after successful search
-                            await MainActor.run {
-                                previousSearchRegion = currentRegion
+                            if !Task.isCancelled {
+                                await searchPlaces()
+                                // Update the region after successful search
+                                await MainActor.run {
+                                    previousSearchRegion = currentRegion
+                                }
                             }
                         }
                     }
                 }
             }
-        }
+            .overlay {
+                storeGroupOverlay(groups: groups, proxy: proxy)
+            }
+            .background {
+                GeometryReader { geometry in
+                    Color.clear
+                        .onAppear { mapSize = geometry.size }
+                        .onChange(of: geometry.size) { _, size in mapSize = size }
+                }
+            }
+        }//:MAPREADER
         .overlay(alignment: .bottomTrailing) {
             VStack(spacing: 15){
                 MapPitchToggle(scope: mapScope)
@@ -284,6 +322,9 @@ struct MapView: View {
             // Initial clustering. Fall back to the view model's region so we
             // can start searching before the first camera callback arrives.
             updateClustering(for: viewingRegion ?? viewModel.region, force: storeLocations.isEmpty)
+        }
+        .onChange(of: storeLocations) { _, _ in
+            closeStoreGroupIfGone(in: viewingRegion ?? viewModel.region)
         }
         .onChange(of: storesViewModel.userStoreItems) { oldValue, newValue in
             // Stores just finished loading — kick off clustering right away
@@ -540,6 +581,74 @@ extension MapView {
         }
     }
 
+    /// The user's store pins, with ones that would overlap at this zoom grouped.
+    func storeGroups(in region: MKCoordinateRegion) -> [StoreLocationGroup] {
+        StoreLocationGroup.grouping(storeLocations, in: region, mapWidth: mapSize.width)
+    }
+
+    /// Drops an open store list once its group has come apart, so it can't
+    /// pop back up by itself if the group forms again later.
+    func closeStoreGroupIfGone(in region: MKCoordinateRegion) {
+        guard let id = openStoreGroupID else { return }
+        if !storeGroups(in: region).contains(where: { $0.id == id && $0.isGroup }) {
+            openStoreGroupID = nil
+        }
+    }
+
+    /// A tapped group's stores, in a box over its marker. Placed from the map's
+    /// current camera on every render, so it follows the marker as the map moves.
+    @ViewBuilder
+    func storeGroupOverlay(groups: [StoreLocationGroup], proxy: MapProxy) -> some View {
+        if let group = groups.first(where: { $0.id == openStoreGroupID && $0.isGroup }),
+           let point = proxy.convert(group.coordinate, to: .local) {
+            storeGroupPopup(for: group, at: point)
+        }
+    }
+
+    /// The list of a group's stores, pointing at its marker from above — or
+    /// from below when the marker is too near the top for the box to fit.
+    @ViewBuilder
+    func storeGroupPopup(for group: StoreLocationGroup, at point: CGPoint) -> some View {
+        let stores = group.stores
+        let halfWidth = StoreGroupPopup.width / 2
+        let edgeMargin: CGFloat = 16
+        let centerX = min(
+            max(point.x, halfWidth + edgeMargin),
+            max(mapSize.width - halfWidth - edgeMargin, halfWidth + edgeMargin)
+        )
+        let opensBelow = point.y - StoreGroupPopup.clearance
+            - StoreGroupPopup.estimatedHeight(rows: stores.count) < 60
+        let canZoomIn = (viewingRegion?.span.latitudeDelta ?? 0) > StoreLocationGroup.minimumZoomSpan
+
+        StoreGroupPopup(
+            stores: stores,
+            opensBelow: opensBelow,
+            arrowOffset: point.x - centerX,
+            canZoomIn: canZoomIn,
+            onSelect: { location in
+                openStoreGroupID = nil
+                mapSelection = nil
+                selectedSearchItem = nil
+                selectedStoreLocation = location
+            },
+            onZoomIn: {
+                openStoreGroupID = nil
+                withAnimation(.smooth(duration: 0.5)) {
+                    cameraPosition = .region(group.zoomRegion)
+                }
+            },
+            onClose: { openStoreGroupID = nil }
+        )
+        // A frame with no height, lined up on the box's bottom (or top) edge,
+        // lets `position` place that edge rather than the box's middle.
+        .fixedSize(horizontal: false, vertical: true)
+        .frame(height: 0, alignment: opensBelow ? .top : .bottom)
+        .position(
+            x: centerX,
+            y: opensBelow ? point.y + StoreGroupPopup.clearance : point.y - StoreGroupPopup.clearance
+        )
+    }
+
     /// Create an MKMapItem from a StoreLocation for map selection
     func createMapItemForStoreLocation(_ storeLocation: StoreLocation) -> MKMapItem {
         let placemark = MKPlacemark(coordinate: storeLocation.coordinate)
@@ -752,6 +861,186 @@ struct StoreIconView: View {
     }
 }
 
+// MARK: - Store Group Icon (Several Overlapping Stores)
+
+/// Stands for several saved stores whose pins would overlap at this zoom: a
+/// shop glyph with how many there are. Tapping it lists them.
+struct StoreGroupIconView: View {
+    let count: Int
+    @State private var isAnimating = false
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        ZStack(alignment: .topTrailing) {
+            Circle()
+                .fill(OrganicPalette.terracotta(colorScheme))
+                .frame(width: 30, height: 30)
+                .overlay(
+                    Image(systemName: "storefront.fill")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(OrganicPalette.onTerracotta(colorScheme))
+                )
+                .overlay(Circle().strokeBorder(.white, lineWidth: 2))
+                .shadow(color: Color.black.opacity(0.28), radius: 4, x: 0, y: 2)
+
+            // Dark rather than the reminder badge's colour, so the number
+            // doesn't read as a reminder count.
+            Text("\(count)")
+                .font(OrganicPalette.title(10))
+                .foregroundColor(.white)
+                .padding(.horizontal, 4)
+                .padding(.vertical, 1)
+                .background(Capsule().fill(Color(white: 0.23)))
+                .overlay(Capsule().strokeBorder(.white, lineWidth: 1.5))
+                .offset(x: 8, y: -6)
+        }
+        .scaleEffect(isAnimating ? 1.0 : 0.5)
+        .opacity(isAnimating ? 1.0 : 0)
+        .onAppear {
+            withAnimation(.spring(response: 0.4, dampingFraction: 0.6)) {
+                isAnimating = true
+            }
+        }
+    }
+}
+
+// MARK: - Store Group Popup
+
+/// A small box pointing at a group marker that lists the stores behind it, so
+/// stores right next to each other can still be told apart and opened.
+struct StoreGroupPopup: View {
+    let stores: [StoreLocationGroup.StoreEntry]
+    /// Below the marker, pointing up, rather than above it pointing down.
+    let opensBelow: Bool
+    /// How far the marker sits from the box's middle, where the arrow points.
+    let arrowOffset: CGFloat
+    let canZoomIn: Bool
+    let onSelect: (StoreLocation) -> Void
+    let onZoomIn: () -> Void
+    let onClose: () -> Void
+    @Environment(\.colorScheme) private var colorScheme
+
+    static let width: CGFloat = 250
+    /// From the marker's centre to the edge of its icon, plus a little air.
+    static let clearance: CGFloat = 22
+    private static let headerHeight: CGFloat = 36
+    private static let rowHeight: CGFloat = 52
+    /// Past this many rows the list scrolls instead of growing.
+    private static let maxVisibleRows = 4
+    private static let arrowSize = CGSize(width: 18, height: 9)
+    private static let bottomPadding: CGFloat = 6
+
+    static func estimatedHeight(rows: Int) -> CGFloat {
+        headerHeight + CGFloat(min(rows, maxVisibleRows)) * rowHeight
+            + bottomPadding + arrowSize.height
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            if opensBelow {
+                arrow(pointingUp: true)
+            }
+            card
+            if !opensBelow {
+                arrow(pointingUp: false)
+            }
+        }
+        .frame(width: Self.width)
+    }
+
+    private func arrow(pointingUp: Bool) -> some View {
+        let limit = Self.width / 2 - 20
+        // Turned before it's shifted, so the shift isn't turned with it.
+        return Triangle()
+            .fill(OrganicPalette.surface(colorScheme))
+            .frame(width: Self.arrowSize.width, height: Self.arrowSize.height)
+            .rotationEffect(.degrees(pointingUp ? 180 : 0))
+            .offset(x: min(max(arrowOffset, -limit), limit))
+    }
+
+    private var card: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 4) {
+                Text(stores.count == 1 ? "1 store here" : "\(stores.count) stores here")
+                    .font(OrganicPalette.title(12, weight: .semibold))
+                    .foregroundColor(OrganicPalette.inkSoft(colorScheme))
+                Spacer(minLength: 0)
+                if canZoomIn {
+                    Button(action: onZoomIn) {
+                        Image(systemName: "arrow.up.left.and.arrow.down.right")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundColor(OrganicPalette.terracotta(colorScheme))
+                            .frame(width: 30, height: 30)
+                            .contentShape(Rectangle())
+                    }
+                    .accessibilityLabel("Zoom in")
+                }
+                Button(action: onClose) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(OrganicPalette.inkSoft(colorScheme))
+                        .frame(width: 30, height: 30)
+                        .contentShape(Rectangle())
+                }
+                .accessibilityLabel("Close")
+            }
+            .padding(.leading, 14)
+            .padding(.trailing, 6)
+            .frame(height: Self.headerHeight)
+
+            ScrollView {
+                VStack(spacing: 0) {
+                    ForEach(stores) { entry in
+                        Button {
+                            onSelect(entry.location)
+                        } label: {
+                            row(for: entry)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+            .frame(height: CGFloat(min(stores.count, Self.maxVisibleRows)) * Self.rowHeight)
+            .scrollDisabled(stores.count <= Self.maxVisibleRows)
+        }
+        .padding(.bottom, Self.bottomPadding)
+        .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(OrganicPalette.surface(colorScheme))
+                .shadow(color: OrganicPalette.shadow(colorScheme), radius: 10, x: 0, y: 4)
+        )
+    }
+
+    private func row(for entry: StoreLocationGroup.StoreEntry) -> some View {
+        let store = entry.location.userStoreItem.store
+        let reminders = "\(store.reminderCount) reminder\(store.reminderCount == 1 ? "" : "s")"
+        let details = entry.branchCount > 1
+            ? "\(reminders) · \(entry.branchCount) locations"
+            : reminders
+
+        return HStack(spacing: 10) {
+            StoreIconView(storeName: store.name)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(store.name)
+                    .font(OrganicPalette.body(15, weight: .semibold))
+                    .foregroundColor(OrganicPalette.ink(colorScheme))
+                    .lineLimit(1)
+                Text(details)
+                    .font(OrganicPalette.body(12))
+                    .foregroundColor(OrganicPalette.inkSoft(colorScheme))
+                    .lineLimit(1)
+            }
+            Spacer(minLength: 4)
+            Image(systemName: "chevron.right")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundColor(OrganicPalette.inkSoft(colorScheme))
+        }
+        .padding(.horizontal, 14)
+        .frame(height: Self.rowHeight)
+        .contentShape(Rectangle())
+    }
+}
+
 // MARK: - Modern Search Result Pin
 
 struct SearchResultPinView: View {
@@ -823,6 +1112,13 @@ struct Triangle: Shape {
 
 #Preview {
     MapView(selectedTab: .constant(2), isSearchExpanded: .constant(false), searchQuery: .constant(""), messagesViewModel: MessagesViewModel())
+}
+
+#Preview("Store Group") {
+    ZStack {
+        OrganicPalette.canvas(.light)
+        StoreGroupIconView(count: 3)
+    }
 }
 
 #Preview("Search Pin") {
