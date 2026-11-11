@@ -3,6 +3,7 @@ import firestore from '@react-native-firebase/firestore';
 import notifee from '@notifee/react-native';
 import {backgroundPreferences} from './backgroundPreferences';
 import {notificationInbox} from './notificationInbox';
+import {proximityMonitor} from './proximityMonitor';
 import {storeLocationService} from './storeLocationService';
 
 /**
@@ -14,12 +15,13 @@ import {storeLocationService} from './storeLocationService';
  * session — after the auth state has already flipped to signed out.
  */
 
-// Device-level flags that are kept. Both are keyed by Auth UID and record only
+// Device-level flags that are kept. All are keyed by Auth UID and record only
 // that this device has walked that account through the permission primers and
 // the tour — nothing about the account itself — so keeping them just stops the
-// same person being shown either again.
+// same person being shown any of them again.
 const KEPT_KEY_PREFIXES = [
   'hasCompletedPermissionOnboarding_auth_',
+  'hasSeenBackgroundLocationPrimer_auth_',
   'hasCompletedTutorial_auth_',
 ];
 
@@ -59,6 +61,9 @@ export async function clearSignedOutUserData(): Promise<void> {
   // Independent of each other: one failing (say, the notification service) must
   // not leave the others undone.
   const results = await Promise.allSettled([
+    // Stops its listeners synchronously, before Firestore is shut down below,
+    // then removes the old account's store geofences so they stop firing.
+    proximityMonitor.clear(),
     clearStorage(),
     clearFirestoreCache(),
     clearNotifications(),
