@@ -13,6 +13,7 @@ import {withLatestAccess} from '../services/subscription';
 import {isSignupInProgress} from '../services/authService';
 import {clearSignedOutUserData} from '../services/sessionCleanup';
 import {notificationInbox} from '../services/notificationInbox';
+import {proximityMonitor} from '../services/proximityMonitor';
 
 // The wipe of the previous account's local data, while it runs. A sign-in that
 // lands mid-wipe waits for it, so the new account never reads through a
@@ -166,6 +167,18 @@ export function SessionProvider({children}: {children: React.ReactNode}) {
         console.warn('Could not save the refreshed push token', error);
       });
     });
+  }, [signedInUserId]);
+
+  // Keep the store geofences behind "You're near <store>" in step with this
+  // account's stores and reminders. Stopping here leaves the geofences running
+  // (they notify while the app is closed); sign-out clears them in
+  // clearSignedOutUserData.
+  useEffect(() => {
+    if (!signedInUserId) {
+      return;
+    }
+    proximityMonitor.start(signedInUserId);
+    return () => proximityMonitor.stop();
   }, [signedInUserId]);
 
   // Keep access current while the app is open. The profile is otherwise read

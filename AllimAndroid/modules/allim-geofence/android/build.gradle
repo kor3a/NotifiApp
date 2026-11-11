@@ -1,0 +1,40 @@
+apply plugin: 'com.android.library'
+
+group = 'expo.modules.allimgeofence'
+version = '1.0.0'
+
+def expoModulesCorePlugin = new File(project(":expo-modules-core").projectDir.absolutePath, "ExpoModulesCorePlugin.gradle")
+apply from: expoModulesCorePlugin
+applyKotlinExpoModulesCorePlugin()
+useCoreDependencies()
+useDefaultAndroidSdkVersions()
+useExpoPublishing()
+
+// Use the same Firebase BoM as @react-native-firebase, so this module and the
+// JS SDK resolve to one copy of firebase-auth (and share the signed-in user).
+def rnfbAppPackage = new groovy.json.JsonSlurper().parseText(
+  new File(rootDir, "../node_modules/@react-native-firebase/app/package.json").text
+)
+def firebaseBomVersion = rnfbAppPackage.sdkVersions.android.firebase
+
+android {
+  namespace "expo.modules.allimgeofence"
+  defaultConfig {
+    versionCode 1
+    versionName '1.0.0'
+  }
+  // firebase-auth is built with Kotlin 2.x and RN 0.76 pins Kotlin 1.9; the
+  // same opt-out plugins/withAllimNativeBuild.js gives :app.
+  kotlinOptions {
+    freeCompilerArgs += ["-Xskip-metadata-version-check"]
+  }
+}
+
+dependencies {
+  implementation platform("com.google.firebase:firebase-bom:${firebaseBomVersion}")
+  implementation 'com.google.firebase:firebase-auth'
+  // Pinned to the version plugins/withAllimNativeBuild.js forces app-wide;
+  // react-native-geolocation-service breaks on 21.1.0+.
+  implementation 'com.google.android.gms:play-services-location:21.0.1'
+  implementation 'androidx.core:core:1.15.0'
+}

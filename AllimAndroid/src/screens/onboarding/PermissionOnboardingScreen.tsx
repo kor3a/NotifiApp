@@ -17,9 +17,11 @@ import {PillButton, profilePalette} from '../profile/profileUi';
 import {BlushIcon} from '../auth/authUi';
 import {
   PermissionStep,
+  requestBackgroundLocationPermission,
   requestLocationPermission,
   requestNotificationPermission,
 } from '../../onboarding/permissionOnboarding';
+import {proximityMonitor} from '../../services/proximityMonitor';
 
 type IconName = React.ComponentProps<typeof Icon>['name'];
 
@@ -60,6 +62,30 @@ const PRIMERS: Record<PermissionStep, PrimerContent> = {
     footnote: 'You can change this any time in Settings.',
     buttonTitle: 'Enable Location',
     request: requestLocationPermission,
+  },
+  backgroundLocation: {
+    icon: 'navigate',
+    title: 'Allow Location All the Time',
+    subtitle:
+      'To remind you as you pass a store — even with Allim closed — Android needs location set to "Allow all the time". Choose it on the next screen.',
+    bullets: [
+      {
+        icon: 'car-outline',
+        title: 'Works while you drive',
+        detail:
+          "Allim only speaks up when you're near a store you saved and there's still something on its list.",
+      },
+      {
+        icon: 'battery-half-outline',
+        title: 'Easy on your battery',
+        detail:
+          "Uses Android's built-in geofencing around your stores instead of tracking you continuously.",
+      },
+    ],
+    footnote:
+      'Keep "Use precise location" on so Allim can tell which store you\'re at. You can change this any time in Settings.',
+    buttonTitle: 'Allow All the Time',
+    request: requestBackgroundLocationPermission,
   },
   notifications: {
     icon: 'notifications',
@@ -137,6 +163,8 @@ export default function PermissionOnboardingScreen({
     } catch (_) {
       // A prompt that fails to show is treated like a decline: move on.
     }
+    // A location answer can turn store-proximity alerts on.
+    proximityMonitor.refresh();
     setIsRequesting(false);
     if (index + 1 < steps.length) {
       setIndex(index + 1);
